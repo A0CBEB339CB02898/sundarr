@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sundarr
+      POSTGRES_USER: sundarr
+      POSTGRES_PASSWORD: sundarr
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  sundarr-api:
+    build:
+      context: .
+    environment:
+      SUNDARR_DATABASE_URL: postgresql://sundarr:sundarr@postgres:5432/sundarr
+      SUNDARR_REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+
+  sundarr-worker:
+    build:
+      context: .
+    environment:
+      SUNDARR_DATABASE_URL: postgresql://sundarr:sundarr@postgres:5432/sundarr
+      SUNDARR_REDIS_URL: redis://redis:6379/0
+    command: ["python", "-m", "sundarr.worker"]
+    depends_on:
+      - postgres
+      - redis
+
+  sundarr-web:
+    build:
+      context: ./web
+      target: dev
+    ports:
+      - "5173:5173"
+    depends_on:
+      - sundarr-api
+
+volumes:
+  postgres-data:
