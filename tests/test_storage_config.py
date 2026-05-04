@@ -133,3 +133,25 @@ def test_save_storage_config_interrupts_running_smb_tasks(db_session: Session) -
     logs = db_session.query(TransferLog).filter(TransferLog.task_id == "task_running").all()
     assert len(logs) == 1
     assert logs[0].event == "storage_config_changed"
+
+
+def test_storage_browse_requires_config(db_session: Session) -> None:
+    client = make_client(db_session)
+
+    response = client.get("/storage/browse", params={"path": "Movies"})
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "存储配置不存在。"
+
+
+def test_storage_browse_rejects_path_outside_root(db_session: Session) -> None:
+    client = make_client(db_session)
+    client.post(
+        "/storage/config/save",
+        json={"host": "fnos.local", "share": "media", "username": "user", "password": "secret"},
+    )
+
+    response = client.get("/storage/browse", params={"path": "../outside"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "SMB 路径超出允许范围。"

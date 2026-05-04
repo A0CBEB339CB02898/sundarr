@@ -4,7 +4,14 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from sundarr.app.models import Setting, TransferLog, TransferTask
-from sundarr.app.schemas.storage import StorageConfigRequest, StorageConfigResponse, StorageConfigTestResponse
+from sundarr.app.schemas.storage import (
+    StorageBrowseEntry,
+    StorageBrowseResponse,
+    StorageConfigRequest,
+    StorageConfigResponse,
+    StorageConfigTestResponse,
+)
+from sundarr.app.storage import SmbConfig, SmbWriter
 
 STORAGE_CONFIG_KEY = "storage.smb"
 RUNNING_TRANSFER_STATUSES = {
@@ -51,6 +58,17 @@ class StorageConfigService:
         except ValueError as exc:
             return StorageConfigTestResponse(ok=False, error_code=str(exc), error_message=self._message_for_error(str(exc)))
         return StorageConfigTestResponse(ok=True)
+
+    async def browse(self, db: Session, path: str) -> StorageBrowseResponse:
+        setting = db.get(Setting, STORAGE_CONFIG_KEY)
+        if setting is None:
+            raise ValueError("STORAGE_CONFIG_MISSING")
+        writer = SmbWriter(SmbConfig.from_dict(setting.value_json))
+        entries = await writer.list_dir(path)
+        return StorageBrowseResponse(
+            path=path,
+            entries=[StorageBrowseEntry(**entry) for entry in entries],
+        )
 
     def _validate_value(self, value: dict[str, Any]) -> None:
         if value.get("type") != "smb":
@@ -102,8 +120,11 @@ class StorageConfigService:
 
     def _message_for_error(self, error_code: str) -> str:
         messages = {
+            "STORAGE_CONFIG_MISSING": "存储配置不存在。",
             "STORAGE_CONFIG_INVALID": "存储配置无效。",
+            "SMB_CLIENT_NOT_INSTALLED": "SMB 客户端依赖未安装，暂不能连接真实 SMB。",
             "SMB_PATH_INVALID": "SMB 路径配置无效。",
+            "SMB_PATH_OUTSIDE_ROOT": "SMB 路径超出允许范围。",
         }
         return messages.get(error_code, "存储配置测试失败。")
 

@@ -77,6 +77,22 @@ class SmbWriter(StorageWriter):
         elif smbclient.path.exists(target):
             smbclient.remove(target)
 
+    async def list_dir(self, path: str) -> list[dict[str, object]]:
+        target = self._build_unc_path(path)
+        smbclient = self._require_smbclient()
+        entries: list[dict[str, object]] = []
+        for entry in smbclient.scandir(target):
+            child_path = "/".join([*self._safe_parts(path), entry.name])
+            entries.append(
+                {
+                    "name": entry.name,
+                    "path": child_path,
+                    "is_dir": entry.is_dir(),
+                    "size": None if entry.is_dir() else int(entry.stat().st_size),
+                }
+            )
+        return entries
+
     def _build_unc_path(self, path: str) -> str:
         parts = [*self._base_parts, *self._safe_parts(path)]
         suffix = "\\".join(parts)

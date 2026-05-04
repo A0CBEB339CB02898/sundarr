@@ -31,3 +31,15 @@ class StorageConfigTestResponse(BaseModel):
     ok: bool
     error_code: str | None = None
     error_message: str | None = None
+
+
+class StorageBrowseEntry(BaseModel):
+    name: str
+    path: str
+    is_dir: bool
+    size: int | None = None
+
+
+class StorageBrowseResponse(BaseModel):
+    path: str
+    entries: list[StorageBrowseEntry] = Field(default_factory=list)
