@@ -7,6 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY pyproject.toml ./
 COPY sundarr ./sundarr
+COPY alembic.ini ./
+COPY migrations ./migrations
 
 RUN pip install --no-cache-dir .
 

@@ -31,6 +31,8 @@ Redis 只做缓存和实时进度辅助。
 ```text
 id TEXT PRIMARY KEY
 name TEXT NOT NULL
+type TEXT NOT NULL
+enabled BOOLEAN NOT NULL DEFAULT TRUE
 legal_note TEXT
 trust_level INTEGER NOT NULL DEFAULT 1
 created_by_user BOOLEAN NOT NULL DEFAULT TRUE
@@ -186,6 +188,7 @@ task_id TEXT NOT NULL
 level TEXT NOT NULL
 event TEXT NOT NULL
 message TEXT
+data_json JSONB
 created_at TIMESTAMP NOT NULL
 ```
 

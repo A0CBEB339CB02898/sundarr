@@ -43,7 +43,7 @@ app:
   port: 8080
 
 database:
-  url: postgresql://sundarr:sundarr@postgres:5432/sundarr
+  url: postgresql+psycopg://sundarr:sundarr@postgres:5432/sundarr
 
 redis:
   url: redis://redis:6379/0
