@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 
 from sundarr.app.core.database import Base
@@ -44,7 +45,7 @@ def test_sources_table_matches_required_columns() -> None:
 def test_runtime_settings_use_jsonb() -> None:
     value_column = Base.metadata.tables["settings"].columns["value_json"]
 
-    assert isinstance(value_column.type, JSONB)
+    assert isinstance(value_column.type.dialect_impl(postgresql.dialect()), JSONB)
 
 
 def test_initial_migration_exists() -> None:

@@ -2,10 +2,13 @@ from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from sundarr.app.main import create_app
+from sundarr.app.core.database import get_db
 from sundarr.app.parsers import extract_cloud_links
 from sundarr.app.schemas.search import RawSearchItem, SearchQuery
+from sundarr.app.services.resource_library_service import ResourceLibraryService
 from sundarr.app.services.search_service import SearchService
 from sundarr.app.sources import BaseSource
 
@@ -58,8 +61,14 @@ async def test_search_service_isolates_source_failure() -> None:
     assert response.results[0].links[0].code == "abcd"
 
 
-def test_search_api_returns_candidates() -> None:
-    client = TestClient(create_app())
+def test_search_api_returns_candidates(db_session: Session) -> None:
+    app = create_app()
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
 
     response = client.get("/search", params={"q": "interstellar", "type": "movie", "year": 2014})
 
@@ -69,8 +78,28 @@ def test_search_api_returns_candidates() -> None:
     assert body["results"][0]["links"][0]["provider"] == "quark"
 
 
-def test_resource_api_returns_last_search_result() -> None:
-    client = TestClient(create_app())
+@pytest.mark.anyio
+async def test_resource_library_persists_candidates(db_session: Session) -> None:
+    service = SearchService(sources=[StaticSource()])
+    library = ResourceLibraryService()
+
+    response = await service.search(SearchQuery(keyword="星际穿越", year=2014))
+    library.save_candidates(db_session, response.results)
+    stored = library.get_resource(db_session, response.results[0].id)
+
+    assert stored is not None
+    assert stored.id == response.results[0].id
+    assert stored.links[0].code == "abcd"
+
+
+def test_resource_api_reads_from_database(db_session: Session) -> None:
+    app = create_app()
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
     search_response = client.get("/search", params={"q": "interstellar"})
     resource_id = search_response.json()["results"][0]["id"]
 

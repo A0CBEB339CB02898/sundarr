@@ -1,14 +1,16 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
+from sundarr.app.core.database import get_db
 from sundarr.app.schemas.search import ResourceCandidate
-from sundarr.app.services.search_service import search_service
+from sundarr.app.services.resource_library_service import resource_library_service
 
 router = APIRouter(tags=["resources"])
 
 
 @router.get("/resources/{resource_id}", response_model=ResourceCandidate)
-async def get_resource(resource_id: str) -> ResourceCandidate:
-    resource = search_service.get_resource(resource_id)
+async def get_resource(resource_id: str, db: Session = Depends(get_db)) -> ResourceCandidate:
+    resource = resource_library_service.get_resource(db, resource_id)
     if resource is None:
-        raise HTTPException(status_code=404, detail="资源不存在或尚未通过搜索入库。")
+        raise HTTPException(status_code=404, detail="资源不存在。")
     return resource

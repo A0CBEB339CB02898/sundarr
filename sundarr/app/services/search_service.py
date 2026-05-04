@@ -20,18 +20,13 @@ YEAR_PATTERN = re.compile(r"\b(19\d{2}|20\d{2})\b")
 class SearchService:
     def __init__(self, sources: Iterable[BaseSource] | None = None) -> None:
         self.sources = list(sources) if sources is not None else [ExampleSource()]
-        self._resource_cache: dict[str, ResourceCandidate] = {}
 
     async def search(self, query: SearchQuery) -> SearchResponse:
         raw_items = await self._collect_raw_items(query)
         candidates = [self._normalize(item, query) for item in raw_items]
         deduped = self._dedupe(candidates)
         ranked = sorted(deduped, key=lambda item: item.score, reverse=True)[: query.limit]
-        self._resource_cache.update({item.id: item for item in ranked})
         return SearchResponse(query=query.keyword, count=len(ranked), results=ranked)
-
-    def get_resource(self, resource_id: str) -> ResourceCandidate | None:
-        return self._resource_cache.get(resource_id)
 
     async def _collect_raw_items(self, query: SearchQuery) -> list[RawSearchItem]:
         enabled_sources = [source for source in self.sources if source.enabled]

@@ -2,11 +2,11 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sundarr.app.core.database import Base
 from sundarr.app.models.mixins import TimestampMixin
+from sundarr.app.models.types import JsonObject
 
 
 class TransferTask(TimestampMixin, Base):
@@ -21,7 +21,7 @@ class TransferTask(TimestampMixin, Base):
     target_type: Mapped[str] = mapped_column(Text, nullable=False)
     target_library: Mapped[str | None] = mapped_column(Text)
     target_path: Mapped[str] = mapped_column(Text, nullable=False)
-    storage_config_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    storage_config_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JsonObject)
     total_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
     done_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
     speed_bytes_per_sec: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
@@ -58,7 +58,7 @@ class TransferLog(Base):
     level: Mapped[str] = mapped_column(Text, nullable=False)
     event: Mapped[str] = mapped_column(Text, nullable=False)
     message: Mapped[str | None] = mapped_column(Text)
-    data_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    data_json: Mapped[dict[str, Any] | None] = mapped_column(JsonObject)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

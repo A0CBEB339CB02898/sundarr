@@ -3,11 +3,11 @@ from typing import Any
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, Text
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sundarr.app.core.database import Base
 from sundarr.app.models.mixins import TimestampMixin
+from sundarr.app.models.types import JsonObject
 
 
 class Resource(TimestampMixin, Base):
@@ -27,7 +27,7 @@ class Resource(TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text)
     poster: Mapped[str | None] = mapped_column(Text)
     score: Mapped[float] = mapped_column(Float, nullable=False, default=0, server_default="0")
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JsonObject)
 
 
 class ResourceLink(TimestampMixin, Base):
