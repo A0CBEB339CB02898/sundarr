@@ -34,6 +34,24 @@ LocalWriter
 
 ---
 
+## 1.1 当前实现边界
+
+截至 2026-05-05，Phase 4 当前实现边界如下：
+
+```text
+StorageWriter 接口已落地。
+LocalWriter 已支持 exists / size / mkdirs / open_append / rename / remove，并有自动化测试。
+SmbWriter 已实现 UNC 路径构造、安全路径防护、目录浏览/写入/size/rename 的 smbclient 调用边界。
+当前 pyproject.toml 尚未引入 smbclient 依赖，自动化测试不连接真实 SMB 服务器。
+POST /storage/config/test 当前只做配置结构和路径合法性验证，不代表真实 SMB 连接已成功。
+GET /storage/browse 已接入 SmbWriter.list_dir，但在缺少 smbclient 或真实 SMB 环境时会返回对应错误。
+STORAGE_CONFIG_CHANGED 中断运行中 SMB 任务的数据库状态规则已有测试覆盖。
+```
+
+因此 Phase 4 尚未完全关闭。关闭前必须补齐真实 SMB 客户端依赖选择、连接测试边界，以及真实或 mock 明确覆盖的写入、size、rename 行为。
+
+---
+
 ## 2. StorageWriter 接口
 
 ```python
@@ -247,7 +265,7 @@ GET  /storage/browse?path=Movies
 ```text
 GET 不返回 password 明文。
 POST /storage/config/save 中 password 为空表示保留旧值。
-POST /storage/config/test 使用当前提交配置测试连接。
+POST /storage/config/test 当前先验证配置结构和路径合法性；真实 SMB 连接测试在 SmbWriter 客户端依赖确定后补齐。
 GET /storage/browse 只能浏览允许范围内路径。
 ```
 
@@ -264,6 +282,7 @@ SMB_CONNECT_FAILED
 SMB_AUTH_FAILED
 SMB_PATH_INVALID
 SMB_PATH_OUTSIDE_ROOT
+SMB_CLIENT_NOT_INSTALLED
 SMB_NO_SPACE
 SMB_WRITE_FAILED
 SMB_RENAME_FAILED

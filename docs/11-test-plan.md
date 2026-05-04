@@ -102,6 +102,15 @@ SMB config hot reload
 STORAGE_CONFIG_CHANGED interrupts running task
 ```
 
+当前覆盖状态：
+
+```text
+LocalWriter exists / size / open_append / rename / remove guard 已覆盖。
+SmbWriter 目前覆盖安全路径、UNC 构造和缺少客户端依赖错误。
+Storage config 已覆盖 password 不回显、空 password 保留、路径校验、配置变更中断运行中任务。
+真实 SMB 连接、真实目录浏览、真实写入、真实 size、真实 rename 尚未在自动化测试中覆盖。
+```
+
 ---
 
 ## 6. Transfer 状态机测试

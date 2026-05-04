@@ -34,6 +34,26 @@ MVP 的目标是先跑通端到端闭环：
 
 ---
 
+## 当前实现状态
+
+截至 2026-05-05，本项目阶段状态如下：
+
+```text
+Phase 0 Project Skeleton: 已完成。
+Phase 1 Persistence Models: 已完成。
+Phase 2 Search And Resource Library: 已完成。
+Phase 3 Cloud Staging: 已完成。
+Phase 4 Storage Writer: 进行中，已完成 LocalWriter、Storage 配置 API、目录浏览 API、STORAGE_CONFIG_CHANGED 中断规则和 SmbWriter 安全边界；真实 SMB 客户端连接测试、真实写入、真实 size、真实 rename 尚未完全闭合。
+Phase 5 Transfer Worker: 未正式进入；已提前实现 POST /transfers 和 GET /transfers/{id} 入口，Worker 主链路尚未实现。
+Phase 6 Cleanup And Recovery: 未开始。
+Phase 7 Web Console: 未开始。
+Phase 8 AI Friendly API: 未开始。
+```
+
+后续开发必须先收口 Phase 4，再正式进入 Phase 5。已提前落地的 Phase 5 API 入口可以保留，但不得继续扩展 Phase 5，除非 Phase 4 停止条件已满足或用户明确要求。
+
+---
+
 ## Phase 0: Project Skeleton
 
 目标：建立可启动、可测试的基础项目。

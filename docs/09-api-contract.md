@@ -124,6 +124,13 @@ GET /resources/{resource_id}
 
 ## 6. Transfers
 
+当前实现状态：
+
+```text
+已实现 POST /transfers 和 GET /transfers/{task_id} 的最小入口。
+尚未实现 worker state machine、cancel、retry、logs、progress、eta 和 current_file。
+```
+
 创建任务：
 
 ```http
@@ -134,14 +141,11 @@ POST /transfers
 
 ```json
 {
-  "resource_id": "res_001",
   "link_id": "link_001",
-  "target": {
-    "type": "smb",
-    "library": "movies",
-    "path": "Interstellar (2014)"
-  },
-  "mode": "move_after_verified_download"
+  "mode": "copy",
+  "target_type": "smb",
+  "target_library": "movies",
+  "target_path": "Movies/Interstellar.mkv"
 }
 ```
 
@@ -149,8 +153,21 @@ POST /transfers
 
 ```json
 {
-  "task_id": "task_001",
-  "status": "pending"
+  "id": "task_001",
+  "resource_id": "res_001",
+  "link_id": "link_001",
+  "status": "pending",
+  "mode": "copy",
+  "cloud_staging_path": null,
+  "target_type": "smb",
+  "target_library": "movies",
+  "target_path": "Movies/Interstellar.mkv",
+  "total_bytes": 0,
+  "done_bytes": 0,
+  "error_code": null,
+  "error_message": null,
+  "retryable": null,
+  "retry_count": 0
 }
 ```
 
@@ -164,15 +181,13 @@ GET /transfers/{task_id}
 
 ```json
 {
-  "task_id": "task_001",
+  "id": "task_001",
   "status": "downloading",
-  "progress": 42.6,
   "done_bytes": 5368709120,
   "total_bytes": 12582912000,
-  "speed_bytes_per_sec": 8388608,
-  "eta_seconds": 856,
-  "current_file": "Interstellar.2014.1080p.mkv",
-  "error": null
+  "error_code": null,
+  "error_message": null,
+  "retryable": null
 }
 ```
 
@@ -203,6 +218,7 @@ POST /storage/config/save 保存后热加载 SMB 配置。
 POST /storage/config/save 中 password 为空表示保留旧 password。
 SMB 配置修改必须中断旧配置运行中任务。
 GET /storage/browse 只能浏览允许范围。
+POST /storage/config/test 当前先验证配置结构和路径合法性；真实 SMB 连接测试在 SmbWriter 客户端依赖确定后补齐。
 ```
 
 ---
@@ -226,6 +242,7 @@ SMB_CONNECT_FAILED
 SMB_AUTH_FAILED
 SMB_PATH_INVALID
 SMB_PATH_OUTSIDE_ROOT
+SMB_CLIENT_NOT_INSTALLED
 SMB_NO_SPACE
 SMB_WRITE_FAILED
 SMB_RENAME_FAILED
