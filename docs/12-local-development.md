@@ -107,7 +107,7 @@ MVP 不要求宿主机 SMB mount。
 SmbWriter 可通过 Web Console 或 API 测试连接：
 
 ```text
-POST /settings/storage/test
+POST /storage/config/test
 ```
 
 ---

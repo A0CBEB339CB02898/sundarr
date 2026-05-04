@@ -157,9 +157,9 @@ password 留空表示保留原值。
 API：
 
 ```text
-GET  /settings/storage
-PUT  /settings/storage
-POST /settings/storage/test
+GET  /storage/config
+POST /storage/config/save
+POST /storage/config/test
 GET  /storage/browse
 ```
 
@@ -190,9 +190,9 @@ API：
 
 ```text
 GET  /sources
-POST /sources
+POST /sources/create
 GET  /sources/{source_id}
-PUT  /sources/{source_id}
+POST /sources/{source_id}/update
 POST /sources/{source_id}/enable
 POST /sources/{source_id}/disable
 POST /sources/{source_id}/test

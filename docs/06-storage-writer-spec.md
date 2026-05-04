@@ -236,9 +236,9 @@ retryable = true
 Storage 相关 API：
 
 ```text
-GET  /settings/storage
-PUT  /settings/storage
-POST /settings/storage/test
+GET  /storage/config
+POST /storage/config/save
+POST /storage/config/test
 GET  /storage/browse?path=Movies
 ```
 
@@ -246,8 +246,8 @@ GET  /storage/browse?path=Movies
 
 ```text
 GET 不返回 password 明文。
-PUT 中 password 为空表示保留旧值。
-POST /settings/storage/test 使用当前提交配置测试连接。
+POST /storage/config/save 中 password 为空表示保留旧值。
+POST /storage/config/test 使用当前提交配置测试连接。
 GET /storage/browse 只能浏览允许范围内路径。
 ```
 

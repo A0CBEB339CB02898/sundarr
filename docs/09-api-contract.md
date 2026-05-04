@@ -10,6 +10,14 @@ FastAPI 只作为 API 后端。
 
 响应格式必须稳定，供 Web Console、AI Tool 和 API Client 调用。
 
+MVP API 风格：
+
+```text
+读取使用 GET。
+创建、更新、启用、禁用、测试、取消、重试等修改或动作统一使用 POST。
+MVP 不使用 PUT / PATCH / DELETE。
+```
+
 统一错误响应：
 
 ```json
@@ -47,9 +55,9 @@ GET /health
 
 ```http
 GET /sources
-POST /sources
+POST /sources/create
 GET /sources/{source_id}
-PUT /sources/{source_id}
+POST /sources/{source_id}/update
 POST /sources/{source_id}/enable
 POST /sources/{source_id}/disable
 POST /sources/{source_id}/test
@@ -181,9 +189,9 @@ GET  /transfers/{task_id}/logs
 ## 7. Storage Settings
 
 ```http
-GET  /settings/storage
-PUT  /settings/storage
-POST /settings/storage/test
+GET  /storage/config
+POST /storage/config/save
+POST /storage/config/test
 GET  /storage/browse?path=Movies
 ```
 
@@ -191,8 +199,8 @@ GET  /storage/browse?path=Movies
 
 ```text
 GET 不返回 password 明文，只返回 password_set。
-PUT 保存后热加载 SMB 配置。
-PUT password 为空表示保留旧 password。
+POST /storage/config/save 保存后热加载 SMB 配置。
+POST /storage/config/save 中 password 为空表示保留旧 password。
 SMB 配置修改必须中断旧配置运行中任务。
 GET /storage/browse 只能浏览允许范围。
 ```

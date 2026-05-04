@@ -132,9 +132,9 @@ POST /transfers
 GET /transfers/{id}
 POST /transfers/{id}/cancel
 POST /transfers/{id}/retry
-GET /settings/storage
-PUT /settings/storage
-POST /settings/storage/test
+GET /storage/config
+POST /storage/config/save
+POST /storage/config/test
 GET /storage/browse
 统一错误响应
 ```

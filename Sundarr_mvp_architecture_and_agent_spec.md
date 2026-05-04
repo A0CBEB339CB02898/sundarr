@@ -254,7 +254,7 @@ MVP API：
 ```text
 GET    /health
 GET    /sources
-POST   /sources
+POST   /sources/create
 GET    /search
 GET    /resources
 GET    /resources/{resource_id}
@@ -263,9 +263,9 @@ GET    /transfers/{task_id}
 POST   /transfers/{task_id}/cancel
 POST   /transfers/{task_id}/retry
 GET    /transfers/{task_id}/logs
-GET    /settings/storage
-PUT    /settings/storage
-POST   /settings/storage/test
+GET    /storage/config
+POST   /storage/config/save
+POST   /storage/config/test
 GET    /storage/browse
 ```
 
@@ -1060,27 +1060,27 @@ POST /transfers/{task_id}/retry
 ### 9.8 Storage Settings
 
 ```http
-GET /settings/storage
-PUT /settings/storage
-POST /settings/storage/test
+GET /storage/config
+POST /storage/config/save
+POST /storage/config/test
 GET /storage/browse?path=Movies
 ```
 
 规则：
 
-1. `GET /settings/storage` 不返回 password 明文，只返回 `password_set`。
-2. `PUT /settings/storage` 保存后必须热加载 SMB 配置。
+1. `GET /storage/config` 不返回 password 明文，只返回 `password_set`。
+2. `POST /storage/config/save` 保存后必须热加载 SMB 配置。
 3. 修改 SMB 配置必须中断使用旧配置的运行中任务，错误码为 `STORAGE_CONFIG_CHANGED`。
-4. `POST /settings/storage/test` 使用最新提交的配置测试 SMB 连接。
+4. `POST /storage/config/test` 使用最新提交的配置测试 SMB 连接。
 5. `GET /storage/browse` 只允许浏览 SMB base path 或 library 目录下的路径。
 
 ### 9.9 Source Settings
 
 ```http
 GET  /sources
-POST /sources
+POST /sources/create
 GET  /sources/{source_id}
-PUT  /sources/{source_id}
+POST /sources/{source_id}/update
 POST /sources/{source_id}/enable
 POST /sources/{source_id}/disable
 POST /sources/{source_id}/test
