@@ -27,7 +27,10 @@ MVP 的目标是先跑通端到端闭环：
 先规则和用户确认，后模型辅助。
 先核心控制台，后完整媒体库 UI。
 每个阶段必须可测试。
+每个阶段都必须有明确停止条件。
 ```
+
+停止条件用于判断“做到这里可以暂停、提交、切换任务或等待用户验收”。满足停止条件不代表该阶段所有增强项都完成，只代表当前交付单元已经闭合，不会留下不可验证的半成品。
 
 ---
 
@@ -69,6 +72,16 @@ GET /health 返回正常。
 pytest smoke test 通过。
 ```
 
+停止条件：
+
+```text
+项目可以被 clone 后安装依赖。
+后端 /health smoke test 通过。
+前端 npm run build 通过。
+基础 Docker Compose 配置存在，无法运行时需说明环境原因。
+工作区已提交或明确说明不提交原因。
+```
+
 ---
 
 ## Phase 1: Persistence Models
@@ -96,6 +109,16 @@ database session management
 核心表可创建。
 基础 repository 或 service 可读写测试数据。
 状态字段和错误字段存在。
+```
+
+停止条件：
+
+```text
+SQLAlchemy 模型覆盖 docs/08-data-model.md 的核心表。
+Alembic 初始迁移存在，并可通过离线迁移校验。
+模型测试通过。
+数据库 URL、依赖和 Docker 配置已同步。
+工作区已提交或明确说明不提交原因。
 ```
 
 ---
@@ -130,6 +153,27 @@ RawSearchItem 输出格式统一。
 重复资源可基础合并。
 ```
 
+停止条件：
+
+```text
+BaseSource / SearchQuery / RawSearchItem 已落地。
+至少一个示例 source 可通过 /search 返回候选结果。
+Cloud Link Extractor 至少支持一个 provider 的链接和提取码识别。
+搜索结果可持久化到 resources / resource_links。
+/resources/{id} 可从数据库读取资源详情。
+source 失败隔离有测试覆盖。
+pytest 通过。
+工作区已提交或明确说明不提交原因。
+```
+
+阶段内可拆分停止点：
+
+```text
+停止点 2A：Source Adapter 框架 + 示例源 + /search 可用。
+停止点 2B：Resource Library 持久化 + /resources/{id} 数据库读取可用。
+停止点 2C：sources 管理 API 可用，包括列表、新增、编辑、启用、禁用、测试。
+```
+
 ---
 
 ## Phase 3: Cloud Staging
@@ -154,6 +198,17 @@ delete with safe path guard
 可以列出 staging 文件。
 可以从 mock/local 文件流式读取。
 只能删除允许的 staging path。
+```
+
+停止条件：
+
+```text
+CloudProvider 接口已落地。
+Mock/Local Provider 可完成 save_share / list_files / open_file_stream / delete。
+delete 有 staging path guard 测试。
+不依赖真实网盘即可跑通 provider 测试。
+pytest 通过。
+工作区已提交或明确说明不提交原因。
 ```
 
 ---
@@ -187,6 +242,18 @@ SMB 配置修改不需要重启。
 SMB 配置修改会中断使用旧配置的运行中任务。
 ```
 
+停止条件：
+
+```text
+StorageWriter 接口已落地。
+LocalWriter 有自动化测试覆盖。
+SmbWriter 至少完成连接测试、目录浏览、写入、size、rename 的实现或明确 mock 边界。
+SMB 配置保存到 settings，并支持热加载。
+STORAGE_CONFIG_CHANGED 中断规则有测试覆盖。
+pytest 通过；前端如有改动则 npm run build 通过。
+工作区已提交或明确说明不提交原因。
+```
+
 ---
 
 ## Phase 5: Transfer Worker
@@ -216,6 +283,18 @@ Worker 可以从 cloud stream 写入 StorageWriter。
 失败时记录 error_code、error_message、retryable。
 ```
 
+停止条件：
+
+```text
+POST /transfers 可创建任务。
+Worker 可使用 Mock/Local Provider + LocalWriter 跑通下载到 .downloading。
+GET /transfers/{id} 可查询状态和进度。
+大小校验和 rename 有测试覆盖。
+失败路径记录 error_code / error_message / retryable。
+pytest 通过。
+工作区已提交或明确说明不提交原因。
+```
+
 ---
 
 ## Phase 6: Cleanup And Recovery
@@ -241,6 +320,17 @@ cleanup logs
 cleanup 失败不删除本地已完成文件。
 cancel downloading 会保留 .downloading。
 retry 使用最新 SMB 配置。
+```
+
+停止条件：
+
+```text
+cancel / retry API 可用。
+cleanup 前置条件严格执行。
+worker startup recovery 有保守恢复策略。
+校验失败、cleanup 失败、取消下载、重试任务均有测试覆盖。
+pytest 通过。
+工作区已提交或明确说明不提交原因。
 ```
 
 ---
@@ -274,6 +364,18 @@ running task interruption notice for STORAGE_CONFIG_CHANGED
 SMB 配置变更导致任务中断时，前端有明确提示。
 ```
 
+停止条件：
+
+```text
+Web Console 可启动并完成 npm run build。
+搜索页、任务页、Storage 设置页、Sources 设置页具备最小可用交互。
+SMB password 不回显明文。
+STORAGE_CONFIG_CHANGED 有明确前端提示。
+前端不包含登录、多用户、完整媒体库 UI。
+前端构建通过；涉及后端 API 时 pytest 也必须通过。
+工作区已提交或明确说明不提交原因。
+```
+
 ---
 
 ## Phase 8: AI Friendly API
@@ -299,6 +401,17 @@ AI 可以查询任务状态。
 AI 不需要直接抓网页或操作 NAS。
 ```
 
+停止条件：
+
+```text
+AI Tool API 文档和实际 API 字段一致。
+search_media / get_resource / create_transfer / get_transfer_status 等工具式接口可被调用或有明确映射。
+低置信度候选和目标路径会返回 user_action_required 或等价字段。
+AI 不需要接触网页抓取、SMB 凭据或 NAS 文件操作。
+pytest 通过。
+工作区已提交或明确说明不提交原因。
+```
+
 ---
 
 ## 阶段完成规则
@@ -313,3 +426,12 @@ AI 不需要直接抓网页或操作 NAS。
 ```
 
 不得因为后续阶段需求，提前引入大范围无关实现。
+
+如果一个 Phase 较大，可以按“阶段内可拆分停止点”暂停。暂停前必须满足：
+
+```text
+当前停止点有独立测试。
+当前停止点没有已知失败测试。
+文档已说明未完成的后续停止点。
+Git 工作区已提交或明确说明不提交原因。
+```
