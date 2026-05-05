@@ -43,10 +43,10 @@ app:
   port: 8080
 
 database:
-  url: postgresql+psycopg://sundarr:sundarr@postgres:5432/sundarr
+  url: postgresql+psycopg://sundarr:change_me@postgres:5432/sundarr
 
 redis:
-  url: redis://redis:6379/0
+  url: redis://:change_me@redis:6379/0
 
 cloud:
   staging_root: /Sundarr/_staging
@@ -58,6 +58,74 @@ cloud:
 database.url 和 redis.url 属于启动配置。
 修改启动配置通常需要重启。
 ```
+
+密码位置：
+
+```text
+PostgreSQL 密码写在 SUNDARR_DATABASE_URL 中：
+postgresql+psycopg://用户名:密码@主机:端口/数据库名
+
+Redis 无密码写法：
+redis://主机:端口/数据库编号
+
+Redis 有密码写法：
+redis://:密码@主机:端口/数据库编号
+```
+
+示例：
+
+```env
+SUNDARR_DATABASE_URL=postgresql+psycopg://sundarr:change_me@postgres:5432/sundarr
+SUNDARR_REDIS_URL=redis://:change_me@redis:6379/0
+```
+
+如果 Redis 不设置密码：
+
+```env
+SUNDARR_REDIS_URL=redis://redis:6379/0
+```
+
+Docker Compose 中的 PostgreSQL 初始密码由 `POSTGRES_PASSWORD` 提供，必须和 `SUNDARR_DATABASE_URL` 中的密码一致。Redis 密码通常通过启动命令或配置文件启用，例如 `redis-server --requirepass change_me`，并同步写入 `SUNDARR_REDIS_URL`。
+
+---
+
+## 2.1 Docker Compose 部署配置
+
+成熟部署方式应提供完整 Docker Compose，而不是要求用户在宿主机安装 PostgreSQL 和 Redis。
+
+Compose 应包含：
+
+```text
+sundarr-api
+sundarr-worker
+sundarr-web
+postgres
+redis
+数据库迁移/初始化步骤
+持久化 volumes
+```
+
+部署原则：
+
+```text
+API / Worker / Web 打包为 Sundarr 应用镜像。
+PostgreSQL 使用官方 postgres 镜像，不打进 Sundarr 应用镜像。
+Redis 使用官方 redis 镜像，不打进 Sundarr 应用镜像。
+数据库和 Redis 通过 Docker network 内部服务名访问，例如 postgres / redis。
+PostgreSQL 数据目录必须挂载 volume。
+Redis 如承载重要队列或缓存，可按后续需要挂载 volume。
+```
+
+首次启动数据库初始化策略：
+
+```text
+postgres 容器负责创建空数据库、用户和初始密码。
+Sundarr 必须在 API/Worker 正式运行前执行 alembic upgrade head。
+推荐使用单独的一次性 migration service 执行迁移。
+API 和 Worker 应依赖 migration 成功完成后再启动。
+```
+
+不推荐把数据库文件或 Redis 数据打入应用镜像。镜像应保持无状态，数据由 volume 保存。
 
 ---
 

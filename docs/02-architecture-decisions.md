@@ -138,6 +138,38 @@ transfer_tasks 和 transfer_files 状态必须持久化到 PostgreSQL。
 
 ---
 
+## ADR-005.1: 使用 Docker Compose 交付基础依赖
+
+状态：已确认。
+
+决策：
+
+```text
+成熟部署形态使用完整 Docker Compose。
+Compose 包含 Sundarr API、Worker、Web、PostgreSQL、Redis 和数据库迁移步骤。
+PostgreSQL 和 Redis 不打入 Sundarr 应用镜像，而是作为独立服务运行。
+首次启动时必须自动执行 Alembic 数据库迁移。
+```
+
+理由：
+
+```text
+用户不希望在本机直接安装 PostgreSQL 和 Redis。
+Docker Compose 更容易在 Linux 机器、NAS 或小主机上部署和复现。
+应用镜像保持无状态，数据库和缓存数据通过 volume 持久化。
+数据库初始化由 Compose 编排，减少手动执行迁移导致的遗漏。
+```
+
+约束：
+
+```text
+开发测试可以使用远程 Linux Docker 机器承载 PostgreSQL 和 Redis。
+默认自动化测试仍不依赖真实 PostgreSQL / Redis。
+真实部署时数据库密码和 Redis 密码通过环境变量或 secret 注入，不写入镜像。
+```
+
+---
+
 ## ADR-006: 不实现 MVP 权限系统
 
 状态：已确认。

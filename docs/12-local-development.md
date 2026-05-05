@@ -91,6 +91,63 @@ redis
 
 MVP 不要求宿主机 SMB mount。
 
+开发机不想安装 PostgreSQL / Redis 时，推荐使用 Docker 或远程 Linux Docker 机器运行依赖服务。Windows 本机只运行 API/Web 开发进程即可。
+
+远程 Linux Docker 机器示例：
+
+```text
+Linux Docker 机器运行 postgres / redis。
+Windows 开发机通过局域网 IP 连接 PostgreSQL / Redis。
+Windows 开发机 .env 中填写远程连接 URL。
+```
+
+Windows 本机 `.env` 示例：
+
+```env
+SUNDARR_DATABASE_URL=postgresql+psycopg://sundarr:change_me@192.168.1.50:5432/sundarr
+SUNDARR_REDIS_URL=redis://:change_me@192.168.1.50:6379/0
+```
+
+如果 Redis 没有密码：
+
+```env
+SUNDARR_REDIS_URL=redis://192.168.1.50:6379/0
+```
+
+完整部署时，成熟做法是将 Sundarr 交付为完整 Docker Compose：
+
+```text
+sundarr-api: Sundarr API 镜像。
+sundarr-worker: Sundarr Worker 镜像。
+sundarr-web: Web Console 镜像。
+postgres: 官方 PostgreSQL 镜像。
+redis: 官方 Redis 镜像。
+sundarr-migrate: 一次性迁移任务，执行 alembic upgrade head。
+```
+
+数据库初始化规则：
+
+```text
+postgres 容器用 POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD 创建初始数据库。
+sundarr-migrate 等待 postgres 可用后执行 alembic upgrade head。
+sundarr-api 和 sundarr-worker 在 migration 成功后启动。
+PostgreSQL 和 Redis 数据通过 Docker volume 持久化。
+```
+
+数据库密码位置：
+
+```text
+postgres 容器：POSTGRES_PASSWORD
+Sundarr API / Worker：SUNDARR_DATABASE_URL 中的 密码 部分
+```
+
+Redis 密码位置：
+
+```text
+redis 容器：redis-server --requirepass change_me 或等价配置
+Sundarr API / Worker：SUNDARR_REDIS_URL=redis://:change_me@redis:6379/0
+```
+
 ---
 
 ## 6. Mock/Local Provider
