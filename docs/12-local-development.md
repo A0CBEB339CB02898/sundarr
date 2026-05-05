@@ -40,20 +40,30 @@ sundarr/
 推荐命令：
 
 ```bash
-.venv\Scripts\python -m sundarr.app.cli
+.venv\Scripts\sundarr start
 ```
 
-如果已重新安装 editable 包，也可以使用脚本入口：
+查看状态、重启和停止：
 
 ```bash
-.venv\Scripts\sundarr-api
+.venv\Scripts\sundarr status
+.venv\Scripts\sundarr restart
+.venv\Scripts\sundarr stop
+```
+
+前台运行，适合直接看实时日志：
+
+```bash
+.venv\Scripts\sundarr run
 ```
 
 可选参数：
 
 ```bash
-.venv\Scripts\python -m sundarr.app.cli --host 127.0.0.1 --port 8080 --no-reload
+.venv\Scripts\sundarr start --host 127.0.0.1 --port 8080 --reload
 ```
+
+后台启动日志写入 `.sundarr/sundarr-api.log`。
 
 FastAPI 调试入口：
 

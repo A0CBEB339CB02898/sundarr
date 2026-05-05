@@ -49,6 +49,7 @@ tmp/
 temp/
 
 # Sundarr local runtime
+.sundarr/
 downloads/
 staging/
 *.downloading

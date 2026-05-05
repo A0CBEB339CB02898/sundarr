@@ -32,13 +32,15 @@ python -m venv .venv
 启动 API：
 
 ```bash
-.venv\Scripts\python -m sundarr.app.cli
+.venv\Scripts\sundarr start
 ```
 
-如果已重新安装 editable 包，也可以使用命令入口：
+查看状态、重启和停止：
 
 ```bash
-.venv\Scripts\sundarr-api
+.venv\Scripts\sundarr status
+.venv\Scripts\sundarr restart
+.venv\Scripts\sundarr stop
 ```
 
 启动后访问 `http://localhost:8080/docs`。

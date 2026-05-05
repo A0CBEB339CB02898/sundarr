@@ -14,6 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
+sundarr = "sundarr.app.cli:main"
 sundarr-api = "sundarr.app.cli:main"
 
 [project.optional-dependencies]
