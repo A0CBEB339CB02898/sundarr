@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from redis import Redis
 from sqlalchemy import text
 
 from sundarr.app.api.health import router as health_router
@@ -31,6 +32,11 @@ def create_app() -> FastAPI:
             logger.info("数据库连接状态：ok")
         except Exception as exc:
             logger.error("数据库连接状态：error，原因：%s", exc)
+        try:
+            Redis.from_url(settings.redis_url, socket_connect_timeout=2, socket_timeout=2).ping()
+            logger.info("Redis 连接状态：ok")
+        except Exception as exc:
+            logger.error("Redis 连接状态：error，原因：%s", exc)
         yield
 
     app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
