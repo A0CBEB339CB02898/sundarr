@@ -110,6 +110,39 @@ SmbWriter 可通过 Web Console 或 API 测试连接：
 POST /storage/config/test
 ```
 
+如果准备了真实 SMB 环境，当前应通过运行时配置写入，而不是写入 `.env`：
+
+```http
+POST /storage/config/save
+```
+
+推荐使用 FastAPI 调试页面：
+
+```text
+http://localhost:8080/docs
+```
+
+请求体示例：
+
+```json
+{
+  "host": "fnos.local",
+  "port": 445,
+  "share": "media",
+  "username": "your_user",
+  "password": "your_password",
+  "domain": "",
+  "base_path": "/SundarrTest",
+  "libraries": {
+    "movies": "Movies",
+    "tv": "TV",
+    "anime": "Anime"
+  }
+}
+```
+
+`.env.example` 中的 `SUNDARR_DEV_SMB_*` 只用于记录本地手动测试所需字段，不是当前应用读取 SMB 配置的事实来源。真实 `.env` 不要提交。
+
 ---
 
 ## 8. 运行测试

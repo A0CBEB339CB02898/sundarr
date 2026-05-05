@@ -76,6 +76,14 @@ source configuration
 
 运行时配置可以由 Web Console 修改。
 
+开发阶段也可以直接通过 API 写入运行时配置：
+
+```http
+POST /storage/config/save
+```
+
+不建议直接手工修改数据库，除非是在排查 settings 表持久化问题。
+
 ---
 
 ## 4. SMB 配置
@@ -106,7 +114,45 @@ password 不回显明文。
 password 留空表示保留旧值。
 保存 SMB 配置后必须热加载。
 保存 SMB 配置会中断使用旧配置的运行中任务。
+真实 SMB 可用于本地手动开发测试。
+自动化测试仍不得依赖真实 SMB 服务器。
 ```
+
+本地手动测试时，推荐先准备以下信息：
+
+```text
+host: SMB 主机，例如 fnos.local 或 192.168.1.10
+port: 通常是 445
+share: SMB 共享名，例如 media
+username: SMB 用户名
+password: SMB 密码
+domain: 可为空
+base_path: Sundarr 可写入的共享内相对根路径，例如 / 或 /SundarrTest
+libraries: movies / tv / anime 等媒体目录映射
+```
+
+可以通过 FastAPI `/docs` 或命令行提交配置。示例：
+
+```bash
+curl -X POST http://localhost:8080/storage/config/save \
+  -H "Content-Type: application/json" \
+  -d '{
+    "host": "fnos.local",
+    "port": 445,
+    "share": "media",
+    "username": "your_user",
+    "password": "your_password",
+    "domain": "",
+    "base_path": "/SundarrTest",
+    "libraries": {
+      "movies": "Movies",
+      "tv": "TV",
+      "anime": "Anime"
+    }
+  }'
+```
+
+不要把真实密码写入项目文档、测试文件、提交信息或 `.env.example`。
 
 ---
 
