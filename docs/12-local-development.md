@@ -37,13 +37,23 @@ sundarr/
 
 ## 3. 启动后端
 
-示例命令：
+推荐命令：
 
 ```bash
-uvicorn sundarr.app.main:app --reload
+.venv\Scripts\python -m sundarr.app.cli
 ```
 
-实际命令以后端项目结构为准。
+如果已重新安装 editable 包，也可以使用脚本入口：
+
+```bash
+.venv\Scripts\sundarr-api
+```
+
+可选参数：
+
+```bash
+.venv\Scripts\python -m sundarr.app.cli --host 127.0.0.1 --port 8080 --no-reload
+```
 
 FastAPI 调试入口：
 

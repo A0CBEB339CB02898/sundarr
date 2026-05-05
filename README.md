@@ -32,8 +32,16 @@ python -m venv .venv
 启动 API：
 
 ```bash
-.venv\Scripts\python -m uvicorn sundarr.app.main:app --host 0.0.0.0 --port 8080 --reload
+.venv\Scripts\python -m sundarr.app.cli
 ```
+
+如果已重新安装 editable 包，也可以使用命令入口：
+
+```bash
+.venv\Scripts\sundarr-api
+```
+
+启动后访问 `http://localhost:8080/docs`。
 
 安装和构建前端：
 
