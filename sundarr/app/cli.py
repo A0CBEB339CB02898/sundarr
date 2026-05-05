@@ -8,6 +8,8 @@ from pathlib import Path
 
 import uvicorn
 
+from sundarr.app.db_admin import initialize_database
+
 RUNTIME_DIR = Path(".sundarr")
 PID_FILE = RUNTIME_DIR / "sundarr-api.pid"
 LOG_FILE = RUNTIME_DIR / "sundarr-api.log"
@@ -30,6 +32,10 @@ def main() -> None:
 
     subparsers.add_parser("status", help="查看后台 API 状态。")
 
+    db_parser = subparsers.add_parser("db", help="数据库管理命令。")
+    db_subparsers = db_parser.add_subparsers(dest="db_command")
+    db_subparsers.add_parser("init", help="创建缺失数据库并执行 Alembic 迁移。")
+
     args = parser.parse_args()
 
     command = args.command or "run"
@@ -44,6 +50,10 @@ def main() -> None:
         _start_background(args.host, args.port, args.reload)
     elif command == "status":
         _print_status()
+    elif command == "db" and args.db_command == "init":
+        initialize_database()
+    elif command == "db":
+        db_parser.print_help()
 
 
 def _add_server_options(parser: argparse.ArgumentParser, default_reload: bool) -> None:

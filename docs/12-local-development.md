@@ -37,6 +37,20 @@ sundarr/
 
 ## 3. 启动后端
 
+首次启动或数据库为空时，先初始化数据库：
+
+```bash
+.venv\Scripts\sundarr db init
+```
+
+该命令会：
+
+```text
+连接到 SUNDARR_DATABASE_URL 指向的 PostgreSQL 服务。
+如果目标数据库不存在，则先连接 postgres 维护库并创建目标数据库。
+执行 alembic upgrade head 初始化表结构。
+```
+
 推荐命令：
 
 ```bash

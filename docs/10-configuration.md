@@ -125,6 +125,14 @@ Sundarr 必须在 API/Worker 正式运行前执行 alembic upgrade head。
 API 和 Worker 应依赖 migration 成功完成后再启动。
 ```
 
+Sundarr 提供统一初始化命令：
+
+```bash
+sundarr db init
+```
+
+该命令会在目标数据库不存在时先创建数据库，再执行 Alembic 迁移。Docker Compose 的 `sundarr-migrate` 服务应使用该命令作为启动命令。
+
 不推荐把数据库文件或 Redis 数据打入应用镜像。镜像应保持无状态，数据由 volume 保存。
 
 ---

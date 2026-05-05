@@ -29,6 +29,12 @@ python -m venv .venv
 .venv\Scripts\python -m pytest
 ```
 
+初始化数据库：
+
+```bash
+.venv\Scripts\sundarr db init
+```
+
 启动 API：
 
 ```bash
