@@ -233,6 +233,8 @@ cloud.local.staging_root = /Sundarr/_staging
 
 Phase 5 实现 Worker 时，固定启动 1 个 Worker 进程，并从 settings 表读取 worker.concurrency 控制并行 TransferTask 数量。
 
+MVP 不开放 worker process 数量配置。后续如需多个 Worker 进程，必须先补充跨进程任务领取锁，避免重复执行同一 TransferTask。
+
 ---
 
 ## 6. Source 配置

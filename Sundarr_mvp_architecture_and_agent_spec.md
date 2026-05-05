@@ -1514,12 +1514,16 @@ STORAGE_CONFIG_CHANGED interruption
 
 ### Phase 5: Transfer Worker
 
+Phase 5 按 `docs/03-mvp-roadmap.md` 拆为 Worker Skeleton、Task Claiming、Local Transfer Happy Path、Failure Handling 和 API Status Polish 五个可验收子阶段。
+
 交付：
 
 ```text
 POST /transfers
 GET /transfers/{id}
+Worker process managed by sundarr start / stop / restart / status
 worker state machine
+download to .downloading
 progress update
 size verification
 rename

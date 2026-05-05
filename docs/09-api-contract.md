@@ -128,7 +128,8 @@ GET /resources/{resource_id}
 
 ```text
 已实现 POST /transfers 和 GET /transfers/{task_id} 的最小入口。
-尚未实现 worker state machine、cancel、retry、logs、progress、eta 和 current_file。
+尚未实现 worker state machine、logs、progress、eta 和 current_file。
+cancel、retry 和 worker startup recovery 属于 Phase 6 Cleanup And Recovery 范围。
 ```
 
 创建任务：
@@ -198,6 +199,8 @@ POST /transfers/{task_id}/cancel
 POST /transfers/{task_id}/retry
 GET  /transfers/{task_id}/logs
 ```
+
+当前控制接口尚未实现。Phase 5 只要求 Worker 主链路、进度查询和失败状态可见；cancel / retry / logs API 在 Phase 6 收口。
 
 ---
 

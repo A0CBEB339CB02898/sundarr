@@ -137,13 +137,22 @@ GET /storage/browse 浏览测试目录。
 
 ## 6. Transfer 状态机测试
 
-必须覆盖：
+Phase 5 必须覆盖：
 
 ```text
 pending -> completed normal flow
 failed stores error_code / retryable
-cancel downloading keeps .downloading
 verification failure keeps cloud staging
+worker reads worker.concurrency from settings
+worker respects concurrency limit
+LocalCloudProvider + LocalWriter happy path
+size verification and rename
+```
+
+Phase 6 再覆盖：
+
+```text
+cancel downloading keeps .downloading
 cleanup only after all files completed
 retry failed task
 worker startup recovery
@@ -161,14 +170,14 @@ GET /search
 GET /resources/{id}
 POST /transfers
 GET /transfers/{id}
-POST /transfers/{id}/cancel
-POST /transfers/{id}/retry
 GET /storage/config
 POST /storage/config/save
 POST /storage/config/test
 GET /storage/browse
 统一错误响应
 ```
+
+`POST /transfers/{id}/cancel`、`POST /transfers/{id}/retry` 和 `GET /transfers/{id}/logs` 属于 Phase 6 API 测试范围。
 
 ---
 

@@ -229,6 +229,8 @@ cleanup 失败后删除本地文件
 
 ## 9. Worker 启动恢复
 
+本节属于 Phase 6 Cleanup And Recovery 范围，不属于 Phase 5 第一轮 Worker 主链路验收。
+
 Worker 启动时必须扫描未完成任务。
 
 处理建议：
@@ -256,6 +258,8 @@ done_bytes = sum(transfer_files.done_bytes)
 total_bytes = sum(transfer_files.size_bytes)
 progress = done_bytes / total_bytes
 ```
+
+Phase 5 先实现任务级 `done_bytes` / `total_bytes` / `progress` 的最小可查询能力；速度、ETA 和更细粒度 current_file 展示可以在 Phase 5.5 或 Web Console 阶段继续完善。
 
 速度计算：
 

@@ -281,6 +281,8 @@ pytest 通过；前端如有改动则 npm run build 通过。
 
 目标：实现搬运任务执行主链路。
 
+Phase 5 有明显复杂度，按以下子阶段推进。每个子阶段都必须能独立测试、独立说明验收结果，不把 Phase 6 的取消、重试、启动恢复提前混入第一轮 Worker 主链路。
+
 交付物：
 
 ```text
@@ -316,6 +318,155 @@ GET /transfers/{id} 可查询状态和进度。
 sundarr start / restart / stop / status 已同步管理 Worker。
 pytest 通过。
 工作区已提交或明确说明不提交原因。
+```
+
+### Phase 5.1: Worker Skeleton
+
+目标：让 Worker 成为可启动、可停止、可观测的后台组件，但先不执行搬运。
+
+交付物：
+
+```text
+Worker 进程入口
+sundarr start 启动 API + Web + Worker
+sundarr stop 停止 API + Web + Worker
+sundarr restart 重启 API + Web + Worker
+sundarr status 显示 API / Web / Worker 状态
+Worker 从 settings 读取 worker.enabled 和 worker.concurrency
+Worker 空转 loop 可退出
+```
+
+验收标准：
+
+```text
+sundarr restart 后 API / Web / Worker 均运行。
+sundarr stop 后 API / Web / Worker 均停止。
+worker.concurrency 默认值为 2，且来自 settings 表。
+Worker disabled 时不领取任务。
+```
+
+停止条件：
+
+```text
+pytest 覆盖 Worker 配置读取和 CLI 管理 Worker。
+实际运行验证 sundarr restart / status / stop。
+文档说明 Worker 已纳入完整项目启动。
+```
+
+### Phase 5.2: Task Claiming
+
+目标：Worker 能安全领取 pending 任务，先不做真实搬运。
+
+交付物：
+
+```text
+扫描 pending TransferTask
+按 worker.concurrency 领取任务
+单 Worker 进程内避免重复领取同一任务
+领取后写入运行中状态和 transfer log
+```
+
+验收标准：
+
+```text
+创建 3 个 pending task，worker.concurrency=2 时最多 2 个进入运行态。
+未被领取的任务保持 pending。
+已完成或 failed / cancelled 任务不会被领取。
+```
+
+停止条件：
+
+```text
+pytest 覆盖并发领取上限。
+pytest 覆盖非 pending 任务不会被领取。
+暂不要求多 Worker 进程抢锁。
+```
+
+### Phase 5.3: Local Transfer Happy Path
+
+目标：用 LocalCloudProvider + LocalWriter 跑通端到端搬运成功路径。
+
+交付物：
+
+```text
+从 cloud stream 读取文件
+写入 target_path + .downloading
+更新 done_bytes / total_bytes
+校验 size
+rename 到最终 target_path
+task.status = completed
+```
+
+验收标准：
+
+```text
+POST /transfers 创建任务后，Worker 可执行到 completed。
+目标文件存在，.downloading 已 rename。
+GET /transfers/{id} 可查询 completed、done_bytes、total_bytes。
+```
+
+停止条件：
+
+```text
+pytest 使用 Mock/Local Provider + LocalWriter 跑通成功路径。
+pytest 不依赖真实网盘、真实 NAS 或真实 SMB。
+```
+
+### Phase 5.4: Failure Handling
+
+目标：Worker 失败路径可追踪、可解释，不留下不可知状态。
+
+交付物：
+
+```text
+cloud stream 读取失败 -> failed
+写入失败 -> failed
+size mismatch -> failed
+target exists -> failed
+error_code / error_message / retryable 写入 transfer_tasks
+关键事件写入 transfer_logs
+```
+
+验收标准：
+
+```text
+失败任务可通过 GET /transfers/{id} 查询错误原因。
+失败时默认保留 .downloading 和 cloud staging。
+失败路径不误删正式文件。
+```
+
+停止条件：
+
+```text
+pytest 覆盖至少 cloud read failed、size mismatch、target exists 三类失败。
+失败日志可查询或至少已写入 transfer_logs。
+```
+
+### Phase 5.5: API Status Polish
+
+目标：让任务查询结果对 Web Console 和 AI Tool 友好。
+
+交付物：
+
+```text
+GET /transfers/{id} 返回 progress
+GET /transfers/{id} 返回 current_file 或明确为空
+GET /transfers/{id} 返回 error_code / error_message / retryable
+GET /health 的 worker 从 unknown 进入可判断状态，或明确说明当前判断边界
+```
+
+验收标准：
+
+```text
+前端和 AI 可以通过 API 看到任务进度和失败原因。
+接口 schema 与 docs/09-api-contract.md 一致。
+```
+
+停止条件：
+
+```text
+pytest 覆盖 Transfer response schema。
+API 文档、状态机文档和测试计划同步更新。
 ```
 
 ---
