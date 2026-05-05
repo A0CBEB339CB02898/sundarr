@@ -15,7 +15,10 @@ class Base(DeclarativeBase):
 @lru_cache
 def get_engine() -> Engine:
     settings = get_settings()
-    return create_engine(settings.database_url, pool_pre_ping=True)
+    connect_args = {}
+    if settings.database_url.startswith("postgresql"):
+        connect_args["connect_timeout"] = 2
+    return create_engine(settings.database_url, pool_pre_ping=True, connect_args=connect_args)
 
 
 @lru_cache

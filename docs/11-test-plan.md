@@ -37,6 +37,8 @@ LocalWriter
 
 如果某项测试因环境限制无法运行，必须在交付说明中明确说明原因和风险。
 
+默认 pytest 使用 SQLite 内存数据库验证模型、服务和 API 行为，不要求本机 PostgreSQL 已启动。真实 PostgreSQL 连通性属于本地集成环境检查，必须通过 `/health` 或独立启动校验确认。
+
 真实 SMB 可用于手动开发测试，以减少过度 mock 带来的偏差。但这类测试必须满足：
 
 ```text
@@ -57,6 +59,7 @@ LocalWriter
 启动配置加载
 环境变量覆盖
 settings 表读写
+GET /health 返回真实 database 状态
 SMB password 不回显
 SMB 配置热加载
 ```
