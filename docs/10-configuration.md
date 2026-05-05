@@ -168,7 +168,7 @@ SMB 配置结构：
 
 ```json
 {
-  "host": "fnos.local",
+  "host": "nas.example.invalid",
   "port": 445,
   "share": "media",
   "username": "user",
@@ -197,13 +197,13 @@ password 留空表示保留旧值。
 本地手动测试时，推荐先准备以下信息：
 
 ```text
-host: SMB 主机，例如 fnos.local 或 192.168.1.10
+host: SMB 主机，例如 nas.example.invalid 或 192.168.1.10
 port: 通常是 445
 share: SMB 共享名，例如 media
 username: SMB 用户名
 password: SMB 密码
 domain: 可为空
-base_path: Sundarr 可写入的共享内相对根路径，例如 / 或 /SundarrTest
+base_path: Sundarr 可写入的共享内相对根路径，例如 / 或 /SundarrManualTest
 libraries: movies / tv / anime 等媒体目录映射
 ```
 
@@ -213,13 +213,13 @@ libraries: movies / tv / anime 等媒体目录映射
 curl -X POST http://localhost:8080/storage/config/save \
   -H "Content-Type: application/json" \
   -d '{
-    "host": "fnos.local",
+    "host": "nas.example.invalid",
     "port": 445,
     "share": "media",
     "username": "your_user",
     "password": "your_password",
     "domain": "",
-    "base_path": "/SundarrTest",
+    "base_path": "/SundarrManualTest",
     "libraries": {
       "movies": "Movies",
       "tv": "TV",

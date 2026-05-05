@@ -223,6 +223,21 @@ Sundarr 可以自己控制写入、进度、rename、错误和热加载。
 LocalWriter 仅用于开发和测试。
 SMB 配置保存到数据库 settings 表或等价运行时配置存储。
 SMB 配置可从 Web Console 修改并热加载。
+SmbWriter 使用 smbprotocol 包提供的 smbclient 高层接口实现真实 SMB 访问。
+```
+
+不选系统 mount 的原因：
+
+```text
+部署环境可能是 Windows、Linux、Docker 或 NAS。
+系统 mount 会把权限、路径和错误处理外包给宿主机，难以统一实现任务状态、进度、rename 和失败恢复。
+```
+
+不选 rclone / OpenList 作为 MVP 核心写入层的原因：
+
+```text
+MVP 已确认不把 rclone / OpenList 作为核心搬运层。
+Sundarr 需要应用内控制 .downloading、size、rename 和 STORAGE_CONFIG_CHANGED 中断语义。
 ```
 
 ---

@@ -23,8 +23,8 @@ def test_save_storage_config_redacts_password(db_session: Session) -> None:
     response = client.post(
         "/storage/config/save",
         json={
-            "host": "fnos.local",
-            "share": "media",
+            "host": "nas.example.invalid",
+            "share": "share",
             "username": "sundarr",
             "password": "secret",
             "base_path": "/",
@@ -47,16 +47,16 @@ def test_save_storage_config_empty_password_keeps_old_value(db_session: Session)
     client = make_client(db_session)
     client.post(
         "/storage/config/save",
-        json={"host": "old.local", "share": "media", "username": "user", "password": "secret"},
+        json={"host": "old.example.invalid", "share": "share", "username": "user", "password": "secret"},
     )
 
     response = client.post(
         "/storage/config/save",
-        json={"host": "new.local", "share": "media", "username": "user", "password": ""},
+        json={"host": "new.example.invalid", "share": "share", "username": "user", "password": ""},
     )
 
     assert response.status_code == 200
-    assert response.json()["host"] == "new.local"
+    assert response.json()["host"] == "new.example.invalid"
     setting = db_session.get(Setting, STORAGE_CONFIG_KEY)
     assert setting is not None
     assert setting.value_json["password"] == "secret"
@@ -76,7 +76,7 @@ def test_storage_config_test_rejects_bad_path(db_session: Session) -> None:
 
     response = client.post(
         "/storage/config/test",
-        json={"host": "fnos.local", "share": "media", "username": "user", "base_path": "../bad"},
+        json={"host": "nas.example.invalid", "share": "share", "username": "user", "base_path": "../bad"},
     )
 
     assert response.status_code == 200
@@ -88,7 +88,7 @@ def test_save_storage_config_interrupts_running_smb_tasks(db_session: Session) -
     client = make_client(db_session)
     client.post(
         "/storage/config/save",
-        json={"host": "old.local", "share": "media", "username": "user", "password": "secret"},
+        json={"host": "old.example.invalid", "share": "share", "username": "user", "password": "secret"},
     )
     db_session.add(
         TransferTask(
@@ -98,7 +98,7 @@ def test_save_storage_config_interrupts_running_smb_tasks(db_session: Session) -
             mode="copy",
             target_type="smb",
             target_path="Movies/Movie.mkv",
-            storage_config_snapshot={"host": "old.local"},
+            storage_config_snapshot={"host": "old.example.invalid"},
         )
     )
     db_session.add(
@@ -109,14 +109,14 @@ def test_save_storage_config_interrupts_running_smb_tasks(db_session: Session) -
             mode="copy",
             target_type="smb",
             target_path="Movies/Done.mkv",
-            storage_config_snapshot={"host": "old.local"},
+            storage_config_snapshot={"host": "old.example.invalid"},
         )
     )
     db_session.commit()
 
     response = client.post(
         "/storage/config/save",
-        json={"host": "new.local", "share": "media", "username": "user", "password": "secret"},
+        json={"host": "new.example.invalid", "share": "share", "username": "user", "password": "secret"},
     )
 
     assert response.status_code == 200
@@ -148,7 +148,7 @@ def test_storage_browse_rejects_path_outside_root(db_session: Session) -> None:
     client = make_client(db_session)
     client.post(
         "/storage/config/save",
-        json={"host": "fnos.local", "share": "media", "username": "user", "password": "secret"},
+        json={"host": "nas.example.invalid", "share": "share", "username": "user", "password": "secret"},
     )
 
     response = client.get("/storage/browse", params={"path": "../outside"})

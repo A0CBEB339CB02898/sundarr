@@ -38,33 +38,52 @@ class SmbWriter(StorageWriter):
 
     async def exists(self, path: str) -> bool:
         smbclient = self._require_smbclient()
-        return smbclient.path.exists(self._build_unc_path(path))
+        try:
+            return smbclient.path.exists(self._build_unc_path(path))
+        except Exception as exc:
+            raise ValueError("SMB_CONNECT_FAILED") from exc
 
     async def size(self, path: str) -> int:
         smbclient = self._require_smbclient()
         target = self._build_unc_path(path)
-        if not smbclient.path.exists(target):
-            raise ValueError("STORAGE_PATH_NOT_FOUND")
-        return int(smbclient.stat(target).st_size)
+        try:
+            if not smbclient.path.exists(target):
+                raise ValueError("STORAGE_PATH_NOT_FOUND")
+            return int(smbclient.stat(target).st_size)
+        except ValueError:
+            raise
+        except Exception as exc:
+            raise ValueError("SMB_CONNECT_FAILED") from exc
 
     async def mkdirs(self, path: str) -> None:
         smbclient = self._require_smbclient()
-        smbclient.makedirs(self._build_unc_path(path), exist_ok=True)
+        try:
+            smbclient.makedirs(self._build_unc_path(path), exist_ok=True)
+        except Exception as exc:
+            raise ValueError("SMB_WRITE_FAILED") from exc
 
     async def open_append(self, path: str) -> BinaryIO:
         smbclient = self._require_smbclient()
         target = self._build_unc_path(path)
         parent = target.rsplit("\\", 1)[0]
-        smbclient.makedirs(parent, exist_ok=True)
-        return smbclient.open_file(target, mode="ab")
+        try:
+            smbclient.makedirs(parent, exist_ok=True)
+            return smbclient.open_file(target, mode="ab")
+        except Exception as exc:
+            raise ValueError("SMB_WRITE_FAILED") from exc
 
     async def rename(self, src: str, dst: str) -> None:
         smbclient = self._require_smbclient()
         source = self._build_unc_path(src)
         target = self._build_unc_path(dst)
-        if smbclient.path.exists(target):
-            raise ValueError("TARGET_EXISTS")
-        smbclient.rename(source, target)
+        try:
+            if smbclient.path.exists(target):
+                raise ValueError("TARGET_EXISTS")
+            smbclient.rename(source, target)
+        except ValueError:
+            raise
+        except Exception as exc:
+            raise ValueError("SMB_RENAME_FAILED") from exc
 
     async def remove(self, path: str) -> None:
         smbclient = self._require_smbclient()
@@ -72,26 +91,39 @@ class SmbWriter(StorageWriter):
         if not parts:
             raise ValueError("STORAGE_REMOVE_ROOT_FORBIDDEN")
         target = self._build_unc_path(path)
-        if smbclient.path.isdir(target):
-            smbclient.rmdir(target)
-        elif smbclient.path.exists(target):
-            smbclient.remove(target)
+        try:
+            if smbclient.path.isdir(target):
+                smbclient.rmdir(target)
+            elif smbclient.path.exists(target):
+                smbclient.remove(target)
+        except Exception as exc:
+            raise ValueError("SMB_WRITE_FAILED") from exc
 
     async def list_dir(self, path: str) -> list[dict[str, object]]:
         target = self._build_unc_path(path)
         smbclient = self._require_smbclient()
         entries: list[dict[str, object]] = []
-        for entry in smbclient.scandir(target):
-            child_path = "/".join([*self._safe_parts(path), entry.name])
-            entries.append(
-                {
-                    "name": entry.name,
-                    "path": child_path,
-                    "is_dir": entry.is_dir(),
-                    "size": None if entry.is_dir() else int(entry.stat().st_size),
-                }
-            )
+        try:
+            for entry in smbclient.scandir(target):
+                child_path = "/".join([*self._safe_parts(path), entry.name])
+                entries.append(
+                    {
+                        "name": entry.name,
+                        "path": child_path,
+                        "is_dir": entry.is_dir(),
+                        "size": None if entry.is_dir() else int(entry.stat().st_size),
+                    }
+                )
+        except Exception as exc:
+            raise ValueError("SMB_CONNECT_FAILED") from exc
         return entries
+
+    async def test_connection(self) -> None:
+        smbclient = self._require_smbclient()
+        try:
+            smbclient.listdir(self._build_unc_path(""))
+        except Exception as exc:
+            raise ValueError("SMB_CONNECT_FAILED") from exc
 
     def _build_unc_path(self, path: str) -> str:
         parts = [*self._base_parts, *self._safe_parts(path)]
@@ -115,4 +147,17 @@ class SmbWriter(StorageWriter):
             import smbclient  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ValueError("SMB_CLIENT_NOT_INSTALLED") from exc
+        try:
+            self._register_session(smbclient)
+        except Exception as exc:
+            raise ValueError("SMB_CONNECT_FAILED") from exc
         return smbclient
+
+    def _register_session(self, smbclient) -> None:
+        username = f"{self.config.domain}\\{self.config.username}" if self.config.domain else self.config.username
+        smbclient.register_session(
+            self.config.host,
+            username=username,
+            password=self.config.password or "",
+            port=self.config.port,
+        )

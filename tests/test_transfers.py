@@ -37,7 +37,7 @@ def test_create_and_get_transfer(db_session: Session) -> None:
     db_session.add(
         Setting(
             key=STORAGE_CONFIG_KEY,
-            value_json={"host": "fnos.local", "share": "media", "username": "user", "password": "secret"},
+            value_json={"host": "nas.example.invalid", "share": "share", "username": "user", "password": "secret"},
             is_sensitive=True,
         )
     )
@@ -56,7 +56,7 @@ def test_create_and_get_transfer(db_session: Session) -> None:
 
     task = db_session.get(TransferTask, body["id"])
     assert task is not None
-    assert task.storage_config_snapshot == {"host": "fnos.local", "share": "media", "username": "user", "password": "secret"}
+    assert task.storage_config_snapshot == {"host": "nas.example.invalid", "share": "share", "username": "user", "password": "secret"}
 
     get_response = client.get(f"/transfers/{body['id']}")
     assert get_response.status_code == 200

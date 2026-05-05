@@ -158,9 +158,9 @@ copy/download -> verify -> delete source staging
 NAS 是最终落盘目标。MVP 中 Sundarr 通过应用内 SmbWriter 直接连接 SMB share，例如：
 
 ```text
-smb://fnos.local/media/Movies
-smb://fnos.local/media/TV
-smb://fnos.local/media/Anime
+smb://nas.example.invalid/share/Movies
+smb://nas.example.invalid/share/TV
+smb://nas.example.invalid/share/Anime
 ```
 
 Sundarr 不要求宿主机提前 mount SMB。LocalWriter 仅用于开发和测试。
@@ -518,9 +518,9 @@ SMB 配置示例：
 storage:
   type: smb
   smb:
-    host: fnos.local
+    host: nas.example.invalid
     port: 445
-    share: media
+    share: share
     username: your_user
     password: your_password
     domain: ""
@@ -1113,9 +1113,9 @@ storage:
   type: smb
   temp_suffix: .downloading
   smb:
-    host: fnos.local
+    host: nas.example.invalid
     port: 445
-    share: media
+    share: share
     username: your_user
     password: your_password
     domain: ""

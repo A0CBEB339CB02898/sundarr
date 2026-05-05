@@ -36,19 +36,21 @@ LocalWriter
 
 ## 1.1 当前实现边界
 
-截至 2026-05-05，Phase 4 当前实现边界如下：
+截至 2026-05-06，Phase 4 当前实现边界如下：
 
 ```text
 StorageWriter 接口已落地。
 LocalWriter 已支持 exists / size / mkdirs / open_append / rename / remove，并有自动化测试。
-SmbWriter 已实现 UNC 路径构造、安全路径防护、目录浏览/写入/size/rename 的 smbclient 调用边界。
-当前 pyproject.toml 尚未引入 smbclient 依赖，自动化测试不连接真实 SMB 服务器。
-POST /storage/config/test 当前只做配置结构和路径合法性验证，不代表真实 SMB 连接已成功。
-GET /storage/browse 已接入 SmbWriter.list_dir，但在缺少 smbclient 或真实 SMB 环境时会返回对应错误。
+SmbWriter 使用 smbprotocol 包提供的 smbclient 高层接口。
+SmbWriter 已实现 UNC 路径构造、安全路径防护、连接测试、目录浏览、写入、size、rename 的调用边界。
+自动化测试不连接真实 SMB 服务器。
+POST /storage/config/test 会尝试真实 SMB 连接和根路径访问。
+GET /storage/browse 已接入 SmbWriter.list_dir，真实 SMB 不可达时返回 SMB_CONNECT_FAILED。
 STORAGE_CONFIG_CHANGED 中断运行中 SMB 任务的数据库状态规则已有测试覆盖。
+真实 SMB 环境已完成连接、目录浏览、创建目录、写入 .downloading、size、rename 和清理测试文件的手动验收。
 ```
 
-因此 Phase 4 尚未完全关闭。关闭前必须补齐真实 SMB 客户端依赖选择、连接测试边界，以及真实或 mock 明确覆盖的写入、size、rename 行为。
+因此 Phase 4 Storage Writer 已满足当前停止条件。后续 Phase 5 可以在该写入抽象上实现 Transfer Worker 主链路。
 
 ---
 
@@ -88,7 +90,7 @@ SMB 配置保存到数据库 settings 表或等价运行时配置存储。
 ```json
 {
   "type": "smb",
-  "host": "fnos.local",
+  "host": "nas.example.invalid",
   "port": 445,
   "share": "media",
   "username": "your_user",
@@ -110,7 +112,7 @@ API 返回时不得回显 password 明文。
 ```json
 {
   "type": "smb",
-  "host": "fnos.local",
+  "host": "nas.example.invalid",
   "port": 445,
   "share": "media",
   "username": "your_user",
@@ -265,7 +267,7 @@ GET  /storage/browse?path=Movies
 ```text
 GET 不返回 password 明文。
 POST /storage/config/save 中 password 为空表示保留旧值。
-POST /storage/config/test 当前先验证配置结构和路径合法性；真实 SMB 连接测试在 SmbWriter 客户端依赖确定后补齐。
+POST /storage/config/test 会验证配置结构、路径合法性，并尝试真实 SMB 连接和根路径访问。
 GET /storage/browse 只能浏览允许范围内路径。
 ```
 

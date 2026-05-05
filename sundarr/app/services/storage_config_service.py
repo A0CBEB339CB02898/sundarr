@@ -52,9 +52,12 @@ class StorageConfigService:
         db.refresh(current)
         return self._to_response(current.value_json)
 
-    def test_config(self, request: StorageConfigRequest) -> StorageConfigTestResponse:
+    async def test_config(self, request: StorageConfigRequest) -> StorageConfigTestResponse:
         try:
-            self._validate_value(request.model_dump())
+            value = request.model_dump()
+            self._validate_value(value)
+            writer = SmbWriter(SmbConfig.from_dict(value))
+            await writer.test_connection()
         except ValueError as exc:
             return StorageConfigTestResponse(ok=False, error_code=str(exc), error_message=self._message_for_error(str(exc)))
         return StorageConfigTestResponse(ok=True)
@@ -123,6 +126,7 @@ class StorageConfigService:
             "STORAGE_CONFIG_MISSING": "存储配置不存在。",
             "STORAGE_CONFIG_INVALID": "存储配置无效。",
             "SMB_CLIENT_NOT_INSTALLED": "SMB 客户端依赖未安装，暂不能连接真实 SMB。",
+            "SMB_CONNECT_FAILED": "SMB 连接或认证失败。",
             "SMB_PATH_INVALID": "SMB 路径配置无效。",
             "SMB_PATH_OUTSIDE_ROOT": "SMB 路径超出允许范围。",
         }

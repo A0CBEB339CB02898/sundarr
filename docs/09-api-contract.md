@@ -218,7 +218,7 @@ POST /storage/config/save 保存后热加载 SMB 配置。
 POST /storage/config/save 中 password 为空表示保留旧 password。
 SMB 配置修改必须中断旧配置运行中任务。
 GET /storage/browse 只能浏览允许范围。
-POST /storage/config/test 当前先验证配置结构和路径合法性；真实 SMB 连接测试在 SmbWriter 客户端依赖确定后补齐。
+POST /storage/config/test 会验证配置结构、路径合法性，并尝试真实 SMB 连接和根路径访问。
 ```
 
 ---

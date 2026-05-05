@@ -217,13 +217,13 @@ http://localhost:8080/docs
 
 ```json
 {
-  "host": "fnos.local",
+  "host": "nas.example.invalid",
   "port": 445,
   "share": "media",
   "username": "your_user",
   "password": "your_password",
   "domain": "",
-  "base_path": "/SundarrTest",
+  "base_path": "/SundarrManualTest",
   "libraries": {
     "movies": "Movies",
     "tv": "TV",

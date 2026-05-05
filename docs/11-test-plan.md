@@ -45,7 +45,7 @@ LocalWriter
 不纳入默认 pytest。
 不得要求 CI 或其他开发者具备真实 NAS。
 不得提交真实 SMB 密码、host 私密信息或可访问路径。
-测试目标目录应使用专用目录，例如 /SundarrTest。
+测试目标目录应使用专用目录，例如 /SundarrManualTest。
 真实写入测试必须只操作测试目录，避免误删媒体库正式文件。
 ```
 
@@ -119,9 +119,9 @@ STORAGE_CONFIG_CHANGED interrupts running task
 
 ```text
 LocalWriter exists / size / open_append / rename / remove guard 已覆盖。
-SmbWriter 目前覆盖安全路径、UNC 构造和缺少客户端依赖错误。
+SmbWriter 目前覆盖安全路径、UNC 构造、session 注册、连接测试和缺少客户端依赖错误。
 Storage config 已覆盖 password 不回显、空 password 保留、路径校验、配置变更中断运行中任务。
-真实 SMB 连接、真实目录浏览、真实写入、真实 size、真实 rename 尚未在自动化测试中覆盖。
+真实 SMB 连接、真实目录浏览、真实写入、真实 size、真实 rename 不纳入默认 pytest，需通过手动集成验收覆盖。
 ```
 
 允许补充单独的手动真实 SMB 测试脚本或命令，用于开发者本机验证：
@@ -130,7 +130,7 @@ Storage config 已覆盖 password 不回显、空 password 保留、路径校验
 POST /storage/config/save 保存真实 SMB 配置。
 POST /storage/config/test 验证连接。
 GET /storage/browse 浏览测试目录。
-后续 Worker 完成后，用 /SundarrTest 验证 .downloading、size、rename。
+后续 Worker 完成后，用 /SundarrManualTest 验证 .downloading、size、rename。
 ```
 
 ---

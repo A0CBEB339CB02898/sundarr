@@ -25,7 +25,7 @@ async def save_storage_config(request: StorageConfigRequest, db: Session = Depen
 
 @router.post("/storage/config/test", response_model=StorageConfigTestResponse)
 async def test_storage_config(request: StorageConfigRequest) -> StorageConfigTestResponse:
-    return storage_config_service.test_config(request)
+    return await storage_config_service.test_config(request)
 
 
 @router.get("/storage/browse", response_model=StorageBrowseResponse)
@@ -42,6 +42,7 @@ def _storage_error(exc: ValueError) -> HTTPException:
     messages = {
         "STORAGE_CONFIG_MISSING": "存储配置不存在。",
         "SMB_CLIENT_NOT_INSTALLED": "SMB 客户端依赖未安装，暂不能连接真实 SMB。",
+        "SMB_CONNECT_FAILED": "SMB 连接或认证失败。",
         "SMB_PATH_INVALID": "SMB 路径配置无效。",
         "SMB_PATH_OUTSIDE_ROOT": "SMB 路径超出允许范围。",
     }
