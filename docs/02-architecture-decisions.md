@@ -149,6 +149,7 @@ transfer_tasks 和 transfer_files 状态必须持久化到 PostgreSQL。
 Compose 包含 Sundarr API、Worker、Web、PostgreSQL、Redis 和数据库迁移步骤。
 PostgreSQL 和 Redis 不打入 Sundarr 应用镜像，而是作为独立服务运行。
 首次启动时必须自动执行 Alembic 数据库迁移。
+Compose 部署中 API / Worker 使用固定内部服务名 postgres / redis 连接基础设施，不要求用户手动配置数据库地址。
 ```
 
 理由：
@@ -166,6 +167,60 @@ Docker Compose 更容易在 Linux 机器、NAS 或小主机上部署和复现。
 开发测试可以使用远程 Linux Docker 机器承载 PostgreSQL 和 Redis。
 默认自动化测试仍不依赖真实 PostgreSQL / Redis。
 真实部署时数据库密码和 Redis 密码通过环境变量或 secret 注入，不写入镜像。
+Compose 阶段的 .env 只保存部署级 secret 和端口覆盖，不保存普通业务配置。
+```
+
+---
+
+## ADR-005.2: env 最小化和业务配置入库
+
+状态：已确认。
+
+决策：
+
+```text
+env 只保留数据库和 Redis 这类 bootstrap 连接信息。
+cloud staging root、worker 并发、SMB 配置、source 配置、library 映射等业务配置保存到数据库 settings / sources 表。
+数据库初始化完成后写入默认 settings。
+```
+
+默认值：
+
+```text
+worker.enabled = true
+worker.concurrency = 2
+cloud.local.staging_root = /Sundarr/_staging
+```
+
+理由：
+
+```text
+业务配置需要后续由 Web Console 管理。
+env 不适合承载热加载配置和普通业务参数。
+数据库连接本身不能只保存在数据库中，因为连接数据库前必须先有 bootstrap 信息。
+```
+
+---
+
+## ADR-005.3: sundarr 命令启动完整项目
+
+状态：已确认。
+
+决策：
+
+```text
+sundarr start / restart / stop / status 面向完整项目，而不是只管理 API。
+当前阶段完整项目包含 API + Web Console。
+Phase 5 实现 Worker 时，必须同步将 Worker 纳入这些命令。
+```
+
+启动规则：
+
+```text
+sundarr start 会自动执行数据库初始化/迁移和默认 settings seed。
+如果 web/node_modules 不存在，自动执行 npm install。
+如果 API 或 Web 端口被本项目旧进程占用，按需清理后重启。
+如果端口被其他程序占用，拒绝启动。
 ```
 
 ---

@@ -36,7 +36,7 @@ MVP 的目标是先跑通端到端闭环：
 
 ## 当前实现状态
 
-截至 2026-05-05，本项目阶段状态如下：
+截至 2026-05-06，本项目阶段状态如下：
 
 ```text
 Phase 0 Project Skeleton: 已完成。
@@ -44,13 +44,14 @@ Phase 1 Persistence Models: 已完成。
 Phase 2 Search And Resource Library: 已完成。
 Phase 3 Cloud Staging: 已完成。
 Phase 4 Storage Writer: 已收口，已完成 LocalWriter、Storage 配置 API、目录浏览 API、STORAGE_CONFIG_CHANGED 中断规则、SmbWriter 安全边界和真实 SMB 连接、目录浏览、写入、size、rename 手动验收。
+启动与配置精简：已确认 sundarr start/restart 管理 API + Web，自动执行数据库初始化/迁移、默认 settings seed 和前端依赖安装；Phase 5 实现 Worker 时必须同步纳入完整项目启停。
 Phase 5 Transfer Worker: 未正式进入；已提前实现 POST /transfers 和 GET /transfers/{id} 入口，Worker 主链路尚未实现。
 Phase 6 Cleanup And Recovery: 未开始。
 Phase 7 Web Console: 未开始。
 Phase 8 AI Friendly API: 未开始。
 ```
 
-后续开发必须先收口 Phase 4，再正式进入 Phase 5。已提前落地的 Phase 5 API 入口可以保留，但不得继续扩展 Phase 5，除非 Phase 4 停止条件已满足或用户明确要求。
+Phase 4 已满足停止条件，后续可以正式进入 Phase 5。Phase 5 实现 Worker 时，必须同步将 Worker 纳入 `sundarr start / restart / stop / status`。
 
 ---
 
@@ -291,6 +292,7 @@ progress update
 speed calculation
 size verification
 rename
+sundarr start / restart / stop / status 管理 Worker
 ```
 
 验收标准：
@@ -311,6 +313,7 @@ Worker 可使用 Mock/Local Provider + LocalWriter 跑通下载到 .downloading�
 GET /transfers/{id} 可查询状态和进度。
 大小校验和 rename 有测试覆盖。
 失败路径记录 error_code / error_message / retryable。
+sundarr start / restart / stop / status 已同步管理 Worker。
 pytest 通过。
 工作区已提交或明确说明不提交原因。
 ```

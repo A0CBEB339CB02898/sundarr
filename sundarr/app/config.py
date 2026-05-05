@@ -9,7 +9,6 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     database_url: str = "postgresql+psycopg://sundarr:sundarr@localhost:5432/sundarr"
     redis_url: str = "redis://localhost:6379/0"
-    cloud_staging_root: str = "/Sundarr/_staging"
 
     model_config = SettingsConfigDict(
         env_file=".env",

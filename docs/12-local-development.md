@@ -35,12 +35,12 @@ sundarr/
 
 ---
 
-## 3. 启动后端
+## 3. 启动完整项目
 
-首次启动或数据库为空时，先初始化数据库：
+推荐命令：
 
 ```bash
-.venv\Scripts\sundarr db init
+.venv\Scripts\sundarr start
 ```
 
 该命令会：
@@ -49,12 +49,16 @@ sundarr/
 连接到 SUNDARR_DATABASE_URL 指向的 PostgreSQL 服务。
 如果目标数据库不存在，则先连接 postgres 维护库并创建目标数据库。
 执行 alembic upgrade head 初始化表结构。
+初始化默认业务配置，例如 worker.concurrency=2 和 cloud.local.staging_root=/Sundarr/_staging。
+如果 web/node_modules 不存在，则自动执行 npm install。
+启动 API 和 Web Console。
 ```
 
-推荐命令：
+访问入口：
 
-```bash
-.venv\Scripts\sundarr start
+```text
+API Docs: http://localhost:8080/docs
+Web Console: http://localhost:5173
 ```
 
 查看状态、重启和停止：
@@ -65,7 +69,7 @@ sundarr/
 .venv\Scripts\sundarr stop
 ```
 
-前台运行，适合直接看实时日志：
+前台运行完整项目，适合直接看实时日志：
 
 ```bash
 .venv\Scripts\sundarr run
@@ -74,20 +78,30 @@ sundarr/
 可选参数：
 
 ```bash
-.venv\Scripts\sundarr start --host 127.0.0.1 --port 8080 --reload
+.venv\Scripts\sundarr start --api-host 127.0.0.1 --api-port 8080 --web-port 5173 --reload
 ```
 
-后台启动日志写入 `.sundarr/sundarr-api.log`。
-
-FastAPI 调试入口：
+后台启动日志写入：
 
 ```text
-http://localhost:8080/docs
+.sundarr/sundarr-api.log
+.sundarr/sundarr-web.log
+```
+
+端口占用规则：
+
+```text
+如果端口被 Sundarr 自己的旧进程占用，start/restart 会按需清理旧进程。
+如果端口被其他程序占用，start/restart 会拒绝启动并提示释放端口。
 ```
 
 ---
 
-## 4. 启动前端
+## 4. 单独启动前端
+
+日常开发不需要单独启动前端，使用 `.venv\Scripts\sundarr start` 即可启动完整项目。
+
+仅调试 Web Console 时，可以单独运行：
 
 示例命令：
 
@@ -153,7 +167,7 @@ sundarr-migrate: 一次性迁移任务，执行 alembic upgrade head。
 
 ```text
 postgres 容器用 POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD 创建初始数据库。
-sundarr-migrate 等待 postgres 可用后执行 alembic upgrade head。
+sundarr-migrate 等待 postgres 可用后执行数据库迁移和默认 settings seed。
 sundarr-api 和 sundarr-worker 在 migration 成功后启动。
 PostgreSQL 和 Redis 数据通过 Docker volume 持久化。
 ```
@@ -241,12 +255,13 @@ http://localhost:8080/docs
 后端测试：
 
 ```bash
-pytest
+.venv\Scripts\python -m pytest
 ```
 
 前端 smoke：
 
 ```bash
+cd web
 npm run build
 ```
 

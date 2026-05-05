@@ -9,7 +9,7 @@
 配置分为两类：
 
 ```text
-启动配置
+Bootstrap 启动配置
 运行时配置
 ```
 
@@ -17,8 +17,8 @@
 
 ```text
 .env
-config.yaml
 environment variables
+后续 Docker Compose 内部服务名和 secrets
 ```
 
 运行时配置来自：
@@ -32,31 +32,21 @@ sources table
 
 ## 2. 启动配置
 
-启动配置用于启动 API、Worker 和基础依赖。
+Bootstrap 启动配置只用于让 Sundarr 找到基础设施。业务配置不得长期放在 env 中。
 
 示例：
 
-```yaml
-app:
-  name: Sundarr
-  host: 0.0.0.0
-  port: 8080
-
-database:
-  url: postgresql+psycopg://sundarr:change_me@postgres:5432/sundarr
-
-redis:
-  url: redis://:change_me@redis:6379/0
-
-cloud:
-  staging_root: /Sundarr/_staging
+```env
+SUNDARR_DATABASE_URL=postgresql+psycopg://sundarr:change_me@postgres:5432/sundarr
+SUNDARR_REDIS_URL=redis://:change_me@redis:6379/0
 ```
 
 规则：
 
 ```text
-database.url 和 redis.url 属于启动配置。
+SUNDARR_DATABASE_URL 和 SUNDARR_REDIS_URL 属于 bootstrap 启动配置。
 修改启动配置通常需要重启。
+cloud staging root、worker concurrency、SMB、source、library 映射等业务配置保存到数据库 settings 表。
 ```
 
 密码位置：
@@ -85,13 +75,13 @@ SUNDARR_REDIS_URL=redis://:change_me@redis:6379/0
 SUNDARR_REDIS_URL=redis://redis:6379/0
 ```
 
-Docker Compose 中的 PostgreSQL 初始密码由 `POSTGRES_PASSWORD` 提供，必须和 `SUNDARR_DATABASE_URL` 中的密码一致。Redis 密码通常通过启动命令或配置文件启用，例如 `redis-server --requirepass change_me`，并同步写入 `SUNDARR_REDIS_URL`。
+本地开发阶段，PostgreSQL / Redis 可以运行在远程 Linux Docker 机器或本机 Docker 中，Windows 开发机通过 `.env` 中的 URL 连接。
 
 ---
 
 ## 2.1 Docker Compose 部署配置
 
-成熟部署方式应提供完整 Docker Compose，而不是要求用户在宿主机安装 PostgreSQL 和 Redis。
+成熟部署方式应提供完整 Docker Compose，而不是要求用户在宿主机安装 PostgreSQL 和 Redis，也不要求用户手动配置数据库地址。
 
 Compose 应包含：
 
@@ -114,6 +104,8 @@ Redis 使用官方 redis 镜像，不打进 Sundarr 应用镜像。
 数据库和 Redis 通过 Docker network 内部服务名访问，例如 postgres / redis。
 PostgreSQL 数据目录必须挂载 volume。
 Redis 如承载重要队列或缓存，可按后续需要挂载 volume。
+Compose 部署中 API / Worker 默认使用固定内部服务名连接 PostgreSQL 和 Redis。
+Compose 阶段的 .env 只用于部署级 secret 和必要端口覆盖，不保存 SMB、source、worker 并发、staging root 等业务配置。
 ```
 
 首次启动数据库初始化策略：
@@ -125,13 +117,7 @@ Sundarr 必须在 API/Worker 正式运行前执行 alembic upgrade head。
 API 和 Worker 应依赖 migration 成功完成后再启动。
 ```
 
-Sundarr 提供统一初始化命令：
-
-```bash
-sundarr db init
-```
-
-该命令会在目标数据库不存在时先创建数据库，再执行 Alembic 迁移。Docker Compose 的 `sundarr-migrate` 服务应使用该命令作为启动命令。
+Sundarr 本地启动会自动检查数据库状态，在目标数据库不存在时创建数据库，并执行 Alembic 迁移和默认 settings seed。Docker Compose 的 `sundarr-migrate` 服务后续应复用同一套内部初始化逻辑，而不是要求用户手动执行额外命令。
 
 不推荐把数据库文件或 Redis 数据打入应用镜像。镜像应保持无状态，数据由 volume 保存。
 
@@ -145,9 +131,12 @@ sundarr db init
 
 ```text
 storage.smb
-storage.libraries
-部分 transfer 参数
+cloud.local.staging_root
+worker.enabled
+worker.concurrency，默认 2
+transfer 参数
 source configuration
+library 映射
 ```
 
 运行时配置可以由 Web Console 修改。
@@ -234,20 +223,15 @@ curl -X POST http://localhost:8080/storage/config/save \
 
 ## 5. Transfer 配置
 
-MVP 默认：
+MVP 默认值由数据库 settings seed 写入：
 
-```yaml
-transfer:
-  max_concurrent_tasks: 2
-  max_concurrent_files_per_task: 1
-  chunk_size: 8388608
-  retry_count: 3
-  retry_delay_seconds: 10
-  verify_mode: size
-  speed_window_seconds: 5
+```text
+worker.enabled = true
+worker.concurrency = 2
+cloud.local.staging_root = /Sundarr/_staging
 ```
 
-部分参数可后续放入 settings 表热加载。
+Phase 5 实现 Worker 时，固定启动 1 个 Worker 进程，并从 settings 表读取 worker.concurrency 控制并行 TransferTask 数量。
 
 ---
 

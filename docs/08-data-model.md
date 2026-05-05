@@ -214,8 +214,12 @@ updated_at TIMESTAMP NOT NULL
 
 ```text
 storage.smb
-storage.libraries
-部分 transfer 参数
+cloud.local
+worker.enabled
+worker.concurrency
+source configuration
+library 映射
+transfer 参数
 ```
 
 规则：
@@ -224,6 +228,7 @@ storage.libraries
 API 不返回敏感字段明文。
 SMB password 不回显给 Web Console。
 password 空值更新表示保留旧值。
+数据库初始化完成后写入默认 settings，不覆盖已存在用户配置。
 ```
 
 ---

@@ -1153,10 +1153,15 @@ search:
 
 ```text
 storage.smb
-storage.libraries
+cloud.local.staging_root
+worker.enabled
+worker.concurrency
 source configuration
-部分 transfer 参数
+library 映射
+transfer 参数
 ```
+
+env 只保留数据库和 Redis 这类 bootstrap 连接信息。成熟 Docker Compose 部署中，PostgreSQL 和 Redis 通过内部服务名连接，用户不需要手动配置数据库地址；Compose 阶段的 `.env` 只保存部署级 secret 和端口覆盖。
 
 SMB 配置必须支持热加载。修改 SMB 配置后不需要重启 API 或 Worker。
 
