@@ -1,4 +1,5 @@
 from functools import lru_cache
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -20,3 +21,14 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def redact_url_password(url: str) -> str:
+    parts = urlsplit(url)
+    if not parts.password:
+        return url
+    username = parts.username or ""
+    host = parts.hostname or ""
+    port = f":{parts.port}" if parts.port else ""
+    auth = f"{username}:***@" if username else ":***@"
+    return urlunsplit((parts.scheme, f"{auth}{host}{port}", parts.path, parts.query, parts.fragment))
