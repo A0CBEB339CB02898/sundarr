@@ -45,7 +45,7 @@ Phase 2 Search And Resource Library: 已完成。
 Phase 3 Cloud Staging: 已完成。
 Phase 4 Storage Writer: 已收口，已完成 LocalWriter、Storage 配置 API、目录浏览 API、STORAGE_CONFIG_CHANGED 中断规则、SmbWriter 安全边界和真实 SMB 连接、目录浏览、写入、size、rename 手动验收。
 启动与配置精简：已确认 sundarr start/restart 管理 API + Web，自动执行数据库初始化/迁移、默认 settings seed 和前端依赖安装；Phase 5 实现 Worker 时必须同步纳入完整项目启停。
-Phase 5 Transfer Worker: 进行中，Phase 5.1 Worker Skeleton 和 Phase 5.2 Task Claiming 已完成；已提前实现 POST /transfers 和 GET /transfers/{id} 入口，Worker 主链路尚未实现。
+Phase 5 Transfer Worker: 进行中，Phase 5.1 Worker Skeleton、Phase 5.2 Task Claiming 和 Phase 5.3 Local Transfer Happy Path 已完成；已提前实现 POST /transfers 和 GET /transfers/{id} 入口，真实网盘和 SMB 搬运主链路尚未实现。
 Phase 6 Cleanup And Recovery: 未开始。
 Phase 7 Web Console: 未开始。
 Phase 8 AI Friendly API: 未开始。
@@ -388,9 +388,11 @@ pytest 覆盖非 pending 任务不会被领取。
 
 ### Phase 5.3: Local Transfer Happy Path
 
-状态：未开始。
+状态：已完成。
 
 目标：用 LocalCloudProvider + LocalWriter 跑通端到端搬运成功路径。
+
+当前领取和执行范围仅限 `target_type=local` 且 `ResourceLink.provider=local` 的任务。默认 SMB 任务在真实 SMB 搬运实现前不被 Worker 领取，避免任务进入无法完成的运行态。
 
 交付物：
 

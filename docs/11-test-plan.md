@@ -148,6 +148,7 @@ worker disabled does not claim tasks
 sundarr start / restart / stop / status manages Worker
 worker respects concurrency limit
 LocalCloudProvider + LocalWriter happy path
+unsupported target is not claimed before its executor exists
 size verification and rename
 ```
 
