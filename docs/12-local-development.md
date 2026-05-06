@@ -51,7 +51,7 @@ sundarr/
 执行 alembic upgrade head 初始化表结构。
 初始化默认业务配置，例如 worker.concurrency=2 和 cloud.local.staging_root=/Sundarr/_staging。
 如果 web/node_modules 不存在，则自动执行 npm install。
-启动 API 和 Web Console。Phase 5 实现 Worker 后，同一命令还必须启动 Worker。
+启动 API、Web Console 和 Worker。当前 Worker 只空转，不领取任务。
 ```
 
 访问入口：
@@ -86,7 +86,7 @@ Web Console: http://localhost:5173
 ```text
 .sundarr/sundarr-api.log
 .sundarr/sundarr-web.log
-.sundarr/sundarr-worker.log，Phase 5 后新增
+.sundarr/sundarr-worker.log
 ```
 
 端口占用规则：

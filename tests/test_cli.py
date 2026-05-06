@@ -65,3 +65,13 @@ def test_prepare_port_rejects_external_process(tmp_path: Path, monkeypatch: pyte
 
     with pytest.raises(RuntimeError, match="端口 8080 已被其他程序占用"):
         cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
+
+
+def test_worker_is_managed_service() -> None:
+    assert cli.WORKER_SERVICE in cli.MANAGED_SERVICES
+    assert cli.WORKER_SERVICE.pid_file.name == "sundarr-worker.pid"
+    assert cli.WORKER_SERVICE.log_file.name == "sundarr-worker.log"
+
+
+def test_worker_command_uses_module_entry() -> None:
+    assert cli._worker_command() == [sys.executable, "-m", "sundarr.app.worker"]

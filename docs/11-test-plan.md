@@ -144,6 +144,8 @@ pending -> completed normal flow
 failed stores error_code / retryable
 verification failure keeps cloud staging
 worker reads worker.concurrency from settings
+worker disabled does not claim tasks
+sundarr start / restart / stop / status manages Worker
 worker respects concurrency limit
 LocalCloudProvider + LocalWriter happy path
 size verification and rename

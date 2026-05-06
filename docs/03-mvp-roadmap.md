@@ -45,7 +45,7 @@ Phase 2 Search And Resource Library: 已完成。
 Phase 3 Cloud Staging: 已完成。
 Phase 4 Storage Writer: 已收口，已完成 LocalWriter、Storage 配置 API、目录浏览 API、STORAGE_CONFIG_CHANGED 中断规则、SmbWriter 安全边界和真实 SMB 连接、目录浏览、写入、size、rename 手动验收。
 启动与配置精简：已确认 sundarr start/restart 管理 API + Web，自动执行数据库初始化/迁移、默认 settings seed 和前端依赖安装；Phase 5 实现 Worker 时必须同步纳入完整项目启停。
-Phase 5 Transfer Worker: 未正式进入；已提前实现 POST /transfers 和 GET /transfers/{id} 入口，Worker 主链路尚未实现。
+Phase 5 Transfer Worker: 进行中，Phase 5.1 Worker Skeleton 已完成；已提前实现 POST /transfers 和 GET /transfers/{id} 入口，Worker 主链路尚未实现。
 Phase 6 Cleanup And Recovery: 未开始。
 Phase 7 Web Console: 未开始。
 Phase 8 AI Friendly API: 未开始。
@@ -322,6 +322,8 @@ pytest 通过。
 
 ### Phase 5.1: Worker Skeleton
 
+状态：已完成。
+
 目标：让 Worker 成为可启动、可停止、可观测的后台组件，但先不执行搬运。
 
 交付物：
@@ -355,6 +357,8 @@ pytest 覆盖 Worker 配置读取和 CLI 管理 Worker。
 
 ### Phase 5.2: Task Claiming
 
+状态：未开始。
+
 目标：Worker 能安全领取 pending 任务，先不做真实搬运。
 
 交付物：
@@ -383,6 +387,8 @@ pytest 覆盖非 pending 任务不会被领取。
 ```
 
 ### Phase 5.3: Local Transfer Happy Path
+
+状态：未开始。
 
 目标：用 LocalCloudProvider + LocalWriter 跑通端到端搬运成功路径。
 
@@ -414,6 +420,8 @@ pytest 不依赖真实网盘、真实 NAS 或真实 SMB。
 
 ### Phase 5.4: Failure Handling
 
+状态：未开始。
+
 目标：Worker 失败路径可追踪、可解释，不留下不可知状态。
 
 交付物：
@@ -443,6 +451,8 @@ pytest 覆盖至少 cloud read failed、size mismatch、target exists 三类失�
 ```
 
 ### Phase 5.5: API Status Polish
+
+状态：未开始。
 
 目标：让任务查询结果对 Web Console 和 AI Tool 友好。
 

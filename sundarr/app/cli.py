@@ -40,7 +40,13 @@ WEB_SERVICE = ManagedService(
     pid_file=RUNTIME_DIR / "sundarr-web.pid",
     log_file=RUNTIME_DIR / "sundarr-web.log",
 )
-MANAGED_SERVICES = (API_SERVICE, WEB_SERVICE)
+WORKER_SERVICE = ManagedService(
+    name="worker",
+    display_name="Sundarr Worker",
+    pid_file=RUNTIME_DIR / "sundarr-worker.pid",
+    log_file=RUNTIME_DIR / "sundarr-worker.log",
+)
+MANAGED_SERVICES = (API_SERVICE, WEB_SERVICE, WORKER_SERVICE)
 
 
 def main() -> None:
@@ -89,34 +95,42 @@ def _run_foreground(api_host: str, api_port: int, web_host: str, web_port: int, 
     _setup_project()
     _prepare_port(API_SERVICE, api_host, api_port, quiet=False)
     _prepare_port(WEB_SERVICE, web_host, web_port, quiet=False)
+    _prepare_process(WORKER_SERVICE, quiet=False)
 
     api_process = subprocess.Popen(_api_command(api_host, api_port, reload))
     web_process = subprocess.Popen(_web_command(web_host, web_port), cwd=WEB_DIR)
+    worker_process = subprocess.Popen(_worker_command())
     print("Sundarr 完整项目已前台启动，按 Ctrl+C 停止。")
     try:
         while True:
             api_code = api_process.poll()
             web_code = web_process.poll()
+            worker_code = worker_process.poll()
             if api_code is not None:
                 raise RuntimeError(f"Sundarr API 已退出，退出码={api_code}。")
             if web_code is not None:
                 raise RuntimeError(f"Sundarr Web 已退出，退出码={web_code}。")
+            if worker_code is not None:
+                raise RuntimeError(f"Sundarr Worker 已退出，退出码={worker_code}。")
             time.sleep(0.5)
     except KeyboardInterrupt:
         print("正在停止 Sundarr 完整项目。")
     finally:
         _terminate_process(api_process)
         _terminate_process(web_process)
+        _terminate_process(worker_process)
 
 
 def _start_background(api_host: str, api_port: int, web_host: str, web_port: int, reload: bool) -> None:
     _setup_project()
     _prepare_port(API_SERVICE, api_host, api_port, quiet=True)
     _prepare_port(WEB_SERVICE, web_host, web_port, quiet=True)
+    _prepare_process(WORKER_SERVICE, quiet=True)
 
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
     _start_service(API_SERVICE, _api_command(api_host, api_port, reload), cwd=None)
     _start_service(WEB_SERVICE, _web_command(web_host, web_port), cwd=WEB_DIR)
+    _start_service(WORKER_SERVICE, _worker_command(), cwd=None)
     print("Sundarr 完整项目已后台启动。")
 
 
@@ -191,6 +205,13 @@ def _print_status() -> None:
 
 
 def _prepare_port(service: ManagedService, host: str, port: int, quiet: bool) -> None:
+    _prepare_process(service, quiet=quiet)
+
+    if _is_port_in_use(host, port):
+        raise RuntimeError(f"{service.display_name} 端口 {port} 已被其他程序占用，请释放端口后重试。")
+
+
+def _prepare_process(service: ManagedService, quiet: bool) -> None:
     pid = _read_pid(service)
     if pid and _is_process_running(pid):
         if not quiet:
@@ -199,9 +220,6 @@ def _prepare_port(service: ManagedService, host: str, port: int, quiet: bool) ->
         time.sleep(0.2)
     elif pid:
         service.pid_file.unlink(missing_ok=True)
-
-    if _is_port_in_use(host, port):
-        raise RuntimeError(f"{service.display_name} 端口 {port} 已被其他程序占用，请释放端口后重试。")
 
 
 def _is_port_in_use(host: str, port: int) -> bool:
@@ -229,6 +247,10 @@ def _api_command(host: str, port: int, reload: bool) -> list[str]:
 
 def _web_command(host: str, port: int) -> list[str]:
     return [_npm_executable(), "run", "dev", "--", "--host", host, "--port", str(port)]
+
+
+def _worker_command() -> list[str]:
+    return [sys.executable, "-m", "sundarr.app.worker"]
 
 
 def _npm_executable() -> str:
