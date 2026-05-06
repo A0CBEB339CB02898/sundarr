@@ -247,6 +247,16 @@ cleaning_cloud -> 可重新 cleanup
 
 恢复必须保守，不能误删 cloud staging。
 
+Phase 6 拆分顺序：
+
+```text
+Phase 6.1 cancel task
+Phase 6.2 retry failed task
+Phase 6.3 safe cloud cleanup
+Phase 6.4 worker startup recovery
+Phase 6.5 transfer logs API
+```
+
 ---
 
 ## 10. 进度规则

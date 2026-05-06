@@ -215,6 +215,16 @@ GET  /transfers/{task_id}/logs
 
 当前控制接口尚未实现。Phase 5 只要求 Worker 主链路、进度查询和失败状态可见；cancel / retry / logs API 在 Phase 6 收口。
 
+Phase 6 控制接口收口顺序：
+
+```text
+Phase 6.1: POST /transfers/{task_id}/cancel
+Phase 6.2: POST /transfers/{task_id}/retry
+Phase 6.5: GET /transfers/{task_id}/logs
+```
+
+取消和重试接口响应仍返回 `TransferResponse`。日志接口响应按 `created_at` 升序返回 transfer_logs，且不得包含 password、token、cookie 等敏感信息。
+
 ---
 
 ## 7. Storage Settings

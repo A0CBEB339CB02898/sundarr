@@ -1531,6 +1531,8 @@ rename
 
 ### Phase 6: Cleanup And Recovery
 
+Phase 6 按 `docs/03-mvp-roadmap.md` 拆为 Cancel Task、Retry Failed Task、Safe Cloud Cleanup、Worker Startup Recovery 和 Transfer Logs API 五个可验收子阶段。
+
 交付：
 
 ```text

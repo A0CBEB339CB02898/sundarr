@@ -487,6 +487,8 @@ API 文档、状态机文档和测试计划同步更新。
 
 目标：实现安全清理、取消、重试和恢复。
 
+Phase 6 负责把 Phase 5 已跑通的本地 Worker 主链路变成可取消、可重试、可恢复、可安全清理的任务系统。Phase 6 不扩大到真实网盘 Provider 或完整 Web Console UI。
+
 交付物：
 
 ```text
@@ -517,6 +519,166 @@ worker startup recovery 有保守恢复策略。
 校验失败、cleanup 失败、取消下载、重试任务均有测试覆盖。
 pytest 通过。
 工作区已提交或明确说明不提交原因。
+```
+
+### Phase 6.1: Cancel Task
+
+状态：未开始。
+
+目标：提供任务取消入口，并保证取消不会误删 `.downloading` 或 cloud staging。
+
+交付物：
+
+```text
+POST /transfers/{task_id}/cancel
+pending -> cancelled
+staging_to_cloud / downloading / verifying -> cancelled 或保守 failed/cancelled
+completed / failed / cancelled 拒绝取消
+取消时写入 transfer_logs
+取消时保留 .downloading 和 cloud staging
+```
+
+验收标准：
+
+```text
+pending task 可取消。
+running task 可进入 cancelled 或明确失败状态。
+completed / failed task 不可取消。
+取消不会删除目标正式文件、.downloading 或 cloud staging。
+```
+
+停止条件：
+
+```text
+pytest 覆盖 pending、running、completed、failed 的取消规则。
+API 契约与实际响应一致。
+```
+
+### Phase 6.2: Retry Failed Task
+
+状态：未开始。
+
+目标：提供失败任务重试入口，允许可重试任务回到可执行状态。
+
+交付物：
+
+```text
+POST /transfers/{task_id}/retry
+仅 failed 且 retryable=true 可重试
+retry_count + 1
+清理 error_code / error_message / retryable
+使用最新 storage / SMB 配置快照
+写入 transfer_logs
+```
+
+验收标准：
+
+```text
+retryable=true 的 failed task 可重试。
+retryable=false 的 failed task 拒绝重试。
+重试不盲目删除 .downloading。
+重试任务后续可被 Worker 重新领取。
+```
+
+停止条件：
+
+```text
+pytest 覆盖 retryable true / false、retry_count、最新配置快照。
+不实现复杂 resume，resume 策略可留到后续增强。
+```
+
+### Phase 6.3: Safe Cloud Cleanup
+
+状态：未开始。
+
+目标：任务完成后安全清理 cloud staging，同时保证任何失败或未完成状态都不会误删。
+
+交付物：
+
+```text
+completed 后进入 cleaning_cloud
+cleanup 前置条件检查
+删除 cloud staging 子目录
+cleanup 成功后 task.status = completed 或保持 completed 并记录 cleanup_completed
+cleanup 失败写入 cleanup_failed 日志
+```
+
+验收标准：
+
+```text
+只有所有 transfer_files.status == completed 才允许 cleanup。
+目标文件存在且 size 匹配才允许 cleanup。
+cloud_staging_path 必须位于 staging root 子路径。
+校验失败、取消、failed、只有 verified 时不 cleanup。
+cleanup 失败不删除本地已完成文件。
+```
+
+停止条件：
+
+```text
+pytest 覆盖 cleanup 成功和至少 3 类拒绝 cleanup 条件。
+误删保护有自动化测试。
+```
+
+### Phase 6.4: Worker Startup Recovery
+
+状态：未开始。
+
+目标：Worker 启动时扫描未完成运行态任务，并保守恢复或标记为可重试失败。
+
+交付物：
+
+```text
+Worker 启动恢复扫描
+pending 保持可领取
+staging_to_cloud -> failed retryable=true
+cloud_ready / downloading / verifying / renaming / cleaning_cloud 保守恢复或 failed retryable=true
+恢复事件写入 transfer_logs
+```
+
+验收标准：
+
+```text
+Worker 重启不会让任务永久卡在运行态。
+恢复不会误删 .downloading 或 cloud staging。
+恢复策略宁可 failed retryable，也不假装 completed。
+```
+
+停止条件：
+
+```text
+pytest 覆盖主要运行态恢复规则。
+恢复逻辑不依赖真实网盘或真实 NAS。
+```
+
+### Phase 6.5: Transfer Logs API
+
+状态：未开始。
+
+目标：提供任务日志查询能力，供 Web Console 和 AI Tool 解释任务过程与失败原因。
+
+交付物：
+
+```text
+GET /transfers/{task_id}/logs
+返回 transfer_logs 按 created_at 排序
+日志不返回 password、token、cookie 等敏感信息
+cancel / retry / cleanup / recovery 事件可查询
+```
+
+验收标准：
+
+```text
+前端和 AI 可查询任务关键事件。
+失败任务可通过日志定位失败阶段。
+日志响应字段与 API 文档一致。
+```
+
+停止条件：
+
+```text
+pytest 覆盖日志查询、任务不存在、敏感字段不返回。
+API 契约、测试计划和状态机文档同步。
 ```
 
 ---

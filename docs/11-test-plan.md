@@ -165,6 +165,9 @@ cancel downloading keeps .downloading
 cleanup only after all files completed
 retry failed task
 worker startup recovery
+GET /transfers/{id}/logs returns ordered logs
+cleanup refuses staging root and outside path
+cancel / retry / cleanup / recovery writes transfer_logs
 ```
 
 ---
