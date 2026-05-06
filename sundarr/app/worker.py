@@ -159,6 +159,20 @@ async def process_transfer_task(
     cloud_provider: CloudProvider,
     storage_writer: StorageWriter,
 ) -> TransferTask:
+    try:
+        return await _process_transfer_task(session, task, link, cloud_provider, storage_writer)
+    except Exception as exc:
+        _mark_task_failed(session, task, exc)
+        return task
+
+
+async def _process_transfer_task(
+    session: Session,
+    task: TransferTask,
+    link: ResourceLink,
+    cloud_provider: CloudProvider,
+    storage_writer: StorageWriter,
+) -> TransferTask:
     _add_log(session, task.id, "info", "cloud_staging_started", "开始转存到 cloud staging。")
     task.status = "staging_to_cloud"
     task.cloud_staging_path = await cloud_provider.save_share(link.url, link.code, task.id)
@@ -213,6 +227,35 @@ async def process_transfer_task(
     _add_log(session, task.id, "info", "transfer_completed", "任务已完成。")
     session.commit()
     return task
+
+
+def _mark_task_failed(session: Session, task: TransferTask, exc: Exception) -> None:
+    error_code = _error_code_from_exception(exc)
+    task.status = "failed"
+    task.error_code = error_code
+    task.error_message = str(exc) or error_code
+    task.retryable = _is_retryable_error(error_code)
+    failed_files = (
+        session.query(TransferFile)
+        .filter(TransferFile.task_id == task.id, TransferFile.status.in_(["pending", "downloading", "verified"]))
+        .all()
+    )
+    for transfer_file in failed_files:
+        transfer_file.status = "failed"
+        transfer_file.error_code = error_code
+        transfer_file.error_message = task.error_message
+    _add_log(session, task.id, "error", "transfer_failed", f"任务失败：{task.error_message}")
+    session.commit()
+
+
+def _error_code_from_exception(exc: Exception) -> str:
+    if isinstance(exc, ValueError) and exc.args and isinstance(exc.args[0], str) and exc.args[0].isupper():
+        return exc.args[0]
+    return "WORKER_TRANSFER_FAILED"
+
+
+def _is_retryable_error(error_code: str) -> bool:
+    return error_code in {"CLOUD_STREAM_FAILED", "STORAGE_WRITE_FAILED", "WORKER_TRANSFER_FAILED"}
 
 
 def _add_log(session: Session, task_id: str, level: str, event: str, message: str) -> None:

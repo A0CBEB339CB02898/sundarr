@@ -150,6 +150,10 @@ worker respects concurrency limit
 LocalCloudProvider + LocalWriter happy path
 unsupported target is not claimed before its executor exists
 size verification and rename
+cloud stream failure marks task failed
+write failure marks task failed
+size mismatch marks task failed
+target exists marks task failed without overwrite
 ```
 
 Phase 6 再覆盖：

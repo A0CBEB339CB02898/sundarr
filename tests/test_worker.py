@@ -1,10 +1,13 @@
 from pathlib import Path
+from typing import AsyncIterator
 
 import pytest
 
 from sundarr.app.cloud import LocalCloudProvider
+from sundarr.app.cloud.base import CloudFile
 from sundarr.app.models import Resource, ResourceLink, Setting, TransferFile, TransferLog, TransferTask
 from sundarr.app.storage import LocalWriter
+from sundarr.app.storage.base import StorageWriter
 from sundarr.app.worker import WorkerSettings, claim_pending_tasks, load_local_runtime_config, load_worker_settings, process_transfer_task
 
 
@@ -153,6 +156,64 @@ async def test_process_transfer_task_local_happy_path(db_session, tmp_path: Path
     }
 
 
+@pytest.mark.anyio
+async def test_process_transfer_task_marks_cloud_stream_failure(db_session, tmp_path: Path) -> None:
+    task, link = _seed_single_local_task(db_session)
+
+    await process_transfer_task(db_session, task, link, FailingStreamCloudProvider(), LocalWriter(tmp_path / "storage"))
+
+    db_session.refresh(task)
+    assert task.status == "failed"
+    assert task.error_code == "CLOUD_STREAM_FAILED"
+    assert task.retryable is True
+    assert db_session.query(TransferFile).one().status == "failed"
+    assert "transfer_failed" in {log.event for log in db_session.query(TransferLog).all()}
+
+
+@pytest.mark.anyio
+async def test_process_transfer_task_marks_size_mismatch(db_session, tmp_path: Path) -> None:
+    task, link = _seed_single_local_task(db_session)
+
+    await process_transfer_task(db_session, task, link, SingleFileCloudProvider(), WrongSizeWriter(tmp_path / "storage"))
+
+    db_session.refresh(task)
+    assert task.status == "failed"
+    assert task.error_code == "SIZE_MISMATCH"
+    assert task.retryable is False
+    assert db_session.query(TransferFile).one().status == "failed"
+
+
+@pytest.mark.anyio
+async def test_process_transfer_task_marks_write_failure(db_session) -> None:
+    task, link = _seed_single_local_task(db_session)
+
+    await process_transfer_task(db_session, task, link, SingleFileCloudProvider(), FailingWriteWriter())
+
+    db_session.refresh(task)
+    assert task.status == "failed"
+    assert task.error_code == "STORAGE_WRITE_FAILED"
+    assert task.retryable is True
+    assert db_session.query(TransferFile).one().status == "failed"
+
+
+@pytest.mark.anyio
+async def test_process_transfer_task_marks_target_exists_and_keeps_temp(db_session, tmp_path: Path) -> None:
+    task, link = _seed_single_local_task(db_session)
+    storage_root = tmp_path / "storage"
+    target = storage_root / "Movies" / "Movie.mkv"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"existing")
+
+    await process_transfer_task(db_session, task, link, SingleFileCloudProvider(), LocalWriter(storage_root))
+
+    db_session.refresh(task)
+    assert task.status == "failed"
+    assert task.error_code == "TARGET_EXISTS"
+    assert task.retryable is False
+    assert (storage_root / "Movies" / "Movie.mkv.downloading").exists()
+    assert target.read_bytes() == b"existing"
+
+
 def _seed_transfer_tasks(db_session, statuses: list[str], target_type: str = "local") -> None:
     resource = Resource(id="res_worker", title="测试资源", score=1)
     link = ResourceLink(id="link_worker", resource_id=resource.id, provider="local", url="local://share")
@@ -170,3 +231,73 @@ def _seed_transfer_tasks(db_session, statuses: list[str], target_type: str = "lo
             )
         )
     db_session.commit()
+
+
+def _seed_single_local_task(db_session) -> tuple[TransferTask, ResourceLink]:
+    resource = Resource(id=uuid_text("res"), title="本地电影", score=1)
+    link = ResourceLink(id=uuid_text("link"), resource_id=resource.id, provider="local", url="local://movie_share")
+    task = TransferTask(
+        id=uuid_text("task"),
+        resource_id=resource.id,
+        link_id=link.id,
+        status="staging_to_cloud",
+        mode="copy",
+        target_type="local",
+        target_path="Movies/Movie.mkv",
+    )
+    db_session.add_all([resource, link, task])
+    db_session.commit()
+    return task, link
+
+
+def uuid_text(prefix: str) -> str:
+    return f"{prefix}_failure"
+
+
+class SingleFileCloudProvider:
+    name = "single"
+
+    async def save_share(self, url: str, code: str | None, target_dir: str) -> str:
+        return f"/Sundarr/_staging/{target_dir}"
+
+    async def list_files(self, path: str) -> list[CloudFile]:
+        return [CloudFile(id="file_1", path=f"{path}/Movie.mkv", name="Movie.mkv", size=4)]
+
+    async def open_file_stream(self, file_id: str, offset: int = 0) -> AsyncIterator[bytes]:
+        yield b"1234"
+
+    async def delete(self, path: str) -> None:
+        return None
+
+
+class FailingStreamCloudProvider(SingleFileCloudProvider):
+    async def open_file_stream(self, file_id: str, offset: int = 0) -> AsyncIterator[bytes]:
+        yield b"12"
+        raise ValueError("CLOUD_STREAM_FAILED")
+
+
+class WrongSizeWriter(LocalWriter):
+    async def size(self, path: str) -> int:
+        return 999
+
+
+class FailingWriteWriter(StorageWriter):
+    name = "failing"
+
+    async def exists(self, path: str) -> bool:
+        return False
+
+    async def size(self, path: str) -> int:
+        return 0
+
+    async def mkdirs(self, path: str) -> None:
+        return None
+
+    async def open_append(self, path: str):
+        raise ValueError("STORAGE_WRITE_FAILED")
+
+    async def rename(self, src: str, dst: str) -> None:
+        return None
+
+    async def remove(self, path: str) -> None:
+        return None
