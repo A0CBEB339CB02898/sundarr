@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
-from sundarr.app.models import Resource, ResourceLink, Setting, TransferTask
+from sundarr.app.models import Resource, ResourceLink, Setting, TransferFile, TransferTask
 from sundarr.app.services.storage_config_service import STORAGE_CONFIG_KEY
 
 
@@ -61,6 +61,46 @@ def test_create_and_get_transfer(db_session: Session) -> None:
     get_response = client.get(f"/transfers/{body['id']}")
     assert get_response.status_code == 200
     assert get_response.json()["id"] == body["id"]
+    assert get_response.json()["progress"] == 0
+    assert get_response.json()["current_file"] is None
+
+
+def test_get_transfer_returns_progress_and_current_file(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = TransferTask(
+        id="task_progress",
+        resource_id="res_1",
+        link_id=link.id,
+        status="downloading",
+        mode="copy",
+        target_type="local",
+        target_path="Movies/Movie.mkv",
+        total_bytes=10,
+        done_bytes=4,
+    )
+    db_session.add(task)
+    db_session.add(
+        TransferFile(
+            id="file_progress",
+            task_id=task.id,
+            cloud_path="/Sundarr/_staging/task/Movie.mkv",
+            target_path="Movies/Movie.mkv",
+            temp_path="Movies/Movie.mkv.downloading",
+            filename="Movie.mkv",
+            size_bytes=10,
+            done_bytes=4,
+            status="downloading",
+        )
+    )
+    db_session.commit()
+
+    response = client.get("/transfers/task_progress")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["progress"] == 40
+    assert body["current_file"] == "Movie.mkv"
 
 
 def test_create_transfer_rejects_missing_link(db_session: Session) -> None:

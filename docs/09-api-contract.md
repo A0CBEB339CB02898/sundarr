@@ -45,8 +45,16 @@ GET /health
   "status": "ok",
   "database": "ok",
   "redis": "ok",
-  "worker": "unknown"
+  "worker": "ok"
 }
+```
+
+`worker` 允许值：
+
+```text
+ok: 本地 Worker pid 存在且进程运行中。
+error: 本地 Worker pid 存在但进程不存在。
+unknown: 当前环境没有 Worker pid，或无法判断 Worker 状态。
 ```
 
 ---
@@ -128,7 +136,8 @@ GET /resources/{resource_id}
 
 ```text
 已实现 POST /transfers 和 GET /transfers/{task_id} 的最小入口。
-尚未实现 worker state machine、logs、progress、eta 和 current_file。
+已实现 Worker 本地成功路径和失败状态写入。
+尚未实现 logs API、eta 和复杂 current_file 详情。
 cancel、retry 和 worker startup recovery 属于 Phase 6 Cleanup And Recovery 范围。
 ```
 
@@ -165,6 +174,8 @@ POST /transfers
   "target_path": "Movies/Interstellar.mkv",
   "total_bytes": 0,
   "done_bytes": 0,
+  "progress": 0,
+  "current_file": null,
   "error_code": null,
   "error_message": null,
   "retryable": null,
@@ -186,6 +197,8 @@ GET /transfers/{task_id}
   "status": "downloading",
   "done_bytes": 5368709120,
   "total_bytes": 12582912000,
+  "progress": 42.66,
+  "current_file": "Interstellar.mkv",
   "error_code": null,
   "error_message": null,
   "retryable": null

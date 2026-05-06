@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from sundarr.app.config import get_settings
 from sundarr.app.core.database import get_engine
+from sundarr.app.cli import WORKER_SERVICE, _is_process_running, _read_pid
 
 router = APIRouter(tags=["health"])
 
@@ -29,5 +30,12 @@ async def health() -> dict[str, str]:
         "status": "ok",
         "database": database_status,
         "redis": redis_status,
-        "worker": "unknown",
+        "worker": _worker_status(),
     }
+
+
+def _worker_status() -> str:
+    pid = _read_pid(WORKER_SERVICE)
+    if pid is None:
+        return "unknown"
+    return "ok" if _is_process_running(pid) else "error"

@@ -36,6 +36,8 @@ class TransferResponse(BaseModel):
     target_path: str
     total_bytes: int
     done_bytes: int
+    progress: float = 0
+    current_file: str | None = None
     error_code: str | None = None
     error_message: str | None = None
     retryable: bool | None = None

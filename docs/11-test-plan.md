@@ -154,6 +154,8 @@ cloud stream failure marks task failed
 write failure marks task failed
 size mismatch marks task failed
 target exists marks task failed without overwrite
+GET /transfers/{id} returns progress and current_file
+GET /health returns worker status when managed by local CLI
 ```
 
 Phase 6 再覆盖：

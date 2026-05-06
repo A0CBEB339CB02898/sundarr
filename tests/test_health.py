@@ -20,8 +20,10 @@ def test_health_returns_ok() -> None:
 
     original_get_engine = health_api.get_engine
     original_redis_from_url = health_api.Redis.from_url
+    original_worker_status = health_api._worker_status
     health_api.get_engine = lambda: engine
     health_api.Redis.from_url = lambda *args, **kwargs: FakeRedis()
+    health_api._worker_status = lambda: "ok"
     client = TestClient(create_app())
 
     try:
@@ -29,11 +31,26 @@ def test_health_returns_ok() -> None:
     finally:
         health_api.get_engine = original_get_engine
         health_api.Redis.from_url = original_redis_from_url
+        health_api._worker_status = original_worker_status
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["database"] == "ok"
     assert response.json()["redis"] == "ok"
+    assert response.json()["worker"] == "ok"
+
+
+def test_worker_status_unknown_without_pid(monkeypatch) -> None:
+    monkeypatch.setattr(health_api, "_read_pid", lambda service: None)
+
+    assert health_api._worker_status() == "unknown"
+
+
+def test_worker_status_error_with_dead_pid(monkeypatch) -> None:
+    monkeypatch.setattr(health_api, "_read_pid", lambda service: 123)
+    monkeypatch.setattr(health_api, "_is_process_running", lambda pid: False)
+
+    assert health_api._worker_status() == "error"
 
 
 def test_redact_url_password() -> None:

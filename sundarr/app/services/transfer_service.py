@@ -1,8 +1,8 @@
 from uuid import uuid4
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
-from sundarr.app.models import ResourceLink, Setting, TransferTask
+from sundarr.app.models import ResourceLink, Setting, TransferFile, TransferTask
 from sundarr.app.schemas.transfer import TransferCreateRequest, TransferResponse
 from sundarr.app.services.storage_config_service import STORAGE_CONFIG_KEY
 
@@ -47,11 +47,30 @@ class TransferService:
             target_path=task.target_path,
             total_bytes=task.total_bytes,
             done_bytes=task.done_bytes,
+            progress=self._progress(task),
+            current_file=self._current_file(task),
             error_code=task.error_code,
             error_message=task.error_message,
             retryable=task.retryable,
             retry_count=task.retry_count,
         )
+
+    def _progress(self, task: TransferTask) -> float:
+        if task.total_bytes <= 0:
+            return 100.0 if task.status == "completed" else 0.0
+        return round(min(100.0, task.done_bytes / task.total_bytes * 100), 2)
+
+    def _current_file(self, task: TransferTask) -> str | None:
+        task_session = object_session(task)
+        if task_session is None:
+            return None
+        file = (
+            task_session.query(TransferFile)
+            .filter(TransferFile.task_id == task.id, TransferFile.status.in_(["pending", "downloading", "verified", "failed"]))
+            .order_by(TransferFile.created_at, TransferFile.id)
+            .first()
+        )
+        return file.filename if file else None
 
 
 transfer_service = TransferService()
