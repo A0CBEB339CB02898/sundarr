@@ -252,6 +252,12 @@ h2 {
   gap: 16px;
 }
 
+.search-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
 .field {
   display: grid;
   gap: 8px;
@@ -273,7 +279,18 @@ h2 {
   padding: 13px 16px;
 }
 
-.field input:focus {
+.field select {
+  width: 100%;
+  border: 1px solid rgba(23, 32, 38, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #172026;
+  font: inherit;
+  padding: 13px 16px;
+}
+
+.field input:focus,
+.field select:focus {
   border-color: #a65f20;
   outline: 3px solid rgba(166, 95, 32, 0.14);
 }
@@ -665,6 +682,90 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.search-results,
+.link-list {
+  display: grid;
+  gap: 14px;
+}
+
+.resource-card,
+.create-transfer-panel {
+  display: grid;
+  gap: 18px;
+  border: 1px solid rgba(23, 32, 38, 0.1);
+  border-radius: 26px;
+  background: #fffaf1;
+  padding: 24px;
+}
+
+.resource-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.resource-header h3 {
+  margin: 10px 0 8px;
+  font-size: clamp(24px, 4vw, 38px);
+  letter-spacing: -0.045em;
+}
+
+.resource-header p {
+  margin-bottom: 0;
+}
+
+.resource-header > strong {
+  border-radius: 18px;
+  background: #172026;
+  color: #f8f2e8;
+  padding: 12px 14px;
+}
+
+.link-row {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) minmax(100px, auto);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid rgba(23, 32, 38, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.64);
+  color: #172026;
+  cursor: pointer;
+  padding: 14px;
+  text-align: left;
+}
+
+.link-row:hover,
+.link-row[data-selected="true"] {
+  border-color: rgba(166, 95, 32, 0.42);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.link-row span,
+.link-row small {
+  color: #52616b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.link-row strong,
+.link-row small,
+.selected-link-card p {
+  overflow-wrap: anywhere;
+}
+
+.selected-link-card {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.64);
+  padding: 16px;
+}
+
+.selected-link-card p {
+  margin: 8px 0 0;
+}
+
 @media (max-width: 860px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -697,12 +798,18 @@ h2 {
 
   .lookup-form,
   .detail-grid,
-  .storage-form {
+  .storage-form,
+  .search-form {
     grid-template-columns: 1fr;
   }
 
-  .browser-row {
+  .browser-row,
+  .link-row {
     grid-template-columns: 1fr;
+  }
+
+  .resource-header {
+    display: grid;
   }
 }
 

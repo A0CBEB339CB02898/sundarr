@@ -107,6 +107,47 @@ type StorageFormState = {
   library_anime: string
 }
 
+type MediaType = 'movie' | 'tv' | 'anime' | 'unknown'
+
+type SearchResponse = {
+  query: string
+  count: number
+  results: ResourceCandidate[]
+}
+
+type ResourceCandidate = {
+  id: string
+  title: string
+  normalized_title: string
+  original_title: string | null
+  type: MediaType
+  year: number | null
+  quality: string | null
+  score: number
+  explanation: string
+  source_id: string
+  source_url: string | null
+  links: ResourceLinkResult[]
+}
+
+type ResourceLinkResult = {
+  id: string
+  provider: string
+  url: string
+  code: string | null
+  valid: boolean | null
+  risk_level: string
+}
+
+type SearchFormState = {
+  q: string
+  type: MediaType
+  year: string
+  limit: string
+  target_library: string
+  target_path: string
+}
+
 const navItems: NavItem[] = [
   { key: 'search', path: '/search', label: '搜索', description: '搜索资源并创建搬运任务' },
   { key: 'transfers', path: '/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
@@ -220,6 +261,9 @@ function PagePanel({ activePage }: { activePage: PageKey }) {
   if (activePage === 'storage') {
     return <StoragePanel />
   }
+  if (activePage === 'search') {
+    return <SearchPanel />
+  }
 
   return (
     <section className="panel" aria-labelledby={`${activePage}-title`}>
@@ -235,6 +279,176 @@ function PagePanel({ activePage }: { activePage: PageKey }) {
       </div>
       <ApiClientPreview />
     </section>
+  )
+}
+
+function SearchPanel() {
+  const [form, setForm] = useState<SearchFormState>({
+    q: '',
+    type: 'unknown',
+    year: '',
+    limit: '20',
+    target_library: 'movies',
+    target_path: '',
+  })
+  const [response, setResponse] = useState<SearchResponse | null>(null)
+  const [selectedLink, setSelectedLink] = useState<{ resource: ResourceCandidate; link: ResourceLinkResult } | null>(null)
+  const [createdTask, setCreatedTask] = useState<TransferResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+
+  async function runSearch() {
+    const keyword = form.q.trim()
+    if (!keyword) {
+      setError('请输入搜索关键词。')
+      return
+    }
+
+    setIsSearching(true)
+    setError(null)
+    setCreatedTask(null)
+    try {
+      const params = new URLSearchParams({ q: keyword, type: form.type, limit: form.limit || '20' })
+      if (form.year.trim()) params.set('year', form.year.trim())
+      const result = await api.get<SearchResponse>(`/search?${params.toString()}`)
+      setResponse(result)
+      setSelectedLink(null)
+    } catch (exc) {
+      setResponse(null)
+      setSelectedLink(null)
+      setError(exc instanceof Error ? exc.message : '搜索失败。')
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  async function createTransfer() {
+    if (!selectedLink) {
+      setError('请先选择一个资源链接。')
+      return
+    }
+    const targetPath = form.target_path.trim()
+    if (!targetPath) {
+      setError('请输入目标路径。目标路径不明确时需要先确认。')
+      return
+    }
+
+    setIsCreating(true)
+    setError(null)
+    try {
+      const task = await api.post<TransferResponse>('/transfers', {
+        link_id: selectedLink.link.id,
+        target_library: form.target_library.trim() || null,
+        target_path: targetPath,
+      })
+      setCreatedTask(task)
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '创建任务失败。')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  function updateField(key: keyof SearchFormState, value: string) {
+    setForm((current) => ({ ...current, [key]: value }))
+  }
+
+  return (
+    <section className="panel" aria-labelledby="search-title">
+      <div className="panel-header-row">
+        <div>
+          <p className="panel-kicker">当前停止点</p>
+          <h2 id="search-title">搜索与创建任务</h2>
+          <p>搜索候选资源，选择网盘链接，填写目标路径后创建 transfer task。</p>
+        </div>
+      </div>
+
+      <form className="search-form" onSubmit={(event) => { event.preventDefault(); void runSearch() }}>
+        <TextField label="关键词" onChange={(value) => updateField('q', value)} required value={form.q} />
+        <label className="field">
+          <span>类型</span>
+          <select onChange={(event) => updateField('type', event.target.value)} value={form.type}>
+            <option value="unknown">未知</option>
+            <option value="movie">电影</option>
+            <option value="tv">剧集</option>
+            <option value="anime">动画</option>
+          </select>
+        </label>
+        <TextField label="年份" onChange={(value) => updateField('year', value)} type="number" value={form.year} />
+        <TextField label="数量限制" onChange={(value) => updateField('limit', value)} type="number" value={form.limit} />
+        <div className="form-actions">
+          <button className="primary-button" disabled={isSearching} type="submit">{isSearching ? '搜索中' : '搜索资源'}</button>
+        </div>
+      </form>
+
+      {isSearching ? <LoadingState message="正在聚合搜索候选资源。" /> : null}
+      {error ? <ErrorState message={error} /> : null}
+
+      {response ? (
+        <div className="search-results">
+          <div className="section-heading"><h3>候选资源</h3><span>{response.count} 个结果</span></div>
+          {response.results.length === 0 ? <EmptyState message="没有搜索到候选资源。" /> : null}
+          {response.results.map((resource) => (
+            <ResourceCard
+              key={resource.id}
+              onSelect={(link) => {
+                setSelectedLink({ resource, link })
+                if (!form.target_path.trim()) updateField('target_path', suggestedTargetPath(resource))
+              }}
+              resource={resource}
+              selectedLinkId={selectedLink?.link.id || null}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      <section className="create-transfer-panel" aria-labelledby="create-transfer-title">
+        <div className="section-heading"><h3 id="create-transfer-title">创建任务</h3><span>{selectedLink ? selectedLink.link.provider : '未选择链接'}</span></div>
+        {selectedLink ? <div className="selected-link-card"><strong>{selectedLink.resource.title}</strong><p>{selectedLink.link.url}</p></div> : <EmptyState message="请先在候选资源中选择一个链接。" />}
+        <form className="search-form" onSubmit={(event) => { event.preventDefault(); void createTransfer() }}>
+          <TextField label="目标 Library" onChange={(value) => updateField('target_library', value)} value={form.target_library} />
+          <TextField label="目标路径" onChange={(value) => updateField('target_path', value)} required value={form.target_path} />
+          <div className="form-actions">
+            <button className="secondary-button" disabled={!selectedLink || isCreating} type="submit">{isCreating ? '创建中' : '创建 Transfer'}</button>
+          </div>
+        </form>
+        {!form.target_path.trim() ? <div className="notice-card"><strong>需要确认目标路径</strong><p>目标路径为空时不会创建任务，请先确认 library 和最终文件路径。</p></div> : null}
+        {createdTask ? <div className="notice-card"><strong>任务已创建</strong><p>任务 ID：{createdTask.id}。可前往任务页查询进度。</p></div> : null}
+      </section>
+
+      <ApiClientPreview />
+    </section>
+  )
+}
+
+function ResourceCard({ onSelect, resource, selectedLinkId }: { onSelect: (link: ResourceLinkResult) => void; resource: ResourceCandidate; selectedLinkId: string | null }) {
+  return (
+    <article className="resource-card">
+      <div className="resource-header">
+        <div>
+          <span className="status-pill running">{mediaTypeLabel(resource.type)}</span>
+          <h3>{resource.title}</h3>
+          <p>{resource.explanation}</p>
+        </div>
+        <strong>{resource.score.toFixed(2)}</strong>
+      </div>
+      <div className="detail-grid">
+        <DetailItem label="年份" value={resource.year ? String(resource.year) : '未知'} />
+        <DetailItem label="质量" value={resource.quality || '未知'} />
+        <DetailItem label="来源" value={resource.source_id} />
+      </div>
+      <div className="link-list">
+        {resource.links.length === 0 ? <EmptyState message="该候选资源没有可用链接。" /> : null}
+        {resource.links.map((link) => (
+          <button className="link-row" data-selected={selectedLinkId === link.id} key={link.id} onClick={() => onSelect(link)} type="button">
+            <span>{link.provider}</span>
+            <strong>{link.url}</strong>
+            <small>风险：{link.risk_level}</small>
+          </button>
+        ))}
+      </div>
+    </article>
   )
 }
 
@@ -835,6 +1049,22 @@ function storageRequestFromForm(form: StorageFormState): StorageConfigRequest {
     base_path: form.base_path.trim() || '/',
     libraries,
   }
+}
+
+function mediaTypeLabel(type: MediaType) {
+  const labels: Record<MediaType, string> = {
+    movie: '电影',
+    tv: '剧集',
+    anime: '动画',
+    unknown: '未知',
+  }
+  return labels[type]
+}
+
+function suggestedTargetPath(resource: ResourceCandidate) {
+  const library = resource.type === 'tv' ? 'TV' : resource.type === 'anime' ? 'Anime' : 'Movies'
+  const year = resource.year ? ` (${resource.year})` : ''
+  return `${library}/${resource.normalized_title || resource.title}${year}`
 }
 
 async function responseErrorMessage(response: Response) {
