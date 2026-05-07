@@ -42,6 +42,8 @@ class TransferResponse(BaseModel):
     error_message: str | None = None
     retryable: bool | None = None
     retry_count: int
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class TransferLogResponse(BaseModel):

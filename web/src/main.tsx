@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import './styles.css'
 
 type PageKey = 'search' | 'transfers' | 'storage' | 'sources' | 'status'
+type ThemeMode = 'light' | 'dark' | 'system'
 
 type NavItem = {
   key: PageKey
@@ -36,6 +37,8 @@ type TransferResponse = {
   error_message: string | null
   retryable: boolean | null
   retry_count: number
+  created_at: string | null
+  updated_at: string | null
 }
 
 type TransferLogResponse = {
@@ -192,7 +195,7 @@ const navItems: NavItem[] = [
   { key: 'search', path: '/app/search', label: '搜索', description: '搜索资源并创建搬运任务' },
   { key: 'transfers', path: '/app/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
   { key: 'storage', path: '/app/storage', label: '存储', description: '管理 SMB 配置和目录浏览' },
-  { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理配置型和文档型来源' },
+  { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
   { key: 'status', path: '/app/status', label: '状态', description: '查看 API、Worker、数据库和 Redis' },
 ]
 
@@ -218,7 +221,7 @@ const pageCopy: Record<PageKey, { title: string; eyebrow: string; body: string; 
   sources: {
     eyebrow: 'Sources',
     title: '媒体源管理',
-    body: '管理配置型源和文档/表格型源；代码型 Source Adapter 只读展示。',
+    body: '管理已安装代码型 Source Adapter 的启用、参数、测试和错误状态。',
     next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
   status: {
@@ -233,6 +236,10 @@ const api = createApiClient()
 
 function App() {
   const [activePage, setActivePage] = useState<PageKey>(() => pageFromPath(window.location.pathname))
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => storedThemeMode())
+  const [transfers, setTransfers] = useState<TransferResponse[]>([])
+  const [transferError, setTransferError] = useState<string | null>(null)
+  const [isTransferPanelOpen, setIsTransferPanelOpen] = useState(false)
 
   useEffect(() => {
     const onPopState = () => setActivePage(pageFromPath(window.location.pathname))
@@ -240,9 +247,45 @@ function App() {
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
+  useEffect(() => {
+    applyThemeMode(themeMode)
+    window.localStorage.setItem('sundarr.theme', themeMode)
+  }, [themeMode])
+
+  useEffect(() => {
+    void loadTransfers()
+    const timer = window.setInterval(() => void loadTransfers(), 15000)
+    const onTransfersChanged = () => void loadTransfers()
+    window.addEventListener('sundarr:transfers-changed', onTransfersChanged)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('sundarr:transfers-changed', onTransfersChanged)
+    }
+  }, [])
+
+  async function loadTransfers() {
+    try {
+      const result = await api.get<TransferResponse[]>('/transfers?limit=20')
+      setTransfers(result)
+      setTransferError(null)
+    } catch (exc) {
+      setTransferError(exc instanceof Error ? exc.message : '无法读取任务列表。')
+    }
+  }
+
   function navigate(item: NavItem) {
     window.history.pushState({}, '', item.path)
     setActivePage(item.key)
+    if (item.key === 'transfers') {
+      setIsTransferPanelOpen(false)
+    }
+  }
+
+  function navigateToTransfers(taskId?: string) {
+    window.history.pushState({}, '', '/app/transfers')
+    setActivePage('transfers')
+    setIsTransferPanelOpen(false)
+    window.dispatchEvent(new CustomEvent('sundarr:select-transfer', { detail: { taskId } }))
   }
 
   return (
@@ -269,12 +312,37 @@ function App() {
             </button>
           ))}
         </nav>
+        <ThemeSwitcher mode={themeMode} onChange={setThemeMode} />
       </aside>
 
       <main className="content-shell">
         <PageHeader activePage={activePage} />
-        <PagePanel activePage={activePage} />
+        <PagePanel activePage={activePage} onTransfersChanged={loadTransfers} transfers={transfers} />
       </main>
+      <GlobalTransferPanel
+        error={transferError}
+        isOpen={isTransferPanelOpen}
+        onClose={() => setIsTransferPanelOpen(false)}
+        onOpen={() => setIsTransferPanelOpen(true)}
+        onRefresh={() => void loadTransfers()}
+        onSelect={navigateToTransfers}
+        transfers={transfers}
+      />
+    </div>
+  )
+}
+
+function ThemeSwitcher({ mode, onChange }: { mode: ThemeMode; onChange: (mode: ThemeMode) => void }) {
+  return (
+    <div className="theme-switcher" aria-label="主题模式">
+      <span>主题</span>
+      <div>
+        {(['light', 'dark', 'system'] as ThemeMode[]).map((item) => (
+          <button className="theme-button" data-active={mode === item} key={item} onClick={() => onChange(item)} type="button">
+            {themeModeLabel(item)}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -290,13 +358,21 @@ function PageHeader({ activePage }: { activePage: PageKey }) {
   )
 }
 
-function PagePanel({ activePage }: { activePage: PageKey }) {
+function PagePanel({
+  activePage,
+  onTransfersChanged,
+  transfers,
+}: {
+  activePage: PageKey
+  onTransfersChanged: () => Promise<void>
+  transfers: TransferResponse[]
+}) {
   const copy = pageCopy[activePage]
   if (activePage === 'status') {
     return <StatusPanel />
   }
   if (activePage === 'transfers') {
-    return <TransfersPanel />
+    return <TransfersPanel onTransfersChanged={onTransfersChanged} transfers={transfers} />
   }
   if (activePage === 'storage') {
     return <StoragePanel />
@@ -654,6 +730,7 @@ function SearchPanel() {
         target_path: targetPath,
       })
       setCreatedTask(task)
+      window.dispatchEvent(new Event('sundarr:transfers-changed'))
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : '创建任务失败。')
     } finally {
@@ -979,13 +1056,25 @@ function StorageBrowser({ result, onOpen }: { result: StorageBrowseResponse; onO
   )
 }
 
-function TransfersPanel() {
+function TransfersPanel({ onTransfersChanged, transfers }: { onTransfersChanged: () => Promise<void>; transfers: TransferResponse[] }) {
   const [taskId, setTaskId] = useState('')
   const [transfer, setTransfer] = useState<TransferResponse | null>(null)
   const [logs, setLogs] = useState<TransferLogResponse[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isMutating, setIsMutating] = useState(false)
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const taskIdFromEvent = (event as CustomEvent<{ taskId?: string }>).detail?.taskId
+      if (taskIdFromEvent) {
+        setTaskId(taskIdFromEvent)
+        void loadTransfer(taskIdFromEvent)
+      }
+    }
+    window.addEventListener('sundarr:select-transfer', handler)
+    return () => window.removeEventListener('sundarr:select-transfer', handler)
+  }, [])
 
   async function loadTransfer(nextTaskId = taskId) {
     const trimmedTaskId = nextTaskId.trim()
@@ -1026,6 +1115,7 @@ function TransfersPanel() {
       const taskLogs = await api.get<TransferLogResponse[]>(`/transfers/${encodeURIComponent(transfer.id)}/logs`)
       setTransfer(updated)
       setLogs(taskLogs)
+      await onTransfersChanged()
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : '任务操作失败。')
     } finally {
@@ -1041,10 +1131,12 @@ function TransfersPanel() {
       <div className="panel-header-row">
         <div>
           <p className="panel-kicker">任务</p>
-          <h2 id="transfers-title">任务查询与控制</h2>
-          <p>输入任务 ID 后读取任务详情、关键日志，并按当前状态执行取消或重试。</p>
+          <h2 id="transfers-title">任务列表与控制</h2>
+          <p>查看最近任务，选择任务后读取详情、关键日志，并按当前状态执行取消或重试。</p>
         </div>
       </div>
+
+      <TransferList transfers={transfers} selectedId={transfer?.id || null} onSelect={(id) => void loadTransfer(id)} />
 
       <form
         className="lookup-form"
@@ -1056,7 +1148,7 @@ function TransfersPanel() {
         <label>
           <span>任务 ID</span>
           <input onChange={(event) => setTaskId(event.target.value)} placeholder="例如 task_001" type="text" value={taskId} />
-          <small>创建任务后返回的 ID，用于查询状态和日志。</small>
+          <small>也可以从上方列表或全局任务面板选择任务。</small>
         </label>
         <button className="primary-button" disabled={isLoading} type="submit">
           {isLoading ? '查询中' : '查询任务'}
@@ -1088,6 +1180,82 @@ function TransfersPanel() {
 
       <ApiClientPreview />
     </section>
+  )
+}
+
+function TransferList({ onSelect, selectedId, transfers }: { onSelect: (id: string) => void; selectedId: string | null; transfers: TransferResponse[] }) {
+  if (transfers.length === 0) {
+    return <EmptyState message="暂无任务。创建任务或导入任务后会显示在这里。" />
+  }
+
+  return (
+    <section className="transfer-list-section" aria-labelledby="transfer-list-title">
+      <div className="section-heading">
+        <h3 id="transfer-list-title">最近任务</h3>
+        <span>{transfers.length} 个</span>
+      </div>
+      <div className="transfer-list">
+        {transfers.map((item) => (
+          <button className="transfer-row" data-selected={selectedId === item.id} key={item.id} onClick={() => onSelect(item.id)} type="button">
+            <span className={`status-pill ${transferStatusTone(item.status)}`}>{transferStatusLabel(item.status)}</span>
+            <strong>{item.target_path}</strong>
+            <small>{item.current_file || item.id}</small>
+            <div className="mini-progress" aria-label={`任务进度 ${item.progress.toFixed(0)}%`}>
+              <span style={{ width: `${Math.min(100, Math.max(0, item.progress))}%` }} />
+            </div>
+            <em>{item.progress.toFixed(0)}%</em>
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function GlobalTransferPanel({
+  error,
+  isOpen,
+  onClose,
+  onOpen,
+  onRefresh,
+  onSelect,
+  transfers,
+}: {
+  error: string | null
+  isOpen: boolean
+  onClose: () => void
+  onOpen: () => void
+  onRefresh: () => void
+  onSelect: (taskId?: string) => void
+  transfers: TransferResponse[]
+}) {
+  const activeTransfers = transfers.filter((transfer) => !['completed', 'failed', 'cancelled'].includes(transfer.status))
+  const visibleTransfers = (activeTransfers.length > 0 ? activeTransfers : transfers).slice(0, 5)
+
+  return (
+    <aside className="global-transfer-panel" data-open={isOpen} aria-label="全局任务面板">
+      <button className="global-transfer-tab" onClick={isOpen ? onClose : onOpen} type="button">
+        <span>任务</span>
+        <strong>{activeTransfers.length || transfers.length}</strong>
+      </button>
+      <div className="global-transfer-card">
+        <div className="section-heading">
+          <h3>当前任务</h3>
+          <button className="ghost-button compact-button" onClick={onRefresh} type="button">刷新</button>
+        </div>
+        {error ? <ErrorState message={error} /> : null}
+        {!error && visibleTransfers.length === 0 ? <EmptyState message="暂无任务。" /> : null}
+        <div className="global-transfer-list">
+          {visibleTransfers.map((transfer) => (
+            <button className="global-transfer-row" key={transfer.id} onClick={() => onSelect(transfer.id)} type="button">
+              <span className={`status-pill ${transferStatusTone(transfer.status)}`}>{transferStatusLabel(transfer.status)}</span>
+              <strong>{transfer.target_path}</strong>
+              <small>{transfer.progress.toFixed(0)}% · {transfer.current_file || transfer.id}</small>
+            </button>
+          ))}
+        </div>
+        <button className="primary-button full-button" onClick={() => onSelect()} type="button">打开任务页</button>
+      </div>
+    </aside>
   )
 }
 
@@ -1291,6 +1459,29 @@ function statusDescription(label: string, value: string) {
   if (value === 'ok') return `${label} 当前可用。`
   if (value === 'unknown') return `${label} 状态未知，通常表示尚未由本地 CLI 管理。`
   return `${label} 当前不可用，请检查后端日志或本地启动状态。`
+}
+
+function storedThemeMode(): ThemeMode {
+  const value = window.localStorage.getItem('sundarr.theme')
+  return value === 'light' || value === 'dark' || value === 'system' ? value : 'system'
+}
+
+function applyThemeMode(mode: ThemeMode) {
+  const root = document.documentElement
+  if (mode === 'system') {
+    root.removeAttribute('data-theme')
+  } else {
+    root.dataset.theme = mode
+  }
+}
+
+function themeModeLabel(mode: ThemeMode) {
+  const labels: Record<ThemeMode, string> = {
+    light: '亮色',
+    dark: '暗色',
+    system: '跟随系统',
+  }
+  return labels[mode]
 }
 
 function pageFromPath(pathname: string): PageKey {

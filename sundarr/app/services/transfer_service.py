@@ -38,6 +38,11 @@ class TransferService:
         task = db.get(TransferTask, task_id)
         return self._to_response(task) if task else None
 
+    def list_transfers(self, db: Session, limit: int = 30) -> list[TransferResponse]:
+        safe_limit = max(1, min(limit, 100))
+        tasks = db.query(TransferTask).order_by(TransferTask.updated_at.desc(), TransferTask.created_at.desc()).limit(safe_limit).all()
+        return [self._to_response(task) for task in tasks]
+
     def cancel_transfer(self, db: Session, task_id: str) -> TransferResponse:
         task = db.get(TransferTask, task_id)
         if task is None:
@@ -143,6 +148,8 @@ class TransferService:
             error_message=task.error_message,
             retryable=task.retryable,
             retry_count=task.retry_count,
+            created_at=task.created_at.isoformat() if task.created_at else None,
+            updated_at=task.updated_at.isoformat() if task.updated_at else None,
         )
 
     def _progress(self, task: TransferTask) -> float:

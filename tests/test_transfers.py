@@ -104,6 +104,36 @@ def test_get_transfer_returns_progress_and_current_file(db_session: Session) -> 
     assert body["current_file"] == "Movie.mkv"
 
 
+def test_list_transfers_returns_recent_tasks(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    older = _add_task(db_session, link, "completed")
+    newer = TransferTask(
+        id="task_newer",
+        resource_id=link.resource_id,
+        link_id=link.id,
+        status="downloading",
+        mode="copy",
+        target_type="local",
+        target_path="Movies/Newer.mkv",
+        total_bytes=10,
+        done_bytes=5,
+    )
+    db_session.add(newer)
+    db_session.commit()
+    db_session.execute(text("update transfer_tasks set updated_at = '2026-05-07 00:00:01' where id = :id"), {"id": older.id})
+    db_session.execute(text("update transfer_tasks set updated_at = '2026-05-07 00:00:02' where id = 'task_newer'"))
+    db_session.commit()
+
+    response = client.get("/transfers")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body[:2]] == ["task_newer", older.id]
+    assert body[0]["progress"] == 50
+    assert body[0]["updated_at"] is not None
+
+
 def test_create_transfer_rejects_missing_link(db_session: Session) -> None:
     client = make_client(db_session)
 

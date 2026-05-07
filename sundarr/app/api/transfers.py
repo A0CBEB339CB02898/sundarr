@@ -16,6 +16,11 @@ async def create_transfer(request: TransferCreateRequest, db: Session = Depends(
         raise _transfer_error(exc) from exc
 
 
+@router.get("/transfers", response_model=list[TransferResponse])
+async def list_transfers(limit: int = 30, db: Session = Depends(get_db)) -> list[TransferResponse]:
+    return transfer_service.list_transfers(db, limit=limit)
+
+
 @router.get("/transfers/{task_id}", response_model=TransferResponse)
 async def get_transfer(task_id: str, db: Session = Depends(get_db)) -> TransferResponse:
     task = transfer_service.get_transfer(db, task_id)
