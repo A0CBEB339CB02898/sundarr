@@ -391,6 +391,10 @@ function SourcesPanel() {
       setError('代码型 Source Adapter 只能只读展示，不能在线编辑。')
       return
     }
+    const actionText = mode === 'create' ? '创建媒体源' : '保存媒体源配置'
+    if (!window.confirm(`确认${actionText}？`)) {
+      return
+    }
     setIsSaving(true)
     setError(null)
     setMessage(null)
@@ -418,6 +422,9 @@ function SourcesPanel() {
   async function toggleSource(enabled: boolean) {
     if (!selectedSource || isCodeSource) {
       setError('代码型 Source Adapter 只能只读展示，不能在线启用或禁用。')
+      return
+    }
+    if (!window.confirm(`确认${enabled ? '启用' : '禁用'}媒体源 ${selectedSource.name}？`)) {
       return
     }
     setIsToggling(true)
@@ -631,6 +638,9 @@ function SearchPanel() {
       setError('请输入目标路径。目标路径不明确时需要先确认。')
       return
     }
+    if (!window.confirm(`确认创建搬运任务到 ${targetPath}？`)) {
+      return
+    }
 
     setIsCreating(true)
     setError(null)
@@ -781,6 +791,9 @@ function StoragePanel() {
   }
 
   async function saveStorageConfig() {
+    if (!window.confirm('确认保存 SMB 配置？使用旧配置的运行中任务会按 STORAGE_CONFIG_CHANGED 中断。')) {
+      return
+    }
     setIsSaving(true)
     setError(null)
     setMessage(null)
@@ -997,6 +1010,10 @@ function TransfersPanel() {
 
   async function runTaskAction(action: 'cancel' | 'retry') {
     if (!transfer) return
+    const actionText = action === 'cancel' ? '取消' : '重试'
+    if (!window.confirm(`确认${actionText}任务 ${transfer.id}？`)) {
+      return
+    }
     setIsMutating(true)
     setError(null)
     try {
@@ -1425,12 +1442,26 @@ function suggestedTargetPath(resource: ResourceCandidate) {
 
 async function responseErrorMessage(response: Response) {
   try {
-    const body = (await response.json()) as { detail?: string }
-    if (body.detail) return body.detail
+    const body = (await response.json()) as { detail?: unknown }
+    return detailToMessage(body.detail) || `请求失败：${response.status}`
   } catch {
     return `请求失败：${response.status}`
   }
-  return `请求失败：${response.status}`
+}
+
+function detailToMessage(detail: unknown) {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (typeof item === 'string') return item
+        if (item && typeof item === 'object' && 'msg' in item) return String(item.msg)
+        return ''
+      })
+      .filter(Boolean)
+    return messages.join('；')
+  }
+  return ''
 }
 
 function canCancelTransfer(status: TransferStatus) {

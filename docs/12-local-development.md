@@ -51,7 +51,7 @@ sundarr/
 执行 alembic upgrade head 初始化表结构。
 初始化默认业务配置，例如 worker.concurrency=2 和 cloud.local.staging_root=/Sundarr/_staging。
 如果 web/node_modules 不存在，则自动执行 npm install。
-启动 API、Web Console 和 Worker。当前 Worker 只空转，不领取任务。
+启动 API、Web Console 和 Worker。当前 Worker 只领取可测试的 local provider / local target 任务，不执行真实网盘或真实 SMB 搬运。
 ```
 
 访问入口：
@@ -136,21 +136,21 @@ MVP 不要求宿主机 SMB mount。
 
 ```text
 Linux Docker 机器运行 postgres / redis。
-Windows 开发机通过局域网 IP 连接 PostgreSQL / Redis。
+Windows 开发机通过内网或测试网络地址连接 PostgreSQL / Redis。
 Windows 开发机 .env 中填写远程连接 URL。
 ```
 
 Windows 本机 `.env` 示例：
 
 ```env
-SUNDARR_DATABASE_URL=postgresql+psycopg://sundarr:change_me@192.168.1.50:5432/sundarr
-SUNDARR_REDIS_URL=redis://:change_me@192.168.1.50:6379/0
+SUNDARR_DATABASE_URL=postgresql+psycopg://sundarr:change_me@db.example.invalid:5432/sundarr
+SUNDARR_REDIS_URL=redis://:change_me@redis.example.invalid:6379/0
 ```
 
 如果 Redis 没有密码：
 
 ```env
-SUNDARR_REDIS_URL=redis://192.168.1.50:6379/0
+SUNDARR_REDIS_URL=redis://redis.example.invalid:6379/0
 ```
 
 完整部署时，成熟做法是将 Sundarr 交付为完整 Docker Compose：
@@ -247,7 +247,7 @@ http://localhost:8080/docs
 }
 ```
 
-`.env.example` 中的 `SUNDARR_DEV_SMB_*` 只用于记录本地手动测试所需字段，不是当前应用读取 SMB 配置的事实来源。真实 `.env` 不要提交。
+`.env.example` 只保留 PostgreSQL / Redis bootstrap 连接信息。SMB 配置事实来源是数据库 `settings` 表中的 `storage.smb`，应通过 Web Console 或 `POST /storage/config/save` 修改。真实 `.env` 不要提交。
 
 ---
 

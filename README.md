@@ -2,7 +2,7 @@
 
 Sundarr 是个人自用的网盘媒体资源搜索、暂存、搬运与 NAS 归档自动化系统。
 
-当前状态：Phase 4 Storage Writer 已收口，Phase 5 Transfer Worker 尚未开始。
+当前状态：Phase 7 Web Console 已收口，MVP 已具备本地搜索、任务、存储、媒体源和状态控制台的最小闭环。
 
 ## 技术栈
 
@@ -35,7 +35,7 @@ python -m venv .venv
 .venv\Scripts\sundarr start
 ```
 
-`start` 会自动检查数据库、执行必要迁移、初始化默认业务配置，并在缺少前端依赖时执行 `npm install`，随后启动 API 和 Web Console。
+`start` 会自动检查数据库、执行必要迁移、初始化默认业务配置，并在缺少前端依赖时执行 `npm install`，随后启动 API、Web Console 和 Worker。
 
 查看状态、重启和停止：
 
@@ -73,4 +73,20 @@ AGENTS.md
 docs/01-product-scope.md
 docs/02-architecture-decisions.md
 docs/03-mvp-roadmap.md
+docs/12-local-development.md
+docs/13-web-console-spec.md
 ```
+
+## Web Console
+
+MVP Web Console 提供以下页面：
+
+```text
+/search       搜索资源并创建搬运任务
+/transfers    查询任务、查看日志、取消和重试
+/storage      管理 SMB 配置、测试连接、只读浏览目录
+/sources      管理配置型和文档/表格型媒体源
+/status       查看 API、Worker、PostgreSQL 和 Redis 状态
+```
+
+Web Console 不做登录注册、多用户权限、完整媒体库 UI、播放器或完整 NAS 文件管理器。

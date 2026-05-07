@@ -186,7 +186,7 @@ password 留空表示保留旧值。
 本地手动测试时，推荐先准备以下信息：
 
 ```text
-host: SMB 主机，例如 nas.example.invalid 或 192.168.1.10
+host: SMB 主机，例如 nas.example.invalid
 port: 通常是 445
 share: SMB 共享名，例如 media
 username: SMB 用户名

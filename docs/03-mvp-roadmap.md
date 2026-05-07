@@ -686,7 +686,7 @@ API 契约、测试计划和状态机文档同步。
 
 ## Phase 7: Web Console
 
-状态：进行中。
+状态：已完成。
 
 目标：实现 MVP 轻量控制台。
 
@@ -937,7 +937,7 @@ pytest 通过。
 
 ### Phase 7.7: Web Console Polish And Closure
 
-状态：未开始。
+状态：已完成。
 
 目标：收口 Web Console 的一致性、可用性和 MVP 边界。
 
