@@ -11,6 +11,13 @@ type NavItem = {
   description: string
 }
 
+type HealthResponse = {
+  status: string
+  database: string
+  redis: string
+  worker: string
+}
+
 const navItems: NavItem[] = [
   { key: 'search', path: '/search', label: '搜索', description: '搜索资源并创建搬运任务' },
   { key: 'transfers', path: '/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
@@ -115,6 +122,10 @@ function PageHeader({ activePage }: { activePage: PageKey }) {
 
 function PagePanel({ activePage }: { activePage: PageKey }) {
   const copy = pageCopy[activePage]
+  if (activePage === 'status') {
+    return <StatusPanel />
+  }
+
   return (
     <section className="panel" aria-labelledby={`${activePage}-title`}>
       <div>
@@ -129,6 +140,78 @@ function PagePanel({ activePage }: { activePage: PageKey }) {
       </div>
       <ApiClientPreview />
     </section>
+  )
+}
+
+function StatusPanel() {
+  const [health, setHealth] = useState<HealthResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    void loadHealth()
+  }, [])
+
+  async function loadHealth() {
+    setIsLoading(true)
+    setError(null)
+    try {
+      setHealth(await api.get<HealthResponse>('/health'))
+    } catch (exc) {
+      setHealth(null)
+      setError(exc instanceof Error ? exc.message : '无法读取系统状态。')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const items = health
+    ? [
+        { label: 'API', value: health.status },
+        { label: 'PostgreSQL', value: health.database },
+        { label: 'Redis', value: health.redis },
+        { label: 'Worker', value: health.worker },
+      ]
+    : []
+
+  return (
+    <section className="panel" aria-labelledby="status-title">
+      <div className="panel-header-row">
+        <div>
+          <p className="panel-kicker">当前停止点</p>
+          <h2 id="status-title">系统状态</h2>
+          <p>调用 GET /health，展示 API、PostgreSQL、Redis 和 Worker 的当前状态。</p>
+        </div>
+        <button className="primary-button" disabled={isLoading} onClick={loadHealth} type="button">
+          {isLoading ? '刷新中' : '刷新状态'}
+        </button>
+      </div>
+
+      {isLoading && !health ? <LoadingState message="正在读取系统状态。" /> : null}
+      {error ? <ErrorState message={error} /> : null}
+      {!isLoading && !error && !health ? <EmptyState message="尚未读取到系统状态。" /> : null}
+
+      {health ? (
+        <div className="status-grid">
+          {items.map((item) => (
+            <StatusCard key={item.label} label={item.label} value={item.value} />
+          ))}
+        </div>
+      ) : null}
+
+      <ApiClientPreview />
+    </section>
+  )
+}
+
+function StatusCard({ label, value }: { label: string; value: string }) {
+  const tone = value === 'ok' ? 'ok' : value === 'unknown' ? 'unknown' : 'error'
+  return (
+    <article className={`status-card ${tone}`}>
+      <span>{label}</span>
+      <strong>{statusLabel(value)}</strong>
+      <p>{statusDescription(label, value)}</p>
+    </article>
   )
 }
 
@@ -167,6 +250,18 @@ function ApiClientPreview() {
       <code>{api.example('health')}</code>
     </div>
   )
+}
+
+function statusLabel(value: string) {
+  if (value === 'ok') return '正常'
+  if (value === 'unknown') return '未知'
+  return '异常'
+}
+
+function statusDescription(label: string, value: string) {
+  if (value === 'ok') return `${label} 当前可用。`
+  if (value === 'unknown') return `${label} 状态未知，通常表示尚未由本地 CLI 管理。`
+  return `${label} 当前不可用，请检查后端日志或本地启动状态。`
 }
 
 function pageFromPath(pathname: string): PageKey {
