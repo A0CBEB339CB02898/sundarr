@@ -1,6 +1,7 @@
 import pytest
 
 from sundarr.app.storage import SmbConfig, SmbWriter
+from sundarr.app.storage.smb import SmbStorageError
 
 
 @pytest.fixture()
@@ -71,3 +72,48 @@ async def test_smb_writer_test_connection_lists_root(smb_writer: SmbWriter, monk
     await smb_writer.test_connection()
 
     assert calls == ["\\\\nas.example.invalid\\share\\Archive"]
+
+
+@pytest.mark.anyio
+async def test_smb_writer_classifies_auth_failure(smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeSmbClient:
+        def listdir(self, path: str) -> list[str]:
+            raise RuntimeError("STATUS_LOGON_FAILURE")
+
+    monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
+
+    with pytest.raises(SmbStorageError) as exc_info:
+        await smb_writer.test_connection()
+
+    assert exc_info.value.code == "SMB_AUTH_FAILED"
+    assert "密码" in exc_info.value.message
+
+
+@pytest.mark.anyio
+async def test_smb_writer_classifies_share_not_found(smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeSmbClient:
+        def listdir(self, path: str) -> list[str]:
+            raise RuntimeError("STATUS_BAD_NETWORK_NAME")
+
+    monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
+
+    with pytest.raises(SmbStorageError) as exc_info:
+        await smb_writer.test_connection()
+
+    assert exc_info.value.code == "SMB_SHARE_NOT_FOUND"
+    assert "share" in exc_info.value.message
+
+
+@pytest.mark.anyio
+async def test_smb_writer_redacts_password_from_unknown_error(smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeSmbClient:
+        def listdir(self, path: str) -> list[str]:
+            raise RuntimeError("unexpected secret failure")
+
+    monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
+
+    with pytest.raises(SmbStorageError) as exc_info:
+        await smb_writer.test_connection()
+
+    assert exc_info.value.code == "SMB_CONNECT_FAILED"
+    assert "secret" not in exc_info.value.message

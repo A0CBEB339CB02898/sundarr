@@ -5,6 +5,7 @@ from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
 from sundarr.app.models import Setting, TransferLog, TransferTask
 from sundarr.app.services.storage_config_service import STORAGE_CONFIG_KEY
+from sundarr.app.storage.smb import SmbStorageError
 
 
 def make_client(db_session: Session) -> TestClient:
@@ -82,6 +83,25 @@ def test_storage_config_test_rejects_bad_path(db_session: Session) -> None:
     assert response.status_code == 200
     assert response.json()["ok"] is False
     assert response.json()["error_code"] == "SMB_PATH_INVALID"
+
+
+def test_storage_config_test_returns_specific_smb_error(db_session: Session, monkeypatch) -> None:
+    client = make_client(db_session)
+
+    async def fail_connection(self):
+        raise SmbStorageError("SMB_HOST_UNREACHABLE", "无法连接 SMB 主机或端口。目标：nas.example.invalid:445。")
+
+    monkeypatch.setattr("sundarr.app.services.storage_config_service.SmbWriter.test_connection", fail_connection)
+
+    response = client.post(
+        "/storage/config/test",
+        json={"host": "nas.example.invalid", "share": "share", "username": "user", "password": "secret"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is False
+    assert response.json()["error_code"] == "SMB_HOST_UNREACHABLE"
+    assert "nas.example.invalid:445" in response.json()["error_message"]
 
 
 def test_save_storage_config_interrupts_running_smb_tasks(db_session: Session) -> None:

@@ -29,6 +29,13 @@ class SmbConfig:
         )
 
 
+class SmbStorageError(ValueError):
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(code)
+        self.code = code
+        self.message = message
+
+
 class SmbWriter(StorageWriter):
     name = "smb"
 
@@ -41,7 +48,7 @@ class SmbWriter(StorageWriter):
         try:
             return smbclient.path.exists(self._build_unc_path(path))
         except Exception as exc:
-            raise ValueError("SMB_CONNECT_FAILED") from exc
+            self._raise_smb_error(exc)
 
     async def size(self, path: str) -> int:
         smbclient = self._require_smbclient()
@@ -53,7 +60,7 @@ class SmbWriter(StorageWriter):
         except ValueError:
             raise
         except Exception as exc:
-            raise ValueError("SMB_CONNECT_FAILED") from exc
+            self._raise_smb_error(exc)
 
     async def mkdirs(self, path: str) -> None:
         smbclient = self._require_smbclient()
@@ -115,7 +122,7 @@ class SmbWriter(StorageWriter):
                     }
                 )
         except Exception as exc:
-            raise ValueError("SMB_CONNECT_FAILED") from exc
+            self._raise_smb_error(exc)
         return entries
 
     async def test_connection(self) -> None:
@@ -123,7 +130,7 @@ class SmbWriter(StorageWriter):
         try:
             smbclient.listdir(self._build_unc_path(""))
         except Exception as exc:
-            raise ValueError("SMB_CONNECT_FAILED") from exc
+            self._raise_smb_error(exc)
 
     def _build_unc_path(self, path: str) -> str:
         parts = [*self._base_parts, *self._safe_parts(path)]
@@ -150,7 +157,7 @@ class SmbWriter(StorageWriter):
         try:
             self._register_session(smbclient)
         except Exception as exc:
-            raise ValueError("SMB_CONNECT_FAILED") from exc
+            self._raise_smb_error(exc)
         return smbclient
 
     def _register_session(self, smbclient) -> None:
@@ -161,3 +168,31 @@ class SmbWriter(StorageWriter):
             password=self.config.password or "",
             port=self.config.port,
         )
+
+    def _raise_smb_error(self, exc: Exception) -> None:
+        code, message = self._classify_smb_error(exc)
+        raise SmbStorageError(code, message) from exc
+
+    def _classify_smb_error(self, exc: Exception) -> tuple[str, str]:
+        text = f"{type(exc).__name__}: {exc}"
+        upper_text = text.upper()
+        target = f"{self.config.host}:{self.config.port}"
+        share = self.config.share
+
+        if any(marker in upper_text for marker in ("STATUS_LOGON_FAILURE", "LOGON_FAILURE", "AUTHENTICATION")):
+            return "SMB_AUTH_FAILED", f"SMB 认证失败。请检查用户名、密码、domain 和账号状态。目标：{target}，共享：{share}。"
+        if "STATUS_ACCESS_DENIED" in upper_text:
+            return "SMB_PERMISSION_DENIED", f"SMB 认证通过但权限不足。请检查账号是否有访问共享或目标目录的权限。目标：{target}，共享：{share}。"
+        if any(marker in upper_text for marker in ("STATUS_BAD_NETWORK_NAME", "BAD_NETWORK_NAME")):
+            return "SMB_SHARE_NOT_FOUND", f"SMB 共享不存在或名称不正确。请检查 share 配置。目标：{target}，共享：{share}。"
+        if any(marker in upper_text for marker in ("TIMEOUT", "TIMED OUT", "CONNECTION REFUSED", "NO ROUTE", "GETADDRINFO", "NAME OR SERVICE")):
+            return "SMB_HOST_UNREACHABLE", f"无法连接 SMB 主机或端口。请检查 host、port、防火墙、网络和 SMB 服务状态。目标：{target}。"
+        if isinstance(exc, (TimeoutError, ConnectionRefusedError, OSError)):
+            return "SMB_HOST_UNREACHABLE", f"无法连接 SMB 主机或端口。请检查 host、port、防火墙、网络和 SMB 服务状态。目标：{target}。"
+        return "SMB_CONNECT_FAILED", f"SMB 连接失败，底层错误：{self._safe_error_text(text)}"
+
+    def _safe_error_text(self, text: str) -> str:
+        safe_text = text
+        if self.config.password:
+            safe_text = safe_text.replace(self.config.password, "***")
+        return safe_text[:500]

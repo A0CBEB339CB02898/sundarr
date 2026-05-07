@@ -12,6 +12,7 @@ from sundarr.app.schemas.storage import (
     StorageConfigTestResponse,
 )
 from sundarr.app.storage import SmbConfig, SmbWriter
+from sundarr.app.storage.smb import SmbStorageError
 
 STORAGE_CONFIG_KEY = "storage.smb"
 RUNNING_TRANSFER_STATUSES = {
@@ -58,6 +59,8 @@ class StorageConfigService:
             self._validate_value(value)
             writer = SmbWriter(SmbConfig.from_dict(value))
             await writer.test_connection()
+        except SmbStorageError as exc:
+            return StorageConfigTestResponse(ok=False, error_code=exc.code, error_message=exc.message)
         except ValueError as exc:
             return StorageConfigTestResponse(ok=False, error_code=str(exc), error_message=self._message_for_error(str(exc)))
         return StorageConfigTestResponse(ok=True)
@@ -127,6 +130,10 @@ class StorageConfigService:
             "STORAGE_CONFIG_INVALID": "存储配置无效。",
             "SMB_CLIENT_NOT_INSTALLED": "SMB 客户端依赖未安装，暂不能连接真实 SMB。",
             "SMB_CONNECT_FAILED": "SMB 连接或认证失败。",
+            "SMB_HOST_UNREACHABLE": "无法连接 SMB 主机或端口。",
+            "SMB_AUTH_FAILED": "SMB 认证失败。",
+            "SMB_PERMISSION_DENIED": "SMB 权限不足。",
+            "SMB_SHARE_NOT_FOUND": "SMB 共享不存在或名称不正确。",
             "SMB_PATH_INVALID": "SMB 路径配置无效。",
             "SMB_PATH_OUTSIDE_ROOT": "SMB 路径超出允许范围。",
         }
