@@ -60,6 +60,53 @@ type TransferStatus =
   | 'failed'
   | 'cancelled'
 
+type StorageConfigResponse = {
+  type: 'smb'
+  host: string
+  port: number
+  share: string
+  username: string
+  password_set: boolean
+  domain: string
+  base_path: string
+  libraries: Record<string, string>
+}
+
+type StorageConfigRequest = Omit<StorageConfigResponse, 'password_set'> & {
+  password: string | null
+}
+
+type StorageConfigTestResponse = {
+  ok: boolean
+  error_code: string | null
+  error_message: string | null
+}
+
+type StorageBrowseResponse = {
+  path: string
+  entries: StorageBrowseEntry[]
+}
+
+type StorageBrowseEntry = {
+  name: string
+  path: string
+  is_dir: boolean
+  size: number | null
+}
+
+type StorageFormState = {
+  host: string
+  port: string
+  share: string
+  username: string
+  password: string
+  domain: string
+  base_path: string
+  library_movies: string
+  library_tv: string
+  library_anime: string
+}
+
 const navItems: NavItem[] = [
   { key: 'search', path: '/search', label: '搜索', description: '搜索资源并创建搬运任务' },
   { key: 'transfers', path: '/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
@@ -170,6 +217,9 @@ function PagePanel({ activePage }: { activePage: PageKey }) {
   if (activePage === 'transfers') {
     return <TransfersPanel />
   }
+  if (activePage === 'storage') {
+    return <StoragePanel />
+  }
 
   return (
     <section className="panel" aria-labelledby={`${activePage}-title`}>
@@ -185,6 +235,215 @@ function PagePanel({ activePage }: { activePage: PageKey }) {
       </div>
       <ApiClientPreview />
     </section>
+  )
+}
+
+function StoragePanel() {
+  const [form, setForm] = useState<StorageFormState>(emptyStorageForm())
+  const [passwordSet, setPasswordSet] = useState(false)
+  const [browsePath, setBrowsePath] = useState('')
+  const [browseResult, setBrowseResult] = useState<StorageBrowseResponse | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const [isBrowsing, setIsBrowsing] = useState(false)
+
+  useEffect(() => {
+    void loadStorageConfig()
+  }, [])
+
+  async function loadStorageConfig() {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const config = await api.get<StorageConfigResponse>('/storage/config')
+      setForm(storageFormFromConfig(config))
+      setPasswordSet(config.password_set)
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '无法读取存储配置。')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function saveStorageConfig() {
+    setIsSaving(true)
+    setError(null)
+    setMessage(null)
+    try {
+      const saved = await api.post<StorageConfigResponse>('/storage/config/save', storageRequestFromForm(form))
+      setForm(storageFormFromConfig(saved))
+      setPasswordSet(saved.password_set)
+      setMessage('SMB 配置已保存。使用旧配置的运行中任务会按 STORAGE_CONFIG_CHANGED 中断。')
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '保存存储配置失败。')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function testStorageConfig() {
+    setIsTesting(true)
+    setError(null)
+    setMessage(null)
+    try {
+      const result = await api.post<StorageConfigTestResponse>('/storage/config/test', storageRequestFromForm(form))
+      if (result.ok) {
+        setMessage('SMB 连接测试通过。')
+      } else {
+        setError(`${result.error_code || 'STORAGE_TEST_FAILED'}：${result.error_message || 'SMB 连接测试失败。'}`)
+      }
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '测试存储配置失败。')
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  async function browseStorage(nextPath = browsePath) {
+    setIsBrowsing(true)
+    setError(null)
+    try {
+      const result = await api.get<StorageBrowseResponse>(`/storage/browse?path=${encodeURIComponent(nextPath.trim())}`)
+      setBrowseResult(result)
+      setBrowsePath(result.path)
+    } catch (exc) {
+      setBrowseResult(null)
+      setError(exc instanceof Error ? exc.message : '浏览存储目录失败。')
+    } finally {
+      setIsBrowsing(false)
+    }
+  }
+
+  function updateField(key: keyof StorageFormState, value: string) {
+    setForm((current) => ({ ...current, [key]: value }))
+  }
+
+  return (
+    <section className="panel" aria-labelledby="storage-title">
+      <div className="panel-header-row">
+        <div>
+          <p className="panel-kicker">当前停止点</p>
+          <h2 id="storage-title">SMB 存储设置</h2>
+          <p>管理 SMB 连接配置、测试连接，并在允许范围内浏览目标目录。</p>
+        </div>
+        <button className="ghost-button" disabled={isLoading} onClick={() => void loadStorageConfig()} type="button">
+          {isLoading ? '读取中' : '重新读取'}
+        </button>
+      </div>
+
+      {message ? <div className="notice-card"><strong>操作完成</strong><p>{message}</p></div> : null}
+      {error ? <ErrorState message={error} /> : null}
+      {isLoading ? <LoadingState message="正在读取 SMB 配置。" /> : null}
+
+      <form
+        className="storage-form"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void saveStorageConfig()
+        }}
+      >
+        <TextField label="Host" onChange={(value) => updateField('host', value)} required value={form.host} />
+        <TextField label="Port" onChange={(value) => updateField('port', value)} required type="number" value={form.port} />
+        <TextField label="Share" onChange={(value) => updateField('share', value)} required value={form.share} />
+        <TextField label="Username" onChange={(value) => updateField('username', value)} required value={form.username} />
+        <TextField label="Domain" onChange={(value) => updateField('domain', value)} value={form.domain} />
+        <TextField label="Base Path" onChange={(value) => updateField('base_path', value)} value={form.base_path} />
+        <TextField
+          helper={passwordSet ? '已保存密码。留空表示保留旧密码。' : '尚未保存密码。'}
+          label="Password"
+          onChange={(value) => updateField('password', value)}
+          type="password"
+          value={form.password}
+        />
+        <TextField label="Movies Library" onChange={(value) => updateField('library_movies', value)} value={form.library_movies} />
+        <TextField label="TV Library" onChange={(value) => updateField('library_tv', value)} value={form.library_tv} />
+        <TextField label="Anime Library" onChange={(value) => updateField('library_anime', value)} value={form.library_anime} />
+
+        <div className="form-actions">
+          <button className="primary-button" disabled={isSaving} type="submit">
+            {isSaving ? '保存中' : '保存配置'}
+          </button>
+          <button className="secondary-button" disabled={isTesting} onClick={() => void testStorageConfig()} type="button">
+            {isTesting ? '测试中' : '测试连接'}
+          </button>
+        </div>
+      </form>
+
+      <section className="browser-panel" aria-labelledby="storage-browser-title">
+        <div className="section-heading">
+          <h3 id="storage-browser-title">目录浏览</h3>
+          <span>只读浏览</span>
+        </div>
+        <form
+          className="lookup-form"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void browseStorage()
+          }}
+        >
+          <label>
+            <span>路径</span>
+            <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
+          </label>
+          <button className="primary-button" disabled={isBrowsing} type="submit">
+            {isBrowsing ? '浏览中' : '浏览目录'}
+          </button>
+        </form>
+
+        {isBrowsing && !browseResult ? <LoadingState message="正在读取目录。" /> : null}
+        {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void browseStorage(path)} /> : <EmptyState message="输入路径后浏览 SMB 目录。" />}
+      </section>
+
+      <ApiClientPreview />
+    </section>
+  )
+}
+
+function TextField({
+  helper,
+  label,
+  onChange,
+  required = false,
+  type = 'text',
+  value,
+}: {
+  helper?: string
+  label: string
+  onChange: (value: string) => void
+  required?: boolean
+  type?: string
+  value: string
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input onChange={(event) => onChange(event.target.value)} required={required} type={type} value={value} />
+      {helper ? <small>{helper}</small> : null}
+    </label>
+  )
+}
+
+function StorageBrowser({ result, onOpen }: { result: StorageBrowseResponse; onOpen: (path: string) => void }) {
+  if (result.entries.length === 0) {
+    return <EmptyState message="该目录为空。" />
+  }
+
+  return (
+    <div className="storage-browser">
+      <p>当前路径：<strong>{result.path || '/'}</strong></p>
+      <div className="browser-list">
+        {result.entries.map((entry) => (
+          <button className="browser-row" disabled={!entry.is_dir} key={entry.path} onClick={() => onOpen(entry.path)} type="button">
+            <span>{entry.is_dir ? '目录' : '文件'}</span>
+            <strong>{entry.name}</strong>
+            <small>{entry.is_dir ? entry.path : formatBytes(entry.size || 0)}</small>
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -512,8 +771,12 @@ function createApiClient() {
       }
       return response.json() as Promise<T>
     },
-    async post<T>(path: string): Promise<T> {
-      const response = await fetch(`${baseUrl}${path}`, { method: 'POST' })
+    async post<T>(path: string, body?: unknown): Promise<T> {
+      const response = await fetch(`${baseUrl}${path}`, {
+        body: body === undefined ? undefined : JSON.stringify(body),
+        headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+        method: 'POST',
+      })
       if (!response.ok) {
         throw new Error(await responseErrorMessage(response))
       }
@@ -522,6 +785,55 @@ function createApiClient() {
     example(path: string) {
       return `GET ${baseUrl || '<same-origin>'}/${path.replace(/^\//, '')}`
     },
+  }
+}
+
+function emptyStorageForm(): StorageFormState {
+  return {
+    host: '',
+    port: '445',
+    share: '',
+    username: '',
+    password: '',
+    domain: '',
+    base_path: '/',
+    library_movies: '',
+    library_tv: '',
+    library_anime: '',
+  }
+}
+
+function storageFormFromConfig(config: StorageConfigResponse): StorageFormState {
+  return {
+    host: config.host,
+    port: String(config.port || 445),
+    share: config.share,
+    username: config.username,
+    password: '',
+    domain: config.domain || '',
+    base_path: config.base_path || '/',
+    library_movies: config.libraries.movies || '',
+    library_tv: config.libraries.tv || '',
+    library_anime: config.libraries.anime || '',
+  }
+}
+
+function storageRequestFromForm(form: StorageFormState): StorageConfigRequest {
+  const libraries: Record<string, string> = {}
+  if (form.library_movies.trim()) libraries.movies = form.library_movies.trim()
+  if (form.library_tv.trim()) libraries.tv = form.library_tv.trim()
+  if (form.library_anime.trim()) libraries.anime = form.library_anime.trim()
+
+  return {
+    type: 'smb',
+    host: form.host.trim(),
+    port: Number(form.port) || 445,
+    share: form.share.trim(),
+    username: form.username.trim(),
+    password: form.password ? form.password : null,
+    domain: form.domain.trim(),
+    base_path: form.base_path.trim() || '/',
+    libraries,
   }
 }
 

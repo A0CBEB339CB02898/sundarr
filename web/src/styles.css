@@ -246,6 +246,50 @@ h2 {
   outline: 3px solid rgba(166, 95, 32, 0.14);
 }
 
+.storage-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span {
+  color: #52616b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.field input {
+  width: 100%;
+  border: 1px solid rgba(23, 32, 38, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #172026;
+  font: inherit;
+  padding: 13px 16px;
+}
+
+.field input:focus {
+  border-color: #a65f20;
+  outline: 3px solid rgba(166, 95, 32, 0.14);
+}
+
+.field small {
+  color: #52616b;
+  line-height: 1.5;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 12px;
+}
+
 .state-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -562,6 +606,65 @@ h2 {
   color: #86631a;
 }
 
+.browser-panel {
+  display: grid;
+  gap: 18px;
+  border: 1px solid rgba(23, 32, 38, 0.1);
+  border-radius: 26px;
+  background: #fffaf1;
+  padding: 24px;
+}
+
+.storage-browser {
+  display: grid;
+  gap: 12px;
+}
+
+.storage-browser p {
+  margin-bottom: 0;
+}
+
+.browser-list {
+  display: grid;
+  gap: 10px;
+}
+
+.browser-row {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) minmax(120px, auto);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid rgba(23, 32, 38, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.64);
+  color: #172026;
+  cursor: pointer;
+  padding: 14px;
+  text-align: left;
+}
+
+.browser-row:disabled {
+  cursor: default;
+}
+
+.browser-row:hover:not(:disabled) {
+  border-color: rgba(166, 95, 32, 0.35);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.browser-row span,
+.browser-row small {
+  color: #52616b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.browser-row strong,
+.browser-row small {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 860px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -593,7 +696,12 @@ h2 {
   }
 
   .lookup-form,
-  .detail-grid {
+  .detail-grid,
+  .storage-form {
+    grid-template-columns: 1fr;
+  }
+
+  .browser-row {
     grid-template-columns: 1fr;
   }
 }
