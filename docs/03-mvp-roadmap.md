@@ -48,7 +48,7 @@ Phase 4 Storage Writer: 已收口，已完成 LocalWriter、Storage 配置 API�
 启动与配置精简：已确认 sundarr start/restart 管理 API + Web，自动执行数据库初始化/迁移、默认 settings seed 和前端依赖安装；Phase 5 实现 Worker 时必须同步纳入完整项目启停。
 Phase 5 Transfer Worker: 已完成当前 MVP 本地 Worker 主链路，Phase 5.1 到 Phase 5.5 均已完成；真实网盘和 SMB 搬运主链路尚未实现。
 Phase 6 Cleanup And Recovery: 已完成，Phase 6.1 到 Phase 6.5 均已完成。
-Phase 7 Web Console: 未开始；真实供应商开发和集成测试在该阶段形成可操作前端界面后再启动。
+Phase 7 Web Console: 进行中，Phase 7.1 Web Console Shell 已完成；真实供应商开发和集成测试在该阶段形成可操作前端界面后再启动。
 Phase 8 AI Friendly API: 未开始。
 ```
 
@@ -686,7 +686,7 @@ API 契约、测试计划和状态机文档同步。
 
 ## Phase 7: Web Console
 
-状态：未开始。
+状态：进行中。
 
 目标：实现 MVP 轻量控制台。
 
@@ -731,7 +731,7 @@ Phase 7 按以下停止点拆分。每个停止点都必须保持 `npm run build
 
 ### Phase 7.1: Web Console Shell
 
-状态：未开始。
+状态：已完成。
 
 目标：建立可扩展的 Web Console 页面框架和 API 调用基础。
 
