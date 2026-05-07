@@ -68,9 +68,9 @@ Redis 用于缓存、搜索加速和实时进度辅助，不作为任务状态�
 统一 Source Adapter 接口
 统一 SearchQuery 输入
 统一 RawSearchItem 输出
-支持配置型源
-支持代码型源
-支持文档/表格型源
+真实媒体源通过代码型 Source Adapter 逐站点接入
+Web Console 只管理已安装 Adapter
+文档型网站通用读取作为后续实验验证
 单个源失败不影响整体搜索
 聚合后统一解析、提取、标准化、去重、排序
 ```
@@ -289,7 +289,8 @@ MVP 不做什么
 为什么不选 Jinja2 / HTMX 作为 MVP 前端
 为什么不做权限系统
 为什么使用应用内 SMB Writer
-为什么先做 Mock/Local Provider
+为什么真实网盘直接下载不作为近期主链路
+为什么下一阶段改为挂载网盘导入
 为什么 FastAPI 后续可作为 AI tool API
 ```
 
@@ -309,10 +310,12 @@ Phase 3: Search Pipeline
 Phase 4: Mock/Local Cloud Provider
 Phase 5: SMB Storage Writer
 Phase 6: Transfer Worker
-Phase 7: Verification And Cleanup
-Phase 8: Web Console
-Phase 9: AI Friendly API
-Phase 10: API Polish
+Phase 7: Web Console
+Phase 7.8: Web Console UI Polish
+Phase 8: Mounted Cloud Ingest
+Phase 9: Real Site Source Adapters
+Phase 10: AI Friendly API
+Phase 11: API Polish
 ```
 
 每个阶段需要包含：
@@ -339,9 +342,9 @@ Source 类型
 BaseSource 接口
 SearchQuery 结构
 RawSearchItem 结构
-配置型源规范
 代码型源规范
-文档/表格型源规范
+真实网站 Adapter SDK
+文档型网站通用读取实验
 超时
 错误隔离
 失败熔断
@@ -634,10 +637,16 @@ docs/13-web-console-spec.md
 8. SMB 配置修改后无需重启，并会中断当前使用旧 SMB 配置的运行中任务。
 9. 被 SMB 配置变更中断的任务进入 `failed`，错误码为 `STORAGE_CONFIG_CHANGED`，`retryable=true`。
 10. 被中断任务保留 `.downloading` 文件和 cloud staging。
-11. MVP 先使用 Mock/Local Provider 跑通流程，再接真实网盘 provider。
-12. 多源搜索支持配置型源、代码型源、文档/表格型源。
-13. Web Console 只支持管理配置型源和文档/表格型源，不支持在线编辑代码型 Source Adapter。
-14. Web Console 只做核心控制台，不做完整媒体库 UI。
+11. 真实网盘直接下载不作为近期主链路，CloudProvider 保留为可选扩展。
+12. 下一阶段主线是挂载网盘导入：通过 SMB 扫描 fnOS 暴露的网盘挂载目录，再通过 SMB 写入 NAS 本地媒体库。
+13. 挂载网盘导入支持 movie / series / unclassified，绑定不明确时进入 unclassified。
+14. 挂载网盘导入成功后按配置删除源文件和空目录。
+15. 未来再考虑在 Sundarr 内挂载网盘和保存分享链接到网盘。
+16. 真实媒体源后续通过代码型 Source Adapter 逐站点接入。
+17. 当前已实现的是媒体源框架和示例源，不是真实网站 Adapter。
+18. Web Console 只支持管理已安装 Adapter 的启用、禁用、参数、测试和错误查看，不支持在线编辑代码型 Source Adapter。
+19. Web Console 只做核心控制台，不做完整媒体库 UI。
+20. Phase 0-7 手动验收反馈需要新增 Phase 7.8，处理任务浮动面板、移动端响应式、布局修复和主题模式。
 
 下一步建议先编写：
 
@@ -646,4 +655,5 @@ AGENTS.md
 docs/01-product-scope.md
 docs/02-architecture-decisions.md
 docs/03-mvp-roadmap.md
+docs/15-mounted-cloud-ingest-spec.md
 ```

@@ -328,23 +328,37 @@ retryable = true
 
 ---
 
-## ADR-009: 先使用 Mock/Local Provider 跑通闭环
+## ADR-009: 真实网盘直接下载不作为近期主链路
 
 状态：已确认。
 
 决策：
 
 ```text
-MVP 先实现 Mock/Local Provider，用于自动化测试和闭环验证。
-真实网盘 Provider 后续接入，且等 Web Console 具备任务操作界面后再启动真实供应商开发和真实集成测试。
+国内封闭网盘不作为 Sundarr 近期直接下载主链路。
+CloudProvider 保留为可选扩展和测试抽象，但不承诺 MVP 接入真实网盘直接下载。
+近期主链路改为挂载网盘导入：fnOS 挂载网盘后通过 SMB 暴露来源目录，Sundarr 通过 SMB 导入到 NAS 本地媒体库。
 ```
 
 理由：
 
 ```text
-不依赖真实网盘账号即可测试。
-避免 provider API 不稳定阻塞架构开发。
-便于验证状态机、下载、校验、清理和重试逻辑。
+国内主流网盘通常不提供稳定、开放、可自动化的大文件下载 API。
+绕过 App、验证码、会员或风控限制不属于 Sundarr 范围。
+fnOS 已能将网盘远程挂载为目录，Sundarr 通过 SMB 处理挂载结果更稳定、边界更清晰。
+独立服务器部署 Sundarr 时，可通过 SMB 同时访问网盘挂载目录和 NAS 本地媒体库。
+```
+
+配套决策：
+
+```text
+新增 Mounted Cloud Ingest 作为 Phase 8。
+支持 movie / series / unclassified 媒体库。
+支持来源目录到目标媒体库目录绑定。
+绑定不明确时进入 unclassified。
+成功后按全局或 binding 配置删除源文件和空目录。
+AI Friendly API 后移到后续阶段。
+后续大阶段再考虑在 Sundarr 内挂载网盘和保存分享链接到网盘。
 ```
 
 ---
@@ -358,14 +372,14 @@ MVP 先实现 Mock/Local Provider，用于自动化测试和闭环验证。
 ```text
 聚合搜索必须使用 Source Adapter 框架。
 每个 source 输出统一 RawSearchItem。
+真实媒体源通过代码型 Source Adapter 逐站点接入。
+Source 配置只保存参数，不保存可执行 Python 代码。
 ```
 
-支持源类型：
+近期主线源类型：
 
 ```text
-配置型源
 代码型源
-文档/表格型源
 ```
 
 规则：
@@ -373,8 +387,11 @@ MVP 先实现 Mock/Local Provider，用于自动化测试和闭环验证。
 ```text
 单个源失败不能影响整体搜索。
 聚合后统一解析、提取、标准化、去重、排序。
-Web Console 只管理配置型源和文档/表格型源。
+Web Console 只管理已安装代码型 Adapter 的启用、禁用、参数、测试和错误查看。
 代码型 Source Adapter 不允许前端在线编辑。
+当前实现只代表媒体源框架和示例源完成，不代表真实网站 Adapter 完成。
+真实站点爬虫、通用爬虫规则引擎和通过 Web Console 配置复杂网站爬虫需要后续独立大阶段规划。
+文档型网站是否可通用读取可作为后续实验阶段验证，不作为当前主线承诺。
 ```
 
 ---

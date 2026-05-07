@@ -220,6 +220,7 @@ worker.concurrency
 source configuration
 library 映射
 transfer 参数
+ingest 全局配置
 ```
 
 规则：
@@ -233,7 +234,66 @@ password 空值更新表示保留旧值。
 
 ---
 
-## 9. 验收标准
+## 9. ingest_bindings
+
+用途：保存挂载网盘来源目录和本地媒体库目标目录的绑定关系。
+
+字段建议：
+
+```text
+id TEXT PRIMARY KEY
+name TEXT NOT NULL
+enabled BOOLEAN NOT NULL DEFAULT TRUE
+media_type TEXT NOT NULL
+source_smb_json JSONB NOT NULL
+target_smb_json JSONB NOT NULL
+delete_source_after_success BOOLEAN
+delete_empty_source_dirs BOOLEAN
+created_at TIMESTAMP NOT NULL
+updated_at TIMESTAMP NOT NULL
+```
+
+规则：
+
+```text
+media_type 允许 movie / series / unclassified。
+source_smb_json 保存来源 SMB host/share/base_path 等配置。
+target_smb_json 保存目标 SMB host/share/base_path 等配置。
+source 和 target 通常是同一 SMB server，但允许跨 share 或跨 server。
+delete_source_after_success 为空时使用全局默认。
+delete_empty_source_dirs 为空时使用全局默认。
+```
+
+---
+
+## 10. ingest_seen_files
+
+用途：记录已扫描或已处理的来源文件，避免重复导入。
+
+字段建议：
+
+```text
+id TEXT PRIMARY KEY
+binding_id TEXT
+source_fingerprint TEXT NOT NULL
+source_path TEXT NOT NULL
+source_size BIGINT
+source_mtime TIMESTAMP
+status TEXT NOT NULL
+task_id TEXT
+created_at TIMESTAMP NOT NULL
+updated_at TIMESTAMP NOT NULL
+```
+
+规则：
+
+```text
+source_fingerprint 可由 source SMB 标识、路径、size、mtime 组成。
+status 至少包含 discovered / importing / completed / failed / ignored。
+目录型资源可用目录路径和聚合 size/mtime 生成 fingerprint。
+```
+
+## 11. 验收标准
 
 数据模型完成时必须满足：
 
@@ -242,6 +302,7 @@ password 空值更新表示保留旧值。
 Source / Resource / ResourceLink 可读写。
 TransferTask / TransferFile 状态可持久化。
 Setting 可保存 SMB 配置。
+Ingest binding 可保存来源和目标 SMB 目录绑定。
 transfer_logs 可记录状态变化。
 敏感字段不会通过 API 明文返回。
 ```

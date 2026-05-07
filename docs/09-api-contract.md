@@ -137,8 +137,9 @@ GET /resources/{resource_id}
 ```text
 已实现 POST /transfers 和 GET /transfers/{task_id} 的最小入口。
 已实现 Worker 本地成功路径和失败状态写入。
-尚未实现 logs API、eta 和复杂 current_file 详情。
-cancel、retry 和 worker startup recovery 属于 Phase 6 Cleanup And Recovery 范围。
+已实现 cancel、retry、logs 和 worker startup recovery。
+尚未实现 GET /transfers 任务列表 API、eta 和复杂 current_file 详情。
+GET /transfers 属于 Phase 7.8 Web Console UI Polish 范围，用于支撑全局任务面板和完整任务列表。
 ```
 
 创建任务：
@@ -184,6 +185,41 @@ POST /transfers
 ```
 
 查询任务：
+
+```http
+GET /transfers
+GET /transfers/{task_id}
+```
+
+任务列表响应建议：
+
+```json
+[
+  {
+    "id": "task_001",
+    "status": "downloading",
+    "target_library": "movies",
+    "target_path": "Movies/Interstellar.mkv",
+    "done_bytes": 5368709120,
+    "total_bytes": 12582912000,
+    "progress": 42.66,
+    "current_file": "Interstellar.mkv",
+    "error_code": null,
+    "retryable": null,
+    "updated_at": "2026-05-07T00:00:01"
+  }
+]
+```
+
+列表规则：
+
+```text
+默认按 updated_at desc 排序。
+默认返回最近任务和运行中任务，具体分页参数在实现时确定。
+响应不得包含 password、token、cookie、secret 等敏感信息。
+```
+
+任务详情：
 
 ```http
 GET /transfers/{task_id}
@@ -265,7 +301,75 @@ POST /storage/config/test 会验证配置结构、路径合法性，并尝试真
 
 ---
 
-## 8. 错误码
+## 8. Mounted Cloud Ingest
+
+挂载网盘导入 API 用于管理 SMB 来源目录到 SMB 目标媒体库目录的绑定，并触发扫描。
+
+建议接口：
+
+```http
+GET  /ingest/config
+POST /ingest/config/save
+GET  /ingest/bindings
+POST /ingest/bindings/create
+GET  /ingest/bindings/{binding_id}
+POST /ingest/bindings/{binding_id}/update
+POST /ingest/bindings/{binding_id}/enable
+POST /ingest/bindings/{binding_id}/disable
+POST /ingest/bindings/{binding_id}/test
+POST /ingest/scan
+GET  /ingest/discovered
+```
+
+全局配置响应示例：
+
+```json
+{
+  "delete_source_after_success": true,
+  "delete_empty_source_dirs": true,
+  "scan_interval_seconds": 60,
+  "stable_seconds": 120,
+  "unclassified_target_path": "/unclassified"
+}
+```
+
+Binding 响应示例：
+
+```json
+{
+  "id": "binding_movie",
+  "name": "电影导入",
+  "enabled": true,
+  "media_type": "movie",
+  "source_smb": {
+    "host": "nas.example.invalid",
+    "port": 445,
+    "share": "cloud",
+    "base_path": "/movie"
+  },
+  "target_smb": {
+    "host": "nas.example.invalid",
+    "port": 445,
+    "share": "media",
+    "base_path": "/movie"
+  },
+  "delete_source_after_success": null,
+  "delete_empty_source_dirs": null
+}
+```
+
+规则：
+
+```text
+API 不返回 SMB password 明文。
+test 接口由后端执行，验证来源目录可读和目标目录可写。
+scan 接口只触发扫描或返回扫描结果，不绕过网盘限制。
+binding 不明确时创建 unclassified 导入任务。
+```
+
+---
+
+## 9. 错误码
 
 MVP 错误码：
 
@@ -294,11 +398,15 @@ RENAME_FAILED
 CLOUD_CLEANUP_FAILED
 TASK_CANCELLED
 WORKER_RECOVERY_REQUIRED
+INGEST_BINDING_NOT_FOUND
+INGEST_SOURCE_NOT_STABLE
+INGEST_SOURCE_DELETE_FAILED
+INGEST_UNCLASSIFIED_REQUIRED
 ```
 
 ---
 
-## 9. 验收标准
+## 10. 验收标准
 
 API 完成时必须满足：
 
@@ -309,4 +417,6 @@ Web Console 所需 API 可用。
 Transfer 控制 API 可用。
 Storage settings API 不泄露 password。
 SMB 配置修改返回 STORAGE_CONFIG_CHANGED 相关任务影响。
+Ingest API 不泄露 SMB password。
+Ingest API 可管理 binding、测试来源/目标目录并触发扫描。
 ```

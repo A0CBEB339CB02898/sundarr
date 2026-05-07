@@ -34,6 +34,8 @@ Web Console 是核心控制台，不是完整媒体库 UI。
 查看任务进度
 取消 / 重试任务
 显示关键错误和中断提示
+管理挂载网盘导入绑定
+手动触发挂载网盘扫描
 ```
 
 ---
@@ -65,9 +67,10 @@ MVP 页面：
 
 ```text
 /app/search       搜索和候选资源
-/app/transfers    任务列表和任务详情
+/app/transfers    完整任务列表和任务详情
 /app/storage      SMB 配置、连接测试、目录浏览
 /app/sources      媒体源配置
+/app/ingest       挂载网盘导入配置和扫描
 /app/status       API / Worker / DB / Redis 状态摘要
 ```
 
@@ -87,6 +90,7 @@ Phase 7.4 Storage Page
 Phase 7.5 Search Page
 Phase 7.6 Sources Page
 Phase 7.7 Web Console Polish And Closure
+Phase 7.8 Web Console UI Polish
 ```
 
 顺序理由：
@@ -136,12 +140,29 @@ Phase 7 期间仍不启动真实供应商开发或真实集成测试；这些工
 
 ```text
 查看任务列表
+查看任务详情
 查看任务状态
 查看 done_bytes / total_bytes / speed / ETA
 查看当前文件
 取消任务
 重试任务
 查看错误码和错误信息
+```
+
+任务展示分为两层：
+
+```text
+全局右侧浮动任务面板：展示当前所有任务的状态摘要，便于在任意页面查看进度。
+/app/transfers 页面：保留为完整任务列表、任务详情、日志、取消和重试操作页面。
+```
+
+右侧浮动任务面板规则：
+
+```text
+默认显示最近活跃任务和运行中任务。
+支持展开查看更多任务。
+支持跳转到 /app/transfers 查看详情。
+在移动端应降级为底部抽屉或可折叠入口，避免遮挡主要内容。
 ```
 
 必须突出显示：
@@ -203,12 +224,12 @@ GET  /storage/browse
 
 ```text
 查看 source 列表
-新增配置型源
-新增文档/表格型源
-编辑 source
+查看已安装代码型 Source Adapter
+编辑 Adapter 非代码参数
 启用 / 禁用 source
 测试 source 搜索
 查看最后一次错误
+查看最近一次搜索耗时和状态
 ```
 
 限制：
@@ -216,13 +237,17 @@ GET  /storage/browse
 ```text
 不允许在线编辑代码型 Source Adapter。
 不允许上传执行代码。
+不在配置或数据库中保存可执行 Python 代码。
+不支持通过 Web Console 配置复杂网站爬虫。
+不要求用户维护本地文档/表格作为主要媒体源。
 ```
+
+说明：Sources 页面是已安装代码型 Adapter 的管理入口，不代表真实媒体源接入已完成。真实媒体源需要后续通过代码型 Adapter 逐站点实现。
 
 API：
 
 ```text
 GET  /sources
-POST /sources/create
 GET  /sources/{source_id}
 POST /sources/{source_id}/update
 POST /sources/{source_id}/enable
@@ -249,7 +274,35 @@ Status 页面只显示摘要，不做复杂监控系统。
 
 ---
 
-## 10. 前端状态策略
+## 10. Ingest 页面
+
+功能：
+
+```text
+查看挂载网盘导入全局配置
+配置 delete_source_after_success
+配置 delete_empty_source_dirs
+配置 unclassified 目录
+查看 binding 列表
+新增 / 编辑 / 启用 / 禁用 binding
+测试来源目录可读
+测试目标目录可写
+手动触发扫描
+查看最近发现文件和导入任务
+```
+
+限制：
+
+```text
+不在 Web Console 中挂载网盘。
+不在 Web Console 中自动保存分享链接到网盘。
+不显示 SMB password 明文。
+删除源文件和空目录必须只发生在导入成功并完成校验之后。
+```
+
+---
+
+## 11. 前端状态策略
 
 MVP 不引入复杂全局状态方案，除非实现阶段确认需要。
 
@@ -270,7 +323,36 @@ MVP 使用轮询。
 
 ---
 
-## 11. 验收标准
+## 12. 主题和响应式
+
+Web Console 需要支持：
+
+```text
+亮色模式
+暗色模式
+跟随系统
+```
+
+主题规则：
+
+```text
+默认跟随系统。
+用户可在 Web Console 中切换主题。
+MVP 无多用户系统，主题偏好优先保存在浏览器本地。
+```
+
+响应式规则：
+
+```text
+桌面端优先保证多列布局和右侧任务面板可用。
+移动端必须可读、可操作，不出现输入框和按钮错位。
+移动端任务面板应使用底部抽屉或折叠入口。
+表单控件、按钮和提示文案需要统一对齐和间距。
+```
+
+---
+
+## 13. 验收标准
 
 Web Console 完成时必须满足：
 
@@ -282,7 +364,12 @@ Web Console 完成时必须满足：
 可以查看和修改 SMB 配置。
 可以测试 SMB 连接。
 可以浏览 SMB 目标目录。
-可以管理配置型源和文档/表格型源。
+可以管理已安装代码型 Source Adapter。
+可以管理挂载网盘导入绑定。
+可以通过全局任务面板查看当前任务状态摘要。
+可以在 /app/transfers 查看完整任务列表和详情。
+支持亮色、暗色和跟随系统三种主题模式。
+桌面端和移动端布局均可用。
 SMB 配置变更导致任务中断时有明确提示。
 取消、重试、保存 SMB 配置、创建任务、启用或禁用 source 等关键操作需要用户确认。
 不提供登录注册和权限管理。

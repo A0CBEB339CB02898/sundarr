@@ -271,7 +271,64 @@ Phase 6.5 transfer logs API
 
 ---
 
-## 10. 进度规则
+## 10. 挂载网盘导入状态
+
+挂载网盘导入属于 Phase 8。它不应继续借用 cloud staging 语义来描述来源文件。
+
+建议新增 ingest 模式状态：
+
+```text
+pending
+waiting_source
+importing
+verifying
+renaming
+cleaning_source
+completed
+failed
+cancelled
+```
+
+正常流转：
+
+```text
+pending
+  -> waiting_source
+  -> importing
+  -> verifying
+  -> renaming
+  -> cleaning_source
+  -> completed
+```
+
+失败保留：
+
+```text
+源文件
+.downloading 文件
+任务日志
+```
+
+成功后删除源文件和空目录的前置条件：
+
+```text
+目标文件存在。
+目标 size == 源文件 size。
+rename 已完成。
+source_path 位于允许的 source_root 内。
+delete_source_after_success = true。
+delete_empty_source_dirs = true 时只删除已变为空的目录。
+```
+
+未分类规则：
+
+```text
+binding 不存在、匹配多个或 media_type 不明确时，任务进入 unclassified 目标库。
+```
+
+---
+
+## 11. 进度规则
 
 任务级进度：
 
@@ -293,7 +350,7 @@ Phase 5 先实现任务级 `done_bytes` / `total_bytes` / `progress` 的最小�
 
 ---
 
-## 11. 验收标准
+## 12. 验收标准
 
 状态机完成时必须满足：
 
@@ -305,4 +362,5 @@ Phase 5 先实现任务级 `done_bytes` / `total_bytes` / `progress` 的最小�
 只有 transfer_files.status == completed 才 cleanup。
 SMB 配置变更会导致运行中任务 STORAGE_CONFIG_CHANGED。
 Worker 重启后不会误删 staging。
+挂载网盘导入不会误删来源根目录或未完成任务的源文件。
 ```

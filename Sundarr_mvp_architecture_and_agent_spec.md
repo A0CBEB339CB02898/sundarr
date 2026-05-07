@@ -587,7 +587,7 @@ MVP Web Console 不做：
 媒体源配置规则：
 
 ```text
-Web Console 支持管理配置型源和文档/表格型源。
+Web Console 支持管理已安装代码型 Source Adapter。
 Web Console 不支持在线编辑代码型 Source Adapter。
 代码型 Source Adapter 通过代码实现和部署。
 ```
@@ -1088,8 +1088,9 @@ POST /sources/{source_id}/test
 
 规则：
 
-1. Web Console 只支持管理配置型源和文档/表格型源。
+1. Web Console 只支持管理已安装代码型 Source Adapter。
 2. 代码型 Source Adapter 不支持前端在线编辑。
+3. 配置和数据库不保存可执行 Python 代码。
 
 ---
 
@@ -1373,6 +1374,8 @@ async def aggregate_search(keyword: str, filters: SearchFilters) -> list[Resourc
 
 ### 14.2 搬运任务
 
+以下 cloud staging 流程已降级为可选扩展和本地测试抽象。近期主链路改为 Phase 8 的挂载网盘导入：用户手动保存资源到网盘，fnOS 将网盘远程挂载并通过 SMB 暴露，Sundarr 通过 SMB 导入 NAS 本地媒体库。
+
 ```python
 async def run_transfer_task(task_id: str) -> None:
     task = get_task_for_update(task_id)
@@ -1558,7 +1561,54 @@ source settings page
 running task interruption notice for STORAGE_CONFIG_CHANGED
 ```
 
-### Phase 8: AI Friendly API
+Phase 0-7 手动验收后新增 Phase 7.8 Web Console UI Polish，用于处理任务列表 API、全局右侧浮动任务面板、移动端响应式、布局对齐和亮色/暗色/跟随系统主题模式。
+
+当前 source settings page 只代表媒体源框架和示例源管理入口，不代表真实网站 Adapter 已经完成。
+
+### Phase 7.8: Web Console UI Polish
+
+交付：
+
+```text
+GET /transfers 任务列表 API
+全局右侧浮动任务面板
+移动端响应式布局
+亮色模式
+暗色模式
+跟随系统
+布局、字体、输入框和按钮视觉统一
+```
+
+### Phase 8: Mounted Cloud Ingest
+
+交付：
+
+```text
+ingest 全局配置
+movie / series / unclassified 目录配置
+来源目录到目标目录 binding
+SMB source scanner
+稳定文件/目录判断
+SMB source -> SMB target 导入 Worker
+成功后删除源文件和空目录
+/app/ingest Web Console 页面
+```
+
+### Phase 9: Real Site Source Adapters
+
+交付：
+
+```text
+Source Adapter SDK 完整化
+代码型 Adapter 插件加载机制
+统一 HTTP client
+站点级 timeout / rate limit
+fixture 测试模板
+至少 1 个真实网站 Adapter
+文档型网站通用读取可行性实验
+```
+
+### Phase 10: AI Friendly API
 
 交付：
 

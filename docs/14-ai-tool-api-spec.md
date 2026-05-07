@@ -1,6 +1,6 @@
 # AI Tool API 规范
 
-本文档定义 Sundarr 后续作为 AI / Agent 可调用 media search tool 的接口方向。
+本文档定义 Sundarr 后续作为 AI / Agent 可调用 media search tool 的接口方向。该能力已后移到挂载网盘导入之后的后续阶段。
 
 ---
 

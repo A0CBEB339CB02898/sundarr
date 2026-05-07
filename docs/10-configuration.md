@@ -46,7 +46,7 @@ SUNDARR_REDIS_URL=redis://:change_me@redis:6379/0
 ```text
 SUNDARR_DATABASE_URL 和 SUNDARR_REDIS_URL 属于 bootstrap 启动配置。
 修改启动配置通常需要重启。
-cloud staging root、worker concurrency、SMB、source、library 映射等业务配置保存到数据库 settings 表。
+cloud staging root、ingest 配置、worker concurrency、SMB、source、library 映射等业务配置保存到数据库 settings 表。
 ```
 
 密码位置：
@@ -132,6 +132,8 @@ Sundarr 本地启动会自动检查数据库状态，在目标数据库不存在
 ```text
 storage.smb
 cloud.local.staging_root
+ingest 全局配置
+ingest bindings
 worker.enabled
 worker.concurrency，默认 2
 transfer 参数
@@ -237,22 +239,77 @@ MVP 不开放 worker process 数量配置。后续如需多个 Worker 进程，�
 
 ---
 
-## 6. Source 配置
+## 6. 挂载网盘导入配置
+
+挂载网盘导入配置保存到数据库 settings 表和后续 ingest bindings 表。
+
+全局配置建议：
+
+```json
+{
+  "delete_source_after_success": true,
+  "delete_empty_source_dirs": true,
+  "scan_interval_seconds": 60,
+  "stable_seconds": 120,
+  "unclassified_target_path": "/unclassified"
+}
+```
+
+Binding 配置建议：
+
+```json
+{
+  "name": "电影导入",
+  "enabled": true,
+  "media_type": "movie",
+  "source_smb": {
+    "host": "nas.example.invalid",
+    "port": 445,
+    "share": "cloud",
+    "base_path": "/movie"
+  },
+  "target_smb": {
+    "host": "nas.example.invalid",
+    "port": 445,
+    "share": "media",
+    "base_path": "/movie"
+  },
+  "delete_source_after_success": null,
+  "delete_empty_source_dirs": null
+}
+```
+
+规则：
+
+```text
+source_smb 和 target_smb 通常指向同一 SMB server，但不能强制要求。
+source_smb 和 target_smb 可以跨不同 share。
+media_type 支持 movie / series / unclassified。
+binding 不明确时进入 unclassified。
+delete_source_after_success 和 delete_empty_source_dirs 可由 binding 覆盖全局默认。
+真实 SMB 密码不写入 .env.example，不写入文档，不进入日志。
+```
+
+---
+
+## 7. Source 配置
 
 Source 配置保存到 sources 表。
 
 Web Console 可管理：
 
 ```text
-配置型源
-文档/表格型源
+已安装代码型 Adapter 的启用 / 禁用
+已安装代码型 Adapter 的非代码参数
+测试搜索
+最后错误和耗时
 ```
 
-代码型源通过代码实现，不通过前端在线编辑。
+真实网站 Source Adapter 通过 Python 代码实现和部署，不通过前端在线编辑。配置只保存 base_url、timeout、rate_limit、user_agent 等参数，不保存可执行 Python 代码。
 
 ---
 
-## 7. 敏感信息规则
+## 8. 敏感信息规则
 
 MVP 不实现复杂 secret backend。
 
@@ -267,7 +324,7 @@ Web Console 不展示 password 明文。
 
 ---
 
-## 8. 验收标准
+## 9. 验收标准
 
 配置系统完成时必须满足：
 
@@ -278,5 +335,6 @@ Web Console 可修改 SMB 配置。
 SMB 配置修改无需重启。
 SMB 配置修改中断旧配置运行中任务。
 Source 配置可持久化。
+挂载网盘导入配置可持久化。
 敏感字段不会明文返回。
 ```

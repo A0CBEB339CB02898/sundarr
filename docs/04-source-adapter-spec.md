@@ -1,6 +1,6 @@
 # Source Adapter 接入规范
 
-本文档定义 Sundarr 多源搜索的接入方式。目标是让新媒体源接入方便、快捷、格式统一。
+本文档定义 Sundarr 多源搜索的接入方式。目标是通过代码型 Source Adapter 接入真实媒体网站，实现即时搜索、统一解析和失败隔离。
 
 ---
 
@@ -15,9 +15,28 @@ Source Adapter 必须满足：
 错误隔离
 超时可控
 后续管线复用
+真实网站可逐个接入
+站点差异由 Adapter 封装
 ```
 
 不得把具体网站逻辑写死在 Search Service 中。
+
+当前实现边界：
+
+```text
+Phase 0-7 已实现 Source Adapter 抽象、ExampleSource、Search Pipeline、sources API 和 Web Console 管理入口。
+Phase 0-7 未实现真实网站代码型 Adapter SDK 的完整开发体验。
+Phase 0-7 未实现通过 Web Console 配置复杂网站爬虫。
+真实媒体源接入需要作为后续独立大阶段设计和验收。
+```
+
+原因：
+
+```text
+真实媒体源不是简单 URL 配置或本地文档维护问题。
+它通常需要站点规则、分页、请求头、登录态、限流、解析规则、失败隔离、合法性边界和反爬处理。
+这些能力超出当前 MVP 的 Source Adapter 骨架和 Sources 页面范围。
+```
 
 正确结构：
 
@@ -36,48 +55,51 @@ Source Adapter
 
 ## 2. Source 类型
 
-MVP 支持三类源：
+近期主线只保留代码型源。
 
-```text
-configurable   配置型源
-code           代码型源
-document       文档/表格型源
-```
+### 2.1 代码型源
 
-### 2.1 配置型源
-
-适合结构稳定、规则简单的网站或页面。
-
-特点：
-
-```text
-通过配置描述搜索 URL、结果选择器、字段映射
-无需写 Python 代码
-可由 Web Console 管理
-```
-
-### 2.2 代码型源
-
-适合需要复杂逻辑的源。
+适合真实媒体网站。
 
 特点：
 
 ```text
 通过 Python Adapter 实现
 支持分页、特殊请求、复杂解析
+支持进入详情页二次解析
+支持站点级限流、超时和错误处理
 不允许 Web Console 在线编辑代码
 ```
 
-### 2.3 文档/表格型源
+每个真实网站通常需要一个 Adapter，但 Adapter 复用统一 SDK、HTTP 工具、链接提取器、测试夹具和错误处理。
 
-适合用户维护的合法资源表。
+### 2.2 文档型网站实验
 
-特点：
+后续可以单独验证“文档型网站是否存在可通用读取模式”。
+
+实验目标：
 
 ```text
-支持 Markdown / plain text / CSV
-后续可扩展在线文档和在线表格
-可由 Web Console 管理
+判断文档型网站是否能通过统一模板读取。
+判断是否值得抽象为专用 Adapter 模板。
+明确哪些平台必须走专用 connector 或代码型 Adapter。
+```
+
+该实验不包含：
+
+```text
+要求用户维护本地 CSV / Markdown / plain text。
+承诺通用在线文档读取。
+承诺处理所有在线文档平台的登录、权限和导出格式。
+```
+
+### 2.3 不作为近期主线的源类型
+
+```text
+simple HTML configurable source
+本地文档/表格源
+通用在线文档读取
+Web Console 配置复杂爬虫
 ```
 
 ---
@@ -118,7 +140,7 @@ Adapter 不应修改 SearchQuery。
 ```json
 {
   "source_id": "example_site",
-  "source_type": "configurable",
+  "source_type": "code",
   "raw_title": "Interstellar 2014 1080p",
   "raw_url": "https://example.invalid/detail/123",
   "raw_content": "share url: https://pan.example.invalid/s/abc code: 1234",
@@ -179,58 +201,33 @@ type
 enabled
 trust_level
 legal_note
-created_by_user
+adapter_module
 config_json
 created_at
 updated_at
 ```
 
-配置型源示例：
+代码型源配置示例：
 
 ```json
 {
-  "id": "example_site",
-  "name": "Example Site",
-  "type": "configurable",
+  "id": "site_a",
+  "name": "站点 A",
+  "type": "code",
   "enabled": true,
   "trust_level": 1,
-  "legal_note": "User configured source",
+  "legal_note": "用户自行确认来源合法性",
+  "adapter_module": "sundarr.app.sources.adapters.site_a",
   "config_json": {
     "base_url": "https://example.invalid",
-    "search_url": "https://example.invalid/search?q={keyword}",
-    "selectors": {
-      "item": ".result-item",
-      "title": ".title",
-      "url": "a@href",
-      "content": ".summary"
-    }
+    "timeout_seconds": 10,
+    "rate_limit_per_minute": 20,
+    "user_agent": "Sundarr"
   }
 }
 ```
 
-文档/表格型源示例：
-
-```json
-{
-  "id": "my_csv",
-  "name": "My CSV",
-  "type": "document",
-  "enabled": true,
-  "trust_level": 1,
-  "legal_note": "Personal maintained list",
-  "config_json": {
-    "format": "csv",
-    "url": "https://example.invalid/resources.csv",
-    "columns": {
-      "title": "title",
-      "link": "link",
-      "code": "code",
-      "quality": "quality",
-      "year": "year"
-    }
-  }
-}
-```
+配置只保存开关、基础 URL、超时、限流、User-Agent 等参数，不保存可执行 Python 代码。
 
 ---
 
@@ -283,8 +280,11 @@ Adapter 不应无限重试。
 Web Console 可以管理：
 
 ```text
-配置型源
-文档/表格型源
+已安装代码型 Adapter
+Adapter 启用 / 禁用
+Adapter 非代码参数
+Adapter 测试搜索
+Adapter 最后错误和耗时
 ```
 
 Web Console 不允许：
@@ -292,6 +292,8 @@ Web Console 不允许：
 ```text
 在线编辑代码型 Source Adapter
 上传执行 Python 代码
+在配置或数据库中保存可执行 Python 代码
+配置复杂网站爬虫
 绕过 Source Adapter 接口直接改搜索服务逻辑
 ```
 
@@ -299,38 +301,17 @@ Web Console 不允许：
 
 ---
 
-## 10. 新增 Source 步骤
-
-配置型源：
-
-```text
-在 Web Console 新增 source。
-填写 search_url 和 selectors。
-点击 test source。
-确认 RawSearchItem 输出正常。
-启用 source。
-```
-
-代码型源：
+## 10. 新增真实网站 Source 步骤
 
 ```text
 新增 Python Adapter 类。
 继承 BaseSource。
 实现 search(query)。
+按需实现详情页解析、分页和站点级限流。
 输出 RawSearchItem。
-添加单元测试。
+添加 fixture 测试。
 注册 adapter。
-```
-
-文档/表格型源：
-
-```text
-在 Web Console 新增 document source。
-填写 URL 或文件路径。
-配置字段映射。
-点击 test source。
-确认 RawSearchItem 输出正常。
-启用 source。
+在 Web Console 启用并执行测试搜索。
 ```
 
 ---
@@ -345,6 +326,7 @@ Source Adapter 框架完成时必须满足：
 单个 source 失败不影响整体搜索。
 source timeout 生效。
 Search Service 能聚合多个 source。
-Web Console 可管理配置型源和文档/表格型源。
+Web Console 可管理已安装代码型 Adapter。
 代码型源不能通过 Web Console 在线编辑。
+配置和数据库不保存可执行 Python 代码。
 ```

@@ -75,9 +75,19 @@ SearchQuery 输入
 RawSearchItem 输出
 source timeout
 source failure isolation
-配置型源解析
-文档/表格型源解析
+代码型 Adapter 插件加载
+代码型 Adapter 参数配置
+真实站点 Adapter fixture
+网盘链接和提取码提取复用
 代码型源不能前端编辑
+```
+
+真实媒体源测试原则：
+
+```text
+每个真实网站 Adapter 必须有 fixture 测试。
+默认自动化测试不依赖实时外部网站。
+实时网站访问作为手动集成验收或显式集成测试，不纳入默认 pytest。
 ```
 
 ---
@@ -176,6 +186,27 @@ cleanup refuses staging root and outside path
 cancel / retry / cleanup / recovery writes transfer_logs
 ```
 
+Phase 8 挂载网盘导入必须覆盖：
+
+```text
+ingest binding 配置校验
+source_smb / target_smb password 不回显
+来源路径 traversal 防护
+目标路径 traversal 防护
+文件稳定性判断
+目录型资源稳定性判断
+binding 匹配 movie / series
+binding 不明确时进入 unclassified
+SMB source -> LocalWriter 或 mock target 的导入成功路径
+.downloading 写入、size 校验、rename
+成功后删除源文件
+成功后删除空目录
+失败时保留源文件和 .downloading
+重复扫描不重复创建任务
+```
+
+真实 fnOS 挂载目录导入属于手动集成验收，不纳入默认 pytest。手动验收必须使用测试目录和测试文件，避免误删正式媒体库。
+
 ---
 
 ## 7. API 测试
@@ -187,11 +218,17 @@ GET /health
 GET /search
 GET /resources/{id}
 POST /transfers
+GET /transfers
 GET /transfers/{id}
 GET /storage/config
 POST /storage/config/save
 POST /storage/config/test
 GET /storage/browse
+GET /ingest/config
+POST /ingest/config/save
+GET /ingest/bindings
+POST /ingest/bindings/create
+POST /ingest/scan
 统一错误响应
 ```
 
@@ -209,8 +246,32 @@ MVP 可先做轻量测试。
 页面可启动
 搜索表单可提交
 任务列表可显示
+全局任务面板可显示当前任务摘要
 SMB 配置表单不显示 password 明文
 STORAGE_CONFIG_CHANGED 提示可显示
+Ingest binding 表单不显示 password 明文
+挂载网盘导入页面可手动触发扫描
+亮色 / 暗色 / 跟随系统主题可切换
+移动端布局可读可操作
+```
+
+Phase 0-7 手动验收结论：
+
+```text
+SMB 连接和目录读取通过。
+health 状态查询通过。
+真实媒体源搜索未通过，因为当前未实现真实网站代码型 Adapter。
+真实任务进度未验收，因为当前没有真实导入任务。
+任务展示需要从单任务查询补充为任务列表和全局浮动任务面板。
+页面布局、移动端响应式和主题模式纳入 Phase 7.8。
+```
+
+真实媒体源测试说明：
+
+```text
+当前 Source Adapter 测试只覆盖抽象接口、示例源和配置管理。
+真实媒体源需要通过代码型 Adapter 逐站点开发，不作为 Phase 0-7 或 Phase 8 默认测试范围。
+文档型网站是否可通用读取作为后续实验阶段验证，不作为当前默认测试范围。
 ```
 
 ---
@@ -222,8 +283,8 @@ STORAGE_CONFIG_CHANGED 提示可显示
 ```text
 pytest 可运行。
 前端测试或 smoke check 可运行。
-不需要真实网盘即可验证主链路。
+不需要真实网盘直接下载即可验证主链路。
 不需要真实 NAS 即可验证写入流程。
-真实供应商开发和真实集成测试等 Web Console 具备任务操作界面后再做。
+真实 fnOS 挂载目录导入通过手动集成验收验证。
 关键误删保护有测试。
 ```

@@ -11,11 +11,12 @@ MVP 的目标是先跑通端到端闭环：
 ```text
 搜索资源
 -> 提取网盘链接
--> 转存到 cloud staging
--> 通过 SmbWriter 下载到 NAS
+-> 用户手动保存到网盘
+-> fnOS 挂载网盘并通过 SMB 暴露来源目录
+-> Sundarr 通过 SMB 导入 NAS 本地媒体库
 -> 校验
 -> rename
--> 清理 cloud staging
+-> 删除来源文件和空目录
 -> 返回任务状态
 ```
 
@@ -23,8 +24,9 @@ MVP 的目标是先跑通端到端闭环：
 
 ```text
 先后端闭环，后前端完善。
-先 Mock/Local Provider，后真实网盘 Provider。
-真实供应商开发和真实集成测试等 Web Console 具备任务操作界面后再做。
+CloudProvider 保留为可选扩展，近期不做真实网盘直接下载。
+下一阶段主线是 Mounted Cloud Ingest。
+真实 fnOS 挂载目录导入通过手动集成验收验证。
 先规则和用户确认，后模型辅助。
 先核心控制台，后完整媒体库 UI。
 每个阶段必须可测试。
@@ -48,8 +50,11 @@ Phase 4 Storage Writer: 已收口，已完成 LocalWriter、Storage 配置 API�
 启动与配置精简：已确认 sundarr start/restart 管理 API + Web，自动执行数据库初始化/迁移、默认 settings seed 和前端依赖安装；Phase 5 实现 Worker 时必须同步纳入完整项目启停。
 Phase 5 Transfer Worker: 已完成当前 MVP 本地 Worker 主链路，Phase 5.1 到 Phase 5.5 均已完成；真实网盘和 SMB 搬运主链路尚未实现。
 Phase 6 Cleanup And Recovery: 已完成，Phase 6.1 到 Phase 6.5 均已完成。
-Phase 7 Web Console: 进行中，Phase 7.1 Web Console Shell、Phase 7.2 Status Page、Phase 7.3 Transfers Page、Phase 7.4 Storage Page 和 Phase 7.5 Search Page 已完成；真实供应商开发和集成测试在该阶段形成可操作前端界面后再启动。
-Phase 8 AI Friendly API: 未开始。
+Phase 7 Web Console: 已完成。
+Phase 7.8 Web Console UI Polish: 未开始，来自 Phase 0-7 手动验收反馈；应在 Phase 8 前优先处理前端体验问题。
+Phase 8 Mounted Cloud Ingest: 未开始，下一阶段主线；替代真实网盘直接下载作为近期主链路。
+Phase 9 Real Site Source Adapters: 未开始，目标是实现真实网站代码型 Adapter 框架和至少一个真实源。
+Phase 10 AI Friendly API: 未开始，原 Phase 8 后移。
 ```
 
 Phase 4 已满足停止条件，后续可以正式进入 Phase 5。Phase 5 实现 Worker 时，必须同步将 Worker 纳入 `sundarr start / restart / stop / status`。
@@ -710,7 +715,7 @@ running task interruption notice for STORAGE_CONFIG_CHANGED
 用户可以通过 Web Console 搜索资源。
 用户可以修改 SMB 配置并测试连接。
 用户可以浏览 SMB 目标目录。
-用户可以管理配置型源和文档/表格型源。
+用户可以查看、启用、禁用和测试已安装 Source Adapter。
 用户可以创建、查看、取消、重试任务。
 SMB 配置变更导致任务中断时，前端有明确提示。
 ```
@@ -793,7 +798,7 @@ npm run build 通过。
 
 ### Phase 7.3: Transfers Page
 
-状态：已完成。
+状态：已完成；手动验收后发现需要补充任务列表 API 和全局浮动任务面板，纳入 Phase 7.8。
 
 目标：提供任务查看和控制能力，优先让 Phase 6 的任务控制 API 可被前端操作。
 
@@ -817,6 +822,7 @@ STORAGE_CONFIG_CHANGED / CLOUD_CLEANUP_FAILED / WORKER_RECOVERY_REQUIRED 明确�
 可取消允许取消的任务。
 可重试 retryable failed 任务。
 不可操作状态的按钮禁用或显示明确错误。
+完整任务列表和全局任务面板不属于 Phase 7.3 已完成范围，纳入 Phase 7.8。
 ```
 
 停止条件：
@@ -866,7 +872,7 @@ pytest 通过。
 
 ### Phase 7.5: Search Page
 
-状态：已完成。
+状态：已完成；真实媒体源搜索未通过手动验收，后续需独立规划真实媒体源/爬虫能力。
 
 目标：提供搜索、候选资源查看和创建 transfer 的最小流程。
 
@@ -888,6 +894,7 @@ POST /transfers
 用户可以搜索资源。
 用户可以选择资源链接并创建任务。
 低置信度或目标路径不明确时提示用户确认。
+Phase 7.5 验收范围仅覆盖搜索页面、示例源和搜索管线，不覆盖真实媒体源。
 ```
 
 停止条件：
@@ -901,7 +908,7 @@ pytest 通过。
 
 ### Phase 7.6: Sources Page
 
-状态：已完成。
+状态：已完成；真实网站代码型 Adapter 未实现，不作为 Phase 7.6 验收范围。
 
 目标：提供配置型和文档/表格型 Source 的管理入口。
 
@@ -922,9 +929,10 @@ POST /sources/{source_id}/test
 验收标准：
 
 ```text
-用户可以查看、创建、编辑、启用、禁用和测试可配置 source。
+用户可以查看、启用、禁用和测试已安装代码型 Adapter。
 代码型 Source Adapter 不允许在线编辑。
 source 测试失败有明确提示。
+真实站点 Adapter、通过 Web Console 配置复杂网站爬虫和在配置中保存可执行 Python 代码不属于当前阶段。
 ```
 
 停止条件：
@@ -968,9 +976,168 @@ Phase 7 文档状态更新为已完成。
 工作区已提交或明确说明不提交原因。
 ```
 
+### Phase 7.8: Web Console UI Polish
+
+状态：未开始。
+
+目标：根据 Phase 0-7 手动验收反馈，修复 Web Console 布局和任务展示体验问题。
+
+交付物：
+
+```text
+GET /transfers 任务列表 API
+全局右侧浮动任务面板
+/app/transfers 完整任务列表和任务详情保留
+桌面端布局对齐修复
+移动端响应式布局
+亮色模式
+暗色模式
+跟随系统
+主题偏好本地持久化
+字体、间距、按钮和输入框视觉统一
+```
+
+验收标准：
+
+```text
+用户可以在任意页面查看当前任务状态摘要。
+用户可以进入 /app/transfers 查看完整任务列表、详情和日志。
+输入框和按钮对齐一致。
+移动端可读、可操作，不出现主要内容遮挡。
+主题支持亮色、暗色和跟随系统。
+主题切换后刷新页面仍保留偏好。
+```
+
+停止条件：
+
+```text
+npm run build 通过。
+涉及 API 时 pytest 通过。
+不引入登录、多用户或完整媒体库 UI。
+不实现真实媒体源爬虫。
+不启动 Phase 8 挂载网盘导入实现。
+```
+
 ---
 
-## Phase 8: AI Friendly API
+## Phase 8: Mounted Cloud Ingest
+
+目标：通过 SMB 扫描 fnOS 暴露的网盘挂载目录，并通过 SMB 导入到 NAS 本地媒体库。
+
+背景：国内封闭网盘直接下载不作为 Sundarr 近期主链路。当前阶段依赖用户手动保存资源到网盘，由 fnOS 负责将网盘远程挂载为目录并通过 SMB 暴露。
+
+交付物：
+
+```text
+ingest 全局配置
+movie / series / unclassified 目标库配置
+来源目录到目标目录 binding
+SMB source scanner
+稳定文件/目录判断
+ingest task 创建
+SMB source -> SMB target 导入 Worker
+.downloading 写入、size 校验、rename
+成功后删除源文件和空目录
+未分类 fallback
+Web Console /app/ingest 页面
+```
+
+验收标准：
+
+```text
+可以配置 movie / series / unclassified 目录。
+可以配置网盘挂载来源目录到本地媒体库目录的绑定。
+路径绑定不明确时进入 unclassified。
+剧集目录按原目录结构导入，不额外拆分季集。
+文件或目录稳定后才开始导入。
+导入成功后按配置删除源文件和空目录。
+失败时保留源文件、.downloading 和任务日志。
+默认自动化测试不依赖真实网盘或真实 SMB。
+真实 fnOS 挂载目录导入通过手动集成验收。
+```
+
+停止条件：
+
+```text
+docs/15-mounted-cloud-ingest-spec.md 与实际 API / 数据模型一致。
+pytest 通过。
+涉及前端时 npm run build 通过。
+不实现 Sundarr 内挂载网盘。
+不实现 Sundarr 内保存分享链接到网盘。
+不实现国内封闭网盘直接下载。
+工作区已提交或明确说明不提交原因。
+```
+
+---
+
+## Phase 9: Real Site Source Adapters
+
+目标：实现真实媒体网站即时搜索能力。每个真实网站通过代码型 Source Adapter 接入，多个 Adapter 并发搜索，结果统一进入 Search Pipeline。
+
+交付物：
+
+```text
+Source Adapter SDK 完整化
+代码型 Adapter 插件加载机制
+统一 HTTP client
+站点级 timeout / rate limit
+失败隔离和错误码
+日志脱敏
+HTML / JSON / 文本解析辅助工具
+通用网盘链接和提取码提取复用
+fixture 测试模板
+至少 1 个真实网站 Adapter
+Web Console 已安装 Adapter 管理
+```
+
+验收标准：
+
+```text
+至少 1 个真实网站 Adapter 可以即时搜索。
+Adapter 可以解析搜索结果和必要的详情页。
+搜索结果能进入现有 Search Pipeline。
+单个 Adapter 失败不会影响其他 Adapter。
+每个 Adapter 有超时、限流、错误记录和测试 fixture。
+Web Console 可以启用、禁用、测试 Adapter 并查看最后错误。
+```
+
+停止条件：
+
+```text
+pytest 通过。
+涉及前端时 npm run build 通过。
+不在数据库或 Web Console 中保存可执行 Python 代码。
+不实现 Web Console 配置复杂爬虫。
+不要求用户维护本地文档/表格作为主要媒体源。
+不承诺通用在线文档读取。
+```
+
+### Phase 9.x: Document Site Generalization Experiment
+
+状态：后续实验，不作为 Phase 9 主线阻塞项。
+
+目标：验证文档型网站是否存在可通用读取模式。
+
+实验内容：
+
+```text
+选择少量文档型网站或在线文档平台样例。
+验证是否能稳定读取标题、正文、链接和提取码。
+判断是否能抽象为专用 Adapter 模板。
+判断哪些平台必须使用专用 connector 或代码型 Adapter。
+```
+
+不做：
+
+```text
+不要求用户维护本地 CSV / Markdown / plain text。
+不承诺通用在线文档读取。
+不处理所有在线文档平台的登录、权限和导出格式。
+```
+
+---
+
+## Phase 10: AI Friendly API
 
 目标：为 AI / Agent 调用提供稳定工具式接口。
 

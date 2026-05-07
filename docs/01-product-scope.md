@@ -6,17 +6,18 @@
 
 ## 1. 项目定位
 
-Sundarr 是一个个人自用的网盘媒体资源自动化归档系统。
+Sundarr 是一个个人自用的网盘媒体资源发现、导入和 NAS 归档自动化系统。
 
 核心目标：
 
 ```text
 搜索合法资源
 -> 提取网盘链接
--> 转存到个人网盘临时目录
--> 下载到 NAS
+-> 用户手动保存到网盘
+-> 从 fnOS 暴露的网盘挂载 SMB 目录导入
+-> 写入 NAS 本地媒体库
 -> 校验文件
--> 清理云端临时目录
+-> 删除来源文件和空目录
 ```
 
 Sundarr 不是：
@@ -42,11 +43,12 @@ OpenList 替代品
 用户在 Web Console 搜索媒体资源。
 Sundarr 从多个已配置来源聚合搜索结果。
 用户选择候选资源和目标媒体库目录。
-Sundarr 将分享链接转存到个人网盘 staging 目录。
-Sundarr 从 staging 目录下载文件到 NAS SMB share。
+用户手动将资源保存到网盘。
+fnOS 将网盘远程挂载为目录，并通过 SMB 暴露给 Sundarr。
+Sundarr 从网盘挂载 SMB 目录导入文件到 NAS 本地 SMB 媒体库。
 下载期间写入 .downloading 临时文件。
 校验成功后 rename 为正式文件。
-最后删除 cloud staging 目录。
+最后按配置删除来源文件和空目录。
 ```
 
 ---
@@ -66,14 +68,17 @@ Redis 缓存和实时进度辅助
 Cloud Link Extractor
 Resource Library
 Mock/Local Cloud Provider
-至少 1 个真实或可替换 Cloud Provider 接口
+Mounted Cloud Ingest 规范
+movie / series / unclassified 导入目标
+挂载网盘来源目录到本地媒体库目录绑定
 应用内 SmbWriter
 LocalWriter 测试实现
 Transfer Worker
 .downloading 临时文件
 大小校验
 成功后 rename
-校验成功后清理 cloud staging
+Cloud Provider / cloud staging 保留为可选扩展和测试抽象
+成功后删除挂载来源文件和空目录
 任务取消和重试
 SMB 配置查看、修改、测试连接、目录浏览
 媒体源配置管理
@@ -91,7 +96,7 @@ MVP 包含轻量 Web Console。
 搜索资源
 展示候选结果
 查看资源详情
-管理配置型源和文档/表格型源
+管理已安装代码型 Source Adapter
 查看和修改 SMB 配置
 测试 SMB 连接
 浏览 SMB 目标目录
@@ -99,6 +104,8 @@ MVP 包含轻量 Web Console。
 查看任务状态和进度
 取消 / 重试任务
 显示 STORAGE_CONFIG_CHANGED 中断提示
+配置挂载网盘导入绑定
+配置未分类目录
 ```
 
 不做：
@@ -136,9 +143,11 @@ API token 管理
 
 ```text
 不能删除 cloud staging 根目录之外的路径
+不能删除挂载来源根目录之外的路径
 不能写入 SMB 配置允许范围之外的路径
 cookie/token/password 不写入日志
 校验失败不清理 cloud staging
+校验失败不删除挂载来源文件
 默认不覆盖已有正式文件
 ```
 
@@ -146,24 +155,52 @@ cookie/token/password 不写入日志
 
 ## 6. 媒体源范围
 
-多源搜索是核心能力。
+多源即时搜索是核心能力。Sundarr 要做的是从真实媒体网站即时搜索资源，而不是要求用户维护本地资源表。
 
-MVP 支持三类源：
-
-```text
-配置型源
-代码型源
-文档/表格型源
-```
-
-Web Console 只支持管理：
+媒体源近期主线：
 
 ```text
-配置型源
-文档/表格型源
+真实网站代码型 Source Adapter 框架
+每个真实网站通过一个代码型 Adapter 接入
+多个 Adapter 并发搜索
+结果统一进入 Search Pipeline
 ```
 
-代码型 Source Adapter 必须通过代码实现和部署，不允许在 Web Console 中在线编辑代码。
+代码型 Source Adapter 必须通过代码实现和部署，不允许在 Web Console 中在线编辑 Python 代码。
+
+当前 MVP 的媒体源范围是框架能力，不等于真实网站 Adapter 已经完成。
+
+Phase 0-7 已覆盖：
+
+```text
+Source Adapter 抽象
+ExampleSource 示例源
+Search Pipeline
+sources 管理 API
+Web Console Sources 页面
+```
+
+Phase 0-7 未覆盖：
+
+```text
+真实站点爬虫
+真实网站代码型 Adapter SDK 完整开发体验
+多个真实网站 Adapter 并发搜索验收
+站点分页和反爬策略
+通过 Web Console 配置复杂爬虫
+真实媒体源手动验收
+```
+
+真实媒体源开发属于后续独立大阶段，不作为 Phase 0-7 或 Phase 8 Mounted Cloud Ingest 的阻塞项。
+
+后续可单独实验：
+
+```text
+文档型网站是否存在可通用读取模式
+文档型网站是否值得抽象为专用 Adapter 模板
+```
+
+该实验不等于承诺实现通用在线文档读取，也不要求用户维护本地文档。
 
 ---
 
@@ -218,6 +255,11 @@ Playwright 重型抓取
 OpenList 核心搬运层
 rclone 核心传输层
 多 provider 一次性全量接入
+国内封闭网盘直接下载作为核心搬运层
+绕过网盘 App、验证码、会员或风控限制
+真实媒体源通用爬虫框架
+通过 Web Console 配置复杂网站爬虫
+要求用户维护本地文档/表格作为主要媒体源
 ```
 
 ---
@@ -234,6 +276,9 @@ NFO 生成
 订阅搜索
 多 NAS 目标
 多云盘 provider
+Sundarr 内配置挂载网盘
+Sundarr 内保存分享链接到网盘
+AI / 外部数据辅助自动分类
 rclone driver
 OpenList 可选后端
 Prometheus metrics
