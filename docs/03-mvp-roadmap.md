@@ -694,13 +694,13 @@ API 契约、测试计划和状态机文档同步。
 
 ```text
 React + Vite app
-search page
+app/search page
 resource result list
-transfer task page
-SMB settings page
+app/transfers task page
+app/storage SMB settings page
 SMB connection test
 SMB directory browser
-source settings page
+app/sources source settings page
 running task interruption notice for STORAGE_CONFIG_CHANGED
 ```
 
@@ -770,7 +770,7 @@ npm run build 通过。
 交付物：
 
 ```text
-/status 页面
+/app/status 页面
 GET /health 调用
 API / PostgreSQL / Redis / Worker 状态展示
 基础刷新按钮
@@ -800,7 +800,7 @@ npm run build 通过。
 交付物：
 
 ```text
-/transfers 页面
+/app/transfers 页面
 任务 ID 查询或最小任务列表入口
 GET /transfers/{task_id}
 GET /transfers/{task_id}/logs
@@ -836,7 +836,7 @@ pytest 通过。
 交付物：
 
 ```text
-/storage 页面
+/app/storage 页面
 GET /storage/config
 POST /storage/config/save
 POST /storage/config/test
@@ -873,7 +873,7 @@ pytest 通过。
 交付物：
 
 ```text
-/search 页面
+/app/search 页面
 GET /search
 候选资源列表
 资源链接选择
@@ -908,7 +908,7 @@ pytest 通过。
 交付物：
 
 ```text
-/sources 页面
+/app/sources 页面
 GET /sources
 POST /sources/create
 GET /sources/{source_id}

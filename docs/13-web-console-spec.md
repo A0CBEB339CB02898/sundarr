@@ -64,12 +64,14 @@ MVP Web Console 不做：
 MVP 页面：
 
 ```text
-/search       搜索和候选资源
-/transfers    任务列表和任务详情
-/storage      SMB 配置、连接测试、目录浏览
-/sources      媒体源配置
-/status       API / Worker / DB / Redis 状态摘要
+/app/search       搜索和候选资源
+/app/transfers    任务列表和任务详情
+/app/storage      SMB 配置、连接测试、目录浏览
+/app/sources      媒体源配置
+/app/status       API / Worker / DB / Redis 状态摘要
 ```
+
+Web Console 页面路由使用 `/app/*` 前缀，避免与 FastAPI API 路由 `/search`、`/sources`、`/storage`、`/transfers`、`/health` 在 Vite dev proxy 下冲突。
 
 ---
 

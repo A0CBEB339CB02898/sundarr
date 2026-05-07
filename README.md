@@ -49,7 +49,7 @@ python -m venv .venv
 
 ```text
 API Docs: http://localhost:8080/docs
-Web Console: http://localhost:5173
+Web Console: http://localhost:5173/app/search
 ```
 
 构建前端：
@@ -82,11 +82,11 @@ docs/13-web-console-spec.md
 MVP Web Console 提供以下页面：
 
 ```text
-/search       搜索资源并创建搬运任务
-/transfers    查询任务、查看日志、取消和重试
-/storage      管理 SMB 配置、测试连接、只读浏览目录
-/sources      管理配置型和文档/表格型媒体源
-/status       查看 API、Worker、PostgreSQL 和 Redis 状态
+/app/search       搜索资源并创建搬运任务
+/app/transfers    查询任务、查看日志、取消和重试
+/app/storage      管理 SMB 配置、测试连接、只读浏览目录
+/app/sources      管理配置型和文档/表格型媒体源
+/app/status       查看 API、Worker、PostgreSQL 和 Redis 状态
 ```
 
 Web Console 不做登录注册、多用户权限、完整媒体库 UI、播放器或完整 NAS 文件管理器。

@@ -58,7 +58,7 @@ sundarr/
 
 ```text
 API Docs: http://localhost:8080/docs
-Web Console: http://localhost:5173
+Web Console: http://localhost:5173/app/search
 ```
 
 查看状态、重启和停止：

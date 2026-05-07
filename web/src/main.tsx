@@ -189,43 +189,43 @@ type SourceFormState = {
 }
 
 const navItems: NavItem[] = [
-  { key: 'search', path: '/search', label: '搜索', description: '搜索资源并创建搬运任务' },
-  { key: 'transfers', path: '/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
-  { key: 'storage', path: '/storage', label: '存储', description: '管理 SMB 配置和目录浏览' },
-  { key: 'sources', path: '/sources', label: '媒体源', description: '管理配置型和文档型来源' },
-  { key: 'status', path: '/status', label: '状态', description: '查看 API、Worker、数据库和 Redis' },
+  { key: 'search', path: '/app/search', label: '搜索', description: '搜索资源并创建搬运任务' },
+  { key: 'transfers', path: '/app/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
+  { key: 'storage', path: '/app/storage', label: '存储', description: '管理 SMB 配置和目录浏览' },
+  { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理配置型和文档型来源' },
+  { key: 'status', path: '/app/status', label: '状态', description: '查看 API、Worker、数据库和 Redis' },
 ]
 
 const pageCopy: Record<PageKey, { title: string; eyebrow: string; body: string; next: string }> = {
   search: {
     eyebrow: 'Search',
     title: '搜索资源并创建搬运任务',
-    body: '这里将接入 GET /search 和 POST /transfers，形成从候选资源到任务创建的最小流程。',
-    next: 'Phase 7.5 实现搜索表单、候选列表和创建任务。',
+    body: '搜索候选资源，选择可用链接，并创建后续搬运任务。',
+    next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
   transfers: {
     eyebrow: 'Transfers',
     title: '任务控制台',
-    body: '这里将接入任务状态、任务日志、取消和重试 API，让 Phase 6 的恢复能力可以被前端操作。',
-    next: 'Phase 7.3 实现任务查询、日志、取消和重试。',
+    body: '查询任务状态、查看日志，并按任务状态取消或重试。',
+    next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
   storage: {
     eyebrow: 'Storage',
     title: 'SMB 存储设置',
-    body: '这里将管理 SMB 配置摘要、连接测试和目录浏览，并明确提示 STORAGE_CONFIG_CHANGED 的影响。',
-    next: 'Phase 7.4 实现配置表单、连接测试和目录浏览。',
+    body: '管理 SMB 配置、测试连接，并只读浏览目标目录。',
+    next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
   sources: {
     eyebrow: 'Sources',
     title: '媒体源管理',
-    body: '这里将管理配置型源和文档/表格型源；代码型 Source Adapter 只读展示，不在线编辑。',
-    next: 'Phase 7.6 实现 source 列表、编辑、启用、禁用和测试。',
+    body: '管理配置型源和文档/表格型源；代码型 Source Adapter 只读展示。',
+    next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
   status: {
     eyebrow: 'Status',
     title: '系统状态摘要',
-    body: '这里将作为第一个真实前后端闭环，展示 API、Worker、PostgreSQL 和 Redis 状态。',
-    next: 'Phase 7.2 接入 GET /health 和刷新按钮。',
+    body: '查看 API、Worker、PostgreSQL 和 Redis 的当前状态。',
+    next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
 }
 
@@ -311,8 +311,8 @@ function PagePanel({ activePage }: { activePage: PageKey }) {
   return (
     <section className="panel" aria-labelledby={`${activePage}-title`}>
       <div>
-        <p className="panel-kicker">当前停止点</p>
-        <h2 id={`${activePage}-title`}>Phase 7.1 页面壳已就绪</h2>
+        <p className="panel-kicker">控制台</p>
+        <h2 id={`${activePage}-title`}>页面暂不可用</h2>
         <p>{copy.next}</p>
       </div>
       <div className="state-grid">
@@ -474,7 +474,7 @@ function SourcesPanel() {
     <section className="panel" aria-labelledby="sources-title">
       <div className="panel-header-row">
         <div>
-          <p className="panel-kicker">当前停止点</p>
+          <p className="panel-kicker">媒体源</p>
           <h2 id="sources-title">媒体源管理</h2>
           <p>管理配置型和文档/表格型 source；代码型 Source Adapter 只读展示。</p>
         </div>
@@ -666,7 +666,7 @@ function SearchPanel() {
     <section className="panel" aria-labelledby="search-title">
       <div className="panel-header-row">
         <div>
-          <p className="panel-kicker">当前停止点</p>
+          <p className="panel-kicker">搜索</p>
           <h2 id="search-title">搜索与创建任务</h2>
           <p>搜索候选资源，选择网盘链接，填写目标路径后创建 transfer task。</p>
         </div>
@@ -850,7 +850,7 @@ function StoragePanel() {
     <section className="panel" aria-labelledby="storage-title">
       <div className="panel-header-row">
         <div>
-          <p className="panel-kicker">当前停止点</p>
+          <p className="panel-kicker">存储</p>
           <h2 id="storage-title">SMB 存储设置</h2>
           <p>管理 SMB 连接配置、测试连接，并在允许范围内浏览目标目录。</p>
         </div>
@@ -1035,7 +1035,7 @@ function TransfersPanel() {
     <section className="panel" aria-labelledby="transfers-title">
       <div className="panel-header-row">
         <div>
-          <p className="panel-kicker">当前停止点</p>
+          <p className="panel-kicker">任务</p>
           <h2 id="transfers-title">任务查询与控制</h2>
           <p>输入任务 ID 后读取任务详情、关键日志，并按当前状态执行取消或重试。</p>
         </div>
@@ -1201,7 +1201,7 @@ function StatusPanel() {
     <section className="panel" aria-labelledby="status-title">
       <div className="panel-header-row">
         <div>
-          <p className="panel-kicker">当前停止点</p>
+          <p className="panel-kicker">状态</p>
           <h2 id="status-title">系统状态</h2>
           <p>调用 GET /health，展示 API、PostgreSQL、Redis 和 Worker 的当前状态。</p>
         </div>
@@ -1289,6 +1289,7 @@ function statusDescription(label: string, value: string) {
 
 function pageFromPath(pathname: string): PageKey {
   const matched = navItems.find((item) => item.path === pathname)
+  if (!matched && pathname === '/') return 'search'
   return matched?.key ?? 'search'
 }
 
