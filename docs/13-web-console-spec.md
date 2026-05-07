@@ -73,6 +73,35 @@ MVP 页面：
 
 ---
 
+## 4.1 开发顺序
+
+Web Console 按可验证停止点推进：
+
+```text
+Phase 7.1 Web Console Shell
+Phase 7.2 Status Page
+Phase 7.3 Transfers Page
+Phase 7.4 Storage Page
+Phase 7.5 Search Page
+Phase 7.6 Sources Page
+Phase 7.7 Web Console Polish And Closure
+```
+
+顺序理由：
+
+```text
+先 Shell，统一导航、API client 和错误展示。
+再 Status，用最小 API 调用验证前后端闭环。
+再 Transfers，优先把 Phase 6 cancel / retry / logs 暴露给用户。
+再 Storage，让用户能配置 SMB 并看到 STORAGE_CONFIG_CHANGED 影响。
+再 Search，形成搜索到创建任务的最小前端流程。
+最后 Sources 和统一收口，避免过早扩大到供应商开发。
+```
+
+Phase 7 期间仍不启动真实供应商开发或真实集成测试；这些工作等 Web Console 具备任务操作界面后再做。
+
+---
+
 ## 5. Search 页面
 
 功能：

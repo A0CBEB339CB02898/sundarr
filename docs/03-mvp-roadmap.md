@@ -686,6 +686,8 @@ API 契约、测试计划和状态机文档同步。
 
 ## Phase 7: Web Console
 
+状态：未开始。
+
 目标：实现 MVP 轻量控制台。
 
 交付物：
@@ -722,6 +724,247 @@ SMB password 不回显明文。
 STORAGE_CONFIG_CHANGED 有明确前端提示。
 前端不包含登录、多用户、完整媒体库 UI。
 前端构建通过；涉及后端 API 时 pytest 也必须通过。
+工作区已提交或明确说明不提交原因。
+```
+
+Phase 7 按以下停止点拆分。每个停止点都必须保持 `npm run build` 通过；涉及后端 API 字段或契约调整时同时运行 pytest。
+
+### Phase 7.1: Web Console Shell
+
+状态：未开始。
+
+目标：建立可扩展的 Web Console 页面框架和 API 调用基础。
+
+交付物：
+
+```text
+基础布局和导航
+页面路由或等价导航状态
+统一 API client
+统一 loading / error / empty state 基础组件
+保留现有 Vite 构建能力
+```
+
+验收标准：
+
+```text
+用户可以在 Search / Transfers / Storage / Sources / Status 页面之间切换。
+页面框架在桌面和移动端可读。
+API 错误有统一展示入口。
+```
+
+停止条件：
+
+```text
+npm run build 通过。
+不接入复杂全局状态库。
+不实现具体业务页面深交互。
+```
+
+### Phase 7.2: Status Page
+
+状态：未开始。
+
+目标：提供系统状态摘要，验证前端到后端的最小闭环。
+
+交付物：
+
+```text
+/status 页面
+GET /health 调用
+API / PostgreSQL / Redis / Worker 状态展示
+基础刷新按钮
+```
+
+验收标准：
+
+```text
+状态页可显示 health 响应。
+异常状态有明确提示。
+不做复杂监控、图表或历史趋势。
+```
+
+停止条件：
+
+```text
+npm run build 通过。
+页面不依赖真实网盘或真实 NAS。
+```
+
+### Phase 7.3: Transfers Page
+
+状态：未开始。
+
+目标：提供任务查看和控制能力，优先让 Phase 6 的任务控制 API 可被前端操作。
+
+交付物：
+
+```text
+/transfers 页面
+任务 ID 查询或最小任务列表入口
+GET /transfers/{task_id}
+GET /transfers/{task_id}/logs
+POST /transfers/{task_id}/cancel
+POST /transfers/{task_id}/retry
+进度、当前文件、错误码、retryable 展示
+STORAGE_CONFIG_CHANGED / CLOUD_CLEANUP_FAILED / WORKER_RECOVERY_REQUIRED 明确提示
+```
+
+验收标准：
+
+```text
+用户可以查看任务状态和日志。
+可取消允许取消的任务。
+可重试 retryable failed 任务。
+不可操作状态的按钮禁用或显示明确错误。
+```
+
+停止条件：
+
+```text
+npm run build 通过。
+pytest 通过。
+不实现真实 Provider 或真实集成测试。
+```
+
+### Phase 7.4: Storage Page
+
+状态：未开始。
+
+目标：提供 SMB 配置管理、连接测试和目录浏览。
+
+交付物：
+
+```text
+/storage 页面
+GET /storage/config
+POST /storage/config/save
+POST /storage/config/test
+GET /storage/browse
+password 不回显明文
+password 留空保留旧值
+library 路径配置最小表单
+```
+
+验收标准：
+
+```text
+用户可以查看 SMB 配置摘要。
+用户可以保存配置并测试连接。
+用户可以浏览允许范围内的目录。
+保存配置导致任务中断时有 STORAGE_CONFIG_CHANGED 提示。
+```
+
+停止条件：
+
+```text
+npm run build 通过。
+pytest 通过。
+不实现完整 NAS 文件管理器。
+不提供任意文件删除能力。
+```
+
+### Phase 7.5: Search Page
+
+状态：未开始。
+
+目标：提供搜索、候选资源查看和创建 transfer 的最小流程。
+
+交付物：
+
+```text
+/search 页面
+GET /search
+候选资源列表
+资源链接选择
+目标 library / target_path 输入
+POST /transfers
+创建成功后跳转或提示任务 ID
+```
+
+验收标准：
+
+```text
+用户可以搜索资源。
+用户可以选择资源链接并创建任务。
+低置信度或目标路径不明确时提示用户确认。
+```
+
+停止条件：
+
+```text
+npm run build 通过。
+pytest 通过。
+不接入真实供应商开发。
+不做完整媒体库 UI。
+```
+
+### Phase 7.6: Sources Page
+
+状态：未开始。
+
+目标：提供配置型和文档/表格型 Source 的管理入口。
+
+交付物：
+
+```text
+/sources 页面
+GET /sources
+POST /sources/create
+GET /sources/{source_id}
+POST /sources/{source_id}/update
+POST /sources/{source_id}/enable
+POST /sources/{source_id}/disable
+POST /sources/{source_id}/test
+代码型 Source Adapter 只读展示
+```
+
+验收标准：
+
+```text
+用户可以查看、创建、编辑、启用、禁用和测试可配置 source。
+代码型 Source Adapter 不允许在线编辑。
+source 测试失败有明确提示。
+```
+
+停止条件：
+
+```text
+npm run build 通过。
+pytest 通过。
+不上传或执行用户代码。
+```
+
+### Phase 7.7: Web Console Polish And Closure
+
+状态：未开始。
+
+目标：收口 Web Console 的一致性、可用性和 MVP 边界。
+
+交付物：
+
+```text
+统一错误提示文案
+统一空状态和 loading 状态
+移动端可读性检查
+关键操作二次确认
+README / 本地开发文档同步
+```
+
+验收标准：
+
+```text
+Search / Transfers / Storage / Sources / Status 页面均具备最小可用交互。
+前端不包含登录、多用户、完整媒体库 UI。
+用户不需要接触 SMB password 明文。
+```
+
+停止条件：
+
+```text
+npm run build 通过。
+涉及 API 的 pytest 通过。
+Phase 7 文档状态更新为已完成。
 工作区已提交或明确说明不提交原因。
 ```
 
