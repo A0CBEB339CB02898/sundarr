@@ -104,6 +104,29 @@ def test_storage_config_test_returns_specific_smb_error(db_session: Session, mon
     assert "nas.example.invalid:445" in response.json()["error_message"]
 
 
+def test_storage_config_test_empty_password_reuses_saved_password(db_session: Session, monkeypatch) -> None:
+    client = make_client(db_session)
+    client.post(
+        "/storage/config/save",
+        json={"host": "nas.example.invalid", "share": "share", "username": "user", "password": "secret"},
+    )
+    seen_passwords: list[str | None] = []
+
+    async def test_connection(self):
+        seen_passwords.append(self.config.password)
+
+    monkeypatch.setattr("sundarr.app.services.storage_config_service.SmbWriter.test_connection", test_connection)
+
+    response = client.post(
+        "/storage/config/test",
+        json={"host": "nas.example.invalid", "share": "share", "username": "user", "password": ""},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert seen_passwords == ["secret"]
+
+
 def test_save_storage_config_interrupts_running_smb_tasks(db_session: Session) -> None:
     client = make_client(db_session)
     client.post(

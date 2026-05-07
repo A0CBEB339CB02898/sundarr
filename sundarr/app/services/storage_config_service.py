@@ -53,9 +53,13 @@ class StorageConfigService:
         db.refresh(current)
         return self._to_response(current.value_json)
 
-    async def test_config(self, request: StorageConfigRequest) -> StorageConfigTestResponse:
+    async def test_config(self, db: Session, request: StorageConfigRequest) -> StorageConfigTestResponse:
         try:
             value = request.model_dump()
+            current = db.get(Setting, STORAGE_CONFIG_KEY)
+            old_value = current.value_json if current else {}
+            if not value.get("password") and old_value.get("password"):
+                value["password"] = old_value["password"]
             self._validate_value(value)
             writer = SmbWriter(SmbConfig.from_dict(value))
             await writer.test_connection()

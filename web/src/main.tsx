@@ -856,7 +856,7 @@ function StoragePanel() {
         <div>
           <p className="panel-kicker">存储</p>
           <h2 id="storage-title">SMB 存储设置</h2>
-          <p>管理 SMB 连接配置、测试连接，并在允许范围内浏览目标目录。</p>
+          <p>管理 SMB 连接配置、测试连接，并在允许范围内浏览目标目录。连接测试由后端执行，用于确认后端运行环境能访问 SMB。</p>
         </div>
         <button className="ghost-button" disabled={isLoading} onClick={() => void loadStorageConfig()} type="button">
           {isLoading ? '读取中' : '重新读取'}

@@ -24,8 +24,11 @@ async def save_storage_config(request: StorageConfigRequest, db: Session = Depen
 
 
 @router.post("/storage/config/test", response_model=StorageConfigTestResponse)
-async def test_storage_config(request: StorageConfigRequest) -> StorageConfigTestResponse:
-    return await storage_config_service.test_config(request)
+async def test_storage_config(
+    request: StorageConfigRequest,
+    db: Session = Depends(get_db),
+) -> StorageConfigTestResponse:
+    return await storage_config_service.test_config(db, request)
 
 
 @router.get("/storage/browse", response_model=StorageBrowseResponse)
