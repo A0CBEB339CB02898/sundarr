@@ -514,7 +514,7 @@ function SourcesPanel() {
             }}
           >
             <TextField disabled={mode === 'edit'} helper="创建后不可修改。仅允许字母、数字、下划线和短横线。" label="Source ID" onChange={(value) => updateField('id', value)} required value={form.id} />
-            <TextField disabled={!isEditable} label="名称" onChange={(value) => updateField('name', value)} required value={form.name} />
+            <TextField disabled={!isEditable} helper="在搜索结果和来源列表中展示的人类可读名称。" label="名称" onChange={(value) => updateField('name', value)} required value={form.name} />
             <label className="field">
               <span>类型</span>
               <select disabled={mode === 'edit'} onChange={(event) => updateField('type', event.target.value as EditableSourceType)} value={form.type}>
@@ -522,15 +522,18 @@ function SourcesPanel() {
                 <option value="document">文档/表格型</option>
                 {form.type === 'code' ? <option value="code">代码型</option> : null}
               </select>
+              <small>配置型用于规则化网页源；文档/表格型用于维护静态条目；代码型只能只读展示。</small>
             </label>
-            <TextField disabled={!isEditable} label="Trust Level" onChange={(value) => updateField('trust_level', value)} required type="number" value={form.trust_level} />
+            <TextField disabled={!isEditable} helper="1 到 5，数字越大表示该 source 可信度越高。" label="Trust Level" onChange={(value) => updateField('trust_level', value)} required type="number" value={form.trust_level} />
             <label className="field checkbox-field">
               <span>启用状态</span>
               <label><input checked={form.enabled} disabled={!isEditable} onChange={(event) => updateField('enabled', event.target.checked)} type="checkbox" /> 启用</label>
+              <small>禁用后不会参与搜索，但配置会保留。</small>
             </label>
             <label className="field source-note-field">
               <span>合规说明</span>
               <textarea disabled={!isEditable} onChange={(event) => updateField('legal_note', event.target.value)} value={form.legal_note} />
+              <small>记录该 source 的来源范围、使用限制或合法性说明。</small>
             </label>
             <label className="field source-config-field">
               <span>Config JSON</span>
@@ -673,7 +676,7 @@ function SearchPanel() {
       </div>
 
       <form className="search-form" onSubmit={(event) => { event.preventDefault(); void runSearch() }}>
-        <TextField label="关键词" onChange={(value) => updateField('q', value)} required value={form.q} />
+        <TextField helper="要搜索的片名、剧名或关键词。" label="关键词" onChange={(value) => updateField('q', value)} required value={form.q} />
         <label className="field">
           <span>类型</span>
           <select onChange={(event) => updateField('type', event.target.value)} value={form.type}>
@@ -682,9 +685,10 @@ function SearchPanel() {
             <option value="tv">剧集</option>
             <option value="anime">动画</option>
           </select>
+          <small>用于缩小搜索范围；不确定时选“未知”。</small>
         </label>
-        <TextField label="年份" onChange={(value) => updateField('year', value)} type="number" value={form.year} />
-        <TextField label="数量限制" onChange={(value) => updateField('limit', value)} type="number" value={form.limit} />
+        <TextField helper="可选，用于区分同名作品。" label="年份" onChange={(value) => updateField('year', value)} type="number" value={form.year} />
+        <TextField helper="最多返回多少个候选结果。" label="数量限制" onChange={(value) => updateField('limit', value)} type="number" value={form.limit} />
         <div className="form-actions">
           <button className="primary-button" disabled={isSearching} type="submit">{isSearching ? '搜索中' : '搜索资源'}</button>
         </div>
@@ -715,8 +719,8 @@ function SearchPanel() {
         <div className="section-heading"><h3 id="create-transfer-title">创建任务</h3><span>{selectedLink ? selectedLink.link.provider : '未选择链接'}</span></div>
         {selectedLink ? <div className="selected-link-card"><strong>{selectedLink.resource.title}</strong><p>{selectedLink.link.url}</p></div> : <EmptyState message="请先在候选资源中选择一个链接。" />}
         <form className="search-form" onSubmit={(event) => { event.preventDefault(); void createTransfer() }}>
-          <TextField label="目标 Library" onChange={(value) => updateField('target_library', value)} value={form.target_library} />
-          <TextField label="目标路径" onChange={(value) => updateField('target_path', value)} required value={form.target_path} />
+          <TextField helper="逻辑媒体库名称，例如 movies、tv、anime。" label="目标 Library" onChange={(value) => updateField('target_library', value)} value={form.target_library} />
+          <TextField helper="相对目标路径，不要填写 SMB host/share；例如 Movies/Movie Name (2024)。" label="目标路径" onChange={(value) => updateField('target_path', value)} required value={form.target_path} />
           <div className="form-actions">
             <button className="secondary-button" disabled={!selectedLink || isCreating} type="submit">{isCreating ? '创建中' : '创建 Transfer'}</button>
           </div>
@@ -870,22 +874,22 @@ function StoragePanel() {
           void saveStorageConfig()
         }}
       >
-        <TextField label="Host" onChange={(value) => updateField('host', value)} required value={form.host} />
-        <TextField label="Port" onChange={(value) => updateField('port', value)} required type="number" value={form.port} />
-        <TextField label="Share" onChange={(value) => updateField('share', value)} required value={form.share} />
-        <TextField label="Username" onChange={(value) => updateField('username', value)} required value={form.username} />
-        <TextField label="Domain" onChange={(value) => updateField('domain', value)} value={form.domain} />
-        <TextField label="Base Path" onChange={(value) => updateField('base_path', value)} value={form.base_path} />
+        <TextField helper="SMB 服务器地址，只填主机名或 IP，不要带 \\\\ 或共享名。" label="Host" onChange={(value) => updateField('host', value)} required value={form.host} />
+        <TextField helper="SMB 端口，通常是 445。" label="Port" onChange={(value) => updateField('port', value)} required type="number" value={form.port} />
+        <TextField helper="SMB 共享名，即 \\\\host\\share 中的 share，不要填写子目录。" label="Share" onChange={(value) => updateField('share', value)} required value={form.share} />
+        <TextField helper="用于登录 SMB 的账号名。" label="Username" onChange={(value) => updateField('username', value)} required value={form.username} />
+        <TextField helper="SMB 域或工作组；个人 NAS 通常留空。" label="Domain" onChange={(value) => updateField('domain', value)} value={form.domain} />
+        <TextField helper="共享内的工作根目录，例如 /Sundarr；使用共享根目录时填 /。" label="Base Path" onChange={(value) => updateField('base_path', value)} value={form.base_path} />
         <TextField
-          helper={passwordSet ? '已保存密码。留空表示保留旧密码。' : '尚未保存密码。'}
+          helper={passwordSet ? '已保存密码且不会回显。留空保存表示保留旧密码。' : 'SMB 登录密码；保存后不会在页面回显。'}
           label="Password"
           onChange={(value) => updateField('password', value)}
           type="password"
           value={form.password}
         />
-        <TextField label="Movies Library" onChange={(value) => updateField('library_movies', value)} value={form.library_movies} />
-        <TextField label="TV Library" onChange={(value) => updateField('library_tv', value)} value={form.library_tv} />
-        <TextField label="Anime Library" onChange={(value) => updateField('library_anime', value)} value={form.library_anime} />
+        <TextField helper="电影默认目录，相对于 Base Path。" label="Movies Library" onChange={(value) => updateField('library_movies', value)} value={form.library_movies} />
+        <TextField helper="剧集默认目录，相对于 Base Path。" label="TV Library" onChange={(value) => updateField('library_tv', value)} value={form.library_tv} />
+        <TextField helper="动画默认目录，相对于 Base Path。" label="Anime Library" onChange={(value) => updateField('library_anime', value)} value={form.library_anime} />
 
         <div className="form-actions">
           <button className="primary-button" disabled={isSaving} type="submit">
@@ -912,6 +916,7 @@ function StoragePanel() {
           <label>
             <span>路径</span>
             <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
+            <small>相对于 Base Path 的目录；留空表示浏览 Base Path。</small>
           </label>
           <button className="primary-button" disabled={isBrowsing} type="submit">
             {isBrowsing ? '浏览中' : '浏览目录'}
@@ -1051,6 +1056,7 @@ function TransfersPanel() {
         <label>
           <span>任务 ID</span>
           <input onChange={(event) => setTaskId(event.target.value)} placeholder="例如 task_001" type="text" value={taskId} />
+          <small>创建任务后返回的 ID，用于查询状态和日志。</small>
         </label>
         <button className="primary-button" disabled={isLoading} type="submit">
           {isLoading ? '查询中' : '查询任务'}
