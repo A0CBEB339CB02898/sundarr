@@ -213,7 +213,7 @@ POST /transfers/{task_id}/retry
 GET  /transfers/{task_id}/logs
 ```
 
-当前控制接口尚未实现。Phase 5 只要求 Worker 主链路、进度查询和失败状态可见；cancel / retry / logs API 在 Phase 6 收口。
+当前已实现 `POST /transfers/{task_id}/cancel` 和 `POST /transfers/{task_id}/retry`。logs API 尚未实现，将在 Phase 6 后续子阶段收口。
 
 Phase 6 控制接口收口顺序：
 

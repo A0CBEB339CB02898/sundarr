@@ -162,8 +162,12 @@ Phase 6 再覆盖：
 
 ```text
 cancel downloading keeps .downloading
+completed / failed task rejects cancel
+cancelled task is not processed by Worker
 cleanup only after all files completed
+cleanup requires target exists and size matches
 retry failed task
+retry refreshes storage config snapshot
 worker startup recovery
 GET /transfers/{id}/logs returns ordered logs
 cleanup refuses staging root and outside path
@@ -218,5 +222,6 @@ pytest 可运行。
 前端测试或 smoke check 可运行。
 不需要真实网盘即可验证主链路。
 不需要真实 NAS 即可验证写入流程。
+真实供应商开发和真实集成测试等 Web Console 具备任务操作界面后再做。
 关键误删保护有测试。
 ```

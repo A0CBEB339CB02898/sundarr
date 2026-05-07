@@ -8,7 +8,14 @@ from sundarr.app.cloud.base import CloudFile
 from sundarr.app.models import Resource, ResourceLink, Setting, TransferFile, TransferLog, TransferTask
 from sundarr.app.storage import LocalWriter
 from sundarr.app.storage.base import StorageWriter
-from sundarr.app.worker import WorkerSettings, claim_pending_tasks, load_local_runtime_config, load_worker_settings, process_transfer_task
+from sundarr.app.worker import (
+    WorkerSettings,
+    claim_pending_tasks,
+    cleanup_cloud_staging,
+    load_local_runtime_config,
+    load_worker_settings,
+    process_transfer_task,
+)
 
 
 def test_load_worker_settings_uses_defaults(db_session) -> None:
@@ -108,6 +115,20 @@ def test_load_local_runtime_config_reads_database_values(db_session, tmp_path: P
 
 
 @pytest.mark.anyio
+async def test_process_transfer_task_keeps_cancelled_task(db_session, tmp_path: Path) -> None:
+    task, link = _seed_single_local_task(db_session)
+    task.status = "cancelled"
+    db_session.commit()
+
+    await process_transfer_task(db_session, task, link, SingleFileCloudProvider(), LocalWriter(tmp_path / "storage"))
+
+    db_session.refresh(task)
+    assert task.status == "cancelled"
+    assert db_session.query(TransferFile).count() == 0
+    assert db_session.query(TransferLog).count() == 0
+
+
+@pytest.mark.anyio
 async def test_process_transfer_task_local_happy_path(db_session, tmp_path: Path) -> None:
     share_root = tmp_path / "shares"
     staging_root = tmp_path / "staging"
@@ -145,6 +166,7 @@ async def test_process_transfer_task_local_happy_path(db_session, tmp_path: Path
     assert task.done_bytes == len(payload)
     assert (storage_root / "Movies" / "Movie.mkv").read_bytes() == payload
     assert not (storage_root / "Movies" / "Movie.mkv.downloading").exists()
+    assert not (staging_root / "task_local").exists()
 
     transfer_file = db_session.query(TransferFile).one()
     assert transfer_file.status == "completed"
@@ -153,7 +175,85 @@ async def test_process_transfer_task_local_happy_path(db_session, tmp_path: Path
         "cloud_staging_started",
         "cloud_staging_completed",
         "transfer_completed",
+        "cleanup_completed",
     }
+
+
+@pytest.mark.anyio
+async def test_cleanup_cloud_staging_requires_completed_files_and_matching_targets(db_session, tmp_path: Path) -> None:
+    task, writer, storage_root = _seed_cleanup_task(db_session, tmp_path)
+    (storage_root / "Movies" / "Movie.mkv").write_bytes(b"1234")
+    cloud_provider = DeleteTrackingCloudProvider()
+
+    cleaned = await cleanup_cloud_staging(db_session, task, cloud_provider, writer)
+
+    db_session.refresh(task)
+    assert cleaned is True
+    assert task.status == "completed"
+    assert cloud_provider.deleted_paths == ["/Sundarr/_staging/task_cleanup"]
+    assert "cleanup_completed" in {log.event for log in db_session.query(TransferLog).all()}
+
+
+@pytest.mark.anyio
+async def test_cleanup_cloud_staging_refuses_failed_task(db_session, tmp_path: Path) -> None:
+    task, writer, storage_root = _seed_cleanup_task(db_session, tmp_path, task_status="failed")
+    (storage_root / "Movies" / "Movie.mkv").write_bytes(b"1234")
+    cloud_provider = DeleteTrackingCloudProvider()
+
+    cleaned = await cleanup_cloud_staging(db_session, task, cloud_provider, writer)
+
+    assert cleaned is False
+    assert cloud_provider.deleted_paths == []
+
+
+@pytest.mark.anyio
+async def test_cleanup_cloud_staging_refuses_uncompleted_file(db_session, tmp_path: Path) -> None:
+    task, writer, storage_root = _seed_cleanup_task(db_session, tmp_path, file_status="verified")
+    (storage_root / "Movies" / "Movie.mkv").write_bytes(b"1234")
+    cloud_provider = DeleteTrackingCloudProvider()
+
+    cleaned = await cleanup_cloud_staging(db_session, task, cloud_provider, writer)
+
+    assert cleaned is False
+    assert cloud_provider.deleted_paths == []
+
+
+@pytest.mark.anyio
+async def test_cleanup_cloud_staging_refuses_unsafe_path(db_session, tmp_path: Path) -> None:
+    task, writer, storage_root = _seed_cleanup_task(db_session, tmp_path, cloud_staging_path="/Sundarr/_staging")
+    (storage_root / "Movies" / "Movie.mkv").write_bytes(b"1234")
+    cloud_provider = DeleteTrackingCloudProvider()
+
+    cleaned = await cleanup_cloud_staging(db_session, task, cloud_provider, writer)
+
+    assert cleaned is False
+    assert cloud_provider.deleted_paths == []
+
+
+@pytest.mark.anyio
+async def test_cleanup_cloud_staging_refuses_missing_target(db_session, tmp_path: Path) -> None:
+    task, writer, _storage_root = _seed_cleanup_task(db_session, tmp_path)
+    cloud_provider = DeleteTrackingCloudProvider()
+
+    cleaned = await cleanup_cloud_staging(db_session, task, cloud_provider, writer)
+
+    assert cleaned is False
+    assert cloud_provider.deleted_paths == []
+
+
+@pytest.mark.anyio
+async def test_cleanup_cloud_staging_failure_keeps_completed_task(db_session, tmp_path: Path) -> None:
+    task, writer, storage_root = _seed_cleanup_task(db_session, tmp_path)
+    (storage_root / "Movies" / "Movie.mkv").write_bytes(b"1234")
+
+    cleaned = await cleanup_cloud_staging(db_session, task, FailingDeleteCloudProvider(), writer)
+
+    db_session.refresh(task)
+    assert cleaned is False
+    assert task.status == "completed"
+    assert task.error_code == "CLOUD_CLEANUP_FAILED"
+    assert task.retryable is True
+    assert "cleanup_failed" in {log.event for log in db_session.query(TransferLog).all()}
 
 
 @pytest.mark.anyio
@@ -250,6 +350,43 @@ def _seed_single_local_task(db_session) -> tuple[TransferTask, ResourceLink]:
     return task, link
 
 
+def _seed_cleanup_task(
+    db_session,
+    tmp_path: Path,
+    task_status: str = "completed",
+    file_status: str = "completed",
+    cloud_staging_path: str = "/Sundarr/_staging/task_cleanup",
+) -> tuple[TransferTask, LocalWriter, Path]:
+    resource = Resource(id="res_cleanup", title="清理测试", score=1)
+    link = ResourceLink(id="link_cleanup", resource_id=resource.id, provider="local", url="local://movie_share")
+    task = TransferTask(
+        id="task_cleanup",
+        resource_id=resource.id,
+        link_id=link.id,
+        status=task_status,
+        mode="copy",
+        target_type="local",
+        target_path="Movies/Movie.mkv",
+        cloud_staging_path=cloud_staging_path,
+    )
+    transfer_file = TransferFile(
+        id="file_cleanup",
+        task_id=task.id,
+        cloud_path="/Sundarr/_staging/task_cleanup/Movie.mkv",
+        target_path="Movies/Movie.mkv",
+        temp_path="Movies/Movie.mkv.downloading",
+        filename="Movie.mkv",
+        size_bytes=4,
+        done_bytes=4,
+        status=file_status,
+    )
+    storage_root = tmp_path / "storage"
+    (storage_root / "Movies").mkdir(parents=True)
+    db_session.add_all([resource, link, task, transfer_file])
+    db_session.commit()
+    return task, LocalWriter(storage_root), storage_root
+
+
 def uuid_text(prefix: str) -> str:
     return f"{prefix}_failure"
 
@@ -268,6 +405,19 @@ class SingleFileCloudProvider:
 
     async def delete(self, path: str) -> None:
         return None
+
+
+class DeleteTrackingCloudProvider(SingleFileCloudProvider):
+    def __init__(self) -> None:
+        self.deleted_paths: list[str] = []
+
+    async def delete(self, path: str) -> None:
+        self.deleted_paths.append(path)
+
+
+class FailingDeleteCloudProvider(SingleFileCloudProvider):
+    async def delete(self, path: str) -> None:
+        raise ValueError("CLOUD_DELETE_FAILED")
 
 
 class FailingStreamCloudProvider(SingleFileCloudProvider):

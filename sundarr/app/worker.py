@@ -29,6 +29,10 @@ RUNNING_TASK_STATUSES = {
 }
 
 
+class TaskCancelled(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class WorkerSettings:
     enabled: bool = DEFAULT_WORKER_ENABLED
@@ -146,6 +150,8 @@ async def process_claimed_tasks(session_factory, task_ids: list[str], local_runt
             task = session.get(TransferTask, task_id)
             if task is None:
                 continue
+            if task.status == "cancelled":
+                continue
             link = session.get(ResourceLink, task.link_id)
             if link is None or link.provider != "local" or task.target_type != "local":
                 continue
@@ -159,8 +165,12 @@ async def process_transfer_task(
     cloud_provider: CloudProvider,
     storage_writer: StorageWriter,
 ) -> TransferTask:
+    if task.status == "cancelled":
+        return task
     try:
         return await _process_transfer_task(session, task, link, cloud_provider, storage_writer)
+    except TaskCancelled:
+        return task
     except Exception as exc:
         _mark_task_failed(session, task, exc)
         return task
@@ -173,10 +183,13 @@ async def _process_transfer_task(
     cloud_provider: CloudProvider,
     storage_writer: StorageWriter,
 ) -> TransferTask:
+    _raise_if_cancelled(session, task)
     _add_log(session, task.id, "info", "cloud_staging_started", "开始转存到 cloud staging。")
     task.status = "staging_to_cloud"
     task.cloud_staging_path = await cloud_provider.save_share(link.url, link.code, task.id)
     _add_log(session, task.id, "info", "cloud_staging_completed", "cloud staging 已准备完成。")
+    session.commit()
+    _raise_if_cancelled(session, task)
 
     files = await cloud_provider.list_files(task.cloud_staging_path)
     task.total_bytes = sum(file.size for file in files)
@@ -201,21 +214,25 @@ async def _process_transfer_task(
         )
         session.add(transfer_file)
         session.commit()
+        _raise_if_cancelled(session, task)
 
         handle = await storage_writer.open_append(temp_path)
         with handle:
             async for chunk in cloud_provider.open_file_stream(file.id):
+                _raise_if_cancelled(session, task)
                 handle.write(chunk)
                 transfer_file.done_bytes += len(chunk)
                 task.done_bytes += len(chunk)
                 session.commit()
 
+        _raise_if_cancelled(session, task)
         task.status = "verifying"
         transfer_file.status = "verified"
         session.commit()
         if await storage_writer.size(temp_path) != file.size:
             raise ValueError("SIZE_MISMATCH")
 
+        _raise_if_cancelled(session, task)
         task.status = "renaming"
         session.commit()
         await storage_writer.rename(temp_path, target_path)
@@ -226,7 +243,65 @@ async def _process_transfer_task(
     task.completed_at = datetime.now(UTC)
     _add_log(session, task.id, "info", "transfer_completed", "任务已完成。")
     session.commit()
+    await cleanup_cloud_staging(session, task, cloud_provider, storage_writer)
     return task
+
+
+async def cleanup_cloud_staging(
+    session: Session,
+    task: TransferTask,
+    cloud_provider: CloudProvider,
+    storage_writer: StorageWriter,
+) -> bool:
+    if not await _can_cleanup_cloud_staging(session, task, storage_writer):
+        return False
+
+    task.status = "cleaning_cloud"
+    session.commit()
+    try:
+        await cloud_provider.delete(task.cloud_staging_path or "")
+    except Exception as exc:
+        task.status = "completed"
+        task.error_code = "CLOUD_CLEANUP_FAILED"
+        task.error_message = str(exc) or "CLOUD_CLEANUP_FAILED"
+        task.retryable = True
+        _add_log(session, task.id, "error", "cleanup_failed", f"cloud staging 清理失败：{task.error_message}")
+        session.commit()
+        return False
+
+    task.status = "completed"
+    _add_log(session, task.id, "info", "cleanup_completed", "cloud staging 已清理。")
+    session.commit()
+    return True
+
+
+async def _can_cleanup_cloud_staging(session: Session, task: TransferTask, storage_writer: StorageWriter) -> bool:
+    session.refresh(task)
+    if task.status != "completed" or not _is_task_staging_path(task.cloud_staging_path, task.id):
+        return False
+
+    files = session.query(TransferFile).filter(TransferFile.task_id == task.id).all()
+    if not files or any(file.status != "completed" for file in files):
+        return False
+    for file in files:
+        if not await storage_writer.exists(file.target_path):
+            return False
+        if await storage_writer.size(file.target_path) != file.size_bytes:
+            return False
+    return True
+
+
+def _is_task_staging_path(path: str | None, task_id: str) -> bool:
+    if not path:
+        return False
+    normalized = path.strip("/")
+    return normalized == f"Sundarr/_staging/{task_id}"
+
+
+def _raise_if_cancelled(session: Session, task: TransferTask) -> None:
+    session.refresh(task)
+    if task.status == "cancelled":
+        raise TaskCancelled()
 
 
 def _mark_task_failed(session: Session, task: TransferTask, exc: Exception) -> None:

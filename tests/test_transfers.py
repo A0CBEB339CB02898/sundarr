@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
-from sundarr.app.models import Resource, ResourceLink, Setting, TransferFile, TransferTask
+from sundarr.app.models import Resource, ResourceLink, Setting, TransferFile, TransferLog, TransferTask
 from sundarr.app.services.storage_config_service import STORAGE_CONFIG_KEY
 
 
@@ -110,3 +110,199 @@ def test_create_transfer_rejects_missing_link(db_session: Session) -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "资源链接不存在。"
+
+
+def test_cancel_pending_transfer(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "pending")
+
+    response = client.post(f"/transfers/{task.id}/cancel")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "cancelled"
+    assert body["error_code"] == "TASK_CANCELLED"
+    db_session.refresh(task)
+    assert task.status == "cancelled"
+    log = db_session.query(TransferLog).one()
+    assert log.event == "task_cancelled"
+    assert log.data_json == {"previous_status": "pending"}
+
+
+def test_cancel_running_transfer_cancels_active_files(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "downloading")
+    db_session.add(
+        TransferFile(
+            id="file_cancel",
+            task_id=task.id,
+            cloud_path="/Sundarr/_staging/task/Movie.mkv",
+            target_path="Movies/Movie.mkv",
+            temp_path="Movies/Movie.mkv.downloading",
+            filename="Movie.mkv",
+            size_bytes=10,
+            done_bytes=4,
+            status="downloading",
+        )
+    )
+    db_session.commit()
+
+    response = client.post(f"/transfers/{task.id}/cancel")
+
+    assert response.status_code == 200
+    db_session.refresh(task)
+    transfer_file = db_session.get(TransferFile, "file_cancel")
+    assert task.status == "cancelled"
+    assert transfer_file.status == "cancelled"
+    assert transfer_file.temp_path == "Movies/Movie.mkv.downloading"
+
+
+def test_cancel_completed_transfer_is_rejected(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "completed")
+
+    response = client.post(f"/transfers/{task.id}/cancel")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "当前任务状态不允许取消。"
+    db_session.refresh(task)
+    assert task.status == "completed"
+
+
+def test_cancel_failed_transfer_is_rejected(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "failed")
+
+    response = client.post(f"/transfers/{task.id}/cancel")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "当前任务状态不允许取消。"
+    db_session.refresh(task)
+    assert task.status == "failed"
+
+
+def test_cancel_missing_transfer_returns_404(db_session: Session) -> None:
+    client = make_client(db_session)
+
+    response = client.post("/transfers/missing/cancel")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "搬运任务不存在。"
+
+
+def test_retry_failed_retryable_transfer(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "failed")
+    task.error_code = "STORAGE_CONFIG_CHANGED"
+    task.error_message = "旧存储配置已变更。"
+    task.retryable = True
+    task.retry_count = 2
+    task.done_bytes = 4
+    task.storage_config_snapshot = {"host": "old.example.invalid"}
+    db_session.add(
+        Setting(
+            key=STORAGE_CONFIG_KEY,
+            value_json={"host": "nas.example.invalid", "share": "share", "username": "user", "password": "new-secret"},
+            is_sensitive=True,
+        )
+    )
+    db_session.add(
+        TransferFile(
+            id="file_retry",
+            task_id=task.id,
+            cloud_path="/Sundarr/_staging/task/Movie.mkv",
+            target_path="Movies/Movie.mkv",
+            temp_path="Movies/Movie.mkv.downloading",
+            filename="Movie.mkv",
+            size_bytes=10,
+            done_bytes=4,
+            status="failed",
+            error_code="STORAGE_WRITE_FAILED",
+            error_message="写入失败。",
+        )
+    )
+    db_session.commit()
+
+    response = client.post(f"/transfers/{task.id}/retry")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "pending"
+    assert body["error_code"] is None
+    assert body["error_message"] is None
+    assert body["retryable"] is None
+    assert body["retry_count"] == 3
+    db_session.refresh(task)
+    transfer_file = db_session.get(TransferFile, "file_retry")
+    assert task.done_bytes == 0
+    assert task.storage_config_snapshot == {
+        "host": "nas.example.invalid",
+        "share": "share",
+        "username": "user",
+        "password": "new-secret",
+    }
+    assert transfer_file.temp_path == "Movies/Movie.mkv.downloading"
+    assert transfer_file.status == "failed"
+    log = db_session.query(TransferLog).order_by(TransferLog.created_at.desc()).first()
+    assert log.event == "task_retried"
+    assert log.data_json == {"previous_error_code": "STORAGE_CONFIG_CHANGED", "retry_count": 3}
+
+
+def test_retry_failed_non_retryable_transfer_is_rejected(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "failed")
+    task.retryable = False
+    db_session.commit()
+
+    response = client.post(f"/transfers/{task.id}/retry")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "当前任务状态不允许重试。"
+    db_session.refresh(task)
+    assert task.status == "failed"
+
+
+def test_retry_non_failed_transfer_is_rejected(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "pending")
+    task.retryable = True
+    db_session.commit()
+
+    response = client.post(f"/transfers/{task.id}/retry")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "当前任务状态不允许重试。"
+    db_session.refresh(task)
+    assert task.status == "pending"
+
+
+def test_retry_missing_transfer_returns_404(db_session: Session) -> None:
+    client = make_client(db_session)
+
+    response = client.post("/transfers/missing/retry")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "搬运任务不存在。"
+
+
+def _add_task(db_session: Session, link: ResourceLink, status: str) -> TransferTask:
+    task = TransferTask(
+        id=f"task_{status}",
+        resource_id=link.resource_id,
+        link_id=link.id,
+        status=status,
+        mode="copy",
+        target_type="local",
+        target_path="Movies/Movie.mkv",
+        cloud_staging_path="/Sundarr/_staging/task",
+    )
+    db_session.add(task)
+    db_session.commit()
+    return task

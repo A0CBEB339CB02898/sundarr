@@ -122,11 +122,7 @@ POST /transfers/{task_id}/retry
 重试目标状态：
 
 ```text
-failed at staging_to_cloud -> pending
-failed at downloading      -> downloading if temp file can resume, otherwise cloud_ready
-failed at verifying        -> downloading or failed based on verification error
-failed at renaming         -> renaming if all files verified
-failed at cleaning_cloud   -> cleaning_cloud
+failed + retryable=true -> pending
 ```
 
 规则：
@@ -136,6 +132,8 @@ retryable=false 的任务不能自动重试。
 retry 必须增加 retry_count。
 retry 使用最新 SMB 配置。
 retry 不应删除现有 .downloading，除非确认 temp invalid。
+MVP 6.2 不实现复杂 resume，重试统一回到 pending 由 Worker 重新领取。
+retry 必须写入 transfer_logs.event = task_retried。
 ```
 
 ---
@@ -152,13 +150,15 @@ POST /transfers/{task_id}/cancel
 
 ```text
 pending -> cancelled
-staging_to_cloud -> best effort cancel, otherwise failed or continue to cloud_ready
+staging_to_cloud -> cancelled
+cloud_ready -> cancelled
 downloading -> stop stream and keep .downloading
 verifying -> best effort cancel
 renaming -> normally not cancellable
 cleaning_cloud -> normally not cancellable
 completed -> cannot cancel
 failed -> cannot cancel
+cancelled -> cannot cancel again
 ```
 
 取消下载时：
@@ -166,6 +166,9 @@ failed -> cannot cancel
 ```text
 task.status = cancelled
 current transfer_file.status = cancelled
+error_code = TASK_CANCELLED
+retryable = false
+transfer_logs.event = task_cancelled
 保留 .downloading
 保留 cloud staging
 ```
@@ -223,6 +226,15 @@ cloud_staging_path is under /Sundarr/_staging/{task_id}/
 只有 verified 就 cleanup
 cleanup staging_root 之外路径
 cleanup 失败后删除本地文件
+```
+
+MVP cleanup 行为：
+
+```text
+completed -> cleaning_cloud -> completed
+cleanup_completed 写入 transfer_logs
+cleanup_failed 写入 transfer_logs
+cleanup 失败时保持 task.status = completed，设置 error_code = CLOUD_CLEANUP_FAILED，retryable = true
 ```
 
 ---

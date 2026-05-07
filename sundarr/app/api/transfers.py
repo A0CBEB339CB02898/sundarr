@@ -24,8 +24,28 @@ async def get_transfer(task_id: str, db: Session = Depends(get_db)) -> TransferR
     return task
 
 
+@router.post("/transfers/{task_id}/cancel", response_model=TransferResponse)
+async def cancel_transfer(task_id: str, db: Session = Depends(get_db)) -> TransferResponse:
+    try:
+        return transfer_service.cancel_transfer(db, task_id)
+    except ValueError as exc:
+        raise _transfer_error(exc) from exc
+
+
+@router.post("/transfers/{task_id}/retry", response_model=TransferResponse)
+async def retry_transfer(task_id: str, db: Session = Depends(get_db)) -> TransferResponse:
+    try:
+        return transfer_service.retry_transfer(db, task_id)
+    except ValueError as exc:
+        raise _transfer_error(exc) from exc
+
+
 def _transfer_error(exc: ValueError) -> HTTPException:
     messages = {
         "RESOURCE_LINK_NOT_FOUND": "资源链接不存在。",
+        "TRANSFER_TASK_NOT_FOUND": "搬运任务不存在。",
+        "TRANSFER_TASK_NOT_CANCELLABLE": "当前任务状态不允许取消。",
+        "TRANSFER_TASK_NOT_RETRYABLE": "当前任务状态不允许重试。",
     }
-    return HTTPException(status_code=404, detail=messages.get(str(exc), "搬运任务请求无效。"))
+    status_code = 409 if str(exc) in {"TRANSFER_TASK_NOT_CANCELLABLE", "TRANSFER_TASK_NOT_RETRYABLE"} else 404
+    return HTTPException(status_code=status_code, detail=messages.get(str(exc), "搬运任务请求无效。"))

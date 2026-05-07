@@ -336,7 +336,7 @@ retryable = true
 
 ```text
 MVP 先实现 Mock/Local Provider，用于自动化测试和闭环验证。
-真实网盘 Provider 后续接入。
+真实网盘 Provider 后续接入，且等 Web Console 具备任务操作界面后再启动真实供应商开发和真实集成测试。
 ```
 
 理由：

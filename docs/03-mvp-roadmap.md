@@ -24,6 +24,7 @@ MVP 的目标是先跑通端到端闭环：
 ```text
 先后端闭环，后前端完善。
 先 Mock/Local Provider，后真实网盘 Provider。
+真实供应商开发和真实集成测试等 Web Console 具备任务操作界面后再做。
 先规则和用户确认，后模型辅助。
 先核心控制台，后完整媒体库 UI。
 每个阶段必须可测试。
@@ -36,7 +37,7 @@ MVP 的目标是先跑通端到端闭环：
 
 ## 当前实现状态
 
-截至 2026-05-06，本项目阶段状态如下：
+截至 2026-05-07，本项目阶段状态如下：
 
 ```text
 Phase 0 Project Skeleton: 已完成。
@@ -46,8 +47,8 @@ Phase 3 Cloud Staging: 已完成。
 Phase 4 Storage Writer: 已收口，已完成 LocalWriter、Storage 配置 API、目录浏览 API、STORAGE_CONFIG_CHANGED 中断规则、SmbWriter 安全边界和真实 SMB 连接、目录浏览、写入、size、rename 手动验收。
 启动与配置精简：已确认 sundarr start/restart 管理 API + Web，自动执行数据库初始化/迁移、默认 settings seed 和前端依赖安装；Phase 5 实现 Worker 时必须同步纳入完整项目启停。
 Phase 5 Transfer Worker: 已完成当前 MVP 本地 Worker 主链路，Phase 5.1 到 Phase 5.5 均已完成；真实网盘和 SMB 搬运主链路尚未实现。
-Phase 6 Cleanup And Recovery: 未开始。
-Phase 7 Web Console: 未开始。
+Phase 6 Cleanup And Recovery: 进行中，Phase 6.1 Cancel Task、Phase 6.2 Retry Failed Task 和 Phase 6.3 Safe Cloud Cleanup 已完成。
+Phase 7 Web Console: 未开始；真实供应商开发和集成测试在该阶段形成可操作前端界面后再启动。
 Phase 8 AI Friendly API: 未开始。
 ```
 
@@ -523,7 +524,7 @@ pytest 通过。
 
 ### Phase 6.1: Cancel Task
 
-状态：未开始。
+状态：已完成。
 
 目标：提供任务取消入口，并保证取消不会误删 `.downloading` 或 cloud staging。
 
@@ -556,7 +557,7 @@ API 契约与实际响应一致。
 
 ### Phase 6.2: Retry Failed Task
 
-状态：未开始。
+状态：已完成。
 
 目标：提供失败任务重试入口，允许可重试任务回到可执行状态。
 
@@ -589,7 +590,7 @@ pytest 覆盖 retryable true / false、retry_count、最新配置快照。
 
 ### Phase 6.3: Safe Cloud Cleanup
 
-状态：未开始。
+状态：已完成。
 
 目标：任务完成后安全清理 cloud staging，同时保证任何失败或未完成状态都不会误删。
 
