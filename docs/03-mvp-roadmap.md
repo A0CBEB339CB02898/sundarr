@@ -901,7 +901,7 @@ pytest 通过。
 
 ### Phase 7.6: Sources Page
 
-状态：未开始。
+状态：已完成。
 
 目标：提供配置型和文档/表格型 Source 的管理入口。
 

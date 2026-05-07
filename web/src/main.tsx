@@ -148,6 +148,46 @@ type SearchFormState = {
   target_path: string
 }
 
+type SourceType = 'configurable' | 'document' | 'code'
+type EditableSourceType = 'configurable' | 'document'
+
+type SourceResponse = {
+  id: string
+  name: string
+  type: SourceType
+  enabled: boolean
+  legal_note: string | null
+  trust_level: number
+  created_by_user: boolean
+  config_json: Record<string, unknown>
+  last_error_code: string | null
+  last_error_message: string | null
+}
+
+type SourceListResponse = {
+  count: number
+  results: SourceResponse[]
+}
+
+type SourceTestResponse = {
+  ok: boolean
+  source_id: string
+  items: Record<string, unknown>[]
+  error_code: string | null
+  error_message: string | null
+  tested_at: string
+}
+
+type SourceFormState = {
+  id: string
+  name: string
+  type: SourceType
+  enabled: boolean
+  legal_note: string
+  trust_level: string
+  config_json: string
+}
+
 const navItems: NavItem[] = [
   { key: 'search', path: '/search', label: '搜索', description: '搜索资源并创建搬运任务' },
   { key: 'transfers', path: '/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
@@ -264,6 +304,9 @@ function PagePanel({ activePage }: { activePage: PageKey }) {
   if (activePage === 'search') {
     return <SearchPanel />
   }
+  if (activePage === 'sources') {
+    return <SourcesPanel />
+  }
 
   return (
     <section className="panel" aria-labelledby={`${activePage}-title`}>
@@ -279,6 +322,261 @@ function PagePanel({ activePage }: { activePage: PageKey }) {
       </div>
       <ApiClientPreview />
     </section>
+  )
+}
+
+function SourcesPanel() {
+  const [sources, setSources] = useState<SourceResponse[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [form, setForm] = useState<SourceFormState>(emptySourceForm())
+  const [mode, setMode] = useState<'create' | 'edit'>('create')
+  const [testResult, setTestResult] = useState<SourceTestResponse | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const [isToggling, setIsToggling] = useState(false)
+
+  useEffect(() => {
+    void loadSources()
+  }, [])
+
+  const selectedSource = sources.find((source) => source.id === selectedId) || null
+  const isCodeSource = selectedSource?.type === 'code'
+  const isEditable = mode === 'create' || !isCodeSource
+
+  async function loadSources(nextSelectedId = selectedId) {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await api.get<SourceListResponse>('/sources')
+      setSources(response.results)
+      const nextSource = response.results.find((source) => source.id === nextSelectedId) || response.results[0] || null
+      if (nextSource) {
+        selectSource(nextSource, false)
+      } else {
+        startCreate()
+      }
+    } catch (exc) {
+      setSources([])
+      setError(exc instanceof Error ? exc.message : '无法读取媒体源。')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  function selectSource(source: SourceResponse, clearFeedback = true) {
+    setMode('edit')
+    setSelectedId(source.id)
+    setForm(sourceFormFromResponse(source))
+    setTestResult(null)
+    if (clearFeedback) {
+      setMessage(null)
+      setError(null)
+    }
+  }
+
+  function startCreate() {
+    setMode('create')
+    setSelectedId(null)
+    setForm(emptySourceForm())
+    setTestResult(null)
+    setMessage(null)
+    setError(null)
+  }
+
+  async function saveSource() {
+    if (!isEditable) {
+      setError('代码型 Source Adapter 只能只读展示，不能在线编辑。')
+      return
+    }
+    setIsSaving(true)
+    setError(null)
+    setMessage(null)
+    try {
+      const config = parseSourceConfig(form.config_json)
+      const payload = {
+        name: form.name.trim(),
+        enabled: form.enabled,
+        legal_note: form.legal_note.trim() || null,
+        trust_level: Number(form.trust_level) || 1,
+        config_json: config,
+      }
+      const saved = mode === 'create'
+        ? await api.post<SourceResponse>('/sources/create', { ...payload, id: form.id.trim(), type: form.type })
+        : await api.post<SourceResponse>(`/sources/${encodeURIComponent(form.id)}/update`, payload)
+      setMessage(mode === 'create' ? '媒体源已创建。' : '媒体源已保存。')
+      await loadSources(saved.id)
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '保存媒体源失败。')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function toggleSource(enabled: boolean) {
+    if (!selectedSource || isCodeSource) {
+      setError('代码型 Source Adapter 只能只读展示，不能在线启用或禁用。')
+      return
+    }
+    setIsToggling(true)
+    setError(null)
+    setMessage(null)
+    try {
+      const action = enabled ? 'enable' : 'disable'
+      const updated = await api.post<SourceResponse>(`/sources/${encodeURIComponent(selectedSource.id)}/${action}`)
+      setMessage(enabled ? '媒体源已启用。' : '媒体源已禁用。')
+      await loadSources(updated.id)
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '切换媒体源状态失败。')
+    } finally {
+      setIsToggling(false)
+    }
+  }
+
+  async function testSource() {
+    if (!selectedSource) {
+      setError('请先选择一个已保存的媒体源。')
+      return
+    }
+    setIsTesting(true)
+    setError(null)
+    setMessage(null)
+    setTestResult(null)
+    try {
+      const result = await api.post<SourceTestResponse>(`/sources/${encodeURIComponent(selectedSource.id)}/test`)
+      setTestResult(result)
+      if (result.ok) {
+        setMessage('媒体源测试通过。')
+      } else {
+        setError(`${result.error_code || 'SOURCE_TEST_FAILED'}：${result.error_message || '媒体源测试失败。'}`)
+      }
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '测试媒体源失败。')
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  function updateField(key: keyof SourceFormState, value: string | boolean) {
+    setForm((current) => ({ ...current, [key]: value }))
+  }
+
+  return (
+    <section className="panel" aria-labelledby="sources-title">
+      <div className="panel-header-row">
+        <div>
+          <p className="panel-kicker">当前停止点</p>
+          <h2 id="sources-title">媒体源管理</h2>
+          <p>管理配置型和文档/表格型 source；代码型 Source Adapter 只读展示。</p>
+        </div>
+        <button className="ghost-button" disabled={isLoading} onClick={() => void loadSources()} type="button">
+          {isLoading ? '读取中' : '重新读取'}
+        </button>
+      </div>
+
+      {message ? <div className="notice-card"><strong>操作完成</strong><p>{message}</p></div> : null}
+      {error ? <ErrorState message={error} /> : null}
+      {isLoading && sources.length === 0 ? <LoadingState message="正在读取媒体源列表。" /> : null}
+
+      <div className="sources-layout">
+        <aside className="source-list" aria-label="媒体源列表">
+          <div className="section-heading"><h3>Source 列表</h3><span>{sources.length} 个</span></div>
+          <button className="source-row create-row" data-selected={mode === 'create'} onClick={startCreate} type="button">
+            <span>新建</span>
+            <strong>创建配置型或文档型 Source</strong>
+            <small>Web Console 可编辑</small>
+          </button>
+          {sources.length === 0 ? <EmptyState message="暂无媒体源，可先创建配置型或文档型 source。" /> : null}
+          {sources.map((source) => (
+            <button className="source-row" data-selected={selectedId === source.id} key={source.id} onClick={() => selectSource(source)} type="button">
+              <span>{sourceTypeLabel(source.type)}</span>
+              <strong>{source.name}</strong>
+              <small>{source.enabled ? '已启用' : '已禁用'} · trust {source.trust_level}</small>
+            </button>
+          ))}
+        </aside>
+
+        <div className="source-editor">
+          <form
+            className="source-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void saveSource()
+            }}
+          >
+            <TextField disabled={mode === 'edit'} helper="创建后不可修改。仅允许字母、数字、下划线和短横线。" label="Source ID" onChange={(value) => updateField('id', value)} required value={form.id} />
+            <TextField disabled={!isEditable} label="名称" onChange={(value) => updateField('name', value)} required value={form.name} />
+            <label className="field">
+              <span>类型</span>
+              <select disabled={mode === 'edit'} onChange={(event) => updateField('type', event.target.value as EditableSourceType)} value={form.type}>
+                <option value="configurable">配置型</option>
+                <option value="document">文档/表格型</option>
+                {form.type === 'code' ? <option value="code">代码型</option> : null}
+              </select>
+            </label>
+            <TextField disabled={!isEditable} label="Trust Level" onChange={(value) => updateField('trust_level', value)} required type="number" value={form.trust_level} />
+            <label className="field checkbox-field">
+              <span>启用状态</span>
+              <label><input checked={form.enabled} disabled={!isEditable} onChange={(event) => updateField('enabled', event.target.checked)} type="checkbox" /> 启用</label>
+            </label>
+            <label className="field source-note-field">
+              <span>合规说明</span>
+              <textarea disabled={!isEditable} onChange={(event) => updateField('legal_note', event.target.value)} value={form.legal_note} />
+            </label>
+            <label className="field source-config-field">
+              <span>Config JSON</span>
+              <textarea disabled={!isEditable} onChange={(event) => updateField('config_json', event.target.value)} spellCheck="false" value={form.config_json} />
+              <small>{sourceConfigHint(form.type)}</small>
+            </label>
+
+            {isCodeSource ? <div className="notice-card source-form-wide"><strong>只读 Source Adapter</strong><p>代码型 source 不允许通过 Web Console 在线编辑、启用或禁用。</p></div> : null}
+
+            <div className="form-actions">
+              <button className="primary-button" disabled={!isEditable || isSaving} type="submit">{isSaving ? '保存中' : mode === 'create' ? '创建 Source' : '保存 Source'}</button>
+              <button className="secondary-button" disabled={!selectedSource || isTesting} onClick={() => void testSource()} type="button">{isTesting ? '测试中' : '测试 Source'}</button>
+              <button className="ghost-button" disabled={!selectedSource || isCodeSource || isToggling || selectedSource.enabled} onClick={() => void toggleSource(true)} type="button">启用</button>
+              <button className="ghost-button" disabled={!selectedSource || isCodeSource || isToggling || !selectedSource.enabled} onClick={() => void toggleSource(false)} type="button">禁用</button>
+            </div>
+          </form>
+
+          {selectedSource ? <SourceSummary source={selectedSource} /> : <EmptyState message="填写表单后创建新的媒体源。" />}
+          {testResult ? <SourceTestResult result={testResult} /> : null}
+        </div>
+      </div>
+
+      <ApiClientPreview />
+    </section>
+  )
+}
+
+function SourceSummary({ source }: { source: SourceResponse }) {
+  return (
+    <div className="source-summary">
+      <div className="section-heading"><h3>{source.name}</h3><span>{source.enabled ? '已启用' : '已禁用'}</span></div>
+      <div className="detail-grid">
+        <DetailItem label="ID" value={source.id} />
+        <DetailItem label="类型" value={sourceTypeLabel(source.type)} />
+        <DetailItem label="用户创建" value={source.created_by_user ? '是' : '否'} />
+        <DetailItem label="Trust Level" value={String(source.trust_level)} />
+        <DetailItem label="最后错误" value={source.last_error_code || '无'} />
+        <DetailItem label="错误说明" value={source.last_error_message || '无'} />
+      </div>
+      {source.legal_note ? <p>{source.legal_note}</p> : null}
+    </div>
+  )
+}
+
+function SourceTestResult({ result }: { result: SourceTestResponse }) {
+  return (
+    <div className="source-summary">
+      <div className="section-heading"><h3>测试结果</h3><span>{result.ok ? '通过' : '失败'}</span></div>
+      <DetailItem label="测试时间" value={formatDateTime(result.tested_at)} />
+      {result.error_code ? <div className="error-detail"><strong>{result.error_code}</strong><p>{result.error_message || '无错误详情。'}</p></div> : null}
+      {result.items.length === 0 ? <EmptyState message="测试未返回预览条目。" /> : null}
+      {result.items.map((item, index) => <code className="json-preview" key={index}>{JSON.stringify(item, null, 2)}</code>)}
+    </div>
   )
 }
 
@@ -617,6 +915,7 @@ function StoragePanel() {
 }
 
 function TextField({
+  disabled = false,
   helper,
   label,
   onChange,
@@ -624,6 +923,7 @@ function TextField({
   type = 'text',
   value,
 }: {
+  disabled?: boolean
   helper?: string
   label: string
   onChange: (value: string) => void
@@ -634,7 +934,7 @@ function TextField({
   return (
     <label className="field">
       <span>{label}</span>
-      <input onChange={(event) => onChange(event.target.value)} required={required} type={type} value={value} />
+      <input disabled={disabled} onChange={(event) => onChange(event.target.value)} required={required} type={type} value={value} />
       {helper ? <small>{helper}</small> : null}
     </label>
   )
@@ -1049,6 +1349,62 @@ function storageRequestFromForm(form: StorageFormState): StorageConfigRequest {
     base_path: form.base_path.trim() || '/',
     libraries,
   }
+}
+
+function emptySourceForm(): SourceFormState {
+  return {
+    id: '',
+    name: '',
+    type: 'configurable',
+    enabled: true,
+    legal_note: '',
+    trust_level: '1',
+    config_json: '{\n  "search_url": "https://example.invalid/search?q={query}",\n  "selectors": {}\n}',
+  }
+}
+
+function sourceFormFromResponse(source: SourceResponse): SourceFormState {
+  return {
+    id: source.id,
+    name: source.name,
+    type: source.type,
+    enabled: source.enabled,
+    legal_note: source.legal_note || '',
+    trust_level: String(source.trust_level),
+    config_json: JSON.stringify(source.config_json || {}, null, 2),
+  }
+}
+
+function parseSourceConfig(value: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(value || '{}') as unknown
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+      throw new Error('Config JSON 必须是对象。')
+    }
+    return parsed as Record<string, unknown>
+  } catch (exc) {
+    if (exc instanceof SyntaxError) throw new Error('Config JSON 格式无效。')
+    throw exc
+  }
+}
+
+function sourceTypeLabel(type: SourceType) {
+  const labels: Record<SourceType, string> = {
+    configurable: '配置型',
+    document: '文档/表格型',
+    code: '代码型',
+  }
+  return labels[type]
+}
+
+function sourceConfigHint(type: SourceType) {
+  if (type === 'document') {
+    return '文档/表格型 source 需要 items 数组，至少包含 title 和 url/link/content。'
+  }
+  if (type === 'code') {
+    return '代码型 Source Adapter 由后端代码提供，Web Console 只读展示配置。'
+  }
+  return '配置型 source 需要 search_url 字符串和 selectors 对象。'
 }
 
 function mediaTypeLabel(type: MediaType) {
