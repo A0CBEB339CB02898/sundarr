@@ -18,6 +18,48 @@ type HealthResponse = {
   worker: string
 }
 
+type TransferResponse = {
+  id: string
+  resource_id: string | null
+  link_id: string
+  status: TransferStatus
+  mode: string
+  cloud_staging_path: string | null
+  target_type: string
+  target_library: string | null
+  target_path: string
+  total_bytes: number
+  done_bytes: number
+  progress: number
+  current_file: string | null
+  error_code: string | null
+  error_message: string | null
+  retryable: boolean | null
+  retry_count: number
+}
+
+type TransferLogResponse = {
+  id: string
+  task_id: string
+  level: string
+  event: string
+  message: string | null
+  data: Record<string, unknown> | null
+  created_at: string
+}
+
+type TransferStatus =
+  | 'pending'
+  | 'staging_to_cloud'
+  | 'cloud_ready'
+  | 'downloading'
+  | 'verifying'
+  | 'renaming'
+  | 'cleaning_cloud'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+
 const navItems: NavItem[] = [
   { key: 'search', path: '/search', label: '搜索', description: '搜索资源并创建搬运任务' },
   { key: 'transfers', path: '/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
@@ -125,6 +167,9 @@ function PagePanel({ activePage }: { activePage: PageKey }) {
   if (activePage === 'status') {
     return <StatusPanel />
   }
+  if (activePage === 'transfers') {
+    return <TransfersPanel />
+  }
 
   return (
     <section className="panel" aria-labelledby={`${activePage}-title`}>
@@ -140,6 +185,194 @@ function PagePanel({ activePage }: { activePage: PageKey }) {
       </div>
       <ApiClientPreview />
     </section>
+  )
+}
+
+function TransfersPanel() {
+  const [taskId, setTaskId] = useState('')
+  const [transfer, setTransfer] = useState<TransferResponse | null>(null)
+  const [logs, setLogs] = useState<TransferLogResponse[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isMutating, setIsMutating] = useState(false)
+
+  async function loadTransfer(nextTaskId = taskId) {
+    const trimmedTaskId = nextTaskId.trim()
+    if (!trimmedTaskId) {
+      setError('请输入任务 ID。')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+    try {
+      const [task, taskLogs] = await Promise.all([
+        api.get<TransferResponse>(`/transfers/${encodeURIComponent(trimmedTaskId)}`),
+        api.get<TransferLogResponse[]>(`/transfers/${encodeURIComponent(trimmedTaskId)}/logs`),
+      ])
+      setTransfer(task)
+      setLogs(taskLogs)
+      setTaskId(trimmedTaskId)
+    } catch (exc) {
+      setTransfer(null)
+      setLogs([])
+      setError(exc instanceof Error ? exc.message : '无法读取任务。')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function runTaskAction(action: 'cancel' | 'retry') {
+    if (!transfer) return
+    setIsMutating(true)
+    setError(null)
+    try {
+      const updated = await api.post<TransferResponse>(`/transfers/${encodeURIComponent(transfer.id)}/${action}`)
+      const taskLogs = await api.get<TransferLogResponse[]>(`/transfers/${encodeURIComponent(transfer.id)}/logs`)
+      setTransfer(updated)
+      setLogs(taskLogs)
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '任务操作失败。')
+    } finally {
+      setIsMutating(false)
+    }
+  }
+
+  const canCancel = transfer ? canCancelTransfer(transfer.status) : false
+  const canRetry = transfer?.status === 'failed' && transfer.retryable === true
+
+  return (
+    <section className="panel" aria-labelledby="transfers-title">
+      <div className="panel-header-row">
+        <div>
+          <p className="panel-kicker">当前停止点</p>
+          <h2 id="transfers-title">任务查询与控制</h2>
+          <p>输入任务 ID 后读取任务详情、关键日志，并按当前状态执行取消或重试。</p>
+        </div>
+      </div>
+
+      <form
+        className="lookup-form"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void loadTransfer()
+        }}
+      >
+        <label>
+          <span>任务 ID</span>
+          <input onChange={(event) => setTaskId(event.target.value)} placeholder="例如 task_001" type="text" value={taskId} />
+        </label>
+        <button className="primary-button" disabled={isLoading} type="submit">
+          {isLoading ? '查询中' : '查询任务'}
+        </button>
+      </form>
+
+      {isLoading && !transfer ? <LoadingState message="正在读取任务详情和日志。" /> : null}
+      {error ? <ErrorState message={error} /> : null}
+      {!isLoading && !error && !transfer ? <EmptyState message="输入任务 ID 后查看任务详情。" /> : null}
+
+      {transfer ? (
+        <>
+          <TransferSummary transfer={transfer} />
+          <div className="action-row">
+            <button className="primary-button" disabled={!canCancel || isMutating} onClick={() => void runTaskAction('cancel')} type="button">
+              {isMutating ? '处理中' : '取消任务'}
+            </button>
+            <button className="secondary-button" disabled={!canRetry || isMutating} onClick={() => void runTaskAction('retry')} type="button">
+              {isMutating ? '处理中' : '重试任务'}
+            </button>
+            <button className="ghost-button" disabled={isLoading || isMutating} onClick={() => void loadTransfer(transfer.id)} type="button">
+              刷新详情
+            </button>
+          </div>
+          <TransferNotice transfer={transfer} />
+          <TransferLogs logs={logs} />
+        </>
+      ) : null}
+
+      <ApiClientPreview />
+    </section>
+  )
+}
+
+function TransferSummary({ transfer }: { transfer: TransferResponse }) {
+  return (
+    <div className="transfer-summary">
+      <div className="summary-main">
+        <span className={`status-pill ${transferStatusTone(transfer.status)}`}>{transferStatusLabel(transfer.status)}</span>
+        <h3>{transfer.id}</h3>
+        <p>{transfer.target_path}</p>
+      </div>
+      <div className="progress-block">
+        <div className="progress-meta">
+          <span>进度</span>
+          <strong>{transfer.progress.toFixed(2)}%</strong>
+        </div>
+        <div className="progress-track" aria-label={`任务进度 ${transfer.progress.toFixed(2)}%`}>
+          <span style={{ width: `${Math.min(100, Math.max(0, transfer.progress))}%` }} />
+        </div>
+      </div>
+      <div className="detail-grid">
+        <DetailItem label="当前文件" value={transfer.current_file || '无'} />
+        <DetailItem label="目标类型" value={transfer.target_type} />
+        <DetailItem label="已完成" value={formatBytes(transfer.done_bytes)} />
+        <DetailItem label="总大小" value={formatBytes(transfer.total_bytes)} />
+        <DetailItem label="重试次数" value={String(transfer.retry_count)} />
+        <DetailItem label="可重试" value={transfer.retryable === true ? '是' : '否'} />
+      </div>
+      {transfer.error_code || transfer.error_message ? (
+        <div className="error-detail">
+          <strong>{transfer.error_code || '任务错误'}</strong>
+          <p>{transfer.error_message || '无错误详情。'}</p>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="detail-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function TransferNotice({ transfer }: { transfer: TransferResponse }) {
+  const message = noticeForTransfer(transfer)
+  if (!message) return null
+  return (
+    <div className="notice-card">
+      <strong>{message.title}</strong>
+      <p>{message.body}</p>
+    </div>
+  )
+}
+
+function TransferLogs({ logs }: { logs: TransferLogResponse[] }) {
+  if (logs.length === 0) {
+    return <EmptyState message="该任务暂无日志。" />
+  }
+
+  return (
+    <div className="log-list">
+      <div className="section-heading">
+        <h3>任务日志</h3>
+        <span>{logs.length} 条</span>
+      </div>
+      {logs.map((log) => (
+        <article className="log-item" key={log.id}>
+          <div>
+            <span className={`log-level ${log.level}`}>{log.level}</span>
+            <strong>{log.event}</strong>
+          </div>
+          <time>{formatDateTime(log.created_at)}</time>
+          <p>{log.message || '无日志说明。'}</p>
+          {log.data ? <code>{JSON.stringify(log.data)}</code> : null}
+        </article>
+      ))}
+    </div>
   )
 }
 
@@ -275,7 +508,14 @@ function createApiClient() {
     async get<T>(path: string): Promise<T> {
       const response = await fetch(`${baseUrl}${path}`)
       if (!response.ok) {
-        throw new Error(`请求失败：${response.status}`)
+        throw new Error(await responseErrorMessage(response))
+      }
+      return response.json() as Promise<T>
+    },
+    async post<T>(path: string): Promise<T> {
+      const response = await fetch(`${baseUrl}${path}`, { method: 'POST' })
+      if (!response.ok) {
+        throw new Error(await responseErrorMessage(response))
       }
       return response.json() as Promise<T>
     },
@@ -283,6 +523,78 @@ function createApiClient() {
       return `GET ${baseUrl || '<same-origin>'}/${path.replace(/^\//, '')}`
     },
   }
+}
+
+async function responseErrorMessage(response: Response) {
+  try {
+    const body = (await response.json()) as { detail?: string }
+    if (body.detail) return body.detail
+  } catch {
+    return `请求失败：${response.status}`
+  }
+  return `请求失败：${response.status}`
+}
+
+function canCancelTransfer(status: TransferStatus) {
+  return ['pending', 'staging_to_cloud', 'cloud_ready', 'downloading', 'verifying'].includes(status)
+}
+
+function transferStatusLabel(status: TransferStatus) {
+  const labels: Record<TransferStatus, string> = {
+    pending: '等待中',
+    staging_to_cloud: '转存中',
+    cloud_ready: '云端就绪',
+    downloading: '下载中',
+    verifying: '校验中',
+    renaming: '重命名中',
+    cleaning_cloud: '清理中',
+    completed: '已完成',
+    failed: '失败',
+    cancelled: '已取消',
+  }
+  return labels[status]
+}
+
+function transferStatusTone(status: TransferStatus) {
+  if (status === 'completed') return 'ok'
+  if (status === 'failed') return 'error'
+  if (status === 'cancelled') return 'unknown'
+  return 'running'
+}
+
+function noticeForTransfer(transfer: TransferResponse) {
+  if (transfer.error_code === 'STORAGE_CONFIG_CHANGED') {
+    return {
+      title: 'SMB 配置已变更，任务已中断。',
+      body: '.downloading 文件和 cloud staging 已保留。确认新配置后可以重试任务。',
+    }
+  }
+  if (transfer.error_code === 'CLOUD_CLEANUP_FAILED') {
+    return {
+      title: '任务已完成，但 cloud staging 清理失败。',
+      body: '目标文件已保留，后续需要再次执行安全清理或检查 cloud staging。',
+    }
+  }
+  if (transfer.error_code === 'WORKER_RECOVERY_REQUIRED') {
+    return {
+      title: 'Worker 启动恢复已介入。',
+      body: '任务曾停留在运行态，已保守标记为可重试失败，未删除 .downloading 或 cloud staging。',
+    }
+  }
+  return null
+}
+
+function formatBytes(value: number) {
+  if (value <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1)
+  return `${(value / 1024 ** index).toFixed(index === 0 ? 0 : 2)} ${units[index]}`
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN')
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
