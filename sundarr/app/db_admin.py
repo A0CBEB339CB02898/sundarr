@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
-from sundarr.app.config import get_settings, redact_url_password
+from sundarr.app.config import PROJECT_ROOT, get_settings, redact_url_password
 from sundarr.app.models import Setting
 
 DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
@@ -34,21 +34,30 @@ def create_database_if_missing(database_url: str) -> None:
         raise ValueError("DATABASE_NAME_MISSING")
     maintenance_url = _build_maintenance_url(database_url)
 
-    with psycopg.connect(maintenance_url, autocommit=True) as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (database_name,))
-            if cursor.fetchone() is not None:
-                print(f"数据库已存在：{database_name}")
-                return
-            cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database_name)))
-            print(f"数据库已创建：{database_name}")
+    try:
+        with psycopg.connect(maintenance_url, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (database_name,))
+                if cursor.fetchone() is not None:
+                    print(f"数据库已存在：{database_name}")
+                    return
+                cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database_name)))
+                print(f"数据库已创建：{database_name}")
+    except psycopg.OperationalError as exc:
+        raise RuntimeError(
+            "无法连接 PostgreSQL。请检查项目根目录 .env 中的 SUNDARR_DATABASE_URL，"
+            "确认 host、port、用户名、密码和网络连通性正确。"
+        ) from exc
 
 
 def run_migrations() -> None:
-    config_path = Path("alembic.ini")
+    config_path = PROJECT_ROOT / "alembic.ini"
     if not config_path.exists():
-        raise FileNotFoundError("找不到 alembic.ini，请在项目根目录执行命令。")
-    command.upgrade(Config(str(config_path)), "head")
+        raise FileNotFoundError(f"找不到 alembic.ini：{config_path}")
+    config = Config(str(config_path))
+    config.set_main_option("script_location", str(PROJECT_ROOT / "migrations"))
+    config.set_main_option("prepend_sys_path", str(PROJECT_ROOT))
+    command.upgrade(config, "head")
     print("数据库迁移已完成：head")
 
 

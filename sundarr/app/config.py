@@ -1,7 +1,33 @@
 from functools import lru_cache
+from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def find_project_root(start: Path | None = None) -> Path:
+    start_path = (start or Path.cwd()).resolve()
+    candidates = [start_path, *start_path.parents]
+    for candidate in candidates:
+        if _is_project_root(candidate):
+            return candidate
+
+    package_path = Path(__file__).resolve()
+    for candidate in package_path.parents:
+        if _is_project_root(candidate):
+            return candidate
+    return Path.cwd().resolve()
+
+
+def _is_project_root(path: Path) -> bool:
+    return (
+        (path / "pyproject.toml").exists()
+        and (path / "alembic.ini").exists()
+        and (path / "web" / "package.json").exists()
+    )
+
+
+PROJECT_ROOT = find_project_root()
 
 
 class Settings(BaseSettings):
@@ -11,7 +37,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=PROJECT_ROOT / ".env",
         env_prefix="SUNDARR_",
         extra="ignore",
     )

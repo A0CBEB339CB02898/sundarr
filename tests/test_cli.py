@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from sundarr.app import cli
+from sundarr.app.config import find_project_root
 
 
 def test_db_init_command_is_not_public(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -32,6 +33,30 @@ def test_ensure_web_dependencies_runs_npm_install_when_missing(tmp_path: Path, m
     cli._ensure_web_dependencies()
 
     assert calls == [([cli._npm_executable(), "install"], web_dir)]
+
+
+def test_find_project_root_works_from_venv_scripts(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    scripts_dir = project_root / ".venv" / "Scripts"
+    web_dir = project_root / "web"
+    scripts_dir.mkdir(parents=True)
+    web_dir.mkdir()
+    (project_root / "pyproject.toml").write_text("[project]\nname = 'demo'\n", encoding="utf-8")
+    (project_root / "alembic.ini").write_text("[alembic]\n", encoding="utf-8")
+    (web_dir / "package.json").write_text("{}", encoding="utf-8")
+
+    assert find_project_root(scripts_dir) == project_root
+
+
+def test_main_prints_friendly_runtime_error(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr(sys, "argv", ["sundarr", "start"])
+    monkeypatch.setattr(cli, "_start_background", lambda *args: (_ for _ in ()).throw(RuntimeError("数据库连接失败")))
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main()
+
+    assert exc_info.value.code == 1
+    assert "启动失败：数据库连接失败" in capsys.readouterr().err
 
 
 def test_prepare_port_cleans_project_process(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

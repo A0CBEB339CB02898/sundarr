@@ -8,10 +8,11 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from sundarr.app.config import PROJECT_ROOT
 from sundarr.app.db_admin import initialize_database
 
-RUNTIME_DIR = Path(".sundarr")
-WEB_DIR = Path("web")
+RUNTIME_DIR = PROJECT_ROOT / ".sundarr"
+WEB_DIR = PROJECT_ROOT / "web"
 
 DEFAULT_API_HOST = "0.0.0.0"
 DEFAULT_API_PORT = 8080
@@ -68,18 +69,22 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    command = args.command or "run"
-    if command == "run":
-        _run_foreground(args.api_host, args.api_port, args.web_host, args.web_port, args.reload)
-    elif command == "start":
-        _start_background(args.api_host, args.api_port, args.web_host, args.web_port, args.reload)
-    elif command == "stop":
-        _stop_background()
-    elif command == "restart":
-        _stop_background(quiet=True)
-        _start_background(args.api_host, args.api_port, args.web_host, args.web_port, args.reload)
-    elif command == "status":
-        _print_status()
+    try:
+        command = args.command or "run"
+        if command == "run":
+            _run_foreground(args.api_host, args.api_port, args.web_host, args.web_port, args.reload)
+        elif command == "start":
+            _start_background(args.api_host, args.api_port, args.web_host, args.web_port, args.reload)
+        elif command == "stop":
+            _stop_background()
+        elif command == "restart":
+            _stop_background(quiet=True)
+            _start_background(args.api_host, args.api_port, args.web_host, args.web_port, args.reload)
+        elif command == "status":
+            _print_status()
+    except RuntimeError as exc:
+        print(f"启动失败：{exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
 
 
 def _add_project_options(parser: argparse.ArgumentParser, default_reload: bool) -> None:
@@ -136,6 +141,7 @@ def _start_background(api_host: str, api_port: int, web_host: str, web_port: int
 
 def _setup_project() -> None:
     print("正在检查数据库并执行必要初始化。")
+    print(f"项目目录：{PROJECT_ROOT}")
     initialize_database()
     _ensure_web_dependencies()
 

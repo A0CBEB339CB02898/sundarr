@@ -43,6 +43,8 @@ sundarr/
 .venv\Scripts\sundarr start
 ```
 
+CLI 会自动定位项目根目录并读取项目根目录下的 `.env`。从项目根目录、子目录或 `.venv\Scripts` 执行时，应使用同一份 `.env` 和 `.sundarr` 运行目录。
+
 该命令会：
 
 ```text
