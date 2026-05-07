@@ -3,11 +3,12 @@ from uuid import uuid4
 from sqlalchemy.orm import Session, object_session
 
 from sundarr.app.models import ResourceLink, Setting, TransferFile, TransferLog, TransferTask
-from sundarr.app.schemas.transfer import TransferCreateRequest, TransferResponse
+from sundarr.app.schemas.transfer import TransferCreateRequest, TransferLogResponse, TransferResponse
 from sundarr.app.services.storage_config_service import STORAGE_CONFIG_KEY
 
 CANCELLABLE_TRANSFER_STATUSES = {"pending", "staging_to_cloud", "cloud_ready", "downloading", "verifying"}
 CANCELLABLE_FILE_STATUSES = {"pending", "downloading", "verified"}
+SENSITIVE_LOG_KEYS = {"password", "token", "cookie", "secret"}
 
 
 class TransferService:
@@ -99,6 +100,30 @@ class TransferService:
         db.refresh(task)
         return self._to_response(task)
 
+    def list_transfer_logs(self, db: Session, task_id: str) -> list[TransferLogResponse]:
+        task = db.get(TransferTask, task_id)
+        if task is None:
+            raise ValueError("TRANSFER_TASK_NOT_FOUND")
+
+        logs = (
+            db.query(TransferLog)
+            .filter(TransferLog.task_id == task_id)
+            .order_by(TransferLog.created_at, TransferLog.id)
+            .all()
+        )
+        return [
+            TransferLogResponse(
+                id=log.id,
+                task_id=log.task_id,
+                level=log.level,
+                event=log.event,
+                message=log.message,
+                data=self._sanitize_log_data(log.data_json),
+                created_at=log.created_at.isoformat(),
+            )
+            for log in logs
+        ]
+
     def _to_response(self, task: TransferTask) -> TransferResponse:
         return TransferResponse(
             id=task.id,
@@ -136,6 +161,17 @@ class TransferService:
             .first()
         )
         return file.filename if file else None
+
+    def _sanitize_log_data(self, value):
+        if isinstance(value, dict):
+            return {
+                key: self._sanitize_log_data(item)
+                for key, item in value.items()
+                if not any(sensitive in key.lower() for sensitive in SENSITIVE_LOG_KEYS)
+            }
+        if isinstance(value, list):
+            return [self._sanitize_log_data(item) for item in value]
+        return value
 
 
 transfer_service = TransferService()

@@ -42,3 +42,13 @@ class TransferResponse(BaseModel):
     error_message: str | None = None
     retryable: bool | None = None
     retry_count: int
+
+
+class TransferLogResponse(BaseModel):
+    id: str
+    task_id: str
+    level: str
+    event: str
+    message: str | None = None
+    data: dict | None = None
+    created_at: str

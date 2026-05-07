@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
@@ -287,6 +288,82 @@ def test_retry_missing_transfer_returns_404(db_session: Session) -> None:
     client = make_client(db_session)
 
     response = client.post("/transfers/missing/retry")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "搬运任务不存在。"
+
+
+def test_list_transfer_logs_returns_ordered_logs(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "failed")
+    db_session.add_all(
+        [
+            TransferLog(
+                id="log_2",
+                task_id=task.id,
+                level="error",
+                event="transfer_failed",
+                message="任务失败。",
+                data_json={"error_code": "STORAGE_WRITE_FAILED"},
+            ),
+            TransferLog(
+                id="log_1",
+                task_id=task.id,
+                level="info",
+                event="worker_task_claimed",
+                message="Worker 已领取任务。",
+                data_json={"worker_concurrency": 2},
+            ),
+        ]
+    )
+    db_session.commit()
+    db_session.execute(text("update transfer_logs set created_at = '2026-05-07 00:00:02' where id = 'log_2'"))
+    db_session.execute(text("update transfer_logs set created_at = '2026-05-07 00:00:01' where id = 'log_1'"))
+    db_session.commit()
+
+    response = client.get(f"/transfers/{task.id}/logs")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == ["log_1", "log_2"]
+    assert body[0]["event"] == "worker_task_claimed"
+    assert body[1]["data"] == {"error_code": "STORAGE_WRITE_FAILED"}
+    assert "created_at" in body[0]
+
+
+def test_list_transfer_logs_sanitizes_sensitive_data(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "failed")
+    db_session.add(
+        TransferLog(
+            id="log_sensitive",
+            task_id=task.id,
+            level="warning",
+            event="storage_config_changed",
+            message="配置已变更。",
+            data_json={
+                "host": "nas.example.invalid",
+                "password": "secret",
+                "nested": {"token": "hidden", "safe": "visible"},
+                "items": [{"cookie": "hidden", "name": "visible"}],
+            },
+        )
+    )
+    db_session.commit()
+
+    response = client.get(f"/transfers/{task.id}/logs")
+
+    assert response.status_code == 200
+    data = response.json()[0]["data"]
+    assert data == {"host": "nas.example.invalid", "nested": {"safe": "visible"}, "items": [{"name": "visible"}]}
+
+
+def test_list_transfer_logs_missing_transfer_returns_404(db_session: Session) -> None:
+    client = make_client(db_session)
+
+    response = client.get("/transfers/missing/logs")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "搬运任务不存在。"

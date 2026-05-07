@@ -171,6 +171,7 @@ retry refreshes storage config snapshot
 worker startup recovery
 worker startup recovery keeps .downloading and cloud staging
 GET /transfers/{id}/logs returns ordered logs
+GET /transfers/{id}/logs filters sensitive data
 cleanup refuses staging root and outside path
 cancel / retry / cleanup / recovery writes transfer_logs
 ```

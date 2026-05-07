@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
-from sundarr.app.schemas.transfer import TransferCreateRequest, TransferResponse
+from sundarr.app.schemas.transfer import TransferCreateRequest, TransferLogResponse, TransferResponse
 from sundarr.app.services.transfer_service import transfer_service
 
 router = APIRouter(tags=["transfers"])
@@ -36,6 +36,14 @@ async def cancel_transfer(task_id: str, db: Session = Depends(get_db)) -> Transf
 async def retry_transfer(task_id: str, db: Session = Depends(get_db)) -> TransferResponse:
     try:
         return transfer_service.retry_transfer(db, task_id)
+    except ValueError as exc:
+        raise _transfer_error(exc) from exc
+
+
+@router.get("/transfers/{task_id}/logs", response_model=list[TransferLogResponse])
+async def list_transfer_logs(task_id: str, db: Session = Depends(get_db)) -> list[TransferLogResponse]:
+    try:
+        return transfer_service.list_transfer_logs(db, task_id)
     except ValueError as exc:
         raise _transfer_error(exc) from exc
 

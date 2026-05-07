@@ -213,7 +213,7 @@ POST /transfers/{task_id}/retry
 GET  /transfers/{task_id}/logs
 ```
 
-当前已实现 `POST /transfers/{task_id}/cancel` 和 `POST /transfers/{task_id}/retry`。logs API 尚未实现，将在 Phase 6 后续子阶段收口。
+当前已实现 `POST /transfers/{task_id}/cancel`、`POST /transfers/{task_id}/retry` 和 `GET /transfers/{task_id}/logs`。
 
 Phase 6 控制接口收口顺序：
 
@@ -223,7 +223,23 @@ Phase 6.2: POST /transfers/{task_id}/retry
 Phase 6.5: GET /transfers/{task_id}/logs
 ```
 
-取消和重试接口响应仍返回 `TransferResponse`。日志接口响应按 `created_at` 升序返回 transfer_logs，且不得包含 password、token、cookie 等敏感信息。
+取消和重试接口响应仍返回 `TransferResponse`。日志接口响应按 `created_at` 升序返回 transfer_logs，且不得包含 password、token、cookie、secret 等敏感信息。
+
+日志响应：
+
+```json
+[
+  {
+    "id": "log_001",
+    "task_id": "task_001",
+    "level": "info",
+    "event": "worker_task_claimed",
+    "message": "Worker 已领取任务。",
+    "data": {"worker_concurrency": 2},
+    "created_at": "2026-05-07T00:00:01"
+  }
+]
+```
 
 ---
 
