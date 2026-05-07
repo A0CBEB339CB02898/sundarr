@@ -250,14 +250,14 @@ Worker 启动时必须扫描未完成任务。
 ```text
 pending -> 可重新入队
 staging_to_cloud -> failed, retryable=true
-cloud_ready -> 可重新入队 downloading
-downloading -> 可尝试 resume
-verifying -> 可重新 verifying
-renaming -> 可重新检查 temp/final 状态
-cleaning_cloud -> 可重新 cleanup
+cloud_ready -> failed, retryable=true
+downloading -> failed, retryable=true
+verifying -> failed, retryable=true
+renaming -> failed, retryable=true
+cleaning_cloud -> failed, retryable=true
 ```
 
-恢复必须保守，不能误删 cloud staging。
+MVP 6.4 恢复必须保守，不能误删 `.downloading` 或 cloud staging。恢复事件必须写入 `transfer_logs.event = worker_startup_recovered`，错误码使用 `WORKER_RECOVERY_REQUIRED`。
 
 Phase 6 拆分顺序：
 

@@ -169,6 +169,7 @@ cleanup requires target exists and size matches
 retry failed task
 retry refreshes storage config snapshot
 worker startup recovery
+worker startup recovery keeps .downloading and cloud staging
 GET /transfers/{id}/logs returns ordered logs
 cleanup refuses staging root and outside path
 cancel / retry / cleanup / recovery writes transfer_logs

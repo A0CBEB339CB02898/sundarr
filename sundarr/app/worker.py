@@ -19,6 +19,7 @@ LOCAL_CLOUD_KEY = "cloud.local"
 LOCAL_STORAGE_KEY = "storage.local"
 DEFAULT_WORKER_ENABLED = True
 DEFAULT_WORKER_CONCURRENCY = 2
+WORKER_RECOVERY_ERROR_CODE = "WORKER_RECOVERY_REQUIRED"
 RUNNING_TASK_STATUSES = {
     "staging_to_cloud",
     "cloud_ready",
@@ -58,6 +59,10 @@ class WorkerRuntime:
         signal.signal(signal.SIGINT, self.stop)
         session_factory = get_session_factory()
         print("Sundarr Worker 已启动。", flush=True)
+        with session_factory() as session:
+            recovered_count = recover_running_tasks(session)
+        if recovered_count:
+            print(f"Sundarr Worker 已保守恢复 {recovered_count} 个运行态任务。", flush=True)
         while self._running:
             claimed_ids: list[str] = []
             local_runtime: LocalRuntimeConfig | None = None
@@ -124,6 +129,40 @@ def claim_pending_tasks(session: Session, settings: WorkerSettings) -> list[Tran
         )
     session.commit()
     return tasks
+
+
+def recover_running_tasks(session: Session) -> int:
+    tasks = session.query(TransferTask).filter(TransferTask.status.in_(RUNNING_TASK_STATUSES)).all()
+    if not tasks:
+        return 0
+
+    for task in tasks:
+        previous_status = task.status
+        task.status = "failed"
+        task.error_code = WORKER_RECOVERY_ERROR_CODE
+        task.error_message = "Worker 启动时发现任务停留在运行态，已标记为可重试失败。"
+        task.retryable = True
+        files = (
+            session.query(TransferFile)
+            .filter(TransferFile.task_id == task.id, TransferFile.status.in_(["pending", "downloading", "verified"]))
+            .all()
+        )
+        for transfer_file in files:
+            transfer_file.status = "failed"
+            transfer_file.error_code = WORKER_RECOVERY_ERROR_CODE
+            transfer_file.error_message = task.error_message
+        session.add(
+            TransferLog(
+                id=uuid4().hex,
+                task_id=task.id,
+                level="warning",
+                event="worker_startup_recovered",
+                message="Worker 启动时保守恢复运行态任务，保留 .downloading 文件和 cloud staging。",
+                data_json={"previous_status": previous_status},
+            )
+        )
+    session.commit()
+    return len(tasks)
 
 
 def load_local_runtime_config(session: Session) -> LocalRuntimeConfig | None:

@@ -47,7 +47,7 @@ Phase 3 Cloud Staging: 已完成。
 Phase 4 Storage Writer: 已收口，已完成 LocalWriter、Storage 配置 API、目录浏览 API、STORAGE_CONFIG_CHANGED 中断规则、SmbWriter 安全边界和真实 SMB 连接、目录浏览、写入、size、rename 手动验收。
 启动与配置精简：已确认 sundarr start/restart 管理 API + Web，自动执行数据库初始化/迁移、默认 settings seed 和前端依赖安装；Phase 5 实现 Worker 时必须同步纳入完整项目启停。
 Phase 5 Transfer Worker: 已完成当前 MVP 本地 Worker 主链路，Phase 5.1 到 Phase 5.5 均已完成；真实网盘和 SMB 搬运主链路尚未实现。
-Phase 6 Cleanup And Recovery: 进行中，Phase 6.1 Cancel Task、Phase 6.2 Retry Failed Task 和 Phase 6.3 Safe Cloud Cleanup 已完成。
+Phase 6 Cleanup And Recovery: 进行中，Phase 6.1 Cancel Task、Phase 6.2 Retry Failed Task、Phase 6.3 Safe Cloud Cleanup 和 Phase 6.4 Worker Startup Recovery 已完成。
 Phase 7 Web Console: 未开始；真实供应商开发和集成测试在该阶段形成可操作前端界面后再启动。
 Phase 8 AI Friendly API: 未开始。
 ```
@@ -623,7 +623,7 @@ pytest 覆盖 cleanup 成功和至少 3 类拒绝 cleanup 条件。
 
 ### Phase 6.4: Worker Startup Recovery
 
-状态：未开始。
+状态：已完成。
 
 目标：Worker 启动时扫描未完成运行态任务，并保守恢复或标记为可重试失败。
 
@@ -633,7 +633,7 @@ pytest 覆盖 cleanup 成功和至少 3 类拒绝 cleanup 条件。
 Worker 启动恢复扫描
 pending 保持可领取
 staging_to_cloud -> failed retryable=true
-cloud_ready / downloading / verifying / renaming / cleaning_cloud 保守恢复或 failed retryable=true
+cloud_ready / downloading / verifying / renaming / cleaning_cloud -> failed retryable=true
 恢复事件写入 transfer_logs
 ```
 

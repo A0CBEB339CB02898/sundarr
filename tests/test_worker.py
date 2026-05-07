@@ -15,6 +15,7 @@ from sundarr.app.worker import (
     load_local_runtime_config,
     load_worker_settings,
     process_transfer_task,
+    recover_running_tasks,
 )
 
 
@@ -92,6 +93,49 @@ def test_claim_pending_tasks_ignores_unsupported_target(db_session) -> None:
 
     assert claimed == []
     assert db_session.get(TransferTask, "task_0").status == "pending"
+
+
+def test_recover_running_tasks_marks_running_tasks_failed_retryable(db_session) -> None:
+    _seed_transfer_tasks(db_session, ["pending", "downloading", "verifying", "completed"])
+    db_session.add(
+        TransferFile(
+            id="file_recovery",
+            task_id="task_1",
+            cloud_path="/Sundarr/_staging/task_1/Movie.mkv",
+            target_path="Movies/Movie1.mkv",
+            temp_path="Movies/Movie1.mkv.downloading",
+            filename="Movie.mkv",
+            size_bytes=4,
+            done_bytes=2,
+            status="downloading",
+        )
+    )
+    db_session.commit()
+
+    recovered_count = recover_running_tasks(db_session)
+
+    assert recovered_count == 2
+    assert db_session.get(TransferTask, "task_0").status == "pending"
+    assert db_session.get(TransferTask, "task_3").status == "completed"
+    for task_id in ("task_1", "task_2"):
+        task = db_session.get(TransferTask, task_id)
+        assert task.status == "failed"
+        assert task.error_code == "WORKER_RECOVERY_REQUIRED"
+        assert task.retryable is True
+    transfer_file = db_session.get(TransferFile, "file_recovery")
+    assert transfer_file.status == "failed"
+    assert transfer_file.temp_path == "Movies/Movie1.mkv.downloading"
+    logs = db_session.query(TransferLog).filter(TransferLog.event == "worker_startup_recovered").all()
+    assert len(logs) == 2
+
+
+def test_recover_running_tasks_returns_zero_without_running_tasks(db_session) -> None:
+    _seed_transfer_tasks(db_session, ["pending", "completed", "failed", "cancelled"])
+
+    recovered_count = recover_running_tasks(db_session)
+
+    assert recovered_count == 0
+    assert db_session.query(TransferLog).count() == 0
 
 
 def test_load_local_runtime_config_returns_none_without_full_config(db_session) -> None:
