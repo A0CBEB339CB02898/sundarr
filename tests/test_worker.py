@@ -5,7 +5,7 @@ import pytest
 
 from sundarr.app.cloud import LocalCloudProvider
 from sundarr.app.cloud.base import CloudFile
-from sundarr.app.models import Resource, ResourceLink, Setting, TransferFile, TransferLog, TransferTask
+from sundarr.app.models import IngestBinding, IngestSeenFile, Resource, ResourceLink, Setting, TransferFile, TransferLog, TransferTask
 from sundarr.app.storage import LocalWriter
 from sundarr.app.storage.base import StorageWriter
 from sundarr.app.worker import (
@@ -14,6 +14,7 @@ from sundarr.app.worker import (
     cleanup_cloud_staging,
     load_local_runtime_config,
     load_worker_settings,
+    process_ingest_task,
     process_transfer_task,
     recover_running_tasks,
 )
@@ -93,6 +94,16 @@ def test_claim_pending_tasks_ignores_unsupported_target(db_session) -> None:
 
     assert claimed == []
     assert db_session.get(TransferTask, "task_0").status == "pending"
+
+
+def test_claim_pending_tasks_claims_ingest_smb_task(db_session) -> None:
+    task = _seed_ingest_task(db_session)
+
+    claimed = claim_pending_tasks(db_session, WorkerSettings(enabled=True, concurrency=2))
+
+    assert [item.id for item in claimed] == [task.id]
+    assert db_session.get(TransferTask, task.id).status == "downloading"
+    assert db_session.query(TransferLog).filter(TransferLog.event == "worker_task_claimed").count() == 1
 
 
 def test_recover_running_tasks_marks_running_tasks_failed_retryable(db_session) -> None:
@@ -358,6 +369,52 @@ async def test_process_transfer_task_marks_target_exists_and_keeps_temp(db_sessi
     assert target.read_bytes() == b"existing"
 
 
+@pytest.mark.anyio
+async def test_process_ingest_task_local_writers_happy_path(db_session, tmp_path: Path) -> None:
+    source_root = tmp_path / "source"
+    target_root = tmp_path / "target"
+    source_file = source_root / "Movie" / "Movie.mkv"
+    payload = b"0123456789"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_bytes(payload)
+    task = _seed_ingest_task(db_session, size=len(payload))
+
+    await process_ingest_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
+
+    db_session.refresh(task)
+    assert task.status == "completed"
+    assert task.done_bytes == len(payload)
+    assert (target_root / "Movie" / "Movie.mkv").read_bytes() == payload
+    assert not (target_root / "Movie" / "Movie.mkv.downloading").exists()
+    assert not source_file.exists()
+    assert not source_file.parent.exists()
+    assert db_session.get(IngestSeenFile, "seen_ingest").status == "completed"
+    assert db_session.query(TransferFile).filter(TransferFile.task_id == task.id).one().status == "completed"
+    assert {log.event for log in db_session.query(TransferLog).all()} >= {
+        "ingest_copy_started",
+        "ingest_transfer_completed",
+        "ingest_source_cleanup_completed",
+    }
+
+
+@pytest.mark.anyio
+async def test_process_ingest_task_failure_keeps_source_and_downloading(db_session, tmp_path: Path) -> None:
+    source_root = tmp_path / "source"
+    target_root = tmp_path / "target"
+    source_file = source_root / "Movie.mkv"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_bytes(b"1234")
+    task = _seed_ingest_task(db_session, source_path="Movie.mkv", target_path="Movie.mkv", size=4)
+
+    await process_ingest_task(db_session, task, LocalWriter(source_root), WrongSizeWriter(target_root))
+
+    db_session.refresh(task)
+    assert task.status == "failed"
+    assert task.error_code == "SIZE_MISMATCH"
+    assert source_file.exists()
+    assert (target_root / "Movie.mkv.downloading").exists()
+
+
 def _seed_transfer_tasks(db_session, statuses: list[str], target_type: str = "local") -> None:
     resource = Resource(id="res_worker", title="测试资源", score=1)
     link = ResourceLink(id="link_worker", resource_id=resource.id, provider="local", url="local://share")
@@ -392,6 +449,63 @@ def _seed_single_local_task(db_session) -> tuple[TransferTask, ResourceLink]:
     db_session.add_all([resource, link, task])
     db_session.commit()
     return task, link
+
+
+def _seed_ingest_task(
+    db_session,
+    source_path: str = "Movie/Movie.mkv",
+    target_path: str = "Movie/Movie.mkv",
+    size: int = 4,
+) -> TransferTask:
+    binding = IngestBinding(
+        id="binding_ingest",
+        name="导入测试",
+        enabled=True,
+        media_type="movie",
+        source_smb_json={"host": "nas.example.invalid", "share": "cloud", "username": "user", "base_path": "/cloud"},
+        target_smb_json={"host": "nas.example.invalid", "share": "media", "username": "user", "base_path": "/movie"},
+    )
+    seen = IngestSeenFile(
+        id="seen_ingest",
+        binding_id=binding.id,
+        source_fingerprint="fingerprint_ingest",
+        source_path=source_path,
+        source_size=size,
+        source_mtime="100",
+        status="queued",
+    )
+    task = TransferTask(
+        id="task_ingest",
+        resource_id=None,
+        link_id=None,
+        status="pending",
+        mode="ingest",
+        target_type="smb",
+        target_library="movie",
+        target_path=target_path,
+        source_type="smb",
+        source_path=source_path,
+        source_config_snapshot=binding.source_smb_json,
+        storage_config_snapshot=binding.target_smb_json,
+        ingest_seen_file_id=seen.id,
+        total_bytes=size,
+    )
+    transfer_file = TransferFile(
+        id="file_ingest",
+        task_id=task.id,
+        cloud_file_id=None,
+        cloud_path=source_path,
+        target_path=target_path,
+        temp_path=f"{target_path}.downloading",
+        filename=target_path.rsplit("/", 1)[-1],
+        size_bytes=size,
+        done_bytes=0,
+        status="pending",
+    )
+    seen.task_id = task.id
+    db_session.add_all([binding, seen, task, transfer_file])
+    db_session.commit()
+    return task
 
 
 def _seed_cleanup_task(
@@ -490,8 +604,14 @@ class FailingWriteWriter(StorageWriter):
     async def open_append(self, path: str):
         raise ValueError("STORAGE_WRITE_FAILED")
 
+    async def open_read(self, path: str):
+        raise ValueError("STORAGE_READ_FAILED")
+
     async def rename(self, src: str, dst: str) -> None:
         return None
 
     async def remove(self, path: str) -> None:
+        return None
+
+    async def remove_empty_dir(self, path: str) -> None:
         return None

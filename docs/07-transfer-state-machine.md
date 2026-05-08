@@ -16,6 +16,7 @@ downloading
 verifying
 renaming
 cleaning_cloud
+cleaning_source
 completed
 failed
 cancelled
@@ -35,6 +36,17 @@ pending
   -> verifying
   -> renaming
   -> cleaning_cloud
+  -> completed
+```
+
+挂载网盘导入任务使用 `mode=ingest`，不进入 cloud staging：
+
+```text
+pending
+  -> downloading
+  -> verifying
+  -> renaming
+  -> cleaning_source
   -> completed
 ```
 
@@ -156,6 +168,7 @@ downloading -> stop stream and keep .downloading
 verifying -> best effort cancel
 renaming -> normally not cancellable
 cleaning_cloud -> normally not cancellable
+cleaning_source -> normally not cancellable
 completed -> cannot cancel
 failed -> cannot cancel
 cancelled -> cannot cancel again
@@ -255,6 +268,7 @@ downloading -> failed, retryable=true
 verifying -> failed, retryable=true
 renaming -> failed, retryable=true
 cleaning_cloud -> failed, retryable=true
+cleaning_source -> failed, retryable=true
 ```
 
 MVP 6.4 恢复必须保守，不能误删 `.downloading` 或 cloud staging。恢复事件必须写入 `transfer_logs.event = worker_startup_recovered`，错误码使用 `WORKER_RECOVERY_REQUIRED`。

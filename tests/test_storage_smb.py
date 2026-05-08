@@ -75,6 +75,28 @@ async def test_smb_writer_test_connection_lists_root(smb_writer: SmbWriter, monk
 
 
 @pytest.mark.anyio
+async def test_smb_writer_open_read_uses_safe_unc_path(smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[dict[str, str]] = []
+
+    class FakeSmbClient:
+        def open_file(self, path: str, mode: str):
+            calls.append({"path": path, "mode": mode})
+            return object()
+
+    monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
+
+    await smb_writer.open_read("Movies/Movie.mkv")
+
+    assert calls == [{"path": "\\\\nas.example.invalid\\share\\Archive\\Movies\\Movie.mkv", "mode": "rb"}]
+
+
+@pytest.mark.anyio
+async def test_smb_writer_remove_empty_dir_rejects_root(smb_writer: SmbWriter) -> None:
+    with pytest.raises(ValueError, match="STORAGE_REMOVE_ROOT_FORBIDDEN"):
+        await smb_writer.remove_empty_dir("")
+
+
+@pytest.mark.anyio
 async def test_smb_writer_classifies_auth_failure(smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeSmbClient:
         def listdir(self, path: str) -> list[str]:

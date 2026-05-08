@@ -10,6 +10,7 @@ TransferStatus = Literal[
     "verifying",
     "renaming",
     "cleaning_cloud",
+    "cleaning_source",
     "completed",
     "failed",
     "cancelled",

@@ -52,7 +52,7 @@ Phase 5 Transfer Worker: 已完成当前 MVP 本地 Worker 主链路，Phase 5.1
 Phase 6 Cleanup And Recovery: 已完成，Phase 6.1 到 Phase 6.5 均已完成。
 Phase 7 Web Console: 已完成。
 Phase 7.8 Web Console UI Polish: 未开始，来自 Phase 0-7 手动验收反馈；应在 Phase 8 前优先处理前端体验问题。
-Phase 8 Mounted Cloud Ingest: 未开始，下一阶段主线；替代真实网盘直接下载作为近期主链路。
+Phase 8 Mounted Cloud Ingest: 进行中；已完成配置、绑定、扫描、任务创建和 Worker 导入基础链路。
 Phase 9 Real Site Source Adapters: 未开始，目标是实现真实网站代码型 Adapter 框架和至少一个真实源。
 Phase 10 AI Friendly API: 未开始，原 Phase 8 后移。
 ```
@@ -1061,6 +1061,7 @@ Web Console /app/ingest 页面
 ```text
 docs/15-mounted-cloud-ingest-spec.md 与实际 API / 数据模型一致。
 pytest 通过。
+本阶段新增 API 或 Worker 入口完成最小冒烟测试。
 涉及前端时 npm run build 通过。
 不实现 Sundarr 内挂载网盘。
 不实现 Sundarr 内保存分享链接到网盘。

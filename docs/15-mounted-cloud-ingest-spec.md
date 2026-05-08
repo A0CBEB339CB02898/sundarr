@@ -177,14 +177,13 @@ mtime 超过 stable_seconds。
 
 ## 7. 导入任务状态
 
-建议新增 ingest 模式任务状态，避免继续借用 cloud staging 语义。
+ingest 模式任务复用 `transfer_tasks`，但不进入 cloud staging。
 
 状态：
 
 ```text
 pending
-waiting_source
-importing
+downloading
 verifying
 renaming
 cleaning_source
@@ -197,12 +196,21 @@ cancelled
 
 ```text
 pending
--> waiting_source
--> importing
+-> downloading
 -> verifying
 -> renaming
 -> cleaning_source
 -> completed
+```
+
+实现规则：
+
+```text
+pending 任务由 Worker 领取后进入 downloading。
+Worker 使用 source_config_snapshot 读取 SMB 来源文件。
+Worker 使用 storage_config_snapshot 写入 SMB 目标 .downloading 文件。
+校验 .downloading size 后 rename 为正式文件。
+成功后按全局配置和 binding 覆盖配置清理来源文件和空目录。
 ```
 
 失败时必须保留：

@@ -29,6 +29,12 @@ class LocalWriter(StorageWriter):
         target.parent.mkdir(parents=True, exist_ok=True)
         return target.open("ab")
 
+    async def open_read(self, path: str) -> BinaryIO:
+        target = self._resolve_path(path)
+        if not target.exists() or not target.is_file():
+            raise ValueError("STORAGE_PATH_NOT_FOUND")
+        return target.open("rb")
+
     async def rename(self, src: str, dst: str) -> None:
         source = self._resolve_path(src)
         target = self._resolve_path(dst)
@@ -45,6 +51,12 @@ class LocalWriter(StorageWriter):
             shutil.rmtree(target)
         elif target.exists():
             target.unlink()
+
+    async def remove_empty_dir(self, path: str) -> None:
+        target = self._resolve_path(path)
+        if target == self.root:
+            raise ValueError("STORAGE_REMOVE_ROOT_FORBIDDEN")
+        target.rmdir()
 
     def _resolve_path(self, path: str) -> Path:
         relative = path.strip().replace("\\", "/").strip("/")

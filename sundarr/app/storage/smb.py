@@ -79,6 +79,13 @@ class SmbWriter(StorageWriter):
         except Exception as exc:
             raise ValueError("SMB_WRITE_FAILED") from exc
 
+    async def open_read(self, path: str) -> BinaryIO:
+        smbclient = self._require_smbclient()
+        try:
+            return smbclient.open_file(self._build_unc_path(path), mode="rb")
+        except Exception as exc:
+            self._raise_smb_error(exc)
+
     async def rename(self, src: str, dst: str) -> None:
         smbclient = self._require_smbclient()
         source = self._build_unc_path(src)
@@ -93,16 +100,26 @@ class SmbWriter(StorageWriter):
             raise ValueError("SMB_RENAME_FAILED") from exc
 
     async def remove(self, path: str) -> None:
-        smbclient = self._require_smbclient()
         parts = self._safe_parts(path)
         if not parts:
             raise ValueError("STORAGE_REMOVE_ROOT_FORBIDDEN")
+        smbclient = self._require_smbclient()
         target = self._build_unc_path(path)
         try:
             if smbclient.path.isdir(target):
                 smbclient.rmdir(target)
             elif smbclient.path.exists(target):
                 smbclient.remove(target)
+        except Exception as exc:
+            raise ValueError("SMB_WRITE_FAILED") from exc
+
+    async def remove_empty_dir(self, path: str) -> None:
+        parts = self._safe_parts(path)
+        if not parts:
+            raise ValueError("STORAGE_REMOVE_ROOT_FORBIDDEN")
+        smbclient = self._require_smbclient()
+        try:
+            smbclient.rmdir(self._build_unc_path(path))
         except Exception as exc:
             raise ValueError("SMB_WRITE_FAILED") from exc
 

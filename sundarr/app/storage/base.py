@@ -22,9 +22,17 @@ class StorageWriter(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def open_read(self, path: str) -> BinaryIO:
+        raise NotImplementedError
+
+    @abstractmethod
     async def rename(self, src: str, dst: str) -> None:
         raise NotImplementedError
 
     @abstractmethod
     async def remove(self, path: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def remove_empty_dir(self, path: str) -> None:
         raise NotImplementedError

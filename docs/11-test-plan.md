@@ -208,7 +208,8 @@ source_smb / target_smb password 不回显
 目录型资源稳定性判断
 binding 匹配 movie / series
 binding 不明确时进入 unclassified
-SMB source -> LocalWriter 或 mock target 的导入成功路径
+SMB source -> SMB target 的 Worker 任务领取规则
+LocalWriter 替身覆盖 source -> target 的导入成功路径
 .downloading 写入、size 校验、rename
 成功后删除源文件
 成功后删除空目录

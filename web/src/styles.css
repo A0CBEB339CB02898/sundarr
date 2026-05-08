@@ -986,6 +986,56 @@ h2 {
   outline: 3px solid rgba(166, 95, 32, 0.14);
 }
 
+.ingest-section {
+  display: grid;
+  gap: 18px;
+  border: 1px solid rgba(23, 32, 38, 0.1);
+  border-radius: 26px;
+  background: #fffaf1;
+  padding: 24px;
+}
+
+.endpoint-fieldset {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  border: 1px solid rgba(23, 32, 38, 0.1);
+  border-radius: 22px;
+  padding: 18px;
+}
+
+.endpoint-fieldset legend {
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.discovered-row {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) minmax(0, 1fr) minmax(160px, 0.55fr) minmax(160px, 0.45fr);
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.64);
+  color: var(--text);
+  padding: 14px;
+}
+
+.discovered-row strong,
+.discovered-row small {
+  overflow-wrap: anywhere;
+}
+
+.discovered-row small {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .source-note-field,
 .source-config-field,
 .source-form-wide {

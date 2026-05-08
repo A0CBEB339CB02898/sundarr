@@ -40,7 +40,7 @@ LocalWriter
 
 ```text
 StorageWriter 接口已落地。
-LocalWriter 已支持 exists / size / mkdirs / open_append / rename / remove，并有自动化测试。
+LocalWriter 已支持 exists / size / mkdirs / open_append / open_read / rename / remove / remove_empty_dir，并有自动化测试。
 SmbWriter 使用 smbprotocol 包提供的 smbclient 高层接口。
 SmbWriter 已实现 UNC 路径构造、安全路径防护、连接测试、目录浏览、写入、size、rename 的调用边界。
 自动化测试不连接真实 SMB 服务器。
@@ -70,14 +70,22 @@ class StorageWriter:
     async def open_append(self, path: str):
         raise NotImplementedError
 
+    async def open_read(self, path: str):
+        raise NotImplementedError
+
     async def rename(self, src: str, dst: str) -> None:
         raise NotImplementedError
 
     async def remove(self, path: str) -> None:
         raise NotImplementedError
+
+    async def remove_empty_dir(self, path: str) -> None:
+        raise NotImplementedError
 ```
 
 Transfer Worker 只能依赖 StorageWriter 接口，不应直接调用 SMB 库。
+
+`open_read` 供挂载网盘导入读取 SMB 来源文件使用。`remove_empty_dir` 只能删除空目录，不能递归删除目录树。
 
 ---
 
