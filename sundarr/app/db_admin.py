@@ -11,11 +11,13 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from sundarr.app.config import PROJECT_ROOT, get_settings, redact_url_password
 from sundarr.app.models import Setting
+from sundarr.app.services.ingest_service import DEFAULT_INGEST_CONFIG, INGEST_CONFIG_KEY
 
 DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
     "worker.enabled": {"enabled": True},
     "worker.concurrency": {"value": 2},
     "cloud.local": {"staging_root": "/Sundarr/_staging"},
+    INGEST_CONFIG_KEY: DEFAULT_INGEST_CONFIG,
 }
 
 

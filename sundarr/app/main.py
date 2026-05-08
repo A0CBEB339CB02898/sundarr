@@ -7,6 +7,7 @@ from redis import Redis
 from sqlalchemy import text
 
 from sundarr.app.api.health import router as health_router
+from sundarr.app.api.ingest import router as ingest_router
 from sundarr.app.api.resources import router as resources_router
 from sundarr.app.api.search import router as search_router
 from sundarr.app.api.sources import router as sources_router
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(sources_router)
     app.include_router(storage_router)
     app.include_router(transfers_router)
+    app.include_router(ingest_router)
     return app
 
 

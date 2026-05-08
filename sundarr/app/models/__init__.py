@@ -1,3 +1,4 @@
+from sundarr.app.models.ingest import IngestBinding, IngestSeenFile
 from sundarr.app.models.resource import Resource, ResourceLink
 from sundarr.app.models.setting import Setting
 from sundarr.app.models.source import Source
@@ -5,6 +6,8 @@ from sundarr.app.models.transfer import TransferFile, TransferLog, TransferTask
 
 __all__ = [
     "Resource",
+    "IngestBinding",
+    "IngestSeenFile",
     "ResourceLink",
     "Setting",
     "Source",

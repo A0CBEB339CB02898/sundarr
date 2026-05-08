@@ -163,6 +163,8 @@ mtime 超过 stable_seconds。
 不处于已处理记录中。
 ```
 
+扫描结果写入 `ingest_seen_files`。稳定文件进入 `stable` 状态，创建导入任务后进入 `queued` 状态，并记录对应 `task_id`。
+
 目录型资源：
 
 ```text
@@ -295,9 +297,12 @@ POST /ingest/bindings/{binding_id}/disable
 POST /ingest/bindings/{binding_id}/test
 POST /ingest/scan
 GET  /ingest/discovered
+POST /ingest/tasks/create
 ```
 
 MVP 仍不使用 PUT / PATCH / DELETE。
+
+`POST /ingest/tasks/create` 只为 `stable` 且尚未绑定任务的发现文件创建 `mode=ingest` 的 transfer task。任务创建后，实际 SMB 来源到 SMB 目标复制由 Worker 执行。
 
 ---
 

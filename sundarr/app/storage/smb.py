@@ -112,13 +112,15 @@ class SmbWriter(StorageWriter):
         entries: list[dict[str, object]] = []
         try:
             for entry in smbclient.scandir(target):
+                stat = entry.stat()
                 child_path = "/".join([*self._safe_parts(path), entry.name])
                 entries.append(
                     {
                         "name": entry.name,
                         "path": child_path,
                         "is_dir": entry.is_dir(),
-                        "size": None if entry.is_dir() else int(entry.stat().st_size),
+                        "size": None if entry.is_dir() else int(stat.st_size),
+                        "modified_at": str(getattr(stat, "st_mtime", "")) or None,
                     }
                 )
         except Exception as exc:

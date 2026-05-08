@@ -122,13 +122,17 @@ hash(url)
 ```text
 id TEXT PRIMARY KEY
 resource_id TEXT
-link_id TEXT NOT NULL
+link_id TEXT
 status TEXT NOT NULL
 mode TEXT NOT NULL
 cloud_staging_path TEXT
 target_type TEXT NOT NULL
 target_library TEXT
 target_path TEXT NOT NULL
+source_type TEXT
+source_path TEXT
+source_config_snapshot JSONB
+ingest_seen_file_id TEXT
 storage_config_snapshot JSONB
 total_bytes BIGINT NOT NULL DEFAULT 0
 done_bytes BIGINT NOT NULL DEFAULT 0
@@ -145,7 +149,9 @@ completed_at TIMESTAMP
 
 状态见 `docs/07-transfer-state-machine.md`。
 
-`storage_config_snapshot` 用于判断任务是否使用旧 SMB 配置。
+`link_id` 对搜索资源搬运任务必填；对挂载网盘导入任务可为空。
+
+`source_type`、`source_path`、`source_config_snapshot` 和 `ingest_seen_file_id` 用于记录挂载网盘导入来源。`storage_config_snapshot` 用于判断任务是否使用旧 SMB 配置。
 
 ---
 
@@ -278,7 +284,7 @@ binding_id TEXT
 source_fingerprint TEXT NOT NULL
 source_path TEXT NOT NULL
 source_size BIGINT
-source_mtime TIMESTAMP
+source_mtime TEXT
 status TEXT NOT NULL
 task_id TEXT
 created_at TIMESTAMP NOT NULL
@@ -288,8 +294,8 @@ updated_at TIMESTAMP NOT NULL
 规则：
 
 ```text
-source_fingerprint 可由 source SMB 标识、路径、size、mtime 组成。
-status 至少包含 discovered / importing / completed / failed / ignored。
+source_fingerprint 由来源 SMB 标识和来源路径组成，用于避免重复发现同一路径。
+status 至少包含 discovered / stable / queued / importing / completed / failed / ignored。
 目录型资源可用目录路径和聚合 size/mtime 生成 fingerprint。
 ```
 

@@ -38,6 +38,7 @@ class StorageBrowseEntry(BaseModel):
     path: str
     is_dir: bool
     size: int | None = None
+    modified_at: str | None = None
 
 
 class StorageBrowseResponse(BaseModel):

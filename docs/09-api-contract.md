@@ -135,11 +135,10 @@ GET /resources/{resource_id}
 当前实现状态：
 
 ```text
-已实现 POST /transfers 和 GET /transfers/{task_id} 的最小入口。
+已实现 POST /transfers、GET /transfers 和 GET /transfers/{task_id}。
 已实现 Worker 本地成功路径和失败状态写入。
 已实现 cancel、retry、logs 和 worker startup recovery。
-尚未实现 GET /transfers 任务列表 API、eta 和复杂 current_file 详情。
-GET /transfers 属于 Phase 7.8 Web Console UI Polish 范围，用于支撑全局任务面板和完整任务列表。
+尚未实现 eta 和复杂 current_file 详情。
 ```
 
 创建任务：
@@ -173,6 +172,9 @@ POST /transfers
   "target_type": "smb",
   "target_library": "movies",
   "target_path": "Movies/Interstellar.mkv",
+  "source_type": null,
+  "source_path": null,
+  "ingest_seen_file_id": null,
   "total_bytes": 0,
   "done_bytes": 0,
   "progress": 0,
@@ -319,6 +321,7 @@ POST /ingest/bindings/{binding_id}/disable
 POST /ingest/bindings/{binding_id}/test
 POST /ingest/scan
 GET  /ingest/discovered
+POST /ingest/tasks/create
 ```
 
 全局配置响应示例：
@@ -364,7 +367,42 @@ Binding 响应示例：
 API 不返回 SMB password 明文。
 test 接口由后端执行，验证来源目录可读和目标目录可写。
 scan 接口只触发扫描或返回扫描结果，不绕过网盘限制。
+tasks/create 接口只为 stable 且未绑定 task 的 discovered file 创建 ingest 任务。
+ingest 任务复用 transfer_tasks，mode 为 ingest，link_id 为空，source_type 为 smb。
 binding 不明确时创建 unclassified 导入任务。
+```
+
+创建导入任务响应示例：
+
+```json
+{
+  "created_count": 1,
+  "skipped_count": 0,
+  "tasks": [
+    {
+      "id": "task_001",
+      "resource_id": null,
+      "link_id": null,
+      "status": "pending",
+      "mode": "ingest",
+      "cloud_staging_path": null,
+      "target_type": "smb",
+      "target_library": "movie",
+      "target_path": "Movie/Movie.mkv",
+      "source_type": "smb",
+      "source_path": "Movie/Movie.mkv",
+      "ingest_seen_file_id": "seen_001",
+      "total_bytes": 0,
+      "done_bytes": 0,
+      "progress": 0,
+      "current_file": null,
+      "error_code": null,
+      "error_message": null,
+      "retryable": null,
+      "retry_count": 0
+    }
+  ]
+}
 ```
 
 ---
@@ -400,6 +438,7 @@ TASK_CANCELLED
 WORKER_RECOVERY_REQUIRED
 INGEST_BINDING_NOT_FOUND
 INGEST_SOURCE_NOT_STABLE
+INGEST_SOURCE_PATH_INVALID
 INGEST_SOURCE_DELETE_FAILED
 INGEST_UNCLASSIFIED_REQUIRED
 ```
