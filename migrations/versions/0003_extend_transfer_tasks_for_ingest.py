@@ -1,6 +1,6 @@
 """扩展任务表支持挂载网盘导入来源
 
-Revision ID: 0003_extend_transfer_tasks_for_ingest
+Revision ID: 0003_ingest_task_source
 Revises: 0002_create_ingest_tables
 Create Date: 2026-05-08
 """
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision: str = "0003_extend_transfer_tasks_for_ingest"
+revision: str = "0003_ingest_task_source"
 down_revision: Union[str, None] = "0002_create_ingest_tables"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
