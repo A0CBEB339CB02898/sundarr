@@ -70,12 +70,17 @@ class MediaLibraryService:
     def disable_library(self, db: Session, library_id: str) -> MediaLibraryResponse:
         return self._set_enabled(db, library_id, False)
 
-    def delete_library(self, db: Session, library_id: str) -> None:
+    def delete_library(self, db: Session, library_id: str, action: str) -> None:
         lib = db.get(MediaLibrary, library_id)
         if lib is None:
             raise ValueError("MEDIA_LIBRARY_NOT_FOUND")
-        for remote in db.query(RemoteMediaLibrary).filter(RemoteMediaLibrary.target_library_id == library_id).all():
-            remote.target_library_id = None
+        if action == "unbind":
+            for remote in db.query(RemoteMediaLibrary).filter(RemoteMediaLibrary.target_library_id == library_id).all():
+                remote.target_library_id = None
+        elif action == "delete":
+            for remote in db.query(RemoteMediaLibrary).filter(RemoteMediaLibrary.target_library_id == library_id).all():
+                db.query(SyncSeenFile).filter(SyncSeenFile.binding_id == remote.id).delete()
+                db.delete(remote)
         db.delete(lib)
         db.commit()
 
