@@ -139,7 +139,7 @@ class TransferService:
             target_path=task.target_path,
             source_type=task.source_type,
             source_path=task.source_path,
-            ingest_seen_file_id=task.ingest_seen_file_id,
+            sync_seen_file_id=task.sync_seen_file_id,
             total_bytes=task.total_bytes,
             done_bytes=task.done_bytes,
             progress=self._progress(task),

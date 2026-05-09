@@ -431,9 +431,9 @@ async def cleanup_dtl_source(session: Session, task: TransferTask, source_writer
 
 
 def _mark_dtl_seen_file_completed(session: Session, task: TransferTask) -> None:
-    if not task.ingest_seen_file_id:
+    if not task.sync_seen_file_id:
         return
-    seen = session.get(DownloadToLocalSeenFile, task.ingest_seen_file_id)
+    seen = session.get(DownloadToLocalSeenFile, task.sync_seen_file_id)
     if seen is not None:
         seen.status = "completed"
 
@@ -459,9 +459,9 @@ def _load_dtl_cleanup_options(session: Session, task: TransferTask) -> tuple[boo
 
 
 def _get_dtl_binding_for_task(session: Session, task: TransferTask) -> DownloadToLocalBinding | None:
-    if not task.ingest_seen_file_id:
+    if not task.sync_seen_file_id:
         return None
-    seen = session.get(DownloadToLocalSeenFile, task.ingest_seen_file_id)
+    seen = session.get(DownloadToLocalSeenFile, task.sync_seen_file_id)
     if seen is None or not seen.binding_id:
         return None
     return session.get(DownloadToLocalBinding, seen.binding_id)

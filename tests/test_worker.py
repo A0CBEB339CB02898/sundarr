@@ -503,7 +503,7 @@ def _seed_dtl_task(
             "base_path": "/",
             "password": None,
         },
-        ingest_seen_file_id=seen.id,
+        sync_seen_file_id=seen.id,
         total_bytes=size,
     )
     transfer_file = TransferFile(

@@ -37,7 +37,7 @@ class TransferResponse(BaseModel):
     target_path: str
     source_type: str | None = None
     source_path: str | None = None
-    ingest_seen_file_id: str | None = None
+    sync_seen_file_id: str | None = None
     total_bytes: int
     done_bytes: int
     progress: float = 0

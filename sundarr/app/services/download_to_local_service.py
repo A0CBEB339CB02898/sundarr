@@ -371,7 +371,7 @@ class DownloadToLocalService:
             source_path=seen.source_path,
             source_config_snapshot=source_config_snapshot,
             storage_config_snapshot=storage_config_snapshot,
-            ingest_seen_file_id=seen.id,
+            sync_seen_file_id=seen.id,
             total_bytes=seen.source_size or 0,
         )
         db.add(task)
