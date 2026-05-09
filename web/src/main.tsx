@@ -1979,8 +1979,11 @@ function ResourceCard({ onSelect, resource, selectedLinkId }: { onSelect: (link:
 }
 
 function StoragePanel() {
+  const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [form, setForm] = useState<StorageFormState>(emptyStorageForm())
   const [passwordSet, setPasswordSet] = useState(false)
+  const [mode, setMode] = useState<'create' | 'edit'>('create')
   const [browsePath, setBrowsePath] = useState('')
   const [browseResult, setBrowseResult] = useState<StorageBrowseResponse | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -1990,74 +1993,105 @@ function StoragePanel() {
   const [isTesting, setIsTesting] = useState(false)
   const [isBrowsing, setIsBrowsing] = useState(false)
 
-  useEffect(() => {
-    void loadStorageConfig()
-  }, [])
+  useEffect(() => { void loadConnections() }, [])
 
-  async function loadStorageConfig() {
+  const selectedConnection = connections.find((c) => c.id === selectedId) || null
+
+  async function loadConnections(nextSelectedId = selectedId) {
     setIsLoading(true)
     setError(null)
     try {
-      const config = await api.get<StorageConfigResponse>('/storage/config')
-      setForm(storageFormFromConfig(config))
-      setPasswordSet(config.password_set)
+      const result = await api.get<SmbConnectionListResponse>('/storage/smb-connections')
+      setConnections(result.results)
+      const next = result.results.find((c) => c.id === nextSelectedId) || result.results[0] || null
+      if (next) { selectConnection(next, false) } else { startCreate() }
     } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '无法读取存储配置。')
-    } finally {
-      setIsLoading(false)
-    }
+      setError(exc instanceof Error ? exc.message : '无法读取 SMB 连接。')
+    } finally { setIsLoading(false) }
   }
 
-  async function saveStorageConfig() {
-    if (!window.confirm('确认保存 SMB 配置？使用旧配置的运行中任务会按 STORAGE_CONFIG_CHANGED 中断。')) {
-      return
-    }
+  function selectConnection(conn: SmbConnectionResponse, clearFeedback = true) {
+    setMode('edit')
+    setSelectedId(conn.id)
+    setForm({
+      host: conn.host,
+      port: String(conn.port),
+      share: conn.share,
+      username: conn.username,
+      password: '',
+      domain: conn.domain,
+      base_path: conn.base_path,
+      library_movies: '',
+      library_tv: '',
+      library_anime: '',
+    })
+    setPasswordSet(conn.password_set)
+    if (clearFeedback) { setMessage(null); setError(null); setBrowseResult(null) }
+  }
+
+  function startCreate() {
+    setMode('create')
+    setSelectedId(null)
+    setForm(emptyStorageForm())
+    setPasswordSet(false)
+    setMessage(null)
+    setError(null)
+    setBrowseResult(null)
+  }
+
+  async function saveConnection() {
+    if (!window.confirm('确认保存 SMB 连接？')) return
     setIsSaving(true)
     setError(null)
     setMessage(null)
     try {
-      const saved = await api.post<StorageConfigResponse>('/storage/config/save', storageRequestFromForm(form))
-      setForm(storageFormFromConfig(saved))
-      setPasswordSet(saved.password_set)
-      setMessage('SMB 配置已保存。使用旧配置的运行中任务会按 STORAGE_CONFIG_CHANGED 中断。')
+      const payload = {
+        host: form.host.trim(),
+        port: Number(form.port) || 445,
+        share: form.share.trim(),
+        username: form.username.trim(),
+        password: form.password || null,
+        domain: form.domain.trim(),
+        base_path: form.base_path.trim() || '/',
+      }
+      if (mode === 'create') {
+        const id = `conn_${Date.now()}`
+        await api.post<SmbConnectionResponse>('/storage/smb-connections/create', { id, name: `${payload.host}/${payload.share}`, ...payload })
+      } else {
+        await api.post<SmbConnectionResponse>(`/storage/smb-connections/${encodeURIComponent(selectedId!)}/update`, { name: selectedConnection?.name || '', ...payload })
+      }
+      setMessage(mode === 'create' ? 'SMB 连接已创建。' : 'SMB 连接已保存。')
+      await loadConnections(selectedId)
     } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '保存存储配置失败。')
-    } finally {
-      setIsSaving(false)
-    }
+      setError(exc instanceof Error ? exc.message : '保存 SMB 连接失败。')
+    } finally { setIsSaving(false) }
   }
 
-  async function testStorageConfig() {
+  async function testConnection() {
+    if (!selectedId) { setError('请先选择已保存的连接。'); return }
     setIsTesting(true)
     setError(null)
     setMessage(null)
     try {
-      const result = await api.post<StorageConfigTestResponse>('/storage/config/test', storageRequestFromForm(form))
-      if (result.ok) {
-        setMessage('SMB 连接测试通过。')
-      } else {
-        setError(`${result.error_code || 'STORAGE_TEST_FAILED'}：${result.error_message || 'SMB 连接测试失败。'}`)
-      }
+      const result = await api.post<StorageConfigTestResponse>(`/storage/smb-connections/${encodeURIComponent(selectedId)}/test`)
+      setMessage(result.ok ? 'SMB 连接测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || 'SMB 连接测试失败。'}`)
     } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '测试存储配置失败。')
-    } finally {
-      setIsTesting(false)
-    }
+      setError(exc instanceof Error ? exc.message : '测试 SMB 连接失败。')
+    } finally { setIsTesting(false) }
   }
 
   async function browseStorage(nextPath = browsePath) {
+    if (!selectedId) { setError('请先选择已保存的连接。'); return }
     setIsBrowsing(true)
     setError(null)
     try {
-      const result = await api.get<StorageBrowseResponse>(`/storage/browse?path=${encodeURIComponent(nextPath.trim())}`)
+      const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(selectedId)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
       setBrowseResult(result)
       setBrowsePath(result.path)
     } catch (exc) {
       setBrowseResult(null)
       setError(exc instanceof Error ? exc.message : '浏览存储目录失败。')
-    } finally {
-      setIsBrowsing(false)
-    }
+    } finally { setIsBrowsing(false) }
   }
 
   function updateField(key: keyof StorageFormState, value: string) {
@@ -2069,76 +2103,64 @@ function StoragePanel() {
       <div className="panel-header-row">
         <div>
           <p className="panel-kicker">存储</p>
-          <h2 id="storage-title">SMB 存储设置</h2>
-          <p>管理 SMB 连接配置、测试连接，并在允许范围内浏览目标目录。连接测试由后端执行，用于确认后端运行环境能访问 SMB。</p>
+          <h2 id="storage-title">SMB 存储管理</h2>
+          <p>管理多个 SMB 连接配置、测试连接，并在允许范围内浏览目标目录。</p>
         </div>
-        <button className="ghost-button" disabled={isLoading} onClick={() => void loadStorageConfig()} type="button">
-          {isLoading ? '读取中' : '重新读取'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="ghost-button" disabled={isLoading} onClick={() => void loadConnections()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
+          <button className="primary-button" onClick={startCreate} type="button">新增</button>
+        </div>
       </div>
 
       {message ? <div className="notice-card"><strong>操作完成</strong><p>{message}</p></div> : null}
+      {error ? <div className="notice-card error"><strong>操作失败</strong><p>{error}</p></div> : null}
       {error ? <ErrorState message={error} /> : null}
-      {isLoading ? <LoadingState message="正在读取 SMB 配置。" /> : null}
+      {isLoading ? <LoadingState message="正在读取 SMB 连接。" /> : null}
 
-      <form
-        className="storage-form"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void saveStorageConfig()
-        }}
-      >
-        <TextField helper="SMB 服务器地址，只填主机名或 IP，不要带 \\\\ 或共享名。" label="Host" onChange={(value) => updateField('host', value)} required value={form.host} />
-        <TextField helper="SMB 端口，通常是 445。" label="Port" onChange={(value) => updateField('port', value)} required type="number" value={form.port} />
-        <TextField helper="SMB 共享名，即 \\\\host\\share 中的 share，不要填写子目录。" label="Share" onChange={(value) => updateField('share', value)} required value={form.share} />
-        <TextField helper="用于登录 SMB 的账号名。" label="Username" onChange={(value) => updateField('username', value)} required value={form.username} />
-        <TextField helper="SMB 域或工作组；个人 NAS 通常留空。" label="Domain" onChange={(value) => updateField('domain', value)} value={form.domain} />
-        <TextField helper="共享内的工作根目录，例如 /Sundarr；使用共享根目录时填 /。" label="Base Path" onChange={(value) => updateField('base_path', value)} value={form.base_path} />
-        <TextField
-          helper={passwordSet ? '已保存密码且不会回显。留空保存表示保留旧密码。' : 'SMB 登录密码；保存后不会在页面回显。'}
-          label="Password"
-          onChange={(value) => updateField('password', value)}
-          type="password"
-          value={form.password}
-        />
-        <TextField helper="电影默认目录，相对于 Base Path。" label="Movies Library" onChange={(value) => updateField('library_movies', value)} value={form.library_movies} />
-        <TextField helper="剧集默认目录，相对于 Base Path。" label="TV Library" onChange={(value) => updateField('library_tv', value)} value={form.library_tv} />
-        <TextField helper="动画默认目录，相对于 Base Path。" label="Anime Library" onChange={(value) => updateField('library_anime', value)} value={form.library_anime} />
+      <div className="ingest-layout">
+        <section className="source-list" aria-labelledby="storage-list-title">
+          <div className="section-heading"><h3 id="storage-list-title">SMB 连接</h3><span>{connections.length} 个</span></div>
+          <div className="transfer-list">
+            {connections.map((conn) => (
+              <button key={conn.id} type="button" className={`source-row ${conn.id === selectedId ? 'selected' : ''}`} onClick={() => selectConnection(conn)}>
+                <strong>{conn.name}</strong>
+                <span>{conn.host}/{conn.share} · {conn.username} · {conn.password_set ? '已设密码' : '未设密码'} · {conn.enabled ? '已启用' : '已禁用'}</span>
+              </button>
+            ))}
+            {connections.length === 0 && <EmptyState message="暂无 SMB 连接。点击新增创建。" />}
+          </div>
+        </section>
 
-        <div className="form-actions">
-          <button className="primary-button" disabled={isSaving} type="submit">
-            {isSaving ? '保存中' : '保存配置'}
-          </button>
-          <button className="secondary-button" disabled={isTesting} onClick={() => void testStorageConfig()} type="button">
-            {isTesting ? '测试中' : '测试连接'}
-          </button>
-        </div>
-      </form>
+        <section className="source-editor" aria-labelledby="storage-editor-title">
+          <div className="section-heading"><h3 id="storage-editor-title">{mode === 'create' ? '创建连接' : '编辑连接'}</h3><span>{selectedConnection ? selectedConnection.id : 'new'}</span></div>
+          <div className="form-grid">
+            <label><span>Host</span><input value={form.host} onChange={(e) => updateField('host', e.target.value)} placeholder="SMB 服务器地址" /></label>
+            <label><span>Port</span><input type="number" value={form.port} onChange={(e) => updateField('port', e.target.value)} placeholder="445" /></label>
+            <label><span>Share</span><input value={form.share} onChange={(e) => updateField('share', e.target.value)} placeholder="共享名" /></label>
+            <label><span>Username</span><input value={form.username} onChange={(e) => updateField('username', e.target.value)} placeholder="用户名" /></label>
+            <label><span>Password</span><input type="password" value={form.password} onChange={(e) => updateField('password', e.target.value)} placeholder={passwordSet ? '留空保留原密码' : '密码'} /></label>
+            <label><span>Domain</span><input value={form.domain} onChange={(e) => updateField('domain', e.target.value)} placeholder="可为空" /></label>
+            <label><span>Base Path</span><input value={form.base_path} onChange={(e) => updateField('base_path', e.target.value)} placeholder="/" /></label>
+          </div>
+          <div className="form-actions">
+            <button className="primary-button" disabled={isSaving} onClick={() => void saveConnection()} type="button">{isSaving ? '保存中' : mode === 'create' ? '创建' : '保存'}</button>
+            <button className="ghost-button" disabled={isTesting} onClick={() => void testConnection()} type="button">{isTesting ? '测试中' : '测试连接'}</button>
+          </div>
+        </section>
+      </div>
 
       <section className="browser-panel" aria-labelledby="storage-browser-title">
-        <div className="section-heading">
-          <h3 id="storage-browser-title">目录浏览</h3>
-          <span>只读浏览</span>
-        </div>
-        <form
-          className="lookup-form"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void browseStorage()
-          }}
-        >
+        <div className="section-heading"><h3 id="storage-browser-title">目录浏览</h3><span>只读浏览</span></div>
+        <form className="lookup-form" onSubmit={(event) => { event.preventDefault(); void browseStorage() }}>
           <label>
             <span>路径</span>
             <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
             <small>相对于 Base Path 的目录；留空表示浏览 Base Path。</small>
           </label>
-          <button className="primary-button" disabled={isBrowsing} type="submit">
-            {isBrowsing ? '浏览中' : '浏览目录'}
-          </button>
+          <button className="primary-button" disabled={isBrowsing} type="submit">{isBrowsing ? '浏览中' : '浏览目录'}</button>
         </form>
-
         {isBrowsing && !browseResult ? <LoadingState message="正在读取目录。" /> : null}
-        {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void browseStorage(path)} /> : <EmptyState message="输入路径后浏览 SMB 目录。" />}
+        {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void browseStorage(path)} /> : <EmptyState message="选择连接后输入路径浏览 SMB 目录。" />}
       </section>
 
       <ApiClientPreview />
