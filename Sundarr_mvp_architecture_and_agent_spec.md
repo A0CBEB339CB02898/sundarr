@@ -1581,18 +1581,43 @@ GET /transfers 任务列表 API
 
 ### Phase 8: Download To Local
 
+#### Phase 8.1: SMB 连接和媒体库管理
+
 交付：
 
 ```text
-download_to_local 全局配置                                        已实现
 多个 SMB connection                                               已实现
 媒体库管理，支持 movie / series / unclassified 等本地 NAS 目录绑定  已实现
+download_to_local 全局配置                                        已实现
+```
+
+#### Phase 8.2: 下载到本地绑定和扫描
+
+交付：
+
+```text
 来源目录到媒体库 binding                                           已实现
 SMB source scanner                                                已实现
 稳定文件/目录判断                                                   已实现
 download_to_local task 创建                                        已实现
+```
+
+#### Phase 8.3: Worker 下载执行
+
+交付：
+
+```text
 SMB source -> SMB target 下载 Worker                               待实现
+.downloading 写入、size 校验、rename                                待实现
 成功后删除源文件和空目录                                             待实现
+未分类 fallback                                                    待实现
+```
+
+#### Phase 8.4: Web Console 前端
+
+交付：
+
+```text
 /app/download-to-local Web Console 页面                            待实现
 /app/libraries Web Console 页面或等价媒体库管理入口                  待实现
 ```

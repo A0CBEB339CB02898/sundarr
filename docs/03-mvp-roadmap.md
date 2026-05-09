@@ -1027,23 +1027,99 @@ npm run build 通过。
 
 背景：国内封闭网盘直接下载不作为 Sundarr 近期主链路。当前阶段依赖用户手动保存资源到网盘，由 NAS 或挂载服务负责将网盘远程挂载为目录并通过 SMB 暴露。
 
+### Phase 8.1: SMB 连接和媒体库管理
+
 交付物：
 
 ```text
-download_to_local 全局配置                                        已实现
-多个 SMB 连接管理                                                  已实现
-媒体库管理，支持创建 movie / series / unclassified 等本地媒体库      已实现
-媒体库绑定到某个 SMB 连接下的本地 NAS 目录                           已实现
-来源 SMB 连接和目录到媒体库的正向 binding                           已实现
-SMB source scanner，来源只能选择已配置 SMB 连接                     已实现
-稳定文件/目录判断                                                   已实现
-download_to_local task 创建                                        已实现
-SMB source -> SMB target 下载 Worker                               待实现
-.downloading 写入、size 校验、rename                                待实现
-成功后删除源文件和空目录                                             待实现
-未分类 fallback                                                    待实现（配置已有，Worker 自动 fallback 逻辑待实现）
-Web Console /app/download-to-local 页面                            待实现
-Web Console /app/libraries 页面或等价媒体库管理入口                  待实现
+多个 SMB 连接管理（CRUD、test、browse）                     已实现
+媒体库管理（CRUD、test，绑定到 SMB 连接下的本地目录）         已实现
+download_to_local 全局配置                                   已实现
+数据模型：smb_connections、media_libraries                    已实现
+迁移：0004_smb_connections_media_libs                         已实现
+```
+
+验收标准：
+
+```text
+可以配置多个 SMB 连接。
+可以创建 movie / series / unclassified 等媒体库，并绑定到 SMB 本地目录。
+媒体库只能选择已配置 SMB 连接和目录，不重复填写 SMB 凭据。
+SMB 连接密码不回显。
+```
+
+### Phase 8.2: 下载到本地绑定和扫描
+
+交付物：
+
+```text
+来源 SMB 连接和目录到媒体库的正向 binding                     已实现
+SMB source scanner，来源只能选择已配置 SMB 连接                已实现
+稳定文件/目录判断                                              已实现
+download_to_local task 创建                                   已实现
+数据模型：download_to_local_bindings、download_to_local_seen_files  已实现
+迁移：0005_download_to_local_bindings                          已实现
+```
+
+验收标准：
+
+```text
+下载到本地绑定只能选择来源 SMB 连接、来源目录和目标媒体库。
+可以扫描 SMB 来源目录。
+文件或目录稳定后才开始下载。
+重复扫描不重复创建任务。
+```
+
+### Phase 8.3: Worker 下载执行
+
+交付物：
+
+```text
+SMB source -> SMB target 下载 Worker
+.downloading 写入、size 校验、rename
+成功后删除源文件和空目录
+未分类 fallback（binding 不明确时进入 unclassified 媒体库）
+```
+
+验收标准：
+
+```text
+可以通过 SMB 将文件写入本地媒体库。
+下载成功后按配置删除源文件和空目录。
+失败时保留源文件、.downloading 和任务日志。
+路径绑定不明确时进入 unclassified 媒体库。
+剧集目录按原目录结构下载，不额外拆分季集。
+```
+
+### Phase 8.4: Web Console 前端
+
+交付物：
+
+```text
+Web Console /app/download-to-local 页面
+Web Console /app/libraries 页面或等价媒体库管理入口
+```
+
+验收标准：
+
+```text
+配置类页面先展示列表，通过新增按钮弹出表单。
+下载到本地页面不显示 SMB password 明文。
+下载到本地页面绑定目标为媒体库，不重复配置目标 SMB 凭据。
+下载到本地页面可手动触发扫描。
+```
+
+### Phase 8 整体验收标准
+
+```text
+默认自动化测试不依赖真实网盘或真实 SMB。
+真实挂载目录下载到本地通过手动集成验收。
+docs/15-download-to-local-spec.md 与实际 API / 数据模型一致。
+pytest 通过。
+涉及前端时 npm run build 通过。
+不实现 Sundarr 内挂载网盘。
+不实现国内封闭网盘直接下载。
+媒体库管理作为 Phase 8 的目录绑定管理能力，不实现完整媒体库 UI。
 ```
 
 验收标准：
