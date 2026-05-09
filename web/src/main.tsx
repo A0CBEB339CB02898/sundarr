@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import './styles.css'
 
-type PageKey = 'search' | 'transfers' | 'storage' | 'sources' | 'libraries' | 'remote-libraries' | 'sync' | 'status'
+type PageKey = 'search' | 'transfers' | 'storage' | 'sources' | 'libraries' | 'remote-libraries' | 'status'
 type ThemeMode = 'light' | 'dark' | 'system'
 
 type NavItem = {
@@ -77,6 +77,30 @@ type StorageConfigResponse = {
   domain: string
   base_path: string
   libraries: Record<string, string>
+}
+
+type SmbConnectionResponse = {
+  id: string
+  name: string
+  enabled: boolean
+  host: string
+  port: number
+  share: string
+  username: string
+  password_set: boolean
+  domain: string
+  base_path: string
+  bound_local_libraries: string[]
+  bound_remote_libraries: string[]
+  created_at: string | null
+  updated_at: string | null
+}
+
+type SmbConnectionListResponse = {
+  count: number
+  page: number
+  page_size: number
+  results: SmbConnectionResponse[]
 }
 
 type StorageConfigRequest = Omit<StorageConfigResponse, 'password_set'> & {
@@ -273,26 +297,6 @@ type IngestBindingTestResponse = {
   error_message: string | null
 }
 
-type SmbConnectionResponse = {
-  id: string
-  name: string
-  enabled: boolean
-  host: string
-  port: number
-  share: string
-  username: string
-  password_set: boolean
-  domain: string
-  base_path: string
-  created_at: string | null
-  updated_at: string | null
-}
-
-type SmbConnectionListResponse = {
-  count: number
-  results: SmbConnectionResponse[]
-}
-
 type MediaLibraryResponse = {
   id: string
   name: string
@@ -300,12 +304,15 @@ type MediaLibraryResponse = {
   enabled: boolean
   connection_id: string
   base_path: string
+  bound_remote_libraries: string[]
   created_at: string | null
   updated_at: string | null
 }
 
 type MediaLibraryListResponse = {
   count: number
+  page: number
+  page_size: number
   results: MediaLibraryResponse[]
 }
 
@@ -483,6 +490,44 @@ type SyncConfigFormState = {
   unclassified_library_id: string
 }
 
+type RemoteMediaLibraryFormState = {
+  id: string
+  name: string
+  media_type: DtlMediaType
+  enabled: boolean
+  connection_id: string
+  base_path: string
+  target_library_id: string
+  scan_interval_seconds: string
+  stable_seconds: string
+  delete_source_after_success: '' | 'true' | 'false'
+  delete_empty_source_dirs: '' | 'true' | 'false'
+}
+
+type RemoteMediaLibraryResponse = {
+  id: string
+  name: string
+  media_type: DtlMediaType
+  enabled: boolean
+  connection_id: string
+  base_path: string
+  target_library_id: string | null
+  target_library_name: string | null
+  scan_interval_seconds: number
+  stable_seconds: number
+  delete_source_after_success: boolean | null
+  delete_empty_source_dirs: boolean | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+type RemoteMediaLibraryListResponse = {
+  count: number
+  page: number
+  page_size: number
+  results: RemoteMediaLibraryResponse[]
+}
+
 type MediaLibraryFormState = {
   id: string
   name: string
@@ -530,7 +575,6 @@ const navItems: NavItem[] = [
   { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
   { key: 'libraries', path: '/app/libraries', label: '媒体库', description: '管理本地媒体库目录绑定' },
   { key: 'remote-libraries', path: '/app/remote-libraries', label: '远程媒体库', description: '管理远程媒体库目录绑定' },
-  { key: 'sync', path: '/app/sync', label: '同步', description: '管理远程到本地的同步绑定' },
   { key: 'status', path: '/app/status', label: '状态', description: '查看 API、Worker、数据库和 Redis' },
 ]
 
@@ -568,13 +612,7 @@ const pageCopy: Record<PageKey, { title: string; eyebrow: string; body: string; 
   'remote-libraries': {
     eyebrow: 'Remote Libraries',
     title: '远程媒体库管理',
-    body: '管理 movie / series / unclassified 等远程媒体库目录绑定。',
-    next: '当前页面暂不可用，请从左侧导航重新进入。',
-  },
-  sync: {
-    eyebrow: 'Sync',
-    title: '同步管理',
-    body: '管理远程媒体库到本地媒体库的同步绑定。',
+    body: '管理远程媒体库目录绑定，配置同步目标和扫描参数。',
     next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
   status: {
@@ -741,9 +779,6 @@ function PagePanel({
   }
   if (activePage === 'remote-libraries') {
     return <RemoteLibrariesPanel />
-  }
-  if (activePage === 'sync') {
-    return <SyncPanel onTransfersChanged={onTransfersChanged} />
   }
 
   return (
@@ -1132,218 +1167,322 @@ function DiscoveredFiles({ files }: { files: IngestDiscoveredFileResponse[] }) {
 function LibrariesPanel() {
   const [libraries, setLibraries] = useState<MediaLibraryResponse[]>([])
   const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [form, setForm] = useState<MediaLibraryFormState>(emptyLibraryForm())
-  const [mode, setMode] = useState<'create' | 'edit'>('create')
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [totalCount, setTotalCount] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+
+  const [showForm, setShowForm] = useState(false)
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<MediaLibraryFormState>(emptyLibraryForm())
   const [isSaving, setIsSaving] = useState(false)
 
-  useEffect(() => { void loadLibraries() }, [])
+  const [showDelete, setShowDelete] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<MediaLibraryResponse | null>(null)
 
-  const selectedLibrary = libraries.find((l) => l.id === selectedId) || null
+  useEffect(() => { void loadAll() }, [page])
 
-  async function loadLibraries(nextSelectedId = selectedId) {
-    setIsLoading(true)
-    setError(null)
+  async function loadAll() {
+    setIsLoading(true); setError(null)
     try {
-      const [libList, connList] = await Promise.all([
-        api.get<MediaLibraryListResponse>('/media-libraries'),
-        api.get<SmbConnectionListResponse>('/storage/smb-connections'),
+      const [libResult, connResult] = await Promise.all([
+        api.get<MediaLibraryListResponse>(`/media-libraries?page=${page}&page_size=${pageSize}`),
+        api.get<SmbConnectionListResponse>('/storage/smb-connections?page_size=100'),
       ])
-      setLibraries(libList.results)
-      setConnections(connList.results)
-      const next = libList.results.find((l) => l.id === nextSelectedId) || libList.results[0] || null
-      if (next) { selectLibrary(next, false) } else { startCreate() }
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '无法读取媒体库配置。')
-    } finally { setIsLoading(false) }
+      setLibraries(libResult.results); setTotalCount(libResult.count)
+      setConnections(connResult.results)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '无法读取媒体库。') }
+    finally { setIsLoading(false) }
   }
 
-  function selectLibrary(lib: MediaLibraryResponse, clearFeedback = true) {
-    setMode('edit'); setSelectedId(lib.id)
+  function openCreate() {
+    setFormMode('create'); setEditingId(null)
+    setForm(emptyLibraryForm()); setShowForm(true); setMessage(null); setError(null)
+  }
+
+  function openEdit(lib: MediaLibraryResponse) {
+    setFormMode('edit'); setEditingId(lib.id)
     setForm({ id: lib.id, name: lib.name, media_type: lib.media_type, enabled: lib.enabled, connection_id: lib.connection_id, base_path: lib.base_path })
-    if (clearFeedback) { setMessage(null); setError(null) }
-  }
-
-  function startCreate() {
-    setMode('create'); setSelectedId(null)
-    setForm(emptyLibraryForm()); setMessage(null); setError(null)
+    setShowForm(true); setMessage(null); setError(null)
   }
 
   async function saveLibrary() {
-    if (!window.confirm(`确认${mode === 'create' ? '创建' : '保存'}媒体库？`)) return
     setIsSaving(true); setError(null); setMessage(null)
     try {
       const payload = { name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/' }
-      const saved = mode === 'create'
-        ? await api.post<MediaLibraryResponse>('/media-libraries/create', { id: form.id.trim(), ...payload })
-        : await api.post<MediaLibraryResponse>(`/media-libraries/${encodeURIComponent(form.id)}/update`, payload)
-      setMessage(mode === 'create' ? '媒体库已创建。' : '媒体库已保存。')
-      await loadLibraries(saved.id)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存媒体库失败。') }
+      if (formMode === 'create') {
+        await api.post('/media-libraries/create', { id: form.id.trim(), ...payload })
+      } else {
+        await api.post(`/media-libraries/${encodeURIComponent(editingId!)}/update`, payload)
+      }
+      setShowForm(false); setMessage(formMode === 'create' ? '媒体库已创建。' : '媒体库已保存。')
+      await loadAll()
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存失败。') }
     finally { setIsSaving(false) }
   }
 
-  async function toggleLibrary(enabled: boolean) {
-    if (!selectedLibrary) return
-    if (!window.confirm(`确认${enabled ? '启用' : '禁用'}媒体库 ${selectedLibrary.name}？`)) return
+  async function toggleEnabled(lib: MediaLibraryResponse) {
     setIsSaving(true); setError(null); setMessage(null)
     try {
-      await api.post<MediaLibraryResponse>(`/media-libraries/${encodeURIComponent(selectedLibrary.id)}/${enabled ? 'enable' : 'disable'}`)
-      setMessage(enabled ? '媒体库已启用。' : '媒体库已禁用。')
-      await loadLibraries(selectedLibrary.id)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '切换媒体库状态失败。') }
+      await api.post(`/media-libraries/${encodeURIComponent(lib.id)}/${lib.enabled ? 'disable' : 'enable'}`)
+      setMessage(lib.enabled ? '媒体库已禁用。' : '媒体库已启用。')
+      await loadAll()
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '操作失败。') }
     finally { setIsSaving(false) }
   }
 
-  async function testLibrary() {
-    if (!selectedLibrary) { setError('请先选择已保存的媒体库。'); return }
-    setIsSaving(true); setError(null); setMessage(null)
+  async function testLibrary(lib: MediaLibraryResponse) {
+    setError(null); setMessage(null)
     try {
-      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(`/media-libraries/${encodeURIComponent(selectedLibrary.id)}/test`)
+      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(`/media-libraries/${encodeURIComponent(lib.id)}/test`)
       setMessage(result.ok ? '媒体库目录测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试媒体库失败。') }
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试失败。') }
+  }
+
+  function openDeleteModal(lib: MediaLibraryResponse) {
+    setDeletingId(lib.id); setDeleteTarget(lib); setShowDelete(true)
+  }
+
+  async function executeDelete(action: 'delete' | 'unbind' | 'cancel') {
+    if (action === 'cancel') { setShowDelete(false); return }
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      await api.post(`/media-libraries/${encodeURIComponent(deletingId!)}/delete`, { action })
+      setShowDelete(false); setMessage(action === 'delete' ? '媒体库已删除。' : '媒体库已删除，绑定的远程媒体库已解绑。')
+      await loadAll()
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '删除失败。') }
     finally { setIsSaving(false) }
   }
 
-  function updateField(key: keyof MediaLibraryFormState, value: string | boolean) { setForm((c) => ({ ...c, [key]: value })) }
+  function updateForm(key: keyof MediaLibraryFormState, value: string | boolean) { setForm((c) => ({ ...c, [key]: value })) }
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+  const connName = (id: string) => connections.find((c) => c.id === id)?.name || id
 
   return (
     <section className="panel" aria-labelledby="libraries-title">
       <div className="panel-header-row">
         <div>
           <p className="panel-kicker">媒体库</p>
-          <h2 id="libraries-title">媒体库管理</h2>
+          <h2 id="libraries-title">本地媒体库管理</h2>
           <p>管理 movie / series / unclassified 等本地媒体库目录绑定。</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="ghost-button" disabled={isLoading} onClick={() => void loadLibraries()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
-          <button className="primary-button" onClick={startCreate} type="button">新增</button>
+          <button className="ghost-button" disabled={isLoading} onClick={() => void loadAll()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
+          <button className="primary-button" onClick={openCreate} type="button">新增</button>
         </div>
       </div>
+
       {message && <div className="inline-message">{message}</div>}
       {error && <div className="inline-message error">{error}</div>}
-      <div className="ingest-layout">
-        <section className="source-list" aria-labelledby="lib-list-title">
-          <div className="section-heading"><h3 id="lib-list-title">媒体库列表</h3><span>{libraries.length} 个</span></div>
+      {isLoading && <LoadingState message="正在读取媒体库。" />}
+
+      <div className="transfer-list-section">
+        <div className="section-heading"><h3>媒体库列表</h3><span>{totalCount} 个</span></div>
+        {libraries.length === 0 ? <EmptyState message="暂无媒体库。点击新增创建。" /> : (
           <div className="transfer-list">
             {libraries.map((lib) => (
-              <button key={lib.id} type="button" className={`source-row ${lib.id === selectedId ? 'selected' : ''}`} onClick={() => selectLibrary(lib)}>
-                <strong>{lib.name}</strong>
-                <span>{lib.media_type} · {lib.connection_id} · {lib.base_path} · {lib.enabled ? '已启用' : '已禁用'}</span>
-              </button>
+              <div key={lib.id} className="transfer-row">
+                <div className="transfer-row-main">
+                  <strong>{lib.name}</strong>
+                  <span>{lib.media_type} · {connName(lib.connection_id)} · {lib.base_path} · {lib.enabled ? '已启用' : '已禁用'}</span>
+                  <small>绑定远程库: {lib.bound_remote_libraries.length > 0 ? lib.bound_remote_libraries.join('、') : '无'}</small>
+                </div>
+                <div className="transfer-row-actions">
+                  <button className="ghost-button" onClick={() => openEdit(lib)} type="button">编辑</button>
+                  <button className="ghost-button" onClick={() => void toggleEnabled(lib)} type="button">{lib.enabled ? '禁用' : '启用'}</button>
+                  <button className="ghost-button" onClick={() => void testLibrary(lib)} type="button">测试</button>
+                  <button className="ghost-button danger" onClick={() => openDeleteModal(lib)} type="button">删除</button>
+                </div>
+              </div>
             ))}
-            {libraries.length === 0 && <EmptyState message="暂无媒体库。点击新增创建。" />}
           </div>
-        </section>
-        <section className="source-editor" aria-labelledby="lib-editor-title">
-          <div className="section-heading"><h3 id="lib-editor-title">{mode === 'create' ? '创建媒体库' : '编辑媒体库'}</h3><span>{selectedLibrary ? selectedLibrary.id : 'new'}</span></div>
-          <div className="form-grid">
-            <TextField disabled={mode === 'edit'} helper="唯一 ID，保存后不可改。" label="唯一标识" onChange={(value) => updateField('id', value)} required value={form.id} />
-            <TextField helper="页面展示名称。" label="名称" onChange={(value) => updateField('name', value)} required value={form.name} />
-            <label className="field"><span>媒体类型</span><select value={form.media_type} onChange={(e) => updateField('media_type', e.target.value)}>
-              <option value="movie">电影</option><option value="series">剧集</option><option value="unclassified">未分类</option>
-            </select><small>电影、剧集或未分类。</small></label>
-            <label className="field"><span>SMB 连接</span><select value={form.connection_id} onChange={(e) => updateField('connection_id', e.target.value)}>
-              <option value="">选择连接</option>{connections.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.host}/{c.share})</option>)}
-            </select><small>绑定到某个已配置的 SMB 连接。</small></label>
-            <TextField helper="相对于 SMB 连接 Base Path 的本地目录。" label="目录路径" onChange={(value) => updateField('base_path', value)} required value={form.base_path} />
+        )}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button className="ghost-button" disabled={page <= 1} onClick={() => setPage(page - 1)} type="button">上一页</button>
+            <span>第 {page} / {totalPages} 页</span>
+            <button className="ghost-button" disabled={page >= totalPages} onClick={() => setPage(page + 1)} type="button">下一页</button>
           </div>
-          <div className="form-actions">
-            <button className="primary-button" disabled={isSaving} onClick={() => void saveLibrary()} type="button">{isSaving ? '保存中' : mode === 'create' ? '创建' : '保存'}</button>
-            {selectedLibrary && <>
-              <button className="ghost-button" disabled={isSaving} onClick={() => void toggleLibrary(!selectedLibrary.enabled)} type="button">{selectedLibrary.enabled ? '禁用' : '启用'}</button>
-              <button className="ghost-button" disabled={isSaving} onClick={() => void testLibrary()} type="button">测试</button>
-            </>}
-          </div>
-        </section>
+        )}
       </div>
+
+      {showForm && (
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{formMode === 'create' ? '创建媒体库' : '编辑媒体库'}</h3>
+              <button className="ghost-button" onClick={() => setShowForm(false)} type="button">×</button>
+            </div>
+            <div className="form-grid">
+              <TextField disabled={formMode === 'edit'} helper="唯一 ID，保存后不可改。" label="唯一标识" onChange={(v) => updateForm('id', v)} required value={form.id} />
+              <TextField helper="页面展示名称。" label="名称" onChange={(v) => updateForm('name', v)} required value={form.name} />
+              <label className="field"><span>媒体类型</span><select value={form.media_type} onChange={(e) => updateForm('media_type', e.target.value)}>
+                <option value="movie">电影</option><option value="series">剧集</option><option value="unclassified">未分类</option>
+              </select><small>电影、剧集或未分类。</small></label>
+              <label className="field"><span>SMB 连接</span><select value={form.connection_id} onChange={(e) => updateForm('connection_id', e.target.value)}>
+                <option value="">选择连接</option>{connections.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.host}/{c.share})</option>)}
+              </select><small>绑定到某个已配置的 SMB 连接。</small></label>
+              <TextField helper="相对于 SMB 连接 Base Path 的本地目录。" label="目录路径" onChange={(v) => updateForm('base_path', v)} required value={form.base_path} />
+            </div>
+            <div className="form-actions">
+              <button className="ghost-button" onClick={() => setShowForm(false)} type="button">取消</button>
+              <button className="primary-button" disabled={isSaving} onClick={() => void saveLibrary()} type="button">{isSaving ? '保存中' : formMode === 'create' ? '创建' : '保存'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDelete && deleteTarget && (
+        <div className="modal-overlay" onClick={() => setShowDelete(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>删除媒体库</h3>
+              <button className="ghost-button" onClick={() => setShowDelete(false)} type="button">×</button>
+            </div>
+            <p>删除 <strong>{deleteTarget.name}</strong> 将影响以下绑定：</p>
+            {deleteTarget.bound_remote_libraries.length > 0 && (
+              <div><strong>远程媒体库：</strong>{deleteTarget.bound_remote_libraries.join('、')}</div>
+            )}
+            {deleteTarget.bound_remote_libraries.length === 0 && (
+              <p>此媒体库没有绑定的远程媒体库。</p>
+            )}
+            <div className="form-actions">
+              <button className="ghost-button" onClick={() => void executeDelete('cancel')} type="button">取消</button>
+              {deleteTarget.bound_remote_libraries.length > 0 && (
+                <button className="ghost-button" disabled={isSaving} onClick={() => void executeDelete('unbind')} type="button">仅解绑</button>
+              )}
+              <button className="ghost-button danger" disabled={isSaving} onClick={() => void executeDelete('delete')} type="button">删除所有</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ApiClientPreview />
     </section>
   )
 }
 
 function RemoteLibrariesPanel() {
-  const [libraries, setLibraries] = useState<MediaLibraryResponse[]>([])
+  const [libraries, setLibraries] = useState<RemoteMediaLibraryResponse[]>([])
   const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [form, setForm] = useState<MediaLibraryFormState>(emptyLibraryForm())
-  const [mode, setMode] = useState<'create' | 'edit'>('create')
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [localLibraries, setLocalLibraries] = useState<MediaLibraryResponse[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+
+  const [showForm, setShowForm] = useState(false)
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<RemoteMediaLibraryFormState>(emptyRemoteLibraryForm())
   const [isSaving, setIsSaving] = useState(false)
 
-  useEffect(() => { void loadLibraries() }, [])
+  const [showDelete, setShowDelete] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<RemoteMediaLibraryResponse | null>(null)
 
-  const selectedLibrary = libraries.find((l) => l.id === selectedId) || null
+  useEffect(() => { void loadAll() }, [page])
 
-  async function loadLibraries(nextSelectedId = selectedId) {
-    setIsLoading(true)
-    setError(null)
+  async function loadAll() {
+    setIsLoading(true); setError(null)
     try {
-      const [libList, connList] = await Promise.all([
-        api.get<MediaLibraryListResponse>('/remote-media-libraries'),
-        api.get<SmbConnectionListResponse>('/storage/smb-connections'),
+      const [libResult, connResult, localResult] = await Promise.all([
+        api.get<RemoteMediaLibraryListResponse>(`/remote-media-libraries?page=${page}&page_size=${pageSize}`),
+        api.get<SmbConnectionListResponse>('/storage/smb-connections?page_size=100'),
+        api.get<MediaLibraryListResponse>('/media-libraries?page_size=100'),
       ])
-      setLibraries(libList.results)
-      setConnections(connList.results)
-      const next = libList.results.find((l) => l.id === nextSelectedId) || libList.results[0] || null
-      if (next) { selectLibrary(next, false) } else { startCreate() }
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '无法读取远程媒体库配置。')
-    } finally { setIsLoading(false) }
+      setLibraries(libResult.results); setTotalCount(libResult.count)
+      setConnections(connResult.results)
+      setLocalLibraries(localResult.results)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '无法读取远程媒体库。') }
+    finally { setIsLoading(false) }
   }
 
-  function selectLibrary(lib: MediaLibraryResponse, clearFeedback = true) {
-    setMode('edit'); setSelectedId(lib.id)
-    setForm({ id: lib.id, name: lib.name, media_type: lib.media_type, enabled: lib.enabled, connection_id: lib.connection_id, base_path: lib.base_path })
-    if (clearFeedback) { setMessage(null); setError(null) }
+  function openCreate() {
+    setFormMode('create'); setEditingId(null)
+    setForm(emptyRemoteLibraryForm()); setShowForm(true); setMessage(null); setError(null)
   }
 
-  function startCreate() {
-    setMode('create'); setSelectedId(null)
-    setForm(emptyLibraryForm()); setMessage(null); setError(null)
+  function openEdit(lib: RemoteMediaLibraryResponse) {
+    setFormMode('edit'); setEditingId(lib.id)
+    setForm({
+      id: lib.id, name: lib.name, media_type: lib.media_type, enabled: lib.enabled,
+      connection_id: lib.connection_id, base_path: lib.base_path,
+      target_library_id: lib.target_library_id || '',
+      scan_interval_seconds: String(lib.scan_interval_seconds),
+      stable_seconds: String(lib.stable_seconds),
+      delete_source_after_success: triStateFromBoolean(lib.delete_source_after_success),
+      delete_empty_source_dirs: triStateFromBoolean(lib.delete_empty_source_dirs),
+    })
+    setShowForm(true); setMessage(null); setError(null)
   }
 
   async function saveLibrary() {
-    if (!window.confirm(`确认${mode === 'create' ? '创建' : '保存'}远程媒体库？`)) return
     setIsSaving(true); setError(null); setMessage(null)
     try {
-      const payload = { name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/' }
-      const saved = mode === 'create'
-        ? await api.post<MediaLibraryResponse>('/remote-media-libraries/create', { id: form.id.trim(), ...payload })
-        : await api.post<MediaLibraryResponse>(`/remote-media-libraries/${encodeURIComponent(form.id)}/update`, payload)
-      setMessage(mode === 'create' ? '远程媒体库已创建。' : '远程媒体库已保存。')
-      await loadLibraries(saved.id)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存远程媒体库失败。') }
+      const payload = {
+        name: form.name.trim(), media_type: form.media_type, enabled: form.enabled,
+        connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/',
+        target_library_id: form.target_library_id || null,
+        scan_interval_seconds: Number(form.scan_interval_seconds) || 60,
+        stable_seconds: Number(form.stable_seconds) || 120,
+        delete_source_after_success: triStateToBoolean(form.delete_source_after_success),
+        delete_empty_source_dirs: triStateToBoolean(form.delete_empty_source_dirs),
+      }
+      if (formMode === 'create') {
+        await api.post('/remote-media-libraries/create', { id: form.id.trim(), ...payload })
+      } else {
+        await api.post(`/remote-media-libraries/${encodeURIComponent(editingId!)}/update`, payload)
+      }
+      setShowForm(false); setMessage(formMode === 'create' ? '远程媒体库已创建。' : '远程媒体库已保存。')
+      await loadAll()
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存失败。') }
     finally { setIsSaving(false) }
   }
 
-  async function toggleLibrary(enabled: boolean) {
-    if (!selectedLibrary) return
-    if (!window.confirm(`确认${enabled ? '启用' : '禁用'}远程媒体库 ${selectedLibrary.name}？`)) return
+  async function toggleEnabled(lib: RemoteMediaLibraryResponse) {
     setIsSaving(true); setError(null); setMessage(null)
     try {
-      await api.post<MediaLibraryResponse>(`/remote-media-libraries/${encodeURIComponent(selectedLibrary.id)}/${enabled ? 'enable' : 'disable'}`)
-      setMessage(enabled ? '远程媒体库已启用。' : '远程媒体库已禁用。')
-      await loadLibraries(selectedLibrary.id)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '切换远程媒体库状态失败。') }
+      await api.post(`/remote-media-libraries/${encodeURIComponent(lib.id)}/${lib.enabled ? 'disable' : 'enable'}`)
+      setMessage(lib.enabled ? '远程媒体库已禁用。' : '远程媒体库已启用。')
+      await loadAll()
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '操作失败。') }
     finally { setIsSaving(false) }
   }
 
-  async function testLibrary() {
-    if (!selectedLibrary) { setError('请先选择已保存的远程媒体库。'); return }
-    setIsSaving(true); setError(null); setMessage(null)
+  async function testLibrary(lib: RemoteMediaLibraryResponse) {
+    setError(null); setMessage(null)
     try {
-      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(`/remote-media-libraries/${encodeURIComponent(selectedLibrary.id)}/test`)
+      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(`/remote-media-libraries/${encodeURIComponent(lib.id)}/test`)
       setMessage(result.ok ? '远程媒体库目录测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试远程媒体库失败。') }
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试失败。') }
+  }
+
+  function openDeleteModal(lib: RemoteMediaLibraryResponse) {
+    setDeletingId(lib.id); setDeleteTarget(lib); setShowDelete(true)
+  }
+
+  async function executeDelete(action: 'delete' | 'cancel') {
+    if (action === 'cancel') { setShowDelete(false); return }
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      await api.post(`/remote-media-libraries/${encodeURIComponent(deletingId!)}/delete`, { action })
+      setShowDelete(false); setMessage('远程媒体库已删除。')
+      await loadAll()
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '删除失败。') }
     finally { setIsSaving(false) }
   }
 
-  function updateField(key: keyof MediaLibraryFormState, value: string | boolean) { setForm((c) => ({ ...c, [key]: value })) }
+  function updateForm(key: keyof RemoteMediaLibraryFormState, value: string | boolean) { setForm((c) => ({ ...c, [key]: value })) }
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+  const connName = (id: string) => connections.find((c) => c.id === id)?.name || id
+  const libName = (id: string) => localLibraries.find((l) => l.id === id)?.name || id
 
   return (
     <section className="panel" aria-labelledby="remote-libraries-title">
@@ -1351,291 +1490,105 @@ function RemoteLibrariesPanel() {
         <div>
           <p className="panel-kicker">远程媒体库</p>
           <h2 id="remote-libraries-title">远程媒体库管理</h2>
-          <p>管理远程媒体库目录绑定，用于同步到本地媒体库。</p>
+          <p>管理远程媒体库目录绑定，配置同步目标和扫描参数。</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="ghost-button" disabled={isLoading} onClick={() => void loadLibraries()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
-          <button className="primary-button" onClick={startCreate} type="button">新增</button>
+          <button className="ghost-button" disabled={isLoading} onClick={() => void loadAll()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
+          <button className="primary-button" onClick={openCreate} type="button">新增</button>
         </div>
       </div>
+
       {message && <div className="inline-message">{message}</div>}
       {error && <div className="inline-message error">{error}</div>}
-      <div className="ingest-layout">
-        <section className="source-list" aria-labelledby="remote-lib-list-title">
-          <div className="section-heading"><h3 id="remote-lib-list-title">远程媒体库列表</h3><span>{libraries.length} 个</span></div>
+      {isLoading && <LoadingState message="正在读取远程媒体库。" />}
+
+      <div className="transfer-list-section">
+        <div className="section-heading"><h3>远程媒体库列表</h3><span>{totalCount} 个</span></div>
+        {libraries.length === 0 ? <EmptyState message="暂无远程媒体库。点击新增创建。" /> : (
           <div className="transfer-list">
             {libraries.map((lib) => (
-              <button key={lib.id} type="button" className={`source-row ${lib.id === selectedId ? 'selected' : ''}`} onClick={() => selectLibrary(lib)}>
-                <strong>{lib.name}</strong>
-                <span>{lib.media_type} · {lib.connection_id} · {lib.base_path} · {lib.enabled ? '已启用' : '已禁用'}</span>
-              </button>
+              <div key={lib.id} className="transfer-row">
+                <div className="transfer-row-main">
+                  <strong>{lib.name}</strong>
+                  <span>{lib.media_type} · {connName(lib.connection_id)} · {lib.base_path} · {lib.enabled ? '已启用' : '已禁用'}</span>
+                  <small>同步目标: {lib.target_library_id ? libName(lib.target_library_id) : '未绑定'} · 扫描间隔: {lib.scan_interval_seconds}s</small>
+                </div>
+                <div className="transfer-row-actions">
+                  <button className="ghost-button" onClick={() => openEdit(lib)} type="button">编辑</button>
+                  <button className="ghost-button" onClick={() => void toggleEnabled(lib)} type="button">{lib.enabled ? '禁用' : '启用'}</button>
+                  <button className="ghost-button" onClick={() => void testLibrary(lib)} type="button">测试</button>
+                  <button className="ghost-button danger" onClick={() => openDeleteModal(lib)} type="button">删除</button>
+                </div>
+              </div>
             ))}
-            {libraries.length === 0 && <EmptyState message="暂无远程媒体库。点击新增创建。" />}
           </div>
-        </section>
-        <section className="source-editor" aria-labelledby="remote-lib-editor-title">
-          <div className="section-heading"><h3 id="remote-lib-editor-title">{mode === 'create' ? '创建远程媒体库' : '编辑远程媒体库'}</h3><span>{selectedLibrary ? selectedLibrary.id : 'new'}</span></div>
-          <div className="form-grid">
-            <TextField disabled={mode === 'edit'} helper="唯一 ID，保存后不可改。" label="唯一标识" onChange={(value) => updateField('id', value)} required value={form.id} />
-            <TextField helper="页面展示名称。" label="名称" onChange={(value) => updateField('name', value)} required value={form.name} />
-            <label className="field"><span>媒体类型</span><select value={form.media_type} onChange={(e) => updateField('media_type', e.target.value)}>
-              <option value="movie">电影</option><option value="series">剧集</option><option value="unclassified">未分类</option>
-            </select><small>电影、剧集或未分类。</small></label>
-            <label className="field"><span>SMB 连接</span><select value={form.connection_id} onChange={(e) => updateField('connection_id', e.target.value)}>
-              <option value="">选择连接</option>{connections.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.host}/{c.share})</option>)}
-            </select><small>绑定到某个已配置的 SMB 连接。</small></label>
-            <TextField helper="相对于 SMB 连接 Base Path 的远程目录。" label="目录路径" onChange={(value) => updateField('base_path', value)} required value={form.base_path} />
+        )}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button className="ghost-button" disabled={page <= 1} onClick={() => setPage(page - 1)} type="button">上一页</button>
+            <span>第 {page} / {totalPages} 页</span>
+            <button className="ghost-button" disabled={page >= totalPages} onClick={() => setPage(page + 1)} type="button">下一页</button>
           </div>
-          <div className="form-actions">
-            <button className="primary-button" disabled={isSaving} onClick={() => void saveLibrary()} type="button">{isSaving ? '保存中' : mode === 'create' ? '创建' : '保存'}</button>
-            {selectedLibrary && <>
-              <button className="ghost-button" disabled={isSaving} onClick={() => void toggleLibrary(!selectedLibrary.enabled)} type="button">{selectedLibrary.enabled ? '禁用' : '启用'}</button>
-              <button className="ghost-button" disabled={isSaving} onClick={() => void testLibrary()} type="button">测试</button>
-            </>}
-          </div>
-        </section>
+        )}
       </div>
-    </section>
-  )
-}
 
-function SyncPanel({ onTransfersChanged }: { onTransfersChanged: () => Promise<void> }) {
-  const [configForm, setConfigForm] = useState<SyncConfigFormState>(emptySyncConfigForm())
-  const [bindings, setBindings] = useState<SyncBindingResponse[]>([])
-  const [remoteLibraries, setRemoteLibraries] = useState<MediaLibraryResponse[]>([])
-  const [localLibraries, setLocalLibraries] = useState<MediaLibraryResponse[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [form, setForm] = useState<SyncBindingFormState>(emptySyncBindingForm())
-  const [mode, setMode] = useState<'create' | 'edit'>('create')
-  const [discovered, setDiscovered] = useState<SyncDiscoveredFileResponse[]>([])
-  const [scanResult, setScanResult] = useState<SyncScanResponse | null>(null)
-  const [createdTasks, setCreatedTasks] = useState<SyncTaskCreateResponse | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isScanning, setIsScanning] = useState(false)
-  const [isCreatingTasks, setIsCreatingTasks] = useState(false)
-
-  useEffect(() => { void loadSync() }, [])
-
-  const selectedBinding = bindings.find((b) => b.id === selectedId) || null
-
-  async function loadSync(nextSelectedId = selectedId) {
-    setIsLoading(true); setError(null)
-    try {
-      const [config, bindingList, discoveredList, remoteList, localList] = await Promise.all([
-        api.get<SyncConfigResponse>('/sync/config'),
-        api.get<SyncBindingListResponse>('/sync/bindings'),
-        api.get<SyncDiscoveredListResponse>('/sync/discovered'),
-        api.get<MediaLibraryListResponse>('/remote-media-libraries'),
-        api.get<MediaLibraryListResponse>('/media-libraries'),
-      ])
-      setConfigForm(syncConfigFormFromResponse(config))
-      setBindings(bindingList.results)
-      setDiscovered(discoveredList.results)
-      setRemoteLibraries(remoteList.results)
-      setLocalLibraries(localList.results)
-      const next = bindingList.results.find((b) => b.id === nextSelectedId) || bindingList.results[0] || null
-      if (next) { selectBinding(next, false) } else { startCreate() }
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '无法读取同步配置。') }
-    finally { setIsLoading(false) }
-  }
-
-  function selectBinding(binding: SyncBindingResponse, clearFeedback = true) {
-    setMode('edit'); setSelectedId(binding.id)
-    setForm({
-      id: binding.id,
-      name: binding.name,
-      enabled: binding.enabled,
-      media_type: binding.media_type,
-      remote_library_id: binding.remote_library_id,
-      local_library_id: binding.local_library_id,
-      delete_source_after_success: triStateFromBoolean(binding.delete_source_after_success),
-      delete_empty_source_dirs: triStateFromBoolean(binding.delete_empty_source_dirs),
-    })
-    if (clearFeedback) { setMessage(null); setError(null); setScanResult(null); setCreatedTasks(null) }
-  }
-
-  function startCreate() {
-    setMode('create'); setSelectedId(null)
-    setForm(emptySyncBindingForm()); setMessage(null); setError(null); setScanResult(null); setCreatedTasks(null)
-  }
-
-  async function saveConfig() {
-    setIsSaving(true); setError(null); setMessage(null)
-    try {
-      const saved = await api.post<SyncConfigResponse>('/sync/config/save', syncConfigRequestFromForm(configForm))
-      setConfigForm(syncConfigFormFromResponse(saved)); setMessage('同步全局配置已保存。')
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存配置失败。') }
-    finally { setIsSaving(false) }
-  }
-
-  async function saveBinding() {
-    if (!window.confirm(`确认${mode === 'create' ? '创建' : '保存'}同步绑定？`)) return
-    setIsSaving(true); setError(null); setMessage(null)
-    try {
-      const payload = {
-        name: form.name.trim(),
-        enabled: form.enabled,
-        media_type: form.media_type,
-        remote_library_id: form.remote_library_id.trim(),
-        local_library_id: form.local_library_id.trim(),
-        delete_source_after_success: triStateToBoolean(form.delete_source_after_success),
-        delete_empty_source_dirs: triStateToBoolean(form.delete_empty_source_dirs),
-      }
-      const saved = mode === 'create'
-        ? await api.post<SyncBindingResponse>('/sync/bindings/create', { id: form.id.trim(), ...payload })
-        : await api.post<SyncBindingResponse>(`/sync/bindings/${encodeURIComponent(form.id)}/update`, payload)
-      setMessage(mode === 'create' ? '同步绑定已创建。' : '同步绑定已保存。')
-      await loadSync(saved.id)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存同步绑定失败。') }
-    finally { setIsSaving(false) }
-  }
-
-  async function toggleBinding(enabled: boolean) {
-    if (!selectedBinding) return
-    if (!window.confirm(`确认${enabled ? '启用' : '禁用'}同步绑定 ${selectedBinding.name}？`)) return
-    setIsSaving(true); setError(null); setMessage(null)
-    try {
-      await api.post<SyncBindingResponse>(`/sync/bindings/${encodeURIComponent(selectedBinding.id)}/${enabled ? 'enable' : 'disable'}`)
-      setMessage(enabled ? '同步绑定已启用。' : '同步绑定已禁用。')
-      await loadSync(selectedBinding.id)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '切换状态失败。') }
-    finally { setIsSaving(false) }
-  }
-
-  async function testBinding() {
-    if (!selectedBinding) { setError('请先选择已保存的同步绑定。'); return }
-    setIsSaving(true); setError(null); setMessage(null)
-    try {
-      const result = await api.post<SyncBindingTestResponse>(`/sync/bindings/${encodeURIComponent(selectedBinding.id)}/test`)
-      setMessage(result.ok ? '远程和本地媒体库测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试同步绑定失败。') }
-    finally { setIsSaving(false) }
-  }
-
-  async function scanSources(bindingId?: string) {
-    setIsScanning(true); setError(null); setMessage(null); setScanResult(null)
-    try {
-      const result = await api.post<SyncScanResponse>('/sync/scan', bindingId ? { binding_id: bindingId } : {})
-      setScanResult(result); setMessage(`扫描完成：发现 ${result.discovered_count} 个新文件，稳定 ${result.stable_count} 个文件。`)
-      const discoveredList = await api.get<SyncDiscoveredListResponse>('/sync/discovered')
-      setDiscovered(discoveredList.results)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '扫描来源目录失败。') }
-    finally { setIsScanning(false) }
-  }
-
-  async function createTasks(bindingId?: string) {
-    setIsCreatingTasks(true); setError(null); setMessage(null); setCreatedTasks(null)
-    try {
-      const result = await api.post<SyncTaskCreateResponse>('/sync/tasks/create', bindingId ? { binding_id: bindingId } : {})
-      setCreatedTasks(result); setMessage(`已创建 ${result.created_count} 个同步任务，跳过 ${result.skipped_count} 个文件。`)
-      const discoveredList = await api.get<SyncDiscoveredListResponse>('/sync/discovered')
-      setDiscovered(discoveredList.results)
-      window.dispatchEvent(new Event('sundarr:transfers-changed'))
-      await onTransfersChanged()
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '创建同步任务失败。') }
-    finally { setIsCreatingTasks(false) }
-  }
-
-  function updateField(key: keyof SyncBindingFormState, value: string | boolean) { setForm((c) => ({ ...c, [key]: value })) }
-  function updateConfigField(key: keyof SyncConfigFormState, value: string | boolean) { setConfigForm((c) => ({ ...c, [key]: value })) }
-
-  return (
-    <section className="panel" aria-labelledby="sync-title">
-      <div className="panel-header-row">
-        <div>
-          <p className="panel-kicker">同步</p>
-          <h2 id="sync-title">远程到本地同步</h2>
-          <p>管理远程媒体库到本地媒体库的同步绑定，扫描来源目录并创建下载任务。</p>
-        </div>
-        <button className="ghost-button" disabled={isLoading} onClick={() => void loadSync()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
-      </div>
-      {message && <div className="inline-message">{message}</div>}
-      {error && <div className="inline-message error">{error}</div>}
-      <div className="ingest-layout">
-        <div className="ingest-left">
-          <section className="ingest-section" aria-labelledby="sync-config-title">
-            <div className="section-heading"><h3 id="sync-config-title">全局配置</h3></div>
-            <div className="form-grid compact">
-              <label className="checkbox"><input type="checkbox" checked={configForm.delete_source_after_success} onChange={(e) => updateConfigField('delete_source_after_success', e.target.checked)} /><span>成功后删除来源文件</span></label>
-              <label className="checkbox"><input type="checkbox" checked={configForm.delete_empty_source_dirs} onChange={(e) => updateConfigField('delete_empty_source_dirs', e.target.checked)} /><span>成功后删除空来源目录</span></label>
-              <TextField helper="两次扫描之间的间隔秒数。" label="扫描间隔(秒)" onChange={(value) => updateConfigField('scan_interval_seconds', value)} type="number" value={configForm.scan_interval_seconds} />
-              <TextField helper="文件 size/mtime 不变超过该秒数后才创建任务。" label="稳定等待(秒)" onChange={(value) => updateConfigField('stable_seconds', value)} type="number" value={configForm.stable_seconds} />
-              <TextField helper="绑定不明确时自动归入的媒体库 ID。" label="未分类媒体库 ID" onChange={(value) => updateConfigField('unclassified_library_id', value)} value={configForm.unclassified_library_id} />
+      {showForm && (
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{formMode === 'create' ? '创建远程媒体库' : '编辑远程媒体库'}</h3>
+              <button className="ghost-button" onClick={() => setShowForm(false)} type="button">×</button>
             </div>
-            <div className="form-actions"><button className="primary-button" disabled={isSaving} onClick={() => void saveConfig()} type="button">{isSaving ? '保存中' : '保存配置'}</button></div>
-          </section>
-          <section className="source-list" aria-labelledby="sync-binding-list-title">
-            <div className="section-heading"><h3 id="sync-binding-list-title">同步绑定</h3><span>{bindings.length} 个</span></div>
-            <div className="transfer-list">
-              {bindings.map((b) => (
-                <button key={b.id} type="button" className={`source-row ${b.id === selectedId ? 'selected' : ''}`} onClick={() => selectBinding(b)}>
-                  <strong>{b.name}</strong>
-                  <span>{b.media_type} · {b.remote_library_id} → {b.local_library_id} · {b.enabled ? '已启用' : '已禁用'}</span>
-                </button>
-              ))}
-              {bindings.length === 0 && <EmptyState message="暂无同步绑定。点击新增创建。" />}
-            </div>
-            <div className="form-actions"><button className="primary-button" onClick={startCreate} type="button">新增</button></div>
-          </section>
-        </div>
-        <div className="ingest-right">
-          <section className="source-editor" aria-labelledby="sync-binding-editor-title">
-            <div className="section-heading"><h3 id="sync-binding-editor-title">{mode === 'create' ? '创建绑定' : '编辑绑定'}</h3><span>{selectedBinding ? selectedBinding.id : 'new'}</span></div>
-            <div className="form-grid compact">
-              <TextField disabled={mode === 'edit'} helper="唯一 ID，保存后不可改。" label="唯一标识" onChange={(value) => updateField('id', value)} required value={form.id} />
-              <TextField helper="页面展示名称。" label="名称" onChange={(value) => updateField('name', value)} required value={form.name} />
-              <label className="field"><span>媒体类型</span><select value={form.media_type} onChange={(e) => updateField('media_type', e.target.value)}>
+            <div className="form-grid">
+              <TextField disabled={formMode === 'edit'} helper="唯一 ID，保存后不可改。" label="唯一标识" onChange={(v) => updateForm('id', v)} required value={form.id} />
+              <TextField helper="页面展示名称。" label="名称" onChange={(v) => updateForm('name', v)} required value={form.name} />
+              <label className="field"><span>媒体类型</span><select value={form.media_type} onChange={(e) => updateForm('media_type', e.target.value)}>
                 <option value="movie">电影</option><option value="series">剧集</option><option value="unclassified">未分类</option>
               </select><small>电影、剧集或未分类。</small></label>
-              <label className="field"><span>远程媒体库</span><select value={form.remote_library_id} onChange={(e) => updateField('remote_library_id', e.target.value)}>
-                <option value="">选择远程媒体库</option>{remoteLibraries.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.media_type})</option>)}
-              </select><small>同步来源：远程媒体库目录。</small></label>
-              <label className="field"><span>本地媒体库</span><select value={form.local_library_id} onChange={(e) => updateField('local_library_id', e.target.value)}>
-                <option value="">选择本地媒体库</option>{localLibraries.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.media_type})</option>)}
-              </select><small>同步目标：本地媒体库目录。</small></label>
-              <label className="field"><span>成功后删除来源</span><select value={form.delete_source_after_success} onChange={(e) => updateField('delete_source_after_success', e.target.value)}>
+              <label className="field"><span>SMB 连接</span><select value={form.connection_id} onChange={(e) => updateForm('connection_id', e.target.value)}>
+                <option value="">选择连接</option>{connections.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.host}/{c.share})</option>)}
+              </select><small>绑定到某个已配置的 SMB 连接。</small></label>
+              <TextField helper="相对于 SMB 连接 Base Path 的远程目录。" label="目录路径" onChange={(v) => updateForm('base_path', v)} required value={form.base_path} />
+            </div>
+            <div className="section-heading" style={{ marginTop: 16 }}><h3>同步配置</h3></div>
+            <div className="form-grid">
+              <label className="field"><span>同步目标本地媒体库</span><select value={form.target_library_id} onChange={(e) => updateForm('target_library_id', e.target.value)}>
+                <option value="">不绑定（禁用自动同步）</option>{localLibraries.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.media_type})</option>)}
+              </select><small>绑定后 Worker 将自动扫描并下载到此本地媒体库。</small></label>
+              <TextField helper="两次扫描之间的间隔秒数。" label="扫描间隔(秒)" onChange={(v) => updateForm('scan_interval_seconds', v)} type="number" value={form.scan_interval_seconds} />
+              <TextField helper="文件 size/mtime 不变超过该秒数后才创建任务。" label="稳定等待(秒)" onChange={(v) => updateForm('stable_seconds', v)} type="number" value={form.stable_seconds} />
+              <label className="field"><span>成功后删除来源</span><select value={form.delete_source_after_success} onChange={(e) => updateForm('delete_source_after_success', e.target.value)}>
                 <option value="">使用全局默认</option><option value="true">删除</option><option value="false">保留</option>
               </select><small>为空时使用全局配置。</small></label>
-              <label className="field"><span>成功后删除空目录</span><select value={form.delete_empty_source_dirs} onChange={(e) => updateField('delete_empty_source_dirs', e.target.value)}>
+              <label className="field"><span>成功后删除空目录</span><select value={form.delete_empty_source_dirs} onChange={(e) => updateForm('delete_empty_source_dirs', e.target.value)}>
                 <option value="">使用全局默认</option><option value="true">删除</option><option value="false">保留</option>
               </select><small>为空时使用全局配置。</small></label>
             </div>
             <div className="form-actions">
-              <button className="primary-button" disabled={isSaving} onClick={() => void saveBinding()} type="button">{isSaving ? '保存中' : mode === 'create' ? '创建' : '保存'}</button>
-              {selectedBinding && <>
-                <button className="ghost-button" disabled={isSaving} onClick={() => void toggleBinding(!selectedBinding.enabled)} type="button">{selectedBinding.enabled ? '禁用' : '启用'}</button>
-                <button className="ghost-button" disabled={isSaving} onClick={() => void testBinding()} type="button">测试</button>
-              </>}
+              <button className="ghost-button" onClick={() => setShowForm(false)} type="button">取消</button>
+              <button className="primary-button" disabled={isSaving} onClick={() => void saveLibrary()} type="button">{isSaving ? '保存中' : formMode === 'create' ? '创建' : '保存'}</button>
             </div>
-          </section>
-          <section className="ingest-section" aria-labelledby="sync-actions-title">
-            <div className="section-heading"><h3 id="sync-actions-title">扫描与任务</h3><span>{discovered.length} 个发现文件</span></div>
-            <div className="form-actions">
-              <button className="ghost-button" disabled={isScanning} onClick={() => void scanSources(selectedBinding?.id)} type="button">{isScanning ? '扫描中' : '扫描来源目录'}</button>
-              <button className="ghost-button" disabled={isCreatingTasks} onClick={() => void createTasks(selectedBinding?.id)} type="button">{isCreatingTasks ? '创建中' : '创建同步任务'}</button>
-            </div>
-            {scanResult && <div className="inline-message">扫描了 {scanResult.scanned_bindings} 个绑定，发现 {scanResult.discovered_count} 个新文件，稳定 {scanResult.stable_count} 个。</div>}
-            {createdTasks && <div className="inline-message">已创建 {createdTasks.created_count} 个任务，跳过 {createdTasks.skipped_count} 个。</div>}
-          </section>
-          <section aria-labelledby="sync-discovered-title">
-            <div className="section-heading"><h3 id="sync-discovered-title">发现文件</h3></div>
-            <div className="transfer-list">
-              {discovered.length === 0 && <EmptyState message="暂无发现文件。先扫描启用的同步绑定。" />}
-              {discovered.map((file) => (
-                <article className="discovered-row" key={file.id}>
-                  <span className={`status-pill ${syncSeenTone(file.status)}`}>{syncSeenStatusLabel(file.status)}</span>
-                  <strong>{file.source_path}</strong>
-                  <small>{file.binding_id || '无绑定'} · {formatBytes(file.source_size || 0)}</small>
-                  <small>{file.task_id ? `任务 ${file.task_id}` : '未创建任务'}</small>
-                </article>
-              ))}
-            </div>
-          </section>
+          </div>
         </div>
-      </div>
+      )}
+
+      {showDelete && deleteTarget && (
+        <div className="modal-overlay" onClick={() => setShowDelete(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>删除远程媒体库</h3>
+              <button className="ghost-button" onClick={() => setShowDelete(false)} type="button">×</button>
+            </div>
+            <p>确认删除远程媒体库 <strong>{deleteTarget.name}</strong>？关联的同步记录将被清理。</p>
+            <div className="form-actions">
+              <button className="ghost-button" onClick={() => void executeDelete('cancel')} type="button">取消</button>
+              <button className="ghost-button danger" disabled={isSaving} onClick={() => void executeDelete('delete')} type="button">确认删除</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ApiClientPreview />
     </section>
   )
 }
@@ -2082,123 +2035,114 @@ function ResourceCard({ onSelect, resource, selectedLinkId }: { onSelect: (link:
 
 function StoragePanel() {
   const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [form, setForm] = useState<StorageFormState>(emptyStorageForm())
-  const [passwordSet, setPasswordSet] = useState(false)
-  const [mode, setMode] = useState<'create' | 'edit'>('create')
-  const [browsePath, setBrowsePath] = useState('')
-  const [browseResult, setBrowseResult] = useState<StorageBrowseResponse | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [totalCount, setTotalCount] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+
+  const [showForm, setShowForm] = useState(false)
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<StorageFormState>(emptyStorageForm())
+  const [formName, setFormName] = useState('')
+  const [passwordSet, setPasswordSet] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
+
+  const [showDelete, setShowDelete] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<SmbConnectionResponse | null>(null)
+
+  const [showBrowse, setShowBrowse] = useState(false)
+  const [browseId, setBrowseId] = useState<string | null>(null)
+  const [browsePath, setBrowsePath] = useState('')
+  const [browseResult, setBrowseResult] = useState<StorageBrowseResponse | null>(null)
   const [isBrowsing, setIsBrowsing] = useState(false)
 
-  useEffect(() => { void loadConnections() }, [])
+  useEffect(() => { void loadConnections() }, [page])
 
-  const selectedConnection = connections.find((c) => c.id === selectedId) || null
-
-  async function loadConnections(nextSelectedId = selectedId) {
-    setIsLoading(true)
-    setError(null)
+  async function loadConnections() {
+    setIsLoading(true); setError(null)
     try {
-      const result = await api.get<SmbConnectionListResponse>('/storage/smb-connections')
+      const result = await api.get<SmbConnectionListResponse>(`/storage/smb-connections?page=${page}&page_size=${pageSize}`)
       setConnections(result.results)
-      const next = result.results.find((c) => c.id === nextSelectedId) || result.results[0] || null
-      if (next) { selectConnection(next, false) } else { startCreate() }
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '无法读取 SMB 连接。')
-    } finally { setIsLoading(false) }
+      setTotalCount(result.count)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '无法读取 SMB 连接。') }
+    finally { setIsLoading(false) }
   }
 
-  function selectConnection(conn: SmbConnectionResponse, clearFeedback = true) {
-    setMode('edit')
-    setSelectedId(conn.id)
-    setForm({
-      host: conn.host,
-      port: String(conn.port),
-      share: conn.share,
-      username: conn.username,
-      password: '',
-      domain: conn.domain,
-      base_path: conn.base_path,
-      library_movies: '',
-      library_tv: '',
-      library_anime: '',
-    })
-    setPasswordSet(conn.password_set)
-    if (clearFeedback) { setMessage(null); setError(null); setBrowseResult(null) }
+  function openCreate() {
+    setFormMode('create'); setEditingId(null)
+    setForm(emptyStorageForm()); setFormName(''); setPasswordSet(false)
+    setShowForm(true); setMessage(null); setError(null)
   }
 
-  function startCreate() {
-    setMode('create')
-    setSelectedId(null)
-    setForm(emptyStorageForm())
-    setPasswordSet(false)
-    setMessage(null)
-    setError(null)
-    setBrowseResult(null)
+  function openEdit(conn: SmbConnectionResponse) {
+    setFormMode('edit'); setEditingId(conn.id)
+    setForm({ host: conn.host, port: String(conn.port), share: conn.share, username: conn.username, password: '', domain: conn.domain, base_path: conn.base_path, library_movies: '', library_tv: '', library_anime: '' })
+    setFormName(conn.name); setPasswordSet(conn.password_set)
+    setShowForm(true); setMessage(null); setError(null)
   }
 
   async function saveConnection() {
-    if (!window.confirm('确认保存 SMB 连接？')) return
-    setIsSaving(true)
-    setError(null)
-    setMessage(null)
+    setIsSaving(true); setError(null); setMessage(null)
     try {
-      const payload = {
-        host: form.host.trim(),
-        port: Number(form.port) || 445,
-        share: form.share.trim(),
-        username: form.username.trim(),
-        password: form.password || null,
-        domain: form.domain.trim(),
-        base_path: form.base_path.trim() || '/',
-      }
-      if (mode === 'create') {
+      const payload = { host: form.host.trim(), port: Number(form.port) || 445, share: form.share.trim(), username: form.username.trim(), password: form.password || null, domain: form.domain.trim(), base_path: form.base_path.trim() || '/' }
+      if (formMode === 'create') {
         const id = `conn_${Date.now()}`
-        await api.post<SmbConnectionResponse>('/storage/smb-connections/create', { id, name: `${payload.host}/${payload.share}`, ...payload })
+        await api.post('/storage/smb-connections/create', { id, name: formName.trim() || `${payload.host}/${payload.share}`, ...payload })
       } else {
-        await api.post<SmbConnectionResponse>(`/storage/smb-connections/${encodeURIComponent(selectedId!)}/update`, { name: selectedConnection?.name || '', ...payload })
+        await api.post(`/storage/smb-connections/${encodeURIComponent(editingId!)}/update`, { name: formName.trim(), ...payload })
       }
-      setMessage(mode === 'create' ? 'SMB 连接已创建。' : 'SMB 连接已保存。')
-      await loadConnections(selectedId)
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '保存 SMB 连接失败。')
-    } finally { setIsSaving(false) }
+      setShowForm(false); setMessage(formMode === 'create' ? 'SMB 连接已创建。' : 'SMB 连接已保存。')
+      await loadConnections()
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存失败。') }
+    finally { setIsSaving(false) }
   }
 
   async function testConnection() {
-    if (!selectedId) { setError('请先选择已保存的连接。'); return }
-    setIsTesting(true)
-    setError(null)
-    setMessage(null)
+    if (!editingId) return
+    setIsTesting(true); setError(null); setMessage(null)
     try {
-      const result = await api.post<StorageConfigTestResponse>(`/storage/smb-connections/${encodeURIComponent(selectedId)}/test`)
-      setMessage(result.ok ? 'SMB 连接测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || 'SMB 连接测试失败。'}`)
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '测试 SMB 连接失败。')
-    } finally { setIsTesting(false) }
+      const result = await api.post<StorageConfigTestResponse>(`/storage/smb-connections/${encodeURIComponent(editingId)}/test`)
+      setMessage(result.ok ? 'SMB 连接测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试失败。') }
+    finally { setIsTesting(false) }
   }
 
-  async function browseStorage(nextPath = browsePath) {
-    if (!selectedId) { setError('请先选择已保存的连接。'); return }
-    setIsBrowsing(true)
-    setError(null)
-    try {
-      const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(selectedId)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
-      setBrowseResult(result)
-      setBrowsePath(result.path)
-    } catch (exc) {
-      setBrowseResult(null)
-      setError(exc instanceof Error ? exc.message : '浏览存储目录失败。')
-    } finally { setIsBrowsing(false) }
+  function openDeleteModal(conn: SmbConnectionResponse) {
+    setDeletingId(conn.id); setDeleteTarget(conn); setShowDelete(true)
   }
 
-  function updateField(key: keyof StorageFormState, value: string) {
-    setForm((current) => ({ ...current, [key]: value }))
+  async function executeDelete(action: 'delete' | 'unbind' | 'cancel') {
+    if (action === 'cancel') { setShowDelete(false); return }
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      await api.post(`/storage/smb-connections/${encodeURIComponent(deletingId!)}/delete`, { action })
+      setShowDelete(false); setMessage(action === 'delete' ? 'SMB 连接及绑定的媒体库已删除。' : 'SMB 连接已删除，绑定的媒体库已解绑。')
+      await loadConnections()
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '删除失败。') }
+    finally { setIsSaving(false) }
   }
+
+  function openBrowse(conn: SmbConnectionResponse) {
+    setBrowseId(conn.id); setBrowsePath(''); setBrowseResult(null); setShowBrowse(true)
+  }
+
+  async function doBrowse(nextPath = browsePath) {
+    setIsBrowsing(true); setError(null)
+    try {
+      const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(browseId!)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
+      setBrowseResult(result); setBrowsePath(result.path)
+    } catch (exc) { setBrowseResult(null); setError(exc instanceof Error ? exc.message : '浏览失败。') }
+    finally { setIsBrowsing(false) }
+  }
+
+  function updateForm(key: keyof StorageFormState, value: string) { setForm((c) => ({ ...c, [key]: value })) }
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
   return (
     <section className="panel" aria-labelledby="storage-title">
@@ -2210,59 +2154,117 @@ function StoragePanel() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="ghost-button" disabled={isLoading} onClick={() => void loadConnections()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
-          <button className="primary-button" onClick={startCreate} type="button">新增</button>
+          <button className="primary-button" onClick={openCreate} type="button">新增</button>
         </div>
       </div>
 
-      {message ? <div className="notice-card"><strong>操作完成</strong><p>{message}</p></div> : null}
-      {error ? <div className="notice-card error"><strong>操作失败</strong><p>{error}</p></div> : null}
-      {isLoading ? <LoadingState message="正在读取 SMB 连接。" /> : null}
+      {message && <div className="inline-message">{message}</div>}
+      {error && <div className="inline-message error">{error}</div>}
+      {isLoading && <LoadingState message="正在读取 SMB 连接。" />}
 
-      <div className="ingest-layout">
-        <section className="source-list" aria-labelledby="storage-list-title">
-          <div className="section-heading"><h3 id="storage-list-title">SMB 连接</h3><span>{connections.length} 个</span></div>
+      <div className="transfer-list-section">
+        <div className="section-heading"><h3>SMB 连接列表</h3><span>{totalCount} 个</span></div>
+        {connections.length === 0 ? <EmptyState message="暂无 SMB 连接。点击新增创建。" /> : (
           <div className="transfer-list">
             {connections.map((conn) => (
-              <button key={conn.id} type="button" className={`source-row ${conn.id === selectedId ? 'selected' : ''}`} onClick={() => selectConnection(conn)}>
-                <strong>{conn.name}</strong>
-                <span>{conn.host}/{conn.share} · {conn.username} · {conn.password_set ? '已设密码' : '未设密码'} · {conn.enabled ? '已启用' : '已禁用'}</span>
-              </button>
+              <div key={conn.id} className="transfer-row">
+                <div className="transfer-row-main">
+                  <strong>{conn.name}</strong>
+                  <span>{conn.host}/{conn.share} · {conn.username} · {conn.password_set ? '已设密码' : '未设密码'} · {conn.enabled ? '已启用' : '已禁用'}</span>
+                  <small>绑定: 本地 {conn.bound_local_libraries.length} 个, 远程 {conn.bound_remote_libraries.length} 个</small>
+                </div>
+                <div className="transfer-row-actions">
+                  <button className="ghost-button" onClick={() => openEdit(conn)} type="button">编辑</button>
+                  <button className="ghost-button" onClick={() => openBrowse(conn)} type="button">浏览</button>
+                  <button className="ghost-button danger" onClick={() => openDeleteModal(conn)} type="button">删除</button>
+                </div>
+              </div>
             ))}
-            {connections.length === 0 && <EmptyState message="暂无 SMB 连接。点击新增创建。" />}
           </div>
-        </section>
-
-        <section className="source-editor" aria-labelledby="storage-editor-title">
-          <div className="section-heading"><h3 id="storage-editor-title">{mode === 'create' ? '创建连接' : '编辑连接'}</h3><span>{selectedConnection ? selectedConnection.id : 'new'}</span></div>
-          <div className="form-grid">
-            <TextField helper="SMB 服务器地址，只填主机名或 IP，不要带 \\\\ 或共享名。" label="Host" onChange={(value) => updateField('host', value)} required value={form.host} />
-            <TextField helper="SMB 端口，通常是 445。" label="Port" onChange={(value) => updateField('port', value)} required type="number" value={form.port} />
-            <TextField helper="SMB 共享名，即 \\\\host\\share 中的 share，不要填写子目录。" label="Share" onChange={(value) => updateField('share', value)} required value={form.share} />
-            <TextField helper="用于登录 SMB 的账号名。" label="Username" onChange={(value) => updateField('username', value)} required value={form.username} />
-            <TextField helper={passwordSet ? '已保存密码且不会回显。留空保存表示保留旧密码。' : 'SMB 登录密码；保存后不会在页面回显。'} label="Password" onChange={(value) => updateField('password', value)} type="password" value={form.password} />
-            <TextField helper="SMB 域或工作组；个人 NAS 通常留空。" label="Domain" onChange={(value) => updateField('domain', value)} value={form.domain} />
-            <TextField helper="共享内的工作根目录，例如 /Sundarr；使用共享根目录时填 /。" label="Base Path" onChange={(value) => updateField('base_path', value)} value={form.base_path} />
+        )}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button className="ghost-button" disabled={page <= 1} onClick={() => setPage(page - 1)} type="button">上一页</button>
+            <span>第 {page} / {totalPages} 页</span>
+            <button className="ghost-button" disabled={page >= totalPages} onClick={() => setPage(page + 1)} type="button">下一页</button>
           </div>
-          <div className="form-actions">
-            <button className="primary-button" disabled={isSaving} onClick={() => void saveConnection()} type="button">{isSaving ? '保存中' : mode === 'create' ? '创建' : '保存'}</button>
-            <button className="ghost-button" disabled={isTesting} onClick={() => void testConnection()} type="button">{isTesting ? '测试中' : '测试连接'}</button>
-          </div>
-        </section>
+        )}
       </div>
 
-      <section className="browser-panel" aria-labelledby="storage-browser-title">
-        <div className="section-heading"><h3 id="storage-browser-title">目录浏览</h3><span>只读浏览</span></div>
-        <form className="lookup-form" onSubmit={(event) => { event.preventDefault(); void browseStorage() }}>
-          <label>
-            <span>路径</span>
-            <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
-            <small>相对于 Base Path 的目录；留空表示浏览 Base Path。</small>
-          </label>
-          <button className="primary-button" disabled={isBrowsing} type="submit">{isBrowsing ? '浏览中' : '浏览目录'}</button>
-        </form>
-        {isBrowsing && !browseResult ? <LoadingState message="正在读取目录。" /> : null}
-        {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void browseStorage(path)} /> : <EmptyState message="选择连接后输入路径浏览 SMB 目录。" />}
-      </section>
+      {showForm && (
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{formMode === 'create' ? '创建 SMB 连接' : '编辑 SMB 连接'}</h3>
+              <button className="ghost-button" onClick={() => setShowForm(false)} type="button">×</button>
+            </div>
+            <div className="form-grid">
+              <TextField helper="连接名称，用于在其他模块中引用。" label="名称" onChange={setFormName} required value={formName} />
+              <TextField helper="SMB 服务器地址，只填主机名或 IP。" label="Host" onChange={(v) => updateForm('host', v)} required value={form.host} />
+              <TextField helper="SMB 端口，通常是 445。" label="Port" onChange={(v) => updateForm('port', v)} required type="number" value={form.port} />
+              <TextField helper="SMB 共享名。" label="Share" onChange={(v) => updateForm('share', v)} required value={form.share} />
+              <TextField helper="SMB 登录账号。" label="Username" onChange={(v) => updateForm('username', v)} required value={form.username} />
+              <TextField helper={passwordSet ? '已保存密码且不会回显。留空表示保留旧密码。' : 'SMB 登录密码。'} label="Password" onChange={(v) => updateForm('password', v)} type="password" value={form.password} />
+              <TextField helper="SMB 域或工作组；个人 NAS 通常留空。" label="Domain" onChange={(v) => updateForm('domain', v)} value={form.domain} />
+              <TextField helper="共享内的工作根目录。" label="Base Path" onChange={(v) => updateForm('base_path', v)} value={form.base_path} />
+            </div>
+            <div className="form-actions">
+              <button className="ghost-button" onClick={() => setShowForm(false)} type="button">取消</button>
+              <button className="ghost-button" disabled={isTesting || formMode === 'create'} onClick={() => void testConnection()} type="button">{isTesting ? '测试中' : '测试连接'}</button>
+              <button className="primary-button" disabled={isSaving} onClick={() => void saveConnection()} type="button">{isSaving ? '保存中' : formMode === 'create' ? '创建' : '保存'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDelete && deleteTarget && (
+        <div className="modal-overlay" onClick={() => setShowDelete(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>删除 SMB 连接</h3>
+              <button className="ghost-button" onClick={() => setShowDelete(false)} type="button">×</button>
+            </div>
+            <p>删除 <strong>{deleteTarget.name}</strong> 将影响以下绑定：</p>
+            {deleteTarget.bound_local_libraries.length > 0 && (
+              <div><strong>本地媒体库：</strong>{deleteTarget.bound_local_libraries.join('、')}</div>
+            )}
+            {deleteTarget.bound_remote_libraries.length > 0 && (
+              <div><strong>远程媒体库：</strong>{deleteTarget.bound_remote_libraries.join('、')}</div>
+            )}
+            {deleteTarget.bound_local_libraries.length === 0 && deleteTarget.bound_remote_libraries.length === 0 && (
+              <p>此连接没有绑定的媒体库。</p>
+            )}
+            <div className="form-actions">
+              <button className="ghost-button" onClick={() => void executeDelete('cancel')} type="button">取消</button>
+              {(deleteTarget.bound_local_libraries.length > 0 || deleteTarget.bound_remote_libraries.length > 0) && (
+                <button className="ghost-button" disabled={isSaving} onClick={() => void executeDelete('unbind')} type="button">仅解绑</button>
+              )}
+              <button className="ghost-button danger" disabled={isSaving} onClick={() => void executeDelete('delete')} type="button">删除所有</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBrowse && (
+        <div className="modal-overlay" onClick={() => setShowBrowse(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>目录浏览</h3>
+              <button className="ghost-button" onClick={() => setShowBrowse(false)} type="button">×</button>
+            </div>
+            <form className="lookup-form" onSubmit={(event) => { event.preventDefault(); void doBrowse() }}>
+              <label>
+                <span>路径</span>
+                <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
+                <small>相对于 Base Path 的目录。</small>
+              </label>
+              <button className="primary-button" disabled={isBrowsing} type="submit">{isBrowsing ? '浏览中' : '浏览'}</button>
+            </form>
+            {isBrowsing && !browseResult ? <LoadingState message="正在读取目录。" /> : null}
+            {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void doBrowse(path)} /> : <EmptyState message="输入路径后浏览 SMB 目录。" />}
+          </div>
+        </div>
+      )}
 
       <ApiClientPreview />
     </section>
@@ -2931,6 +2933,10 @@ function ingestSeenTone(status: string) {
 
 function emptyLibraryForm(): MediaLibraryFormState {
   return { id: '', name: '', media_type: 'movie', enabled: true, connection_id: '', base_path: '/' }
+}
+
+function emptyRemoteLibraryForm(): RemoteMediaLibraryFormState {
+  return { id: '', name: '', media_type: 'movie', enabled: true, connection_id: '', base_path: '/', target_library_id: '', scan_interval_seconds: '60', stable_seconds: '120', delete_source_after_success: '', delete_empty_source_dirs: '' }
 }
 
 function emptyDtlConfigForm(): DtlConfigFormState {
