@@ -1,5 +1,6 @@
 from sundarr.app.models.download_to_local import DownloadToLocalBinding, DownloadToLocalSeenFile
 from sundarr.app.models.media_library import MediaLibrary
+from sundarr.app.models.remote_media_library import RemoteMediaLibrary
 from sundarr.app.models.resource import Resource, ResourceLink
 from sundarr.app.models.setting import Setting
 from sundarr.app.models.smb_connection import SmbConnection
@@ -10,6 +11,7 @@ __all__ = [
     "DownloadToLocalBinding",
     "DownloadToLocalSeenFile",
     "MediaLibrary",
+    "RemoteMediaLibrary",
     "Resource",
     "ResourceLink",
     "Setting",
