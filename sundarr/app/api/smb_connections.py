@@ -77,6 +77,20 @@ async def test_smb_connection(connection_id: str, db: Session = Depends(get_db))
         raise _smb_connection_error(exc) from exc
 
 
+@router.post("/storage/smb-connections/test-new", response_model=SmbConnectionTestResponse)
+async def test_new_smb_connection(
+    request: SmbConnectionCreateRequest, db: Session = Depends(get_db)
+) -> SmbConnectionTestResponse:
+    return await smb_connection_service.test_new_connection(request)
+
+
+@router.post("/storage/smb-connections/browse-new", response_model=SmbBrowseResponse)
+async def browse_new_smb_connection(
+    request: SmbConnectionCreateRequest, path: str = "", db: Session = Depends(get_db)
+) -> SmbBrowseResponse:
+    return await smb_connection_service.browse_new_connection(request, path)
+
+
 @router.get("/storage/smb-connections/{connection_id}/browse", response_model=SmbBrowseResponse)
 async def browse_smb_connection(
     connection_id: str, path: str = "", db: Session = Depends(get_db)

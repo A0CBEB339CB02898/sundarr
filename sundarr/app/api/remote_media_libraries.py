@@ -34,6 +34,16 @@ async def create_remote_media_library(
         raise _error(exc) from exc
 
 
+@router.post("/remote-media-libraries/test-new", response_model=RemoteMediaLibraryTestResponse)
+async def test_new_remote_media_library(
+    request: RemoteMediaLibraryCreateRequest, db: Session = Depends(get_db)
+) -> RemoteMediaLibraryTestResponse:
+    try:
+        return await remote_media_library_service.test_new_library(db, request)
+    except ValueError as exc:
+        raise _error(exc) from exc
+
+
 @router.get("/remote-media-libraries/{library_id}", response_model=RemoteMediaLibraryResponse)
 async def get_remote_media_library(library_id: str, db: Session = Depends(get_db)) -> RemoteMediaLibraryResponse:
     lib = remote_media_library_service.get_library(db, library_id)

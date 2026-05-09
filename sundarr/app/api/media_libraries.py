@@ -34,6 +34,16 @@ async def create_media_library(
         raise _media_library_error(exc) from exc
 
 
+@router.post("/media-libraries/test-new", response_model=MediaLibraryTestResponse)
+async def test_new_media_library(
+    request: MediaLibraryCreateRequest, db: Session = Depends(get_db)
+) -> MediaLibraryTestResponse:
+    try:
+        return await media_library_service.test_new_library(db, request)
+    except ValueError as exc:
+        raise _media_library_error(exc) from exc
+
+
 @router.get("/media-libraries/{library_id}", response_model=MediaLibraryResponse)
 async def get_media_library(library_id: str, db: Session = Depends(get_db)) -> MediaLibraryResponse:
     lib = media_library_service.get_library(db, library_id)

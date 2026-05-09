@@ -129,6 +129,25 @@ class SmbConnectionService:
         }
         return await self._test_with_config(config_dict)
 
+    async def browse_new_connection(self, request: SmbConnectionCreateRequest | SmbConnectionUpdateRequest, path: str) -> SmbBrowseResponse:
+        config_dict = {
+            "host": request.host,
+            "port": request.port,
+            "share": request.share,
+            "username": request.username,
+            "password": request.password,
+            "domain": request.domain,
+            "base_path": request.base_path,
+        }
+        config = SmbConfig.from_dict(config_dict)
+        writer = SmbWriter(config)
+        entries = await writer.list_dir(path)
+        return SmbBrowseResponse(
+            connection_id="new",
+            path=path,
+            entries=[SmbBrowseEntry(**entry) for entry in entries],
+        )
+
     async def browse(self, db: Session, connection_id: str, path: str) -> SmbBrowseResponse:
         conn = db.get(SmbConnection, connection_id)
         if conn is None:

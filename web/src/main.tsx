@@ -631,6 +631,17 @@ function App() {
   const [transfers, setTransfers] = useState<TransferResponse[]>([])
   const [transferError, setTransferError] = useState<string | null>(null)
   const [isTransferPanelOpen, setIsTransferPanelOpen] = useState(false)
+  const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error' | 'info'; message: string }[]>([])
+
+  function showToast(type: 'success' | 'error' | 'info', message: string) {
+    const id = Date.now()
+    setToasts((prev) => [...prev, { id, type, message }])
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000)
+  }
+
+  function removeToast(id: number) {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
 
   useEffect(() => {
     const onPopState = () => setActivePage(pageFromPath(window.location.pathname))
@@ -708,7 +719,7 @@ function App() {
 
       <main className="content-shell">
         <PageHeader activePage={activePage} />
-        <PagePanel activePage={activePage} onTransfersChanged={loadTransfers} transfers={transfers} />
+        <PagePanel activePage={activePage} onTransfersChanged={loadTransfers} transfers={transfers} showToast={showToast} />
       </main>
       <GlobalTransferPanel
         error={transferError}
@@ -719,6 +730,14 @@ function App() {
         onSelect={navigateToTransfers}
         transfers={transfers}
       />
+      <div className="toast-container">
+        {toasts.map((toast) => (
+          <div className={`toast ${toast.type}`} key={toast.id}>
+            <span className="toast-message">{toast.message}</span>
+            <button className="toast-close" onClick={() => removeToast(toast.id)} type="button">×</button>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -753,10 +772,12 @@ function PagePanel({
   activePage,
   onTransfersChanged,
   transfers,
+  showToast,
 }: {
   activePage: PageKey
   onTransfersChanged: () => Promise<void>
   transfers: TransferResponse[]
+  showToast: (type: 'success' | 'error' | 'info', message: string) => void
 }) {
   const copy = pageCopy[activePage]
   if (activePage === 'status') {
@@ -766,7 +787,7 @@ function PagePanel({
     return <TransfersPanel onTransfersChanged={onTransfersChanged} transfers={transfers} />
   }
   if (activePage === 'storage') {
-    return <StoragePanel />
+    return <StoragePanel showToast={showToast} />
   }
   if (activePage === 'search') {
     return <SearchPanel />
@@ -775,10 +796,10 @@ function PagePanel({
     return <SourcesPanel />
   }
   if (activePage === 'libraries') {
-    return <LibrariesPanel />
+    return <LibrariesPanel showToast={showToast} />
   }
   if (activePage === 'remote-libraries') {
-    return <RemoteLibrariesPanel />
+    return <RemoteLibrariesPanel showToast={showToast} />
   }
 
   return (
@@ -1164,30 +1185,35 @@ function DiscoveredFiles({ files }: { files: IngestDiscoveredFileResponse[] }) {
   )
 }
 
-function LibrariesPanel() {
+function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [libraries, setLibraries] = useState<MediaLibraryResponse[]>([])
   const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<MediaLibraryFormState>(emptyLibraryForm())
   const [isSaving, setIsSaving] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
 
   const [showDelete, setShowDelete] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<MediaLibraryResponse | null>(null)
 
+  const [showBrowse, setShowBrowse] = useState(false)
+  const [browseConnectionId, setBrowseConnectionId] = useState<string | null>(null)
+  const [browsePath, setBrowsePath] = useState('')
+  const [browseResult, setBrowseResult] = useState<StorageBrowseResponse | null>(null)
+  const [isBrowsing, setIsBrowsing] = useState(false)
+
   useEffect(() => { void loadAll() }, [page])
 
   async function loadAll() {
-    setIsLoading(true); setError(null)
+    setIsLoading(true)
     try {
       const [libResult, connResult] = await Promise.all([
         api.get<MediaLibraryListResponse>(`/media-libraries?page=${page}&page_size=${pageSize}`),
@@ -1195,23 +1221,23 @@ function LibrariesPanel() {
       ])
       setLibraries(libResult.results); setTotalCount(libResult.count)
       setConnections(connResult.results)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '无法读取媒体库。') }
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '无法读取媒体库。') }
     finally { setIsLoading(false) }
   }
 
   function openCreate() {
     setFormMode('create'); setEditingId(null)
-    setForm(emptyLibraryForm()); setShowForm(true); setMessage(null); setError(null)
+    setForm(emptyLibraryForm()); setShowForm(true)
   }
 
   function openEdit(lib: MediaLibraryResponse) {
     setFormMode('edit'); setEditingId(lib.id)
     setForm({ id: lib.id, name: lib.name, media_type: lib.media_type, enabled: lib.enabled, connection_id: lib.connection_id, base_path: lib.base_path })
-    setShowForm(true); setMessage(null); setError(null)
+    setShowForm(true)
   }
 
   async function saveLibrary() {
-    setIsSaving(true); setError(null); setMessage(null)
+    setIsSaving(true)
     try {
       const payload = { name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/' }
       if (formMode === 'create') {
@@ -1219,28 +1245,56 @@ function LibrariesPanel() {
       } else {
         await api.post(`/media-libraries/${encodeURIComponent(editingId!)}/update`, payload)
       }
-      setShowForm(false); setMessage(formMode === 'create' ? '媒体库已创建。' : '媒体库已保存。')
+      setShowForm(false); showToast('success', formMode === 'create' ? '媒体库已创建。' : '媒体库已保存。')
       await loadAll()
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存失败。') }
-    finally { setIsSaving(false) }
-  }
-
-  async function toggleEnabled(lib: MediaLibraryResponse) {
-    setIsSaving(true); setError(null); setMessage(null)
-    try {
-      await api.post(`/media-libraries/${encodeURIComponent(lib.id)}/${lib.enabled ? 'disable' : 'enable'}`)
-      setMessage(lib.enabled ? '媒体库已禁用。' : '媒体库已启用。')
-      await loadAll()
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '操作失败。') }
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '保存失败。') }
     finally { setIsSaving(false) }
   }
 
   async function testLibrary(lib: MediaLibraryResponse) {
-    setError(null); setMessage(null)
     try {
       const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(`/media-libraries/${encodeURIComponent(lib.id)}/test`)
-      setMessage(result.ok ? '媒体库目录测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试失败。') }
+      showToast(result.ok ? 'success' : 'error', result.ok ? `${lib.name} 测试通过。` : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '测试失败。') }
+  }
+
+  async function testLibraryInForm() {
+    setIsTesting(true)
+    try {
+      const payload = { id: form.id.trim() || '', name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/' }
+      const endpoint = formMode === 'edit' && editingId
+        ? `/media-libraries/${encodeURIComponent(editingId)}/test`
+        : '/media-libraries/test-new'
+      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(endpoint, payload)
+      showToast(result.ok ? 'success' : 'error', result.ok ? '媒体库目录测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '测试失败。') }
+    finally { setIsTesting(false) }
+  }
+
+  function openBrowse(lib: MediaLibraryResponse) {
+    const conn = connections.find((c) => c.id === lib.connection_id)
+    if (!conn) { showToast('error', '未找到关联的 SMB 连接。'); return }
+    setBrowseConnectionId(conn.id); setBrowsePath(lib.base_path || ''); setBrowseResult(null); setShowBrowse(true)
+    void doBrowse(lib.base_path || '')
+  }
+
+  async function doBrowse(nextPath = browsePath) {
+    setIsBrowsing(true)
+    try {
+      const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(browseConnectionId!)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
+      setBrowseResult(result); setBrowsePath(result.path)
+    } catch (exc) { setBrowseResult(null); showToast('error', exc instanceof Error ? exc.message : '浏览失败。') }
+    finally { setIsBrowsing(false) }
+  }
+
+  async function toggleEnabled(lib: MediaLibraryResponse) {
+    setIsSaving(true)
+    try {
+      await api.post(`/media-libraries/${encodeURIComponent(lib.id)}/${lib.enabled ? 'disable' : 'enable'}`)
+      showToast('success', lib.enabled ? '媒体库已禁用。' : '媒体库已启用。')
+      await loadAll()
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '操作失败。') }
+    finally { setIsSaving(false) }
   }
 
   function openDeleteModal(lib: MediaLibraryResponse) {
@@ -1249,12 +1303,12 @@ function LibrariesPanel() {
 
   async function executeDelete(action: 'delete' | 'unbind' | 'cancel') {
     if (action === 'cancel') { setShowDelete(false); return }
-    setIsSaving(true); setError(null); setMessage(null)
+    setIsSaving(true)
     try {
       await api.post(`/media-libraries/${encodeURIComponent(deletingId!)}/delete`, { action })
-      setShowDelete(false); setMessage(action === 'delete' ? '媒体库已删除。' : '媒体库已删除，绑定的远程媒体库已解绑。')
+      setShowDelete(false); showToast('success', action === 'delete' ? '媒体库已删除。' : '媒体库已删除，绑定的远程媒体库已解绑。')
       await loadAll()
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '删除失败。') }
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '删除失败。') }
     finally { setIsSaving(false) }
   }
 
@@ -1276,8 +1330,6 @@ function LibrariesPanel() {
         </div>
       </div>
 
-      {message && <div className="inline-message">{message}</div>}
-      {error && <div className="inline-message error">{error}</div>}
       {isLoading && <LoadingState message="正在读取媒体库。" />}
 
       <div className="transfer-list-section">
@@ -1293,8 +1345,9 @@ function LibrariesPanel() {
                 </div>
                 <div className="transfer-row-actions">
                   <button className="ghost-button" onClick={() => openEdit(lib)} type="button">编辑</button>
-                  <button className="ghost-button" onClick={() => void toggleEnabled(lib)} type="button">{lib.enabled ? '禁用' : '启用'}</button>
                   <button className="ghost-button" onClick={() => void testLibrary(lib)} type="button">测试</button>
+                  <button className="ghost-button" onClick={() => openBrowse(lib)} type="button">浏览</button>
+                  <button className="ghost-button" onClick={() => void toggleEnabled(lib)} type="button">{lib.enabled ? '禁用' : '启用'}</button>
                   <button className="ghost-button danger" onClick={() => openDeleteModal(lib)} type="button">删除</button>
                 </div>
               </div>
@@ -1311,7 +1364,7 @@ function LibrariesPanel() {
       </div>
 
       {showForm && (
-        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{formMode === 'create' ? '创建媒体库' : '编辑媒体库'}</h3>
@@ -1330,14 +1383,36 @@ function LibrariesPanel() {
             </div>
             <div className="form-actions">
               <button className="ghost-button" onClick={() => setShowForm(false)} type="button">取消</button>
+              <button className="ghost-button" disabled={isTesting} onClick={() => void testLibraryInForm()} type="button">{isTesting ? '测试中' : '测试连接'}</button>
               <button className="primary-button" disabled={isSaving} onClick={() => void saveLibrary()} type="button">{isSaving ? '保存中' : formMode === 'create' ? '创建' : '保存'}</button>
             </div>
           </div>
         </div>
       )}
 
+      {showBrowse && (
+        <div className="modal-overlay">
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>目录浏览</h3>
+              <button className="ghost-button" onClick={() => setShowBrowse(false)} type="button">×</button>
+            </div>
+            <form className="lookup-form" onSubmit={(event) => { event.preventDefault(); void doBrowse() }}>
+              <label>
+                <span>路径</span>
+                <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
+                <small>相对于 Base Path 的目录。</small>
+              </label>
+              <button className="primary-button" disabled={isBrowsing} type="submit">{isBrowsing ? '浏览中' : '浏览'}</button>
+            </form>
+            {isBrowsing && !browseResult ? <LoadingState message="正在读取目录。" /> : null}
+            {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void doBrowse(path)} /> : <EmptyState message="输入路径后浏览目录。" />}
+          </div>
+        </div>
+      )}
+
       {showDelete && deleteTarget && (
-        <div className="modal-overlay" onClick={() => setShowDelete(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>删除媒体库</h3>
@@ -1366,7 +1441,7 @@ function LibrariesPanel() {
   )
 }
 
-function RemoteLibrariesPanel() {
+function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [libraries, setLibraries] = useState<RemoteMediaLibraryResponse[]>([])
   const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
   const [localLibraries, setLocalLibraries] = useState<MediaLibraryResponse[]>([])
@@ -1374,23 +1449,28 @@ function RemoteLibrariesPanel() {
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<RemoteMediaLibraryFormState>(emptyRemoteLibraryForm())
   const [isSaving, setIsSaving] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
 
   const [showDelete, setShowDelete] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<RemoteMediaLibraryResponse | null>(null)
 
+  const [showBrowse, setShowBrowse] = useState(false)
+  const [browseConnectionId, setBrowseConnectionId] = useState<string | null>(null)
+  const [browsePath, setBrowsePath] = useState('')
+  const [browseResult, setBrowseResult] = useState<StorageBrowseResponse | null>(null)
+  const [isBrowsing, setIsBrowsing] = useState(false)
+
   useEffect(() => { void loadAll() }, [page])
 
   async function loadAll() {
-    setIsLoading(true); setError(null)
+    setIsLoading(true)
     try {
       const [libResult, connResult, localResult] = await Promise.all([
         api.get<RemoteMediaLibraryListResponse>(`/remote-media-libraries?page=${page}&page_size=${pageSize}`),
@@ -1400,13 +1480,13 @@ function RemoteLibrariesPanel() {
       setLibraries(libResult.results); setTotalCount(libResult.count)
       setConnections(connResult.results)
       setLocalLibraries(localResult.results)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '无法读取远程媒体库。') }
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '无法读取远程媒体库。') }
     finally { setIsLoading(false) }
   }
 
   function openCreate() {
     setFormMode('create'); setEditingId(null)
-    setForm(emptyRemoteLibraryForm()); setShowForm(true); setMessage(null); setError(null)
+    setForm(emptyRemoteLibraryForm()); setShowForm(true)
   }
 
   function openEdit(lib: RemoteMediaLibraryResponse) {
@@ -1420,11 +1500,11 @@ function RemoteLibrariesPanel() {
       delete_source_after_success: triStateFromBoolean(lib.delete_source_after_success),
       delete_empty_source_dirs: triStateFromBoolean(lib.delete_empty_source_dirs),
     })
-    setShowForm(true); setMessage(null); setError(null)
+    setShowForm(true)
   }
 
   async function saveLibrary() {
-    setIsSaving(true); setError(null); setMessage(null)
+    setIsSaving(true)
     try {
       const payload = {
         name: form.name.trim(), media_type: form.media_type, enabled: form.enabled,
@@ -1440,28 +1520,71 @@ function RemoteLibrariesPanel() {
       } else {
         await api.post(`/remote-media-libraries/${encodeURIComponent(editingId!)}/update`, payload)
       }
-      setShowForm(false); setMessage(formMode === 'create' ? '远程媒体库已创建。' : '远程媒体库已保存。')
+      setShowForm(false); showToast('success', formMode === 'create' ? '远程媒体库已创建。' : '远程媒体库已保存。')
       await loadAll()
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存失败。') }
-    finally { setIsSaving(false) }
-  }
-
-  async function toggleEnabled(lib: RemoteMediaLibraryResponse) {
-    setIsSaving(true); setError(null); setMessage(null)
-    try {
-      await api.post(`/remote-media-libraries/${encodeURIComponent(lib.id)}/${lib.enabled ? 'disable' : 'enable'}`)
-      setMessage(lib.enabled ? '远程媒体库已禁用。' : '远程媒体库已启用。')
-      await loadAll()
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '操作失败。') }
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '保存失败。') }
     finally { setIsSaving(false) }
   }
 
   async function testLibrary(lib: RemoteMediaLibraryResponse) {
-    setError(null); setMessage(null)
     try {
       const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(`/remote-media-libraries/${encodeURIComponent(lib.id)}/test`)
-      setMessage(result.ok ? '远程媒体库目录测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试失败。') }
+      showToast(result.ok ? 'success' : 'error', result.ok ? `${lib.name} 测试通过。` : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '测试失败。') }
+  }
+
+  async function testLibraryInForm() {
+    setIsTesting(true)
+    try {
+      const payload = {
+        id: form.id.trim() || '', name: form.name.trim(), media_type: form.media_type, enabled: form.enabled,
+        connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/',
+        target_library_id: form.target_library_id || null,
+        scan_interval_seconds: Number(form.scan_interval_seconds) || 60,
+        stable_seconds: Number(form.stable_seconds) || 120,
+        delete_source_after_success: triStateToBoolean(form.delete_source_after_success),
+        delete_empty_source_dirs: triStateToBoolean(form.delete_empty_source_dirs),
+      }
+      const endpoint = formMode === 'edit' && editingId
+        ? `/remote-media-libraries/${encodeURIComponent(editingId)}/test`
+        : '/remote-media-libraries/test-new'
+      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(endpoint, payload)
+      showToast(result.ok ? 'success' : 'error', result.ok ? '远程媒体库目录测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '测试失败。') }
+    finally { setIsTesting(false) }
+  }
+
+  function openBrowse(lib: RemoteMediaLibraryResponse) {
+    const conn = connections.find((c) => c.id === lib.connection_id)
+    if (!conn) { showToast('error', '未找到关联的 SMB 连接。'); return }
+    setBrowseConnectionId(conn.id); setBrowsePath(lib.base_path || ''); setBrowseResult(null); setShowBrowse(true)
+    void doBrowse(lib.base_path || '')
+  }
+
+  async function doBrowse(nextPath = browsePath) {
+    setIsBrowsing(true)
+    try {
+      const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(browseConnectionId!)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
+      setBrowseResult(result); setBrowsePath(result.path)
+    } catch (exc) { setBrowseResult(null); showToast('error', exc instanceof Error ? exc.message : '浏览失败。') }
+    finally { setIsBrowsing(false) }
+  }
+
+  async function triggerScan(lib: RemoteMediaLibraryResponse) {
+    try {
+      await api.post('/sync/scan', { binding_id: lib.id })
+      showToast('success', `${lib.name} 扫描完成。`)
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '扫描失败。') }
+  }
+
+  async function toggleEnabled(lib: RemoteMediaLibraryResponse) {
+    setIsSaving(true)
+    try {
+      await api.post(`/remote-media-libraries/${encodeURIComponent(lib.id)}/${lib.enabled ? 'disable' : 'enable'}`)
+      showToast('success', lib.enabled ? '远程媒体库已禁用。' : '远程媒体库已启用。')
+      await loadAll()
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '操作失败。') }
+    finally { setIsSaving(false) }
   }
 
   function openDeleteModal(lib: RemoteMediaLibraryResponse) {
@@ -1470,12 +1593,12 @@ function RemoteLibrariesPanel() {
 
   async function executeDelete(action: 'delete' | 'cancel') {
     if (action === 'cancel') { setShowDelete(false); return }
-    setIsSaving(true); setError(null); setMessage(null)
+    setIsSaving(true)
     try {
       await api.post(`/remote-media-libraries/${encodeURIComponent(deletingId!)}/delete`, { action })
-      setShowDelete(false); setMessage('远程媒体库已删除。')
+      setShowDelete(false); showToast('success', '远程媒体库已删除。')
       await loadAll()
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '删除失败。') }
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '删除失败。') }
     finally { setIsSaving(false) }
   }
 
@@ -1498,8 +1621,6 @@ function RemoteLibrariesPanel() {
         </div>
       </div>
 
-      {message && <div className="inline-message">{message}</div>}
-      {error && <div className="inline-message error">{error}</div>}
       {isLoading && <LoadingState message="正在读取远程媒体库。" />}
 
       <div className="transfer-list-section">
@@ -1515,8 +1636,10 @@ function RemoteLibrariesPanel() {
                 </div>
                 <div className="transfer-row-actions">
                   <button className="ghost-button" onClick={() => openEdit(lib)} type="button">编辑</button>
-                  <button className="ghost-button" onClick={() => void toggleEnabled(lib)} type="button">{lib.enabled ? '禁用' : '启用'}</button>
                   <button className="ghost-button" onClick={() => void testLibrary(lib)} type="button">测试</button>
+                  <button className="ghost-button" onClick={() => openBrowse(lib)} type="button">浏览</button>
+                  {lib.target_library_id && <button className="ghost-button" onClick={() => void triggerScan(lib)} type="button">扫描</button>}
+                  <button className="ghost-button" onClick={() => void toggleEnabled(lib)} type="button">{lib.enabled ? '禁用' : '启用'}</button>
                   <button className="ghost-button danger" onClick={() => openDeleteModal(lib)} type="button">删除</button>
                 </div>
               </div>
@@ -1533,7 +1656,7 @@ function RemoteLibrariesPanel() {
       </div>
 
       {showForm && (
-        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{formMode === 'create' ? '创建远程媒体库' : '编辑远程媒体库'}</h3>
@@ -1566,14 +1689,36 @@ function RemoteLibrariesPanel() {
             </div>
             <div className="form-actions">
               <button className="ghost-button" onClick={() => setShowForm(false)} type="button">取消</button>
+              <button className="ghost-button" disabled={isTesting} onClick={() => void testLibraryInForm()} type="button">{isTesting ? '测试中' : '测试连接'}</button>
               <button className="primary-button" disabled={isSaving} onClick={() => void saveLibrary()} type="button">{isSaving ? '保存中' : formMode === 'create' ? '创建' : '保存'}</button>
             </div>
           </div>
         </div>
       )}
 
+      {showBrowse && (
+        <div className="modal-overlay">
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>目录浏览</h3>
+              <button className="ghost-button" onClick={() => setShowBrowse(false)} type="button">×</button>
+            </div>
+            <form className="lookup-form" onSubmit={(event) => { event.preventDefault(); void doBrowse() }}>
+              <label>
+                <span>路径</span>
+                <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
+                <small>相对于 Base Path 的目录。</small>
+              </label>
+              <button className="primary-button" disabled={isBrowsing} type="submit">{isBrowsing ? '浏览中' : '浏览'}</button>
+            </form>
+            {isBrowsing && !browseResult ? <LoadingState message="正在读取目录。" /> : null}
+            {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void doBrowse(path)} /> : <EmptyState message="输入路径后浏览目录。" />}
+          </div>
+        </div>
+      )}
+
       {showDelete && deleteTarget && (
-        <div className="modal-overlay" onClick={() => setShowDelete(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>删除远程媒体库</h3>
@@ -2033,14 +2178,12 @@ function ResourceCard({ onSelect, resource, selectedLinkId }: { onSelect: (link:
   )
 }
 
-function StoragePanel() {
+function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
@@ -2064,30 +2207,30 @@ function StoragePanel() {
   useEffect(() => { void loadConnections() }, [page])
 
   async function loadConnections() {
-    setIsLoading(true); setError(null)
+    setIsLoading(true)
     try {
       const result = await api.get<SmbConnectionListResponse>(`/storage/smb-connections?page=${page}&page_size=${pageSize}`)
       setConnections(result.results)
       setTotalCount(result.count)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '无法读取 SMB 连接。') }
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '无法读取 SMB 连接。') }
     finally { setIsLoading(false) }
   }
 
   function openCreate() {
     setFormMode('create'); setEditingId(null)
     setForm(emptyStorageForm()); setFormName(''); setPasswordSet(false)
-    setShowForm(true); setMessage(null); setError(null)
+    setShowForm(true)
   }
 
   function openEdit(conn: SmbConnectionResponse) {
     setFormMode('edit'); setEditingId(conn.id)
     setForm({ host: conn.host, port: String(conn.port), share: conn.share, username: conn.username, password: '', domain: conn.domain, base_path: conn.base_path, library_movies: '', library_tv: '', library_anime: '' })
     setFormName(conn.name); setPasswordSet(conn.password_set)
-    setShowForm(true); setMessage(null); setError(null)
+    setShowForm(true)
   }
 
   async function saveConnection() {
-    setIsSaving(true); setError(null); setMessage(null)
+    setIsSaving(true)
     try {
       const payload = { host: form.host.trim(), port: Number(form.port) || 445, share: form.share.trim(), username: form.username.trim(), password: form.password || null, domain: form.domain.trim(), base_path: form.base_path.trim() || '/' }
       if (formMode === 'create') {
@@ -2096,20 +2239,30 @@ function StoragePanel() {
       } else {
         await api.post(`/storage/smb-connections/${encodeURIComponent(editingId!)}/update`, { name: formName.trim(), ...payload })
       }
-      setShowForm(false); setMessage(formMode === 'create' ? 'SMB 连接已创建。' : 'SMB 连接已保存。')
+      setShowForm(false); showToast('success', formMode === 'create' ? 'SMB 连接已创建。' : 'SMB 连接已保存。')
       await loadConnections()
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存失败。') }
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '保存失败。') }
     finally { setIsSaving(false) }
   }
 
   async function testConnection() {
-    if (!editingId) return
-    setIsTesting(true); setError(null); setMessage(null)
+    setIsTesting(true)
     try {
-      const result = await api.post<StorageConfigTestResponse>(`/storage/smb-connections/${encodeURIComponent(editingId)}/test`)
-      setMessage(result.ok ? 'SMB 连接测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试失败。') }
+      const payload = { id: editingId || '', name: formName, host: form.host.trim(), port: Number(form.port) || 445, share: form.share.trim(), username: form.username.trim(), password: form.password || null, domain: form.domain.trim(), base_path: form.base_path.trim() || '/' }
+      const endpoint = formMode === 'edit' && editingId
+        ? `/storage/smb-connections/${encodeURIComponent(editingId)}/test`
+        : '/storage/smb-connections/test-new'
+      const result = await api.post<StorageConfigTestResponse>(endpoint, payload)
+      showToast(result.ok ? 'success' : 'error', result.ok ? 'SMB 连接测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '测试失败。') }
     finally { setIsTesting(false) }
+  }
+
+  async function testConnectionRow(conn: SmbConnectionResponse) {
+    try {
+      const result = await api.post<StorageConfigTestResponse>(`/storage/smb-connections/${encodeURIComponent(conn.id)}/test`)
+      showToast(result.ok ? 'success' : 'error', result.ok ? `${conn.name} 测试通过。` : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '测试失败。') }
   }
 
   function openDeleteModal(conn: SmbConnectionResponse) {
@@ -2118,25 +2271,26 @@ function StoragePanel() {
 
   async function executeDelete(action: 'delete' | 'unbind' | 'cancel') {
     if (action === 'cancel') { setShowDelete(false); return }
-    setIsSaving(true); setError(null); setMessage(null)
+    setIsSaving(true)
     try {
       await api.post(`/storage/smb-connections/${encodeURIComponent(deletingId!)}/delete`, { action })
-      setShowDelete(false); setMessage(action === 'delete' ? 'SMB 连接及绑定的媒体库已删除。' : 'SMB 连接已删除，绑定的媒体库已解绑。')
+      setShowDelete(false); showToast('success', action === 'delete' ? 'SMB 连接及绑定的媒体库已删除。' : 'SMB 连接已删除，绑定的媒体库已解绑。')
       await loadConnections()
-    } catch (exc) { setError(exc instanceof Error ? exc.message : '删除失败。') }
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '删除失败。') }
     finally { setIsSaving(false) }
   }
 
   function openBrowse(conn: SmbConnectionResponse) {
-    setBrowseId(conn.id); setBrowsePath(''); setBrowseResult(null); setShowBrowse(true)
+    setBrowseId(conn.id); setBrowsePath(conn.base_path || ''); setBrowseResult(null); setShowBrowse(true)
+    void doBrowse(conn.base_path || '')
   }
 
   async function doBrowse(nextPath = browsePath) {
-    setIsBrowsing(true); setError(null)
+    setIsBrowsing(true)
     try {
       const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(browseId!)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
       setBrowseResult(result); setBrowsePath(result.path)
-    } catch (exc) { setBrowseResult(null); setError(exc instanceof Error ? exc.message : '浏览失败。') }
+    } catch (exc) { setBrowseResult(null); showToast('error', exc instanceof Error ? exc.message : '浏览失败。') }
     finally { setIsBrowsing(false) }
   }
 
@@ -2158,8 +2312,6 @@ function StoragePanel() {
         </div>
       </div>
 
-      {message && <div className="inline-message">{message}</div>}
-      {error && <div className="inline-message error">{error}</div>}
       {isLoading && <LoadingState message="正在读取 SMB 连接。" />}
 
       <div className="transfer-list-section">
@@ -2175,6 +2327,7 @@ function StoragePanel() {
                 </div>
                 <div className="transfer-row-actions">
                   <button className="ghost-button" onClick={() => openEdit(conn)} type="button">编辑</button>
+                  <button className="ghost-button" onClick={() => void testConnectionRow(conn)} type="button">测试</button>
                   <button className="ghost-button" onClick={() => openBrowse(conn)} type="button">浏览</button>
                   <button className="ghost-button danger" onClick={() => openDeleteModal(conn)} type="button">删除</button>
                 </div>
@@ -2192,7 +2345,7 @@ function StoragePanel() {
       </div>
 
       {showForm && (
-        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{formMode === 'create' ? '创建 SMB 连接' : '编辑 SMB 连接'}</h3>
@@ -2210,7 +2363,7 @@ function StoragePanel() {
             </div>
             <div className="form-actions">
               <button className="ghost-button" onClick={() => setShowForm(false)} type="button">取消</button>
-              <button className="ghost-button" disabled={isTesting || formMode === 'create'} onClick={() => void testConnection()} type="button">{isTesting ? '测试中' : '测试连接'}</button>
+              <button className="ghost-button" disabled={isTesting} onClick={() => void testConnection()} type="button">{isTesting ? '测试中' : '测试连接'}</button>
               <button className="primary-button" disabled={isSaving} onClick={() => void saveConnection()} type="button">{isSaving ? '保存中' : formMode === 'create' ? '创建' : '保存'}</button>
             </div>
           </div>
@@ -2218,7 +2371,7 @@ function StoragePanel() {
       )}
 
       {showDelete && deleteTarget && (
-        <div className="modal-overlay" onClick={() => setShowDelete(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>删除 SMB 连接</h3>
@@ -2246,7 +2399,7 @@ function StoragePanel() {
       )}
 
       {showBrowse && (
-        <div className="modal-overlay" onClick={() => setShowBrowse(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>目录浏览</h3>

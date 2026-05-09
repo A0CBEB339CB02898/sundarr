@@ -93,6 +93,12 @@ class MediaLibraryService:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
         return await self._test_with_connection(db, lib.connection_id, lib.base_path)
 
+    async def test_new_library(self, db: Session, request: MediaLibraryCreateRequest) -> MediaLibraryTestResponse:
+        conn = db.get(SmbConnection, request.connection_id)
+        if conn is None:
+            raise ValueError("SMB_CONNECTION_NOT_FOUND")
+        return await self._test_with_connection(db, request.connection_id, request.base_path)
+
     async def test_library_by_connection(self, db: Session, connection_id: str, base_path: str) -> MediaLibraryTestResponse:
         return await self._test_with_connection(db, connection_id, base_path)
 

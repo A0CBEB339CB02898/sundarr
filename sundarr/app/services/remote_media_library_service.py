@@ -103,6 +103,12 @@ class RemoteMediaLibraryService:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
         return await self._test_with_connection(db, lib.connection_id, lib.base_path)
 
+    async def test_new_library(self, db: Session, request: RemoteMediaLibraryCreateRequest) -> RemoteMediaLibraryTestResponse:
+        conn = db.get(SmbConnection, request.connection_id)
+        if conn is None:
+            raise ValueError("SMB_CONNECTION_NOT_FOUND")
+        return await self._test_with_connection(db, request.connection_id, request.base_path)
+
     async def _test_with_connection(self, db: Session, connection_id: str, base_path: str) -> RemoteMediaLibraryTestResponse:
         conn = db.get(SmbConnection, connection_id)
         if conn is None:
