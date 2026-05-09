@@ -12,8 +12,6 @@ from sundarr.app.core.database import get_session_factory
 from sundarr.app.models import (
     DownloadToLocalBinding,
     DownloadToLocalSeenFile,
-    IngestBinding,
-    IngestSeenFile,
     ResourceLink,
     Setting,
     TransferFile,
@@ -27,16 +25,13 @@ WORKER_ENABLED_KEY = "worker.enabled"
 WORKER_CONCURRENCY_KEY = "worker.concurrency"
 LOCAL_CLOUD_KEY = "cloud.local"
 LOCAL_STORAGE_KEY = "storage.local"
-INGEST_CONFIG_KEY = "ingest.config"
 DTL_CONFIG_KEY = "download_to_local.config"
 DEFAULT_WORKER_ENABLED = True
 DEFAULT_WORKER_CONCURRENCY = 2
 WORKER_RECOVERY_ERROR_CODE = "WORKER_RECOVERY_REQUIRED"
-DEFAULT_INGEST_DELETE_SOURCE = True
-DEFAULT_INGEST_DELETE_EMPTY_DIRS = True
 DEFAULT_DTL_DELETE_SOURCE = True
 DEFAULT_DTL_DELETE_EMPTY_DIRS = True
-INGEST_CHUNK_SIZE = 1024 * 1024
+DTL_CHUNK_SIZE = 1024 * 1024
 RUNNING_TASK_STATUSES = {
     "staging_to_cloud",
     "cloud_ready",
@@ -150,8 +145,6 @@ def claim_pending_tasks(session: Session, settings: WorkerSettings) -> list[Tran
 
 
 def _is_supported_claim_task(session: Session, task: TransferTask) -> bool:
-    if task.mode == "ingest":
-        return task.source_type == "smb" and task.target_type == "smb"
     if task.mode == "download_to_local":
         return task.source_type == "smb" and task.target_type == "smb"
     if task.target_type != "local" or not task.link_id:
@@ -223,9 +216,6 @@ async def process_claimed_tasks(
             if task is None:
                 continue
             if task.status == "cancelled":
-                continue
-            if task.mode == "ingest":
-                await process_ingest_task(session, task)
                 continue
             if task.mode == "download_to_local":
                 await process_dtl_task(session, task)
@@ -333,113 +323,6 @@ async def _process_transfer_task(
     return task
 
 
-async def process_ingest_task(
-    session: Session,
-    task: TransferTask,
-    source_writer: StorageWriter | None = None,
-    target_writer: StorageWriter | None = None,
-) -> TransferTask:
-    if task.status == "cancelled":
-        return task
-    try:
-        return await _process_ingest_task(session, task, source_writer, target_writer)
-    except TaskCancelled:
-        return task
-    except Exception as exc:
-        _mark_task_failed(session, task, exc)
-        return task
-
-
-async def _process_ingest_task(
-    session: Session,
-    task: TransferTask,
-    source_writer: StorageWriter | None,
-    target_writer: StorageWriter | None,
-) -> TransferTask:
-    if task.mode != "ingest" or task.source_type != "smb" or task.target_type != "smb":
-        raise ValueError("WORKER_UNSUPPORTED_TASK")
-    if not task.source_path:
-        raise ValueError("INGEST_SOURCE_PATH_INVALID")
-
-    source_writer = source_writer or SmbWriter(SmbConfig.from_dict(task.source_config_snapshot or {}))
-    target_writer = target_writer or SmbWriter(SmbConfig.from_dict(task.storage_config_snapshot or {}))
-    transfer_file = _get_or_create_ingest_file(session, task)
-    _raise_if_cancelled(session, task)
-
-    task.status = "downloading"
-    transfer_file.status = "downloading"
-    _add_log(session, task.id, "info", "ingest_copy_started", "开始从 SMB 来源导入文件。")
-    session.commit()
-
-    with await source_writer.open_read(task.source_path) as input_file:
-        with await target_writer.open_append(transfer_file.temp_path) as output_file:
-            while True:
-                _raise_if_cancelled(session, task)
-                chunk = input_file.read(INGEST_CHUNK_SIZE)
-                if not chunk:
-                    break
-                output_file.write(chunk)
-                transfer_file.done_bytes += len(chunk)
-                task.done_bytes += len(chunk)
-                session.commit()
-
-    _raise_if_cancelled(session, task)
-    task.status = "verifying"
-    transfer_file.status = "verified"
-    session.commit()
-    expected_size = transfer_file.size_bytes
-    if await target_writer.size(transfer_file.temp_path) != expected_size:
-        raise ValueError("SIZE_MISMATCH")
-
-    _raise_if_cancelled(session, task)
-    task.status = "renaming"
-    session.commit()
-    await target_writer.rename(transfer_file.temp_path, transfer_file.target_path)
-    transfer_file.status = "completed"
-    task.status = "completed"
-    task.completed_at = datetime.now(UTC)
-    _mark_seen_file_completed(session, task)
-    _add_log(session, task.id, "info", "ingest_transfer_completed", "SMB 来源导入已完成。")
-    session.commit()
-
-    await cleanup_ingest_source(session, task, source_writer)
-    return task
-
-
-async def cleanup_ingest_source(session: Session, task: TransferTask, source_writer: StorageWriter) -> bool:
-    if task.status != "completed" or not task.source_path:
-        return False
-    delete_source, delete_empty_dirs = _load_ingest_cleanup_options(session, task)
-    if not delete_source:
-        return False
-
-    task.status = "cleaning_source"
-    session.commit()
-    try:
-        await source_writer.remove(task.source_path)
-        if delete_empty_dirs:
-            await _remove_empty_source_dirs(source_writer, task.source_path)
-    except Exception as exc:
-        task.status = "completed"
-        task.error_code = "INGEST_SOURCE_DELETE_FAILED"
-        task.error_message = str(exc) or "INGEST_SOURCE_DELETE_FAILED"
-        task.retryable = True
-        _add_log(
-            session,
-            task.id,
-            "error",
-            "ingest_source_cleanup_failed",
-            f"来源文件清理失败：{task.error_message}",
-        )
-        session.commit()
-        return False
-
-    task.status = "completed"
-    _add_log(session, task.id, "info", "ingest_source_cleanup_completed", "来源文件和空目录已清理。")
-    session.commit()
-    return True
-
-
 async def process_dtl_task(
     session: Session,
     task: TransferTask,
@@ -470,7 +353,7 @@ async def _process_dtl_task(
 
     source_writer = source_writer or SmbWriter(SmbConfig.from_dict(task.source_config_snapshot or {}))
     target_writer = target_writer or SmbWriter(SmbConfig.from_dict(task.storage_config_snapshot or {}))
-    transfer_file = _get_or_create_ingest_file(session, task)
+    transfer_file = _get_or_create_dtl_file(session, task)
     _raise_if_cancelled(session, task)
 
     task.status = "downloading"
@@ -482,7 +365,7 @@ async def _process_dtl_task(
         with await target_writer.open_append(transfer_file.temp_path) as output_file:
             while True:
                 _raise_if_cancelled(session, task)
-                chunk = input_file.read(INGEST_CHUNK_SIZE)
+                chunk = input_file.read(DTL_CHUNK_SIZE)
                 if not chunk:
                     break
                 output_file.write(chunk)
@@ -584,6 +467,29 @@ def _get_dtl_binding_for_task(session: Session, task: TransferTask) -> DownloadT
     return session.get(DownloadToLocalBinding, seen.binding_id)
 
 
+def _get_or_create_dtl_file(session: Session, task: TransferTask) -> TransferFile:
+    transfer_file = session.query(TransferFile).filter(TransferFile.task_id == task.id).one_or_none()
+    if transfer_file is not None:
+        return transfer_file
+    if not task.source_path:
+        raise ValueError("DTL_SOURCE_PATH_INVALID")
+    transfer_file = TransferFile(
+        id=uuid4().hex,
+        task_id=task.id,
+        cloud_file_id=None,
+        cloud_path=task.source_path,
+        target_path=task.target_path,
+        temp_path=f"{task.target_path}.downloading",
+        filename=task.target_path.rsplit("/", 1)[-1] or task.target_path,
+        size_bytes=task.total_bytes,
+        done_bytes=0,
+        status="pending",
+    )
+    session.add(transfer_file)
+    session.flush()
+    return transfer_file
+
+
 async def cleanup_cloud_staging(
     session: Session,
     task: TransferTask,
@@ -633,66 +539,6 @@ def _is_task_staging_path(path: str | None, task_id: str) -> bool:
         return False
     normalized = path.strip("/")
     return normalized == f"Sundarr/_staging/{task_id}"
-
-
-def _get_or_create_ingest_file(session: Session, task: TransferTask) -> TransferFile:
-    transfer_file = session.query(TransferFile).filter(TransferFile.task_id == task.id).one_or_none()
-    if transfer_file is not None:
-        return transfer_file
-    if not task.source_path:
-        raise ValueError("INGEST_SOURCE_PATH_INVALID")
-    transfer_file = TransferFile(
-        id=uuid4().hex,
-        task_id=task.id,
-        cloud_file_id=None,
-        cloud_path=task.source_path,
-        target_path=task.target_path,
-        temp_path=f"{task.target_path}.downloading",
-        filename=task.target_path.rsplit("/", 1)[-1] or task.target_path,
-        size_bytes=task.total_bytes,
-        done_bytes=0,
-        status="pending",
-    )
-    session.add(transfer_file)
-    session.flush()
-    return transfer_file
-
-
-def _mark_seen_file_completed(session: Session, task: TransferTask) -> None:
-    if not task.ingest_seen_file_id:
-        return
-    seen = session.get(IngestSeenFile, task.ingest_seen_file_id)
-    if seen is not None:
-        seen.status = "completed"
-
-
-def _load_ingest_cleanup_options(session: Session, task: TransferTask) -> tuple[bool, bool]:
-    delete_source = DEFAULT_INGEST_DELETE_SOURCE
-    delete_empty_dirs = DEFAULT_INGEST_DELETE_EMPTY_DIRS
-    setting = session.get(Setting, INGEST_CONFIG_KEY)
-    if setting is not None:
-        value = setting.value_json
-        source_value = value.get("delete_source_after_success")
-        dirs_value = value.get("delete_empty_source_dirs")
-        delete_source = source_value if isinstance(source_value, bool) else delete_source
-        delete_empty_dirs = dirs_value if isinstance(dirs_value, bool) else delete_empty_dirs
-
-    binding = _get_ingest_binding_for_task(session, task)
-    if binding is not None:
-        if binding.delete_source_after_success is not None:
-            delete_source = binding.delete_source_after_success
-        if binding.delete_empty_source_dirs is not None:
-            delete_empty_dirs = binding.delete_empty_source_dirs
-    return delete_source, delete_empty_dirs
-
-
-def _get_ingest_binding_for_task(session: Session, task: TransferTask) -> IngestBinding | None:
-    if not task.ingest_seen_file_id:
-        return None
-    seen = session.get(IngestSeenFile, task.ingest_seen_file_id)
-    if seen is None or not seen.binding_id:
-        return None
-    return session.get(IngestBinding, seen.binding_id)
 
 
 async def _remove_empty_source_dirs(source_writer: StorageWriter, source_path: str) -> None:

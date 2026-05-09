@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session, object_session
 
 from sundarr.app.models import ResourceLink, Setting, TransferFile, TransferLog, TransferTask
 from sundarr.app.schemas.transfer import TransferCreateRequest, TransferLogResponse, TransferResponse
-from sundarr.app.services.storage_config_service import STORAGE_CONFIG_KEY
 
 CANCELLABLE_TRANSFER_STATUSES = {"pending", "staging_to_cloud", "cloud_ready", "downloading", "verifying"}
 CANCELLABLE_FILE_STATUSES = {"pending", "downloading", "verified"}
@@ -17,7 +16,6 @@ class TransferService:
         if link is None:
             raise ValueError("RESOURCE_LINK_NOT_FOUND")
 
-        storage_config = db.get(Setting, STORAGE_CONFIG_KEY)
         task = TransferTask(
             id=uuid4().hex,
             resource_id=link.resource_id,
@@ -27,7 +25,7 @@ class TransferService:
             target_type=request.target_type,
             target_library=request.target_library,
             target_path=request.target_path,
-            storage_config_snapshot=storage_config.value_json if storage_config else None,
+            storage_config_snapshot=None,
         )
         db.add(task)
         db.commit()
@@ -82,7 +80,6 @@ class TransferService:
             raise ValueError("TRANSFER_TASK_NOT_RETRYABLE")
 
         previous_error_code = task.error_code
-        storage_config = db.get(Setting, STORAGE_CONFIG_KEY)
         task.status = "pending"
         task.error_code = None
         task.error_message = None
@@ -90,7 +87,7 @@ class TransferService:
         task.retry_count += 1
         task.done_bytes = 0
         task.completed_at = None
-        task.storage_config_snapshot = storage_config.value_json if storage_config else None
+        task.storage_config_snapshot = None
         db.add(
             TransferLog(
                 id=uuid4().hex,

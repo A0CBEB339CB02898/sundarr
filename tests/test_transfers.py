@@ -5,7 +5,6 @@ from sqlalchemy import text
 from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
 from sundarr.app.models import Resource, ResourceLink, Setting, TransferFile, TransferLog, TransferTask
-from sundarr.app.services.storage_config_service import STORAGE_CONFIG_KEY
 
 
 def make_client(db_session: Session) -> TestClient:
@@ -35,13 +34,6 @@ def seed_link(db_session: Session) -> ResourceLink:
 def test_create_and_get_transfer(db_session: Session) -> None:
     client = make_client(db_session)
     link = seed_link(db_session)
-    db_session.add(
-        Setting(
-            key=STORAGE_CONFIG_KEY,
-            value_json={"host": "nas.example.invalid", "share": "share", "username": "user", "password": "secret"},
-            is_sensitive=True,
-        )
-    )
     db_session.commit()
 
     response = client.post(
@@ -57,7 +49,7 @@ def test_create_and_get_transfer(db_session: Session) -> None:
 
     task = db_session.get(TransferTask, body["id"])
     assert task is not None
-    assert task.storage_config_snapshot == {"host": "nas.example.invalid", "share": "share", "username": "user", "password": "secret"}
+    assert task.storage_config_snapshot is None
 
     get_response = client.get(f"/transfers/{body['id']}")
     assert get_response.status_code == 200
@@ -236,13 +228,6 @@ def test_retry_failed_retryable_transfer(db_session: Session) -> None:
     task.done_bytes = 4
     task.storage_config_snapshot = {"host": "old.example.invalid"}
     db_session.add(
-        Setting(
-            key=STORAGE_CONFIG_KEY,
-            value_json={"host": "nas.example.invalid", "share": "share", "username": "user", "password": "new-secret"},
-            is_sensitive=True,
-        )
-    )
-    db_session.add(
         TransferFile(
             id="file_retry",
             task_id=task.id,
@@ -271,12 +256,7 @@ def test_retry_failed_retryable_transfer(db_session: Session) -> None:
     db_session.refresh(task)
     transfer_file = db_session.get(TransferFile, "file_retry")
     assert task.done_bytes == 0
-    assert task.storage_config_snapshot == {
-        "host": "nas.example.invalid",
-        "share": "share",
-        "username": "user",
-        "password": "new-secret",
-    }
+    assert task.storage_config_snapshot is None
     assert transfer_file.temp_path == "Movies/Movie.mkv.downloading"
     assert transfer_file.status == "failed"
     log = db_session.query(TransferLog).order_by(TransferLog.created_at.desc()).first()
