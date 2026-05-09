@@ -1096,8 +1096,8 @@ SMB source -> SMB target 下载 Worker                              已实现
 交付物：
 
 ```text
-Web Console /app/download-to-local 页面
-Web Console /app/libraries 页面或等价媒体库管理入口
+Web Console /app/download-to-local 页面                           已实现
+Web Console /app/libraries 页面或等价媒体库管理入口                 已实现
 ```
 
 验收标准：

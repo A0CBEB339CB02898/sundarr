@@ -1618,8 +1618,8 @@ SMB source -> SMB target 下载 Worker                               已实现
 交付：
 
 ```text
-/app/download-to-local Web Console 页面                            待实现
-/app/libraries Web Console 页面或等价媒体库管理入口                  待实现
+/app/download-to-local Web Console 页面                           已实现
+/app/libraries Web Console 页面或等价媒体库管理入口                 已实现
 ```
 
 ### Phase 9: Real Site Source Adapters
