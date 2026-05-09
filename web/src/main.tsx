@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import './styles.css'
 
-type PageKey = 'search' | 'transfers' | 'storage' | 'sources' | 'ingest' | 'libraries' | 'download-to-local' | 'status'
+type PageKey = 'search' | 'transfers' | 'storage' | 'sources' | 'libraries' | 'download-to-local' | 'status'
 type ThemeMode = 'light' | 'dark' | 'system'
 
 type NavItem = {
@@ -442,7 +442,6 @@ const navItems: NavItem[] = [
   { key: 'transfers', path: '/app/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
   { key: 'storage', path: '/app/storage', label: '存储', description: '管理 SMB 配置和目录浏览' },
   { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
-  { key: 'ingest', path: '/app/ingest', label: '导入', description: '扫描挂载网盘并创建导入任务' },
   { key: 'libraries', path: '/app/libraries', label: '媒体库', description: '管理本地媒体库目录绑定' },
   { key: 'download-to-local', path: '/app/download-to-local', label: '下载到本地', description: '管理网盘目录到媒体库的下载绑定' },
   { key: 'status', path: '/app/status', label: '状态', description: '查看 API、Worker、数据库和 Redis' },
@@ -471,12 +470,6 @@ const pageCopy: Record<PageKey, { title: string; eyebrow: string; body: string; 
     eyebrow: 'Sources',
     title: '媒体源管理',
     body: '管理已安装代码型 Source Adapter 的启用、参数、测试和错误状态。',
-    next: '当前页面暂不可用，请从左侧导航重新进入。',
-  },
-  ingest: {
-    eyebrow: 'Ingest',
-    title: '挂载网盘导入',
-    body: '管理来源目录绑定，扫描稳定文件，并创建 SMB 来源到 SMB 目标的导入任务。',
     next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
   libraries: {
@@ -649,9 +642,6 @@ function PagePanel({
   }
   if (activePage === 'sources') {
     return <SourcesPanel />
-  }
-  if (activePage === 'ingest') {
-    return <IngestPanel onTransfersChanged={onTransfersChanged} />
   }
   if (activePage === 'libraries') {
     return <LibrariesPanel />
