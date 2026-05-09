@@ -12,7 +12,11 @@ export default defineConfig({
       '/transfers': 'http://localhost:8080',
       '/sources': 'http://localhost:8080',
       '/settings': 'http://localhost:8080',
-      '/storage': 'http://localhost:8080'
+      '/storage': 'http://localhost:8080',
+      '/media-libraries': 'http://localhost:8080',
+      '/remote-media-libraries': 'http://localhost:8080',
+      '/sync': 'http://localhost:8080',
+      '/download-to-local': 'http://localhost:8080',
     }
   }
 })
