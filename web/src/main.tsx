@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import './styles.css'
 
-type PageKey = 'search' | 'transfers' | 'storage' | 'sources' | 'ingest' | 'status'
+type PageKey = 'search' | 'transfers' | 'storage' | 'sources' | 'ingest' | 'libraries' | 'download-to-local' | 'status'
 type ThemeMode = 'light' | 'dark' | 'system'
 
 type NavItem = {
@@ -273,6 +273,139 @@ type IngestBindingTestResponse = {
   error_message: string | null
 }
 
+type SmbConnectionResponse = {
+  id: string
+  name: string
+  enabled: boolean
+  host: string
+  port: number
+  share: string
+  username: string
+  password_set: boolean
+  domain: string
+  base_path: string
+  created_at: string | null
+  updated_at: string | null
+}
+
+type SmbConnectionListResponse = {
+  count: number
+  results: SmbConnectionResponse[]
+}
+
+type MediaLibraryResponse = {
+  id: string
+  name: string
+  media_type: DtlMediaType
+  enabled: boolean
+  connection_id: string
+  base_path: string
+  created_at: string | null
+  updated_at: string | null
+}
+
+type MediaLibraryListResponse = {
+  count: number
+  results: MediaLibraryResponse[]
+}
+
+type DtlMediaType = 'movie' | 'series' | 'unclassified'
+
+type DtlConfigResponse = {
+  delete_source_after_success: boolean
+  delete_empty_source_dirs: boolean
+  scan_interval_seconds: number
+  stable_seconds: number
+  unclassified_library_id: string
+}
+
+type DtlBindingResponse = {
+  id: string
+  name: string
+  enabled: boolean
+  media_type: DtlMediaType
+  source_connection_id: string
+  source_path: string
+  target_library_id: string
+  delete_source_after_success: boolean | null
+  delete_empty_source_dirs: boolean | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+type DtlBindingListResponse = {
+  count: number
+  results: DtlBindingResponse[]
+}
+
+type DtlDiscoveredFileResponse = {
+  id: string
+  binding_id: string | null
+  source_fingerprint: string
+  source_path: string
+  source_size: number | null
+  source_mtime: string | null
+  status: string
+  task_id: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+type DtlDiscoveredListResponse = {
+  count: number
+  results: DtlDiscoveredFileResponse[]
+}
+
+type DtlScanResponse = {
+  scanned_bindings: number
+  discovered_count: number
+  stable_count: number
+  results: DtlDiscoveredFileResponse[]
+}
+
+type DtlTaskCreateResponse = {
+  created_count: number
+  skipped_count: number
+  tasks: TransferResponse[]
+}
+
+type DtlBindingTestResponse = {
+  ok: boolean
+  source_ok: boolean
+  target_ok: boolean
+  error_code: string | null
+  error_message: string | null
+}
+
+type DtlBindingFormState = {
+  id: string
+  name: string
+  enabled: boolean
+  media_type: DtlMediaType
+  source_connection_id: string
+  source_path: string
+  target_library_id: string
+  delete_source_after_success: '' | 'true' | 'false'
+  delete_empty_source_dirs: '' | 'true' | 'false'
+}
+
+type DtlConfigFormState = {
+  delete_source_after_success: boolean
+  delete_empty_source_dirs: boolean
+  scan_interval_seconds: string
+  stable_seconds: string
+  unclassified_library_id: string
+}
+
+type LibraryFormState = {
+  id: string
+  name: string
+  media_type: DtlMediaType
+  enabled: boolean
+  connection_id: string
+  base_path: string
+}
+
 type IngestFormState = {
   id: string
   name: string
@@ -310,6 +443,8 @@ const navItems: NavItem[] = [
   { key: 'storage', path: '/app/storage', label: '存储', description: '管理 SMB 配置和目录浏览' },
   { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
   { key: 'ingest', path: '/app/ingest', label: '导入', description: '扫描挂载网盘并创建导入任务' },
+  { key: 'libraries', path: '/app/libraries', label: '媒体库', description: '管理本地媒体库目录绑定' },
+  { key: 'download-to-local', path: '/app/download-to-local', label: '下载到本地', description: '管理网盘目录到媒体库的下载绑定' },
   { key: 'status', path: '/app/status', label: '状态', description: '查看 API、Worker、数据库和 Redis' },
 ]
 
@@ -342,6 +477,18 @@ const pageCopy: Record<PageKey, { title: string; eyebrow: string; body: string; 
     eyebrow: 'Ingest',
     title: '挂载网盘导入',
     body: '管理来源目录绑定，扫描稳定文件，并创建 SMB 来源到 SMB 目标的导入任务。',
+    next: '当前页面暂不可用，请从左侧导航重新进入。',
+  },
+  libraries: {
+    eyebrow: 'Libraries',
+    title: '媒体库管理',
+    body: '管理 movie / series / unclassified 等本地媒体库目录绑定。',
+    next: '当前页面暂不可用，请从左侧导航重新进入。',
+  },
+  'download-to-local': {
+    eyebrow: 'Download To Local',
+    title: '下载到本地',
+    body: '管理网盘目录到媒体库的下载绑定，扫描来源目录并创建下载任务。',
     next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
   status: {
@@ -505,6 +652,12 @@ function PagePanel({
   }
   if (activePage === 'ingest') {
     return <IngestPanel onTransfersChanged={onTransfersChanged} />
+  }
+  if (activePage === 'libraries') {
+    return <LibrariesPanel />
+  }
+  if (activePage === 'download-to-local') {
+    return <DownloadToLocalPanel onTransfersChanged={onTransfersChanged} />
   }
 
   return (
@@ -887,6 +1040,366 @@ function DiscoveredFiles({ files }: { files: IngestDiscoveredFileResponse[] }) {
         </article>
       ))}
     </div>
+  )
+}
+
+function LibrariesPanel() {
+  const [libraries, setLibraries] = useState<MediaLibraryResponse[]>([])
+  const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [form, setForm] = useState<LibraryFormState>(emptyLibraryForm())
+  const [mode, setMode] = useState<'create' | 'edit'>('create')
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => { void loadLibraries() }, [])
+
+  const selectedLibrary = libraries.find((l) => l.id === selectedId) || null
+
+  async function loadLibraries(nextSelectedId = selectedId) {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const [libList, connList] = await Promise.all([
+        api.get<MediaLibraryListResponse>('/media-libraries'),
+        api.get<SmbConnectionListResponse>('/storage/smb-connections'),
+      ])
+      setLibraries(libList.results)
+      setConnections(connList.results)
+      const next = libList.results.find((l) => l.id === nextSelectedId) || libList.results[0] || null
+      if (next) { selectLibrary(next, false) } else { startCreate() }
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '无法读取媒体库配置。')
+    } finally { setIsLoading(false) }
+  }
+
+  function selectLibrary(lib: MediaLibraryResponse, clearFeedback = true) {
+    setMode('edit'); setSelectedId(lib.id)
+    setForm({ id: lib.id, name: lib.name, media_type: lib.media_type, enabled: lib.enabled, connection_id: lib.connection_id, base_path: lib.base_path })
+    if (clearFeedback) { setMessage(null); setError(null) }
+  }
+
+  function startCreate() {
+    setMode('create'); setSelectedId(null)
+    setForm(emptyLibraryForm()); setMessage(null); setError(null)
+  }
+
+  async function saveLibrary() {
+    if (!window.confirm(`确认${mode === 'create' ? '创建' : '保存'}媒体库？`)) return
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      const payload = { name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/' }
+      const saved = mode === 'create'
+        ? await api.post<MediaLibraryResponse>('/media-libraries/create', { id: form.id.trim(), ...payload })
+        : await api.post<MediaLibraryResponse>(`/media-libraries/${encodeURIComponent(form.id)}/update`, payload)
+      setMessage(mode === 'create' ? '媒体库已创建。' : '媒体库已保存。')
+      await loadLibraries(saved.id)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存媒体库失败。') }
+    finally { setIsSaving(false) }
+  }
+
+  async function toggleLibrary(enabled: boolean) {
+    if (!selectedLibrary) return
+    if (!window.confirm(`确认${enabled ? '启用' : '禁用'}媒体库 ${selectedLibrary.name}？`)) return
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      await api.post<MediaLibraryResponse>(`/media-libraries/${encodeURIComponent(selectedLibrary.id)}/${enabled ? 'enable' : 'disable'}`)
+      setMessage(enabled ? '媒体库已启用。' : '媒体库已禁用。')
+      await loadLibraries(selectedLibrary.id)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '切换媒体库状态失败。') }
+    finally { setIsSaving(false) }
+  }
+
+  async function testLibrary() {
+    if (!selectedLibrary) { setError('请先选择已保存的媒体库。'); return }
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(`/media-libraries/${encodeURIComponent(selectedLibrary.id)}/test`)
+      setMessage(result.ok ? '媒体库目录测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试媒体库失败。') }
+    finally { setIsSaving(false) }
+  }
+
+  function updateField(key: keyof LibraryFormState, value: string | boolean) { setForm((c) => ({ ...c, [key]: value })) }
+
+  return (
+    <section className="panel" aria-labelledby="libraries-title">
+      <div className="panel-header-row">
+        <div>
+          <p className="panel-kicker">媒体库</p>
+          <h2 id="libraries-title">媒体库管理</h2>
+          <p>管理 movie / series / unclassified 等本地媒体库目录绑定。</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="ghost-button" disabled={isLoading} onClick={() => void loadLibraries()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
+          <button className="primary-button" onClick={startCreate} type="button">新增</button>
+        </div>
+      </div>
+      {message && <div className="inline-message">{message}</div>}
+      {error && <div className="inline-message error">{error}</div>}
+      <div className="ingest-layout">
+        <section className="source-list" aria-labelledby="lib-list-title">
+          <div className="section-heading"><h3 id="lib-list-title">媒体库列表</h3><span>{libraries.length} 个</span></div>
+          <div className="transfer-list">
+            {libraries.map((lib) => (
+              <button key={lib.id} type="button" className={`source-row ${lib.id === selectedId ? 'selected' : ''}`} onClick={() => selectLibrary(lib)}>
+                <strong>{lib.name}</strong>
+                <span>{lib.media_type} · {lib.connection_id} · {lib.base_path} · {lib.enabled ? '已启用' : '已禁用'}</span>
+              </button>
+            ))}
+            {libraries.length === 0 && <EmptyState message="暂无媒体库。点击新增创建。" />}
+          </div>
+        </section>
+        <section className="source-editor" aria-labelledby="lib-editor-title">
+          <div className="section-heading"><h3 id="lib-editor-title">{mode === 'create' ? '创建媒体库' : '编辑媒体库'}</h3><span>{selectedLibrary ? selectedLibrary.id : 'new'}</span></div>
+          <div className="form-grid">
+            <label><span>唯一标识</span><input disabled={mode === 'edit'} value={form.id} onChange={(e) => updateField('id', e.target.value)} /></label>
+            <label><span>名称</span><input value={form.name} onChange={(e) => updateField('name', e.target.value)} /></label>
+            <label><span>媒体类型</span><select value={form.media_type} onChange={(e) => updateField('media_type', e.target.value)}>
+              <option value="movie">电影</option><option value="series">剧集</option><option value="unclassified">未分类</option>
+            </select></label>
+            <label><span>SMB 连接</span><select value={form.connection_id} onChange={(e) => updateField('connection_id', e.target.value)}>
+              <option value="">选择连接</option>{connections.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.host}/{c.share})</option>)}
+            </select></label>
+            <label><span>目录路径</span><input value={form.base_path} onChange={(e) => updateField('base_path', e.target.value)} /></label>
+          </div>
+          <div className="form-actions">
+            <button className="primary-button" disabled={isSaving} onClick={() => void saveLibrary()} type="button">{isSaving ? '保存中' : mode === 'create' ? '创建' : '保存'}</button>
+            {selectedLibrary && <>
+              <button className="ghost-button" disabled={isSaving} onClick={() => void toggleLibrary(!selectedLibrary.enabled)} type="button">{selectedLibrary.enabled ? '禁用' : '启用'}</button>
+              <button className="ghost-button" disabled={isSaving} onClick={() => void testLibrary()} type="button">测试</button>
+            </>}
+          </div>
+        </section>
+      </div>
+    </section>
+  )
+}
+
+function DownloadToLocalPanel({ onTransfersChanged }: { onTransfersChanged: () => Promise<void> }) {
+  const [configForm, setConfigForm] = useState<DtlConfigFormState>(emptyDtlConfigForm())
+  const [bindings, setBindings] = useState<DtlBindingResponse[]>([])
+  const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
+  const [libraries, setLibraries] = useState<MediaLibraryResponse[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [form, setForm] = useState<DtlBindingFormState>(emptyDtlBindingForm())
+  const [mode, setMode] = useState<'create' | 'edit'>('create')
+  const [discovered, setDiscovered] = useState<DtlDiscoveredFileResponse[]>([])
+  const [scanResult, setScanResult] = useState<DtlScanResponse | null>(null)
+  const [createdTasks, setCreatedTasks] = useState<DtlTaskCreateResponse | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isScanning, setIsScanning] = useState(false)
+  const [isCreatingTasks, setIsCreatingTasks] = useState(false)
+
+  useEffect(() => { void loadDtl() }, [])
+
+  const selectedBinding = bindings.find((b) => b.id === selectedId) || null
+
+  async function loadDtl(nextSelectedId = selectedId) {
+    setIsLoading(true); setError(null)
+    try {
+      const [config, bindingList, discoveredList, connList, libList] = await Promise.all([
+        api.get<DtlConfigResponse>('/download-to-local/config'),
+        api.get<DtlBindingListResponse>('/download-to-local/bindings'),
+        api.get<DtlDiscoveredListResponse>('/download-to-local/discovered'),
+        api.get<SmbConnectionListResponse>('/storage/smb-connections'),
+        api.get<MediaLibraryListResponse>('/media-libraries'),
+      ])
+      setConfigForm(dtlConfigFormFromResponse(config))
+      setBindings(bindingList.results)
+      setDiscovered(discoveredList.results)
+      setConnections(connList.results)
+      setLibraries(libList.results)
+      const next = bindingList.results.find((b) => b.id === nextSelectedId) || bindingList.results[0] || null
+      if (next) { selectBinding(next, false) } else { startCreate() }
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '无法读取下载到本地配置。') }
+    finally { setIsLoading(false) }
+  }
+
+  function selectBinding(binding: DtlBindingResponse, clearFeedback = true) {
+    setMode('edit'); setSelectedId(binding.id)
+    setForm({ id: binding.id, name: binding.name, enabled: binding.enabled, media_type: binding.media_type, source_connection_id: binding.source_connection_id, source_path: binding.source_path, target_library_id: binding.target_library_id, delete_source_after_success: triStateFromBoolean(binding.delete_source_after_success), delete_empty_source_dirs: triStateFromBoolean(binding.delete_empty_source_dirs) })
+    if (clearFeedback) { setMessage(null); setError(null); setScanResult(null); setCreatedTasks(null) }
+  }
+
+  function startCreate() {
+    setMode('create'); setSelectedId(null)
+    setForm(emptyDtlBindingForm()); setMessage(null); setError(null); setScanResult(null); setCreatedTasks(null)
+  }
+
+  async function saveConfig() {
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      const saved = await api.post<DtlConfigResponse>('/download-to-local/config/save', dtlConfigRequestFromForm(configForm))
+      setConfigForm(dtlConfigFormFromResponse(saved)); setMessage('下载到本地全局配置已保存。')
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存配置失败。') }
+    finally { setIsSaving(false) }
+  }
+
+  async function saveBinding() {
+    if (!window.confirm(`确认${mode === 'create' ? '创建' : '保存'}下载绑定？`)) return
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      const payload = { name: form.name.trim(), enabled: form.enabled, media_type: form.media_type, source_connection_id: form.source_connection_id.trim(), source_path: form.source_path.trim(), target_library_id: form.target_library_id.trim(), delete_source_after_success: triStateToBoolean(form.delete_source_after_success), delete_empty_source_dirs: triStateToBoolean(form.delete_empty_source_dirs) }
+      const saved = mode === 'create'
+        ? await api.post<DtlBindingResponse>('/download-to-local/bindings/create', { id: form.id.trim(), ...payload })
+        : await api.post<DtlBindingResponse>(`/download-to-local/bindings/${encodeURIComponent(form.id)}/update`, payload)
+      setMessage(mode === 'create' ? '下载绑定已创建。' : '下载绑定已保存。')
+      await loadDtl(saved.id)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存下载绑定失败。') }
+    finally { setIsSaving(false) }
+  }
+
+  async function toggleBinding(enabled: boolean) {
+    if (!selectedBinding) return
+    if (!window.confirm(`确认${enabled ? '启用' : '禁用'}下载绑定 ${selectedBinding.name}？`)) return
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      await api.post<DtlBindingResponse>(`/download-to-local/bindings/${encodeURIComponent(selectedBinding.id)}/${enabled ? 'enable' : 'disable'}`)
+      setMessage(enabled ? '下载绑定已启用。' : '下载绑定已禁用。')
+      await loadDtl(selectedBinding.id)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '切换状态失败。') }
+    finally { setIsSaving(false) }
+  }
+
+  async function testBinding() {
+    if (!selectedBinding) { setError('请先选择已保存的下载绑定。'); return }
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      const result = await api.post<DtlBindingTestResponse>(`/download-to-local/bindings/${encodeURIComponent(selectedBinding.id)}/test`)
+      setMessage(result.ok ? '来源和目标测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试下载绑定失败。') }
+    finally { setIsSaving(false) }
+  }
+
+  async function scanSources(bindingId?: string) {
+    setIsScanning(true); setError(null); setMessage(null); setScanResult(null)
+    try {
+      const result = await api.post<DtlScanResponse>('/download-to-local/scan', bindingId ? { binding_id: bindingId } : {})
+      setScanResult(result); setMessage(`扫描完成：发现 ${result.discovered_count} 个新文件，稳定 ${result.stable_count} 个文件。`)
+      const discoveredList = await api.get<DtlDiscoveredListResponse>('/download-to-local/discovered')
+      setDiscovered(discoveredList.results)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '扫描来源目录失败。') }
+    finally { setIsScanning(false) }
+  }
+
+  async function createTasks(bindingId?: string) {
+    setIsCreatingTasks(true); setError(null); setMessage(null); setCreatedTasks(null)
+    try {
+      const result = await api.post<DtlTaskCreateResponse>('/download-to-local/tasks/create', bindingId ? { binding_id: bindingId } : {})
+      setCreatedTasks(result); setMessage(`已创建 ${result.created_count} 个下载任务，跳过 ${result.skipped_count} 个文件。`)
+      const discoveredList = await api.get<DtlDiscoveredListResponse>('/download-to-local/discovered')
+      setDiscovered(discoveredList.results)
+      window.dispatchEvent(new Event('sundarr:transfers-changed'))
+      await onTransfersChanged()
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '创建下载任务失败。') }
+    finally { setIsCreatingTasks(false) }
+  }
+
+  function updateField(key: keyof DtlBindingFormState, value: string | boolean) { setForm((c) => ({ ...c, [key]: value })) }
+  function updateConfigField(key: keyof DtlConfigFormState, value: string | boolean) { setConfigForm((c) => ({ ...c, [key]: value })) }
+
+  return (
+    <section className="panel" aria-labelledby="dtl-title">
+      <div className="panel-header-row">
+        <div>
+          <p className="panel-kicker">下载到本地</p>
+          <h2 id="dtl-title">下载到本地</h2>
+          <p>管理网盘目录到媒体库的下载绑定，扫描来源目录并创建下载任务。</p>
+        </div>
+        <button className="ghost-button" disabled={isLoading} onClick={() => void loadDtl()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
+      </div>
+      {message && <div className="inline-message">{message}</div>}
+      {error && <div className="inline-message error">{error}</div>}
+      <div className="ingest-layout">
+        <div className="ingest-left">
+          <section className="ingest-section" aria-labelledby="dtl-config-title">
+            <div className="section-heading"><h3 id="dtl-config-title">全局配置</h3></div>
+            <div className="form-grid compact">
+              <label className="checkbox"><input type="checkbox" checked={configForm.delete_source_after_success} onChange={(e) => updateConfigField('delete_source_after_success', e.target.checked)} /><span>成功后删除来源文件</span></label>
+              <label className="checkbox"><input type="checkbox" checked={configForm.delete_empty_source_dirs} onChange={(e) => updateConfigField('delete_empty_source_dirs', e.target.checked)} /><span>成功后删除空来源目录</span></label>
+              <label><span>扫描间隔(秒)</span><input value={configForm.scan_interval_seconds} onChange={(e) => updateConfigField('scan_interval_seconds', e.target.value)} /></label>
+              <label><span>稳定等待(秒)</span><input value={configForm.stable_seconds} onChange={(e) => updateConfigField('stable_seconds', e.target.value)} /></label>
+              <label><span>未分类媒体库 ID</span><input value={configForm.unclassified_library_id} onChange={(e) => updateConfigField('unclassified_library_id', e.target.value)} placeholder="留空使用全局默认" /></label>
+            </div>
+            <div className="form-actions"><button className="primary-button" disabled={isSaving} onClick={() => void saveConfig()} type="button">{isSaving ? '保存中' : '保存配置'}</button></div>
+          </section>
+          <section className="source-list" aria-labelledby="dtl-binding-list-title">
+            <div className="section-heading"><h3 id="dtl-binding-list-title">下载绑定</h3><span>{bindings.length} 个</span></div>
+            <div className="transfer-list">
+              {bindings.map((b) => (
+                <button key={b.id} type="button" className={`source-row ${b.id === selectedId ? 'selected' : ''}`} onClick={() => selectBinding(b)}>
+                  <strong>{b.name}</strong>
+                  <span>{b.media_type} · {b.source_connection_id}:{b.source_path} → {b.target_library_id} · {b.enabled ? '已启用' : '已禁用'}</span>
+                </button>
+              ))}
+              {bindings.length === 0 && <EmptyState message="暂无下载绑定。点击新增创建。" />}
+            </div>
+            <div className="form-actions"><button className="primary-button" onClick={startCreate} type="button">新增</button></div>
+          </section>
+        </div>
+        <div className="ingest-right">
+          <section className="source-editor" aria-labelledby="dtl-binding-editor-title">
+            <div className="section-heading"><h3 id="dtl-binding-editor-title">{mode === 'create' ? '创建绑定' : '编辑绑定'}</h3><span>{selectedBinding ? selectedBinding.id : 'new'}</span></div>
+            <div className="form-grid compact">
+              <label><span>唯一标识</span><input disabled={mode === 'edit'} value={form.id} onChange={(e) => updateField('id', e.target.value)} /></label>
+              <label><span>名称</span><input value={form.name} onChange={(e) => updateField('name', e.target.value)} /></label>
+              <label><span>媒体类型</span><select value={form.media_type} onChange={(e) => updateField('media_type', e.target.value)}>
+                <option value="movie">电影</option><option value="series">剧集</option><option value="unclassified">未分类</option>
+              </select></label>
+              <label><span>来源 SMB 连接</span><select value={form.source_connection_id} onChange={(e) => updateField('source_connection_id', e.target.value)}>
+                <option value="">选择连接</option>{connections.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.host}/{c.share})</option>)}
+              </select></label>
+              <label><span>来源目录</span><input value={form.source_path} onChange={(e) => updateField('source_path', e.target.value)} /></label>
+              <label><span>目标媒体库</span><select value={form.target_library_id} onChange={(e) => updateField('target_library_id', e.target.value)}>
+                <option value="">选择媒体库</option>{libraries.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.media_type})</option>)}
+              </select></label>
+              <label><span>成功后删除来源</span><select value={form.delete_source_after_success} onChange={(e) => updateField('delete_source_after_success', e.target.value)}>
+                <option value="">使用全局默认</option><option value="true">删除</option><option value="false">保留</option>
+              </select></label>
+              <label><span>成功后删除空目录</span><select value={form.delete_empty_source_dirs} onChange={(e) => updateField('delete_empty_source_dirs', e.target.value)}>
+                <option value="">使用全局默认</option><option value="true">删除</option><option value="false">保留</option>
+              </select></label>
+            </div>
+            <div className="form-actions">
+              <button className="primary-button" disabled={isSaving} onClick={() => void saveBinding()} type="button">{isSaving ? '保存中' : mode === 'create' ? '创建' : '保存'}</button>
+              {selectedBinding && <>
+                <button className="ghost-button" disabled={isSaving} onClick={() => void toggleBinding(!selectedBinding.enabled)} type="button">{selectedBinding.enabled ? '禁用' : '启用'}</button>
+                <button className="ghost-button" disabled={isSaving} onClick={() => void testBinding()} type="button">测试</button>
+              </>}
+            </div>
+          </section>
+          <section className="ingest-section" aria-labelledby="dtl-actions-title">
+            <div className="section-heading"><h3 id="dtl-actions-title">扫描与任务</h3><span>{discovered.length} 个发现文件</span></div>
+            <div className="form-actions">
+              <button className="ghost-button" disabled={isScanning} onClick={() => void scanSources(selectedBinding?.id)} type="button">{isScanning ? '扫描中' : '扫描来源目录'}</button>
+              <button className="ghost-button" disabled={isCreatingTasks} onClick={() => void createTasks(selectedBinding?.id)} type="button">{isCreatingTasks ? '创建中' : '创建下载任务'}</button>
+            </div>
+            {scanResult && <div className="inline-message">扫描了 {scanResult.scanned_bindings} 个绑定，发现 {scanResult.discovered_count} 个新文件，稳定 {scanResult.stable_count} 个。</div>}
+            {createdTasks && <div className="inline-message">已创建 {createdTasks.created_count} 个任务，跳过 {createdTasks.skipped_count} 个。</div>}
+          </section>
+          <section aria-labelledby="dtl-discovered-title">
+            <div className="section-heading"><h3 id="dtl-discovered-title">发现文件</h3></div>
+            <div className="transfer-list">
+              {discovered.length === 0 && <EmptyState message="暂无发现文件。先扫描启用的下载绑定。" />}
+              {discovered.map((file) => (
+                <article className="discovered-row" key={file.id}>
+                  <span className={`status-pill ${dtlSeenTone(file.status)}`}>{dtlSeenStatusLabel(file.status)}</span>
+                  <strong>{file.source_path}</strong>
+                  <small>{file.binding_id || '无绑定'} · {formatBytes(file.source_size || 0)}</small>
+                  <small>{file.task_id ? `任务 ${file.task_id}` : '未创建任务'}</small>
+                </article>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -2152,6 +2665,38 @@ function ingestSeenStatusLabel(status: string) {
 }
 
 function ingestSeenTone(status: string) {
+  if (status === 'completed') return 'ok'
+  if (status === 'failed') return 'error'
+  if (status === 'discovered' || status === 'ignored') return 'unknown'
+  return 'running'
+}
+
+function emptyLibraryForm(): LibraryFormState {
+  return { id: '', name: '', media_type: 'movie', enabled: true, connection_id: '', base_path: '/' }
+}
+
+function emptyDtlConfigForm(): DtlConfigFormState {
+  return { delete_source_after_success: true, delete_empty_source_dirs: true, scan_interval_seconds: '60', stable_seconds: '120', unclassified_library_id: '' }
+}
+
+function dtlConfigFormFromResponse(config: DtlConfigResponse): DtlConfigFormState {
+  return { delete_source_after_success: config.delete_source_after_success, delete_empty_source_dirs: config.delete_empty_source_dirs, scan_interval_seconds: String(config.scan_interval_seconds), stable_seconds: String(config.stable_seconds), unclassified_library_id: config.unclassified_library_id }
+}
+
+function dtlConfigRequestFromForm(form: DtlConfigFormState) {
+  return { delete_source_after_success: form.delete_source_after_success, delete_empty_source_dirs: form.delete_empty_source_dirs, scan_interval_seconds: Number(form.scan_interval_seconds) || 60, stable_seconds: Number(form.stable_seconds) || 120, unclassified_library_id: form.unclassified_library_id.trim() }
+}
+
+function emptyDtlBindingForm(): DtlBindingFormState {
+  return { id: '', name: '', enabled: true, media_type: 'movie', source_connection_id: '', source_path: '', target_library_id: '', delete_source_after_success: '', delete_empty_source_dirs: '' }
+}
+
+function dtlSeenStatusLabel(status: string) {
+  const labels: Record<string, string> = { discovered: '已发现', stable: '已稳定', queued: '已排队', downloading: '下载中', completed: '已完成', failed: '失败', ignored: '已忽略' }
+  return labels[status] || status
+}
+
+function dtlSeenTone(status: string) {
   if (status === 'completed') return 'ok'
   if (status === 'failed') return 'error'
   if (status === 'discovered' || status === 'ignored') return 'unknown'
