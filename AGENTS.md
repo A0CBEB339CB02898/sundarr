@@ -128,6 +128,11 @@ Web Console 只管理已安装 Adapter 的启用、禁用、参数、测试和�
 文档型网站是否可通用读取作为后续实验阶段验证。
 Web Console 是核心控制台，不做完整媒体库 UI。
 项目文档、Git commit message、代码注释、报错提示、界面文案和其他项目相关文本原则上使用简体中文。
+系统核心功能是"远程媒体库同步到本地媒体库"，不再使用"网盘导入"概念。
+远程媒体库绑定 SMB 连接下的远程目录（如网盘挂载目录）。
+本地媒体库绑定 SMB 连接下的本地 NAS 目录。
+同步绑定连接：远程媒体库（来源） -> 本地媒体库（目标）。
+Phase 9 模块重构：删除 Ingest 模块和旧 storage_config_service，新增远程媒体库模型，重构同步绑定。
 ```
 
 ---
@@ -214,8 +219,9 @@ Phase 6: Cleanup And Recovery
 Phase 7: Web Console
 Phase 7.8: Web Console UI Polish
 Phase 8: Download To Local
-Phase 9: Real Site Source Adapters
-Phase 10: AI Friendly API
+Phase 9: Module Refactoring
+Phase 10: Real Site Source Adapters
+Phase 11: AI Friendly API
 ```
 
 不得提前实现后续阶段的大型功能，除非当前阶段验收需要或用户明确要求。

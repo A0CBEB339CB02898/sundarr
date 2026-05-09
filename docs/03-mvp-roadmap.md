@@ -1156,7 +1156,49 @@ pytest 通过。
 
 ---
 
-## Phase 9: Real Site Source Adapters
+## Phase 9: 模块重构
+
+目标：清理旧模块，统一术语，建立远程媒体库模型，重构同步绑定。将系统从"网盘导入"概念统一为"远程媒体库同步到本地媒体库"。
+
+背景：Phase 8 完成后，系统中存在 Ingest（旧）和 Download To Local（新）两套并行模块，以及旧 storage.smb 和新 smb_connections 两套配置系统。需要统一清理。
+
+交付物：
+
+```text
+删除 Ingest 模块（model/service/api/Worker/Web Console）
+删除旧 storage_config_service（settings.storage.smb）
+新增远程媒体库模型（RemoteMediaLibrary）
+重构同步绑定（SyncBinding 引用 remote_library_id -> local_library_id）
+重命名 TransferTask.ingest_seen_file_id -> sync_seen_file_id
+TransferTask 增加 binding_id 字段
+统一 Worker 处理路径（合并 process_ingest_task 和 process_dtl_task）
+更新 Web Console（/app/remote-libraries、/app/sync）
+```
+
+验收标准：
+
+```text
+系统中不再有 Ingest 相关代码和 API。
+系统中不再有 storage.smb 相关代码和 API。
+远程媒体库可通过 API 管理。
+同步绑定引用远程媒体库和本地媒体库。
+Worker 只有一条同步处理路径。
+pytest 通过。
+npm run build 通过。
+```
+
+停止条件：
+
+```text
+所有旧模块代码已删除。
+新模块 API 和 Worker 入口完成最小冒烟测试。
+不实现真实网盘 Provider。
+不实现完整媒体库 UI。
+```
+
+---
+
+## Phase 10: Real Site Source Adapters
 
 目标：实现真实媒体网站即时搜索能力。每个真实网站通过代码型 Source Adapter 接入，多个 Adapter 并发搜索，结果统一进入 Search Pipeline。
 
@@ -1223,7 +1265,7 @@ pytest 通过。
 
 ---
 
-## Phase 10: AI Friendly API
+## Phase 11: AI Friendly API
 
 目标：为 AI / Agent 调用提供稳定工具式接口。
 
@@ -1257,7 +1299,7 @@ pytest 通过。
 工作区已提交或明确说明不提交原因。
 ```
 
-## Phase 11: Cloud Direct Download
+## Phase 12: Cloud Direct Download
 
 目标：实现网盘直链下载能力，跳过"保存到网盘 + SMB 挂载"步骤，直接从网盘 CDN 下载文件到本地。
 
