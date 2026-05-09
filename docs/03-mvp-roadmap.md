@@ -1078,7 +1078,17 @@ download_to_local task 创建                                   已实现
 SMB source -> SMB target 下载 Worker                              已实现
 .downloading 写入、size 校验、rename                               已实现
 成功后删除源文件和空目录                                            已实现
-未分类 fallback                                                   待实现（配置已有，Worker 自动 fallback 逻辑待实现）
+未分类 fallback                                                   已实现
+```
+
+### Phase 8.4: Web Console 前端
+
+交付物：
+
+```text
+Web Console /app/download-to-local 页面                           已合并到 /app/remote-libraries
+Web Console /app/libraries 页面或等价媒体库管理入口                 已实现
+Web Console /app/remote-libraries 页面                            已实现
 ```
 
 验收标准：
