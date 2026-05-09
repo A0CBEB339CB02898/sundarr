@@ -128,25 +128,28 @@ class SyncService:
         return SyncBindingTestResponse(ok=False, remote_ok=remote_ok, local_ok=local_ok, error_code=error_code)
 
     async def scan(self, db: Session, request: SyncScanRequest) -> SyncScanResponse:
-        bindings_query = db.query(SyncBinding).filter(SyncBinding.enabled.is_(True))
+        libs_query = db.query(RemoteMediaLibrary).filter(
+            RemoteMediaLibrary.enabled.is_(True),
+            RemoteMediaLibrary.target_library_id.isnot(None),
+        )
         if request.binding_id:
-            bindings_query = bindings_query.filter(SyncBinding.id == request.binding_id)
-        bindings = bindings_query.order_by(SyncBinding.created_at, SyncBinding.id).all()
-        if request.binding_id and not bindings:
+            libs_query = libs_query.filter(RemoteMediaLibrary.id == request.binding_id)
+        libs = libs_query.order_by(RemoteMediaLibrary.created_at, RemoteMediaLibrary.id).all()
+        if request.binding_id and not libs:
             raise ValueError("SYNC_BINDING_NOT_FOUND")
 
-        config = self.get_config(db)
         results: list[SyncSeenFile] = []
-        for binding in bindings:
-            entries = await self._scan_binding(db, binding)
+        for lib in libs:
+            stable_seconds = lib.stable_seconds or 120
+            entries = await self._scan_dir(db, lib, "")
             for entry in entries:
-                seen = self._upsert_seen_file(db, binding, entry, config.stable_seconds)
+                seen = self._upsert_seen_file(db, lib, entry, stable_seconds)
                 results.append(seen)
         db.commit()
         for seen in results:
             db.refresh(seen)
         return SyncScanResponse(
-            scanned_bindings=len(bindings),
+            scanned_bindings=len(libs),
             discovered_count=sum(1 for item in results if item.status == "discovered"),
             stable_count=sum(1 for item in results if item.status == "stable"),
             results=[self._seen_file_to_response(item) for item in results],
@@ -161,19 +164,19 @@ class SyncService:
         query = db.query(SyncSeenFile).filter(SyncSeenFile.status == "stable", SyncSeenFile.task_id.is_(None))
         if request.binding_id:
             query = query.filter(SyncSeenFile.binding_id == request.binding_id)
-            if db.get(SyncBinding, request.binding_id) is None:
+            if db.get(RemoteMediaLibrary, request.binding_id) is None:
                 raise ValueError("SYNC_BINDING_NOT_FOUND")
 
         seen_files = query.order_by(SyncSeenFile.updated_at, SyncSeenFile.id).all()
         tasks: list[TransferTask] = []
         skipped_count = 0
         for seen in seen_files:
-            binding = db.get(SyncBinding, seen.binding_id) if seen.binding_id else None
-            if binding is None:
+            remote_lib = db.get(RemoteMediaLibrary, seen.binding_id) if seen.binding_id else None
+            if remote_lib is None:
                 seen.status = "failed"
                 skipped_count += 1
                 continue
-            task = self._create_transfer_task_for_seen_file(db, binding, seen)
+            task = self._create_transfer_task_for_seen_file(db, remote_lib, seen)
             tasks.append(task)
         db.commit()
         for task in tasks:
@@ -239,12 +242,6 @@ class SyncService:
         except (SmbStorageError, ValueError):
             return False
 
-    async def _scan_binding(self, db: Session, binding: SyncBinding) -> list[dict]:
-        lib = db.get(RemoteMediaLibrary, binding.remote_library_id)
-        if lib is None:
-            return []
-        return await self._scan_dir(db, lib, "")
-
     async def _scan_dir(self, db: Session, lib: RemoteMediaLibrary, path: str) -> list[dict]:
         entries = await self._list_source_dir(db, lib, path)
         files: list[dict] = []
@@ -269,16 +266,16 @@ class SyncService:
         writer = SmbWriter(config)
         return await writer.list_dir(path)
 
-    def _upsert_seen_file(self, db: Session, binding: SyncBinding, entry: dict, stable_seconds: int) -> SyncSeenFile:
+    def _upsert_seen_file(self, db: Session, remote_lib: RemoteMediaLibrary, entry: dict, stable_seconds: int) -> SyncSeenFile:
         source_path = str(entry.get("path", "")).strip("/")
         source_size = entry.get("size")
         source_mtime = str(entry.get("modified_at") or "") or None
-        fingerprint = f"{binding.remote_library_id}|{source_path}"
+        fingerprint = f"{remote_lib.id}|{source_path}"
         seen = db.query(SyncSeenFile).filter(SyncSeenFile.source_fingerprint == fingerprint).one_or_none()
         if seen is None:
             seen = SyncSeenFile(
                 id=uuid4().hex,
-                binding_id=binding.id,
+                binding_id=remote_lib.id,
                 source_fingerprint=fingerprint,
                 source_path=source_path,
                 source_size=int(source_size) if source_size is not None else None,
@@ -307,10 +304,9 @@ class SyncService:
         current = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
         return (datetime.now(timezone.utc) - current).total_seconds()
 
-    def _create_transfer_task_for_seen_file(self, db: Session, binding: SyncBinding, seen: SyncSeenFile) -> TransferTask:
-        remote_lib = db.get(RemoteMediaLibrary, binding.remote_library_id)
-        local_lib = db.get(MediaLibrary, binding.local_library_id)
-        if remote_lib is None or local_lib is None:
+    def _create_transfer_task_for_seen_file(self, db: Session, remote_lib: RemoteMediaLibrary, seen: SyncSeenFile) -> TransferTask:
+        local_lib = db.get(MediaLibrary, remote_lib.target_library_id) if remote_lib.target_library_id else None
+        if local_lib is None:
             raise ValueError("LIBRARY_NOT_FOUND")
 
         remote_conn = db.get(SmbConnection, remote_lib.connection_id)
@@ -346,7 +342,7 @@ class SyncService:
             status="pending",
             mode="download_to_local",
             target_type="smb",
-            target_library=binding.media_type,
+            target_library=remote_lib.media_type,
             target_path=target_path,
             source_type="smb",
             source_path=seen.source_path,
