@@ -8,9 +8,13 @@ from sundarr.app.cloud.base import CloudFile
 from sundarr.app.models import (
     DownloadToLocalBinding,
     DownloadToLocalSeenFile,
+    MediaLibrary,
+    RemoteMediaLibrary,
     Resource,
     ResourceLink,
     Setting,
+    SyncBinding,
+    SyncSeenFile,
     TransferFile,
     TransferLog,
     TransferTask,
@@ -387,7 +391,7 @@ async def test_process_dtl_task_local_writers_happy_path(db_session, tmp_path: P
     assert not (target_root / "Movies" / "CloudMovie" / "Movie.mkv.downloading").exists()
     assert not source_file.exists()
     assert not source_file.parent.exists()
-    assert db_session.get(DownloadToLocalSeenFile, "seen_dtl").status == "completed"
+    assert db_session.get(SyncSeenFile, "seen_dtl").status == "completed"
     assert db_session.query(TransferFile).filter(TransferFile.task_id == task.id).one().status == "completed"
     assert {log.event for log in db_session.query(TransferLog).all()} >= {
         "dtl_copy_started",
@@ -452,18 +456,31 @@ def _seed_dtl_task(
     size: int = 4,
     delete_source: bool = True,
 ) -> TransferTask:
-    binding = DownloadToLocalBinding(
+    remote_lib = RemoteMediaLibrary(
+        id="rml_source",
+        name="远程媒体库",
+        media_type="movie",
+        connection_id="conn_source",
+        base_path="CloudMovie",
+    )
+    local_lib = MediaLibrary(
+        id="lib_movie",
+        name="本地媒体库",
+        media_type="movie",
+        connection_id="conn_target",
+        base_path="Movies",
+    )
+    binding = SyncBinding(
         id="binding_dtl",
-        name="下载测试",
+        name="同步测试",
         enabled=True,
         media_type="movie",
-        source_connection_id="conn_source",
-        source_path="CloudMovie",
-        target_library_id="lib_movie",
+        remote_library_id="rml_source",
+        local_library_id="lib_movie",
         delete_source_after_success=delete_source,
         delete_empty_source_dirs=True,
     )
-    seen = DownloadToLocalSeenFile(
+    seen = SyncSeenFile(
         id="seen_dtl",
         binding_id=binding.id,
         source_fingerprint="fingerprint_dtl",
@@ -519,7 +536,7 @@ def _seed_dtl_task(
         status="pending",
     )
     seen.task_id = task.id
-    db_session.add_all([binding, seen, task, transfer_file])
+    db_session.add_all([remote_lib, local_lib, binding, seen, task, transfer_file])
     db_session.commit()
     return task
 
