@@ -4,7 +4,7 @@ Sundarr 是个人自用的网盘媒体资源搜索、暂存、搬运与 NAS 归�
 
 当前状态：Phase 7 Web Console 已收口，MVP 已具备本地搜索、任务、存储、媒体源框架和状态控制台的最小闭环。Phase 0-7 手动验收发现的布局、移动端、主题和任务浮动面板问题已记录为 Phase 7.8 Web Console UI Polish。
 
-下一阶段主线：挂载网盘导入。Sundarr 不把国内封闭网盘直接下载作为近期主链路，而是通过 SMB 扫描 fnOS 暴露的网盘挂载目录，再导入到 NAS 本地媒体库。
+下一阶段主线：下载到本地。Sundarr 不把国内封闭网盘直接下载作为近期主链路，而是通过 SMB 扫描已挂载的网盘目录，再按绑定下载到本地 NAS 媒体库。媒体库指 movie、series、unclassified 等本地 NAS 目录绑定，不是海报墙或播放器。
 
 ## 技术栈
 
@@ -77,7 +77,7 @@ docs/02-architecture-decisions.md
 docs/03-mvp-roadmap.md
 docs/12-local-development.md
 docs/13-web-console-spec.md
-docs/15-mounted-cloud-ingest-spec.md
+docs/15-download-to-local-spec.md
 ```
 
 ## Web Console
@@ -88,8 +88,10 @@ MVP Web Console 提供以下页面：
 /app/search       搜索资源并创建搬运任务
 /app/transfers    查询任务、查看日志、取消和重试
 /app/storage      管理 SMB 配置、测试连接、只读浏览目录
+/app/libraries    管理 movie / series / unclassified 等本地媒体库目录绑定
 /app/sources      管理配置型和文档/表格型媒体源
+/app/download-to-local 管理网盘目录到媒体库的下载绑定
 /app/status       查看 API、Worker、PostgreSQL 和 Redis 状态
 ```
 
-Web Console 不做登录注册、多用户权限、完整媒体库 UI、播放器或完整 NAS 文件管理器。
+Web Console 不做登录注册、多用户权限、完整媒体库 UI、海报墙、播放器或完整 NAS 文件管理器。

@@ -290,7 +290,7 @@ MVP 不做什么
 为什么不做权限系统
 为什么使用应用内 SMB Writer
 为什么真实网盘直接下载不作为近期主链路
-为什么下一阶段改为挂载网盘导入
+为什么下一阶段改为下载到本地
 为什么 FastAPI 后续可作为 AI tool API
 ```
 
@@ -312,7 +312,7 @@ Phase 5: SMB Storage Writer
 Phase 6: Transfer Worker
 Phase 7: Web Console
 Phase 7.8: Web Console UI Polish
-Phase 8: Mounted Cloud Ingest
+Phase 8: Download To Local
 Phase 9: Real Site Source Adapters
 Phase 10: AI Friendly API
 Phase 11: API Polish
@@ -638,15 +638,18 @@ docs/13-web-console-spec.md
 9. 被 SMB 配置变更中断的任务进入 `failed`，错误码为 `STORAGE_CONFIG_CHANGED`，`retryable=true`。
 10. 被中断任务保留 `.downloading` 文件和 cloud staging。
 11. 真实网盘直接下载不作为近期主链路，CloudProvider 保留为可选扩展。
-12. 下一阶段主线是挂载网盘导入：通过 SMB 扫描 fnOS 暴露的网盘挂载目录，再通过 SMB 写入 NAS 本地媒体库。
-13. 挂载网盘导入支持 movie / series / unclassified，绑定不明确时进入 unclassified。
-14. 挂载网盘导入成功后按配置删除源文件和空目录。
-15. 未来再考虑在 Sundarr 内挂载网盘和保存分享链接到网盘。
-16. 真实媒体源后续通过代码型 Source Adapter 逐站点接入。
-17. 当前已实现的是媒体源框架和示例源，不是真实网站 Adapter。
-18. Web Console 只支持管理已安装 Adapter 的启用、禁用、参数、测试和错误查看，不支持在线编辑代码型 Source Adapter。
-19. Web Console 只做核心控制台，不做完整媒体库 UI。
-20. Phase 0-7 手动验收反馈需要新增 Phase 7.8，处理任务浮动面板、移动端响应式、布局修复和主题模式。
+12. Phase 8 主线是下载到本地：从已挂载的网盘 SMB 目录下载到本地 SMB 媒体库目录。
+13. SMB 存储模块支持多个连接，媒体库和下载到本地只引用 SMB connection 和目录，不重复填写 SMB 凭据。
+14. 媒体库指本地 NAS 媒体目录类型，例如 movie / series / unclassified；媒体库管理模块负责创建媒体库并绑定到某个 SMB connection 下的本地目录。
+15. 下载到本地负责将某个已挂载网盘 SMB 目录正向绑定到某个媒体库，Worker 定时扫描并下载到绑定的本地媒体库目录。
+16. 下载到本地绑定不明确时进入 unclassified 媒体库。
+17. 下载到本地成功后按配置删除源文件和空目录。
+18. 保存分享链接到网盘的后续模块命名为“保存到网盘”。
+19. 真实媒体源后续通过代码型 Source Adapter 逐站点接入。
+20. 当前已实现的是媒体源框架和示例源，不是真实网站 Adapter。
+21. Web Console 只支持管理已安装 Adapter 的启用、禁用、参数、测试和错误查看，不支持在线编辑代码型 Source Adapter。
+22. Web Console 只做核心控制台，不做完整媒体库 UI；媒体库管理是目录绑定管理能力，不等于海报墙或播放器。
+23. Phase 0-7 手动验收反馈需要新增 Phase 7.8，处理任务浮动面板、移动端响应式、布局修复和主题模式。
 
 下一步建议先编写：
 
@@ -655,5 +658,5 @@ AGENTS.md
 docs/01-product-scope.md
 docs/02-architecture-decisions.md
 docs/03-mvp-roadmap.md
-docs/15-mounted-cloud-ingest-spec.md
+docs/15-download-to-local-spec.md
 ```

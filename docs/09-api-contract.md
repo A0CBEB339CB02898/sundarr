@@ -174,7 +174,7 @@ POST /transfers
   "target_path": "Movies/Interstellar.mkv",
   "source_type": null,
   "source_path": null,
-  "ingest_seen_file_id": null,
+  "download_to_local_seen_file_id": null,
   "total_bytes": 0,
   "done_bytes": 0,
   "progress": 0,
@@ -288,6 +288,14 @@ GET  /storage/config
 POST /storage/config/save
 POST /storage/config/test
 GET  /storage/browse?path=Movies
+GET  /storage/smb-connections
+POST /storage/smb-connections/create
+GET  /storage/smb-connections/{connection_id}
+POST /storage/smb-connections/{connection_id}/update
+POST /storage/smb-connections/{connection_id}/enable
+POST /storage/smb-connections/{connection_id}/disable
+POST /storage/smb-connections/{connection_id}/test
+GET  /storage/smb-connections/{connection_id}/browse?path=Movies
 ```
 
 规则：
@@ -299,29 +307,41 @@ POST /storage/config/save 中 password 为空表示保留旧 password。
 SMB 配置修改必须中断旧配置运行中任务。
 GET /storage/browse 只能浏览允许范围。
 POST /storage/config/test 会验证配置结构、路径合法性，并尝试真实 SMB 连接和根路径访问。
+新功能优先使用多 SMB connection API；旧 storage/config API 可作为默认连接兼容入口，后续收口时再移除。
 ```
 
 ---
 
-## 8. Mounted Cloud Ingest
+## 8. Download To Local
 
-挂载网盘导入 API 用于管理 SMB 来源目录到 SMB 目标媒体库目录的绑定，并触发扫描。
+下载到本地 API 用于管理“已挂载网盘 SMB 目录 -> 本地媒体库”的下载规则，并触发扫描和任务创建。
+
+媒体库 API 用于创建 movie / series / unclassified 等本地 NAS 逻辑媒体库，并将媒体库绑定到 Storage 模块中已配置的 SMB connection 和目录。
+
+下载到本地模块不得重复填写 SMB host/share/username/password。来源必须选择 Storage 模块中已配置的 SMB connection 和目录，目标必须选择已配置媒体库。
 
 建议接口：
 
 ```http
-GET  /ingest/config
-POST /ingest/config/save
-GET  /ingest/bindings
-POST /ingest/bindings/create
-GET  /ingest/bindings/{binding_id}
-POST /ingest/bindings/{binding_id}/update
-POST /ingest/bindings/{binding_id}/enable
-POST /ingest/bindings/{binding_id}/disable
-POST /ingest/bindings/{binding_id}/test
-POST /ingest/scan
-GET  /ingest/discovered
-POST /ingest/tasks/create
+GET  /media-libraries
+POST /media-libraries/create
+GET  /media-libraries/{library_id}
+POST /media-libraries/{library_id}/update
+POST /media-libraries/{library_id}/enable
+POST /media-libraries/{library_id}/disable
+POST /media-libraries/{library_id}/test
+GET  /download-to-local/config
+POST /download-to-local/config/save
+GET  /download-to-local/bindings
+POST /download-to-local/bindings/create
+GET  /download-to-local/bindings/{binding_id}
+POST /download-to-local/bindings/{binding_id}/update
+POST /download-to-local/bindings/{binding_id}/enable
+POST /download-to-local/bindings/{binding_id}/disable
+POST /download-to-local/bindings/{binding_id}/test
+POST /download-to-local/scan
+GET  /download-to-local/discovered
+POST /download-to-local/tasks/create
 ```
 
 全局配置响应示例：
@@ -332,7 +352,20 @@ POST /ingest/tasks/create
   "delete_empty_source_dirs": true,
   "scan_interval_seconds": 60,
   "stable_seconds": 120,
-  "unclassified_target_path": "/unclassified"
+  "unclassified_library_id": "library_unclassified"
+}
+```
+
+媒体库响应示例：
+
+```json
+{
+  "id": "library_movie",
+  "name": "电影",
+  "media_type": "movie",
+  "enabled": true,
+  "connection_id": "media_library",
+  "base_path": "Movies"
 }
 ```
 
@@ -341,21 +374,12 @@ Binding 响应示例：
 ```json
 {
   "id": "binding_movie",
-  "name": "电影导入",
+  "name": "电影下载",
   "enabled": true,
   "media_type": "movie",
-  "source_smb": {
-    "host": "nas.example.invalid",
-    "port": 445,
-    "share": "cloud",
-    "base_path": "/movie"
-  },
-  "target_smb": {
-    "host": "nas.example.invalid",
-    "port": 445,
-    "share": "media",
-    "base_path": "/movie"
-  },
+  "source_connection_id": "cloud_mount",
+  "source_path": "movie",
+  "target_library_id": "library_movie",
   "delete_source_after_success": null,
   "delete_empty_source_dirs": null
 }
@@ -365,14 +389,15 @@ Binding 响应示例：
 
 ```text
 API 不返回 SMB password 明文。
-test 接口由后端执行，验证来源目录可读和目标目录可写。
+media-libraries/test 接口由后端执行，验证媒体库目录可写。
+download-to-local/bindings/test 接口由后端执行，验证来源目录可读和目标媒体库目录可写。
 scan 接口只触发扫描或返回扫描结果，不绕过网盘限制。
-tasks/create 接口只为 stable 且未绑定 task 的 discovered file 创建 ingest 任务。
-ingest 任务复用 transfer_tasks，mode 为 ingest，link_id 为空，source_type 为 smb。
-binding 不明确时创建 unclassified 导入任务。
+tasks/create 接口只为 stable 且未绑定 task 的 discovered file 创建下载任务。
+下载任务复用 transfer_tasks，mode 为 download_to_local，link_id 为空，source_type 为 smb。
+binding 不明确时创建指向 unclassified 媒体库的下载任务。
 ```
 
-创建导入任务响应示例：
+创建下载任务响应示例：
 
 ```json
 {
@@ -384,14 +409,14 @@ binding 不明确时创建 unclassified 导入任务。
       "resource_id": null,
       "link_id": null,
       "status": "pending",
-      "mode": "ingest",
+      "mode": "download_to_local",
       "cloud_staging_path": null,
       "target_type": "smb",
       "target_library": "movie",
       "target_path": "Movie/Movie.mkv",
       "source_type": "smb",
       "source_path": "Movie/Movie.mkv",
-      "ingest_seen_file_id": "seen_001",
+      "download_to_local_seen_file_id": "seen_001",
       "total_bytes": 0,
       "done_bytes": 0,
       "progress": 0,
@@ -441,6 +466,13 @@ INGEST_SOURCE_NOT_STABLE
 INGEST_SOURCE_PATH_INVALID
 INGEST_SOURCE_DELETE_FAILED
 INGEST_UNCLASSIFIED_REQUIRED
+DOWNLOAD_TO_LOCAL_BINDING_NOT_FOUND
+DOWNLOAD_TO_LOCAL_SOURCE_NOT_STABLE
+DOWNLOAD_TO_LOCAL_SOURCE_PATH_INVALID
+DOWNLOAD_TO_LOCAL_SOURCE_DELETE_FAILED
+SMB_CONNECTION_NOT_FOUND
+MEDIA_LIBRARY_NOT_FOUND
+MEDIA_LIBRARY_UNCLASSIFIED_REQUIRED
 ```
 
 ---
@@ -456,6 +488,7 @@ Web Console 所需 API 可用。
 Transfer 控制 API 可用。
 Storage settings API 不泄露 password。
 SMB 配置修改返回 STORAGE_CONFIG_CHANGED 相关任务影响。
-Ingest API 不泄露 SMB password。
-Ingest API 可管理 binding、测试来源/目标目录并触发扫描。
+Storage API 可管理多个 SMB connection，且不泄露 SMB password。
+Media library API 可管理媒体库、测试本地目录并不泄露 SMB password。
+Download to local API 可管理来源目录到媒体库的 binding、测试来源/目标目录并触发扫描。
 ```

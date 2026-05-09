@@ -1158,7 +1158,7 @@ cloud.local.staging_root
 worker.enabled
 worker.concurrency
 source configuration
-library 映射
+media_libraries
 transfer 参数
 ```
 
@@ -1374,7 +1374,7 @@ async def aggregate_search(keyword: str, filters: SearchFilters) -> list[Resourc
 
 ### 14.2 搬运任务
 
-以下 cloud staging 流程已降级为可选扩展和本地测试抽象。近期主链路改为 Phase 8 的挂载网盘导入：用户手动保存资源到网盘，fnOS 将网盘远程挂载并通过 SMB 暴露，Sundarr 通过 SMB 导入 NAS 本地媒体库。
+以下 cloud staging 流程已降级为可选扩展和本地测试抽象。近期主链路改为 Phase 8 的下载到本地：用户手动保存资源到网盘，NAS 或挂载服务将网盘远程挂载并通过 SMB 暴露，Sundarr 将来源目录正向绑定到本地媒体库，由 Worker 定时下载到媒体库绑定的 SMB 目录。
 
 ```python
 async def run_transfer_task(task_id: str) -> None:
@@ -1579,19 +1579,21 @@ GET /transfers 任务列表 API
 布局、字体、输入框和按钮视觉统一
 ```
 
-### Phase 8: Mounted Cloud Ingest
+### Phase 8: Download To Local
 
 交付：
 
 ```text
-ingest 全局配置
-movie / series / unclassified 目录配置
-来源目录到目标目录 binding
+download_to_local 全局配置
+多个 SMB connection
+媒体库管理，支持 movie / series / unclassified 等本地 NAS 目录绑定
+来源目录到媒体库 binding
 SMB source scanner
 稳定文件/目录判断
-SMB source -> SMB target 导入 Worker
+SMB source -> SMB target 下载 Worker
 成功后删除源文件和空目录
-/app/ingest Web Console 页面
+/app/download-to-local Web Console 页面
+/app/libraries Web Console 页面或等价媒体库管理入口
 ```
 
 ### Phase 9: Real Site Source Adapters

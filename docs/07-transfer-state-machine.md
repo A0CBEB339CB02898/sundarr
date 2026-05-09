@@ -39,7 +39,7 @@ pending
   -> completed
 ```
 
-挂载网盘导入任务使用 `mode=ingest`，不进入 cloud staging：
+下载到本地任务使用 `mode=download_to_local`，不进入 cloud staging：
 
 ```text
 pending
@@ -285,16 +285,16 @@ Phase 6.5 transfer logs API
 
 ---
 
-## 10. 挂载网盘导入状态
+## 10. 下载到本地状态
 
-挂载网盘导入属于 Phase 8。它不应继续借用 cloud staging 语义来描述来源文件。
+下载到本地属于 Phase 8。它不应继续借用 cloud staging 语义来描述来源文件。
 
-建议新增 ingest 模式状态：
+建议使用 download_to_local 模式状态：
 
 ```text
 pending
 waiting_source
-importing
+downloading
 verifying
 renaming
 cleaning_source
@@ -308,7 +308,7 @@ cancelled
 ```text
 pending
   -> waiting_source
-  -> importing
+  -> downloading
   -> verifying
   -> renaming
   -> cleaning_source
@@ -329,7 +329,7 @@ pending
 目标文件存在。
 目标 size == 源文件 size。
 rename 已完成。
-source_path 位于允许的 source_root 内。
+source_path 位于来源 SMB connection 的 base_path 内。
 delete_source_after_success = true。
 delete_empty_source_dirs = true 时只删除已变为空的目录。
 ```
@@ -337,7 +337,7 @@ delete_empty_source_dirs = true 时只删除已变为空的目录。
 未分类规则：
 
 ```text
-binding 不存在、匹配多个或 media_type 不明确时，任务进入 unclassified 目标库。
+binding 不存在、匹配多个或 media_type 不明确时，任务进入 unclassified 媒体库。
 ```
 
 ---
@@ -376,5 +376,5 @@ Phase 5 先实现任务级 `done_bytes` / `total_bytes` / `progress` 的最小�
 只有 transfer_files.status == completed 才 cleanup。
 SMB 配置变更会导致运行中任务 STORAGE_CONFIG_CHANGED。
 Worker 重启后不会误删 staging。
-挂载网盘导入不会误删来源根目录或未完成任务的源文件。
+下载到本地不会误删来源根目录或未完成任务的源文件。
 ```

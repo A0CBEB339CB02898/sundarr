@@ -6,7 +6,7 @@
 
 ## 1. 项目定位
 
-Sundarr 是一个个人自用的网盘媒体资源发现、导入和 NAS 归档自动化系统。
+Sundarr 是一个个人自用的网盘媒体资源发现、下载到本地和 NAS 归档自动化系统。
 
 核心目标：
 
@@ -14,7 +14,7 @@ Sundarr 是一个个人自用的网盘媒体资源发现、导入和 NAS 归档�
 搜索合法资源
 -> 提取网盘链接
 -> 用户手动保存到网盘
--> 从 fnOS 暴露的网盘挂载 SMB 目录导入
+-> 从已挂载的网盘 SMB 目录下载到本地
 -> 写入 NAS 本地媒体库
 -> 校验文件
 -> 删除来源文件和空目录
@@ -28,7 +28,7 @@ BT 下载器
 网盘破解工具
 OpenList 替代品
 完整 NAS 文件管理器
-完整媒体库管理系统
+完整媒体库 UI / 播放器
 ```
 
 ---
@@ -42,10 +42,10 @@ OpenList 替代品
 ```text
 用户在 Web Console 搜索媒体资源。
 Sundarr 从多个已配置来源聚合搜索结果。
-用户选择候选资源和目标媒体库目录。
+用户选择候选资源和目标媒体库。
 用户手动将资源保存到网盘。
-fnOS 将网盘远程挂载为目录，并通过 SMB 暴露给 Sundarr。
-Sundarr 从网盘挂载 SMB 目录导入文件到 NAS 本地 SMB 媒体库。
+NAS 或挂载服务将网盘远程挂载为目录，并通过 SMB 暴露给 Sundarr。
+Sundarr 根据下载到本地绑定，将已挂载网盘 SMB 目录中的文件下载到对应本地媒体库目录。
 下载期间写入 .downloading 临时文件。
 校验成功后 rename 为正式文件。
 最后按配置删除来源文件和空目录。
@@ -68,9 +68,10 @@ Redis 缓存和实时进度辅助
 Cloud Link Extractor
 Resource Library
 Mock/Local Cloud Provider
-Mounted Cloud Ingest 规范
-movie / series / unclassified 导入目标
-挂载网盘来源目录到本地媒体库目录绑定
+下载到本地规范
+媒体库管理，支持创建 movie / series / unclassified 等本地媒体库
+媒体库绑定到某个 SMB 连接下的本地 NAS 目录
+挂载网盘来源目录正向绑定到某个媒体库
 应用内 SmbWriter
 LocalWriter 测试实现
 Transfer Worker
@@ -80,7 +81,7 @@ Transfer Worker
 Cloud Provider / cloud staging 保留为可选扩展和测试抽象
 成功后删除挂载来源文件和空目录
 任务取消和重试
-SMB 配置查看、修改、测试连接、目录浏览
+多个 SMB 连接查看、修改、测试连接、目录浏览
 媒体源配置管理
 ```
 
@@ -97,21 +98,22 @@ MVP 包含轻量 Web Console。
 展示候选结果
 查看资源详情
 管理已安装代码型 Source Adapter
-查看和修改 SMB 配置
+查看和修改多个 SMB 连接
 测试 SMB 连接
-浏览 SMB 目标目录
+浏览 SMB 目录
+创建和管理媒体库
 创建归档任务
 查看任务状态和进度
 取消 / 重试任务
 显示 STORAGE_CONFIG_CHANGED 中断提示
-配置挂载网盘导入绑定
+配置网盘目录到媒体库的下载到本地绑定
 配置未分类目录
 ```
 
 不做：
 
 ```text
-完整媒体库 UI
+完整媒体库 UI / 海报墙 / 播放器
 海报墙
 播放器
 完整文件管理器
@@ -191,7 +193,7 @@ Phase 0-7 未覆盖：
 真实媒体源手动验收
 ```
 
-真实媒体源开发属于后续独立大阶段，不作为 Phase 0-7 或 Phase 8 Mounted Cloud Ingest 的阻塞项。
+真实媒体源开发属于后续独立大阶段，不作为 Phase 0-7 或 Phase 8 Download To Local 的阻塞项。
 
 后续可单独实验：
 
@@ -220,9 +222,9 @@ MVP 不依赖系统 SMB mount。
 LocalWriter
 ```
 
-SMB 配置支持在 Web Console 修改并热加载。
+SMB 配置支持多个连接，并可在 Web Console 修改和热加载。
 
-修改 SMB 配置时：
+修改某个 SMB 连接配置时：
 
 ```text
 关闭旧 SMB 连接
@@ -232,8 +234,16 @@ SMB 配置支持在 Web Console 修改并热加载。
 retryable = true
 保留 .downloading 文件
 保留 cloud staging
-新任务和重试任务使用最新 SMB 配置
+使用该连接的新任务和重试任务使用最新 SMB 配置
 ```
+
+媒体库管理模块只能引用已配置的 SMB 连接和目录，不重复填写 SMB host、share、username、password。
+
+媒体库在 Sundarr 中指本地 NAS 上的逻辑媒体目录，例如 movie、series、unclassified。MVP 需要提供媒体库管理模块，用于创建媒体库并绑定到某个 SMB 连接下的本地目录。
+
+“下载到本地”模块不直接重复配置目标 SMB 目录，而是将某个已挂载网盘 SMB 来源目录正向绑定到某个媒体库。Worker 定时扫描这些绑定，并将稳定文件下载到绑定媒体库的本地目录。
+
+媒体库管理是目录绑定管理能力，不等于完整媒体库 UI、海报墙、播放器或媒体刮削。
 
 ---
 
@@ -277,7 +287,7 @@ NFO 生成
 多 NAS 目标
 多云盘 provider
 Sundarr 内配置挂载网盘
-Sundarr 内保存分享链接到网盘
+保存到网盘
 AI / 外部数据辅助自动分类
 rclone driver
 OpenList 可选后端

@@ -12,8 +12,8 @@ MVP 的目标是先跑通端到端闭环：
 搜索资源
 -> 提取网盘链接
 -> 用户手动保存到网盘
--> fnOS 挂载网盘并通过 SMB 暴露来源目录
--> Sundarr 通过 SMB 导入 NAS 本地媒体库
+-> NAS 或挂载服务挂载网盘并通过 SMB 暴露来源目录
+-> Sundarr 通过 SMB 下载到本地媒体库
 -> 校验
 -> rename
 -> 删除来源文件和空目录
@@ -25,8 +25,8 @@ MVP 的目标是先跑通端到端闭环：
 ```text
 先后端闭环，后前端完善。
 CloudProvider 保留为可选扩展，近期不做真实网盘直接下载。
-下一阶段主线是 Mounted Cloud Ingest。
-真实 fnOS 挂载目录导入通过手动集成验收验证。
+下一阶段主线是 Download To Local。
+真实挂载目录下载到本地通过手动集成验收验证。
 先规则和用户确认，后模型辅助。
 先核心控制台，后完整媒体库 UI。
 每个阶段必须可测试。
@@ -52,9 +52,10 @@ Phase 5 Transfer Worker: 已完成当前 MVP 本地 Worker 主链路，Phase 5.1
 Phase 6 Cleanup And Recovery: 已完成，Phase 6.1 到 Phase 6.5 均已完成。
 Phase 7 Web Console: 已完成。
 Phase 7.8 Web Console UI Polish: 未开始，来自 Phase 0-7 手动验收反馈；应在 Phase 8 前优先处理前端体验问题。
-Phase 8 Mounted Cloud Ingest: 进行中；已完成配置、绑定、扫描、任务创建和 Worker 导入基础链路。
+Phase 8 Download To Local: 进行中；需要从“导入”重构为“下载到本地”，并改为选择已配置 SMB 连接和目录。
 Phase 9 Real Site Source Adapters: 未开始，目标是实现真实网站代码型 Adapter 框架和至少一个真实源。
 Phase 10 AI Friendly API: 未开始，原 Phase 8 后移。
+Phase 11 Cloud Direct Download: 未开始，实现网盘直链下载能力，跳过保存到网盘和 SMB 挂载步骤。
 ```
 
 Phase 4 已满足停止条件，后续可以正式进入 Phase 5。Phase 5 实现 Worker 时，必须同步将 Worker 纳入 `sundarr start / restart / stop / status`。
@@ -1015,57 +1016,65 @@ npm run build 通过。
 涉及 API 时 pytest 通过。
 不引入登录、多用户或完整媒体库 UI。
 不实现真实媒体源爬虫。
-不启动 Phase 8 挂载网盘导入实现。
+不启动 Phase 8 下载到本地实现。
 ```
 
 ---
 
-## Phase 8: Mounted Cloud Ingest
+## Phase 8: Download To Local
 
-目标：通过 SMB 扫描 fnOS 暴露的网盘挂载目录，并通过 SMB 导入到 NAS 本地媒体库。
+目标：从已挂载的网盘 SMB 目录下载到本地 SMB 媒体库目录。
 
-背景：国内封闭网盘直接下载不作为 Sundarr 近期主链路。当前阶段依赖用户手动保存资源到网盘，由 fnOS 负责将网盘远程挂载为目录并通过 SMB 暴露。
+背景：国内封闭网盘直接下载不作为 Sundarr 近期主链路。当前阶段依赖用户手动保存资源到网盘，由 NAS 或挂载服务负责将网盘远程挂载为目录并通过 SMB 暴露。
 
 交付物：
 
 ```text
-ingest 全局配置
-movie / series / unclassified 目标库配置
-来源目录到目标目录 binding
-SMB source scanner
+download_to_local 全局配置
+多个 SMB 连接管理
+媒体库管理，支持创建 movie / series / unclassified 等本地媒体库
+媒体库绑定到某个 SMB 连接下的本地 NAS 目录
+来源 SMB 连接和目录到媒体库的正向 binding
+SMB source scanner，来源只能选择已配置 SMB 连接
 稳定文件/目录判断
-ingest task 创建
-SMB source -> SMB target 导入 Worker
+download_to_local task 创建
+SMB source -> SMB target 下载 Worker
 .downloading 写入、size 校验、rename
 成功后删除源文件和空目录
 未分类 fallback
-Web Console /app/ingest 页面
+Web Console /app/download-to-local 页面
+Web Console /app/libraries 页面或等价媒体库管理入口
 ```
 
 验收标准：
 
 ```text
-可以配置 movie / series / unclassified 目录。
-可以配置网盘挂载来源目录到本地媒体库目录的绑定。
-路径绑定不明确时进入 unclassified。
-剧集目录按原目录结构导入，不额外拆分季集。
-文件或目录稳定后才开始导入。
-导入成功后按配置删除源文件和空目录。
+可以创建 movie / series / unclassified 等媒体库，并绑定到 SMB 本地目录。
+可以配置多个 SMB 连接。
+媒体库只能选择已配置 SMB 连接和目录，不重复填写 SMB 凭据。
+下载到本地绑定只能选择来源 SMB 连接、来源目录和目标媒体库。
+可以配置网盘挂载来源目录到本地媒体库的绑定。
+路径绑定不明确时进入 unclassified 媒体库。
+剧集目录按原目录结构下载，不额外拆分季集。
+文件或目录稳定后才开始下载。
+下载成功后按配置删除源文件和空目录。
 失败时保留源文件、.downloading 和任务日志。
 默认自动化测试不依赖真实网盘或真实 SMB。
-真实 fnOS 挂载目录导入通过手动集成验收。
+真实挂载目录下载到本地通过手动集成验收。
 ```
 
 停止条件：
 
 ```text
-docs/15-mounted-cloud-ingest-spec.md 与实际 API / 数据模型一致。
+docs/15-download-to-local-spec.md 与实际 API / 数据模型一致。
 pytest 通过。
 本阶段新增 API 或 Worker 入口完成最小冒烟测试。
 涉及前端时 npm run build 通过。
 不实现 Sundarr 内挂载网盘。
 不实现 Sundarr 内保存分享链接到网盘。
+保存分享链接到网盘的后续模块命名为“保存到网盘”。
 不实现国内封闭网盘直接下载。
+媒体库管理作为 Phase 8 的目录绑定管理能力，不实现完整媒体库 UI。
 工作区已提交或明确说明不提交原因。
 ```
 
@@ -1170,6 +1179,216 @@ search_media / get_resource / create_transfer / get_transfer_status 等工具式
 AI 不需要接触网页抓取、SMB 凭据或 NAS 文件操作。
 pytest 通过。
 工作区已提交或明确说明不提交原因。
+```
+
+## Phase 11: Cloud Direct Download
+
+目标：实现网盘直链下载能力，跳过"保存到网盘 + SMB 挂载"步骤，直接从网盘 CDN 下载文件到本地。
+
+背景：参考 LinkSwift 项目原理，通过调用网盘公开 API 获取文件直链（CDN 地址），结合 aria2 多线程下载，实现更快、更直接的下载体验。详细规范见 `docs/16-cloud-direct-download-spec.md`。
+
+交付物：
+
+```text
+aria2 Docker 服务集成
+Aria2Client RPC 客户端
+CloudAuth 抽象接口 + 夸克实现
+DirectLinkExtractor 抽象接口 + 夸克实现
+cloud_accounts 数据模型（加密存储 Cookie/Token）
+direct_download_tasks 数据模型
+网盘账号管理 API（扫码登录、Cookie 验证）
+直链提取 API
+直链下载任务 API（创建、查询、取消、重试）
+任务编排：认证 → 直链提取 → aria2 下载 → 校验 → 归档
+Web Console 网盘账号管理页面
+Web Console 直链下载任务页面
+```
+
+验收标准：
+
+```text
+aria2 Docker 服务可通过 docker compose 启动。
+可通过 RPC 提交下载任务并获取进度。
+夸克网盘扫码登录流程可跑通。
+Cookie 加密存储，不以明文返回。
+给定有效分享链接 + 有效 Cookie，可提取直链。
+直链下载任务可端到端完成：分享链接 → 直链 → 下载 → 本地文件。
+下载进度可追踪。
+文件大小校验失败时任务标记为 failed。
+失败任务可重试。
+Web Console 可管理网盘账号和下载任务。
+pytest 通过。
+```
+
+停止条件：
+
+```text
+docs/16-cloud-direct-download-spec.md 与实际 API / 数据模型一致。
+aria2 Docker 服务独立启动和 RPC 连接测试通过。
+夸克网盘扫码登录 + 直链提取 + 下载完整流程手动验收通过。
+Cookie/Token 加密存储有测试覆盖。
+任务状态机（pending -> extracting -> downloading -> verifying -> completed）有测试覆盖。
+pytest 通过。
+涉及前端时 npm run build 通过。
+不实现网盘限速破解、绕过会员限制或验证码。
+不实现 BT/磁力下载。
+工作区已提交或明确说明不提交原因。
+```
+
+### Phase 11.1: Aria2 服务集成
+
+状态：未开始。
+
+目标：aria2 作为 Docker 服务接入 Sundarr，可通过 RPC 下载文件。
+
+交付物：
+
+```text
+docker-compose.yml 增加 aria2 服务
+Aria2Client RPC 客户端
+aria2 连接测试 API
+aria2 状态查询 API
+aria2 配置（RPC 地址、密钥）存入 settings
+```
+
+验收标准：
+
+```text
+docker compose up -d aria2 可启动 aria2 服务。
+POST /api/v1/aria2/test 返回连接成功。
+可通过 RPC 提交一个 HTTP 下载任务。
+下载文件存入 /downloads 目录。
+GET /api/v1/aria2/status 返回 aria2 全局状态。
+```
+
+停止条件：
+
+```text
+aria2 Docker 服务可独立启动。
+Aria2Client 可完成 add_uri + get_status 基础流程。
+pytest 通过。
+docker-compose.yml 变更不影响现有服务。
+```
+
+### Phase 11.2: 夸克网盘认证
+
+状态：未开始。
+
+目标：实现夸克网盘扫码登录和 Cookie 管理。
+
+交付物：
+
+```text
+CloudAuth 抽象接口
+QuarkAuth 实现
+扫码登录 API（获取二维码）
+扫码状态轮询 API
+Cookie 加密存储
+Cookie 有效性验证
+cloud_accounts 数据模型和迁移
+Web Console 网盘账号管理页面
+```
+
+验收标准：
+
+```text
+POST /api/v1/cloud-accounts/qr-login 返回二维码图片 URL 或 base64。
+用户手机扫码后，轮询 GET /api/v1/cloud-accounts/qr-status 返回成功。
+Cookie 自动加密存储到 cloud_accounts 表。
+POST /api/v1/cloud-accounts/{id}/validate 可验证 Cookie 有效性。
+过期 Cookie 标记为 expired。
+Web Console 可查看已添加账号列表。
+Web Console 可删除账号。
+Cookie 不以明文存储或返回。
+```
+
+停止条件：
+
+```text
+扫码登录完整流程可跑通。
+Cookie 加密存储有测试覆盖。
+pytest 通过。
+Web Console 构建通过。
+```
+
+### Phase 11.3: 夸克直链提取
+
+状态：未开始。
+
+目标：通过分享链接 + Cookie 获取夸克网盘文件直链。
+
+交付物：
+
+```text
+DirectLinkExtractor 抽象接口
+QuarkExtractor 实现
+分享链接解析
+share_token 获取
+文件元数据获取
+直链（download_url）提取
+请求头构造（UA、Referer）
+直链提取 API
+```
+
+验收标准：
+
+```text
+给定有效分享链接 + 有效 Cookie，可返回直链 URL。
+返回信息包含：直链 URL、文件名、文件大小、请求头。
+提取失败时返回明确错误码。
+单文件和多文件分享链接均能处理。
+提取码分享链接能正确传入提取码。
+```
+
+停止条件：
+
+```text
+单文件分享链接可成功提取直链。
+多文件分享链接可列出文件并逐个提取。
+pytest 覆盖成功和失败路径。
+不依赖 aria2（纯提取，不含下载）。
+```
+
+### Phase 11.4: 直链下载完整流程
+
+状态：未开始。
+
+目标：串联认证 → 直链提取 → aria2 下载 → 文件归档。
+
+交付物：
+
+```text
+direct_download_tasks 数据模型和迁移
+下载任务编排逻辑
+aria2 下载进度轮询
+下载完成回调或轮询
+文件大小校验
+rename 到目标路径
+任务状态机：pending -> extracting -> downloading -> verifying -> completed
+失败处理和错误码
+重试机制
+Web Console 直链下载任务页面
+```
+
+验收标准：
+
+```text
+POST /api/v1/direct-downloads 可创建下载任务。
+任务自动完成：提取直链 → aria2 下载 → 校验 → rename。
+GET /api/v1/direct-downloads/{id} 可查询进度和状态。
+下载完成后文件存在于目标路径。
+文件大小校验失败时任务标记为 failed。
+失败任务可重试。
+Web Console 可查看任务列表和详情。
+```
+
+停止条件：
+
+```text
+端到端流程：分享链接 → 直链 → 下载 → 本地文件，可跑通。
+进度可追踪。
+pytest 通过。
+Web Console 构建通过。
 ```
 
 ---

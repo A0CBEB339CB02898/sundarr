@@ -197,19 +197,22 @@ cleanup refuses staging root and outside path
 cancel / retry / cleanup / recovery writes transfer_logs
 ```
 
-Phase 8 挂载网盘导入必须覆盖：
+Phase 8 下载到本地必须覆盖：
 
 ```text
-ingest binding 配置校验
-source_smb / target_smb password 不回显
+多 SMB connection 配置校验
+SMB connection password 不回显
+媒体库只能引用 SMB connection 和本地目录
+媒体库至少覆盖 movie / series / unclassified
+下载到本地 binding 只能引用来源 SMB connection、来源目录和目标媒体库
 来源路径 traversal 防护
-目标路径 traversal 防护
+媒体库目标路径 traversal 防护
 文件稳定性判断
 目录型资源稳定性判断
 binding 匹配 movie / series
-binding 不明确时进入 unclassified
+binding 不明确时进入 unclassified 媒体库
 SMB source -> SMB target 的 Worker 任务领取规则
-LocalWriter 替身覆盖 source -> target 的导入成功路径
+LocalWriter 替身覆盖 source -> target 的下载成功路径
 .downloading 写入、size 校验、rename
 成功后删除源文件
 成功后删除空目录
@@ -217,7 +220,7 @@ LocalWriter 替身覆盖 source -> target 的导入成功路径
 重复扫描不重复创建任务
 ```
 
-真实 fnOS 挂载目录导入属于手动集成验收，不纳入默认 pytest。手动验收必须使用测试目录和测试文件，避免误删正式媒体库。
+真实挂载目录下载到本地属于手动集成验收，不纳入默认 pytest。手动验收必须使用测试目录和测试文件，避免误删正式媒体库。
 
 ---
 
@@ -236,11 +239,15 @@ GET /storage/config
 POST /storage/config/save
 POST /storage/config/test
 GET /storage/browse
-GET /ingest/config
-POST /ingest/config/save
-GET /ingest/bindings
-POST /ingest/bindings/create
-POST /ingest/scan
+GET /storage/smb-connections
+POST /storage/smb-connections/create
+GET /media-libraries
+POST /media-libraries/create
+GET /download-to-local/config
+POST /download-to-local/config/save
+GET /download-to-local/bindings
+POST /download-to-local/bindings/create
+POST /download-to-local/scan
 统一错误响应
 ```
 
@@ -261,8 +268,11 @@ MVP 可先做轻量测试。
 全局任务面板可显示当前任务摘要
 SMB 配置表单不显示 password 明文
 STORAGE_CONFIG_CHANGED 提示可显示
-Ingest binding 表单不显示 password 明文
-挂载网盘导入页面可手动触发扫描
+配置类页面先展示列表，通过新增按钮弹出表单，不默认展开空新增表单
+媒体库页面可创建本地媒体库目录绑定
+下载到本地页面不显示 SMB password 明文
+下载到本地页面绑定目标为媒体库，不重复配置目标 SMB 凭据
+下载到本地页面可手动触发扫描
 亮色 / 暗色 / 跟随系统主题可切换
 移动端布局可读可操作
 ```
@@ -273,7 +283,7 @@ Phase 0-7 手动验收结论：
 SMB 连接和目录读取通过。
 health 状态查询通过。
 真实媒体源搜索未通过，因为当前未实现真实网站代码型 Adapter。
-真实任务进度未验收，因为当前没有真实导入任务。
+真实任务进度未验收，因为当前没有真实下载到本地任务。
 任务展示需要从单任务查询补充为任务列表和全局浮动任务面板。
 页面布局、移动端响应式和主题模式纳入 Phase 7.8。
 ```
@@ -298,6 +308,6 @@ pytest 可运行。
 每个非文档型交付都有对应回归测试记录和冒烟测试记录。
 不需要真实网盘直接下载即可验证主链路。
 不需要真实 NAS 即可验证写入流程。
-真实 fnOS 挂载目录导入通过手动集成验收验证。
+真实挂载目录下载到本地通过手动集成验收验证。
 关键误删保护有测试。
 ```

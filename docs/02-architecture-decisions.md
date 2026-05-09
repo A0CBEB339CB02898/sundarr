@@ -180,7 +180,7 @@ Compose 阶段的 .env 只保存部署级 secret 和端口覆盖，不保存普�
 
 ```text
 env 只保留数据库和 Redis 这类 bootstrap 连接信息。
-cloud staging root、worker 并发、SMB 配置、source 配置、library 映射等业务配置保存到数据库 settings / sources 表。
+cloud staging root、worker 并发、SMB 配置、source 配置、media_libraries 等业务配置保存到数据库 settings / sources / 业务表。
 数据库初始化完成后写入默认 settings。
 ```
 
@@ -337,7 +337,7 @@ retryable = true
 ```text
 国内封闭网盘不作为 Sundarr 近期直接下载主链路。
 CloudProvider 保留为可选扩展和测试抽象，但不承诺 MVP 接入真实网盘直接下载。
-近期主链路改为挂载网盘导入：fnOS 挂载网盘后通过 SMB 暴露来源目录，Sundarr 通过 SMB 导入到 NAS 本地媒体库。
+近期主链路改为下载到本地：NAS 或挂载服务挂载网盘后通过 SMB 暴露来源目录，Sundarr 将网盘来源目录正向绑定到本地媒体库，并由 Worker 定时下载到媒体库绑定的 SMB 目录。
 ```
 
 理由：
@@ -345,17 +345,20 @@ CloudProvider 保留为可选扩展和测试抽象，但不承诺 MVP 接入真�
 ```text
 国内主流网盘通常不提供稳定、开放、可自动化的大文件下载 API。
 绕过 App、验证码、会员或风控限制不属于 Sundarr 范围。
-fnOS 已能将网盘远程挂载为目录，Sundarr 通过 SMB 处理挂载结果更稳定、边界更清晰。
+NAS 或挂载服务已能将网盘远程挂载为目录，Sundarr 通过 SMB 处理挂载结果更稳定、边界更清晰。
 独立服务器部署 Sundarr 时，可通过 SMB 同时访问网盘挂载目录和 NAS 本地媒体库。
 ```
 
 配套决策：
 
 ```text
-新增 Mounted Cloud Ingest 作为 Phase 8。
-支持 movie / series / unclassified 媒体库。
-支持来源目录到目标媒体库目录绑定。
-绑定不明确时进入 unclassified。
+新增 Download To Local 作为 Phase 8。
+
+SMB 连接由 Storage 模块统一管理并支持多个连接；媒体库和下载到本地模块只引用 SMB connection 和目录，不重复保存 SMB 凭据。
+媒体库指本地 NAS 逻辑目录类型，例如 movie / series / unclassified。
+媒体库管理模块负责创建媒体库，并绑定到某个 SMB connection 下的本地目录。
+下载到本地模块负责将网盘来源 SMB connection 和目录正向绑定到某个媒体库。
+绑定不明确时进入 unclassified 媒体库。
 成功后按全局或 binding 配置删除源文件和空目录。
 AI Friendly API 后移到后续阶段。
 后续大阶段再考虑在 Sundarr 内挂载网盘和保存分享链接到网盘。

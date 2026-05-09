@@ -46,7 +46,7 @@ SUNDARR_REDIS_URL=redis://:change_me@redis:6379/0
 ```text
 SUNDARR_DATABASE_URL 和 SUNDARR_REDIS_URL 属于 bootstrap 启动配置。
 修改启动配置通常需要重启。
-cloud staging root、ingest 配置、worker concurrency、SMB、source、library 映射等业务配置保存到数据库 settings 表。
+cloud staging root、download_to_local 配置、worker concurrency、SMB connections、source、media_libraries 等业务配置保存到数据库。
 ```
 
 密码位置：
@@ -130,15 +130,16 @@ Sundarr 本地启动会自动检查数据库状态，在目标数据库不存在
 包括：
 
 ```text
-storage.smb
+storage.smb（旧默认连接兼容入口）
+storage.smb_connections
 cloud.local.staging_root
-ingest 全局配置
-ingest bindings
+download_to_local 全局配置
+download_to_local bindings
+media_libraries
 worker.enabled
 worker.concurrency，默认 2
 transfer 参数
 source configuration
-library 映射
 ```
 
 运行时配置可以由 Web Console 修改。
@@ -155,10 +156,15 @@ POST /storage/config/save
 
 ## 4. SMB 配置
 
-SMB 配置结构：
+SMB 配置支持多个连接。新功能应优先使用 SMB connection 表或等价 API；旧 `storage.smb` 只作为默认连接兼容入口保留。
+
+SMB connection 配置结构：
 
 ```json
 {
+  "id": "media_library",
+  "name": "本地媒体库",
+  "enabled": true,
   "host": "nas.example.invalid",
   "port": 445,
   "share": "media",
@@ -166,11 +172,7 @@ SMB 配置结构：
   "password": "password",
   "domain": "",
   "base_path": "/",
-  "libraries": {
-    "movies": "Movies",
-    "tv": "TV",
-    "anime": "Anime"
-  }
+  "base_path": "/"
 }
 ```
 
@@ -179,10 +181,11 @@ SMB 配置结构：
 ```text
 password 不回显明文。
 password 留空表示保留旧值。
-保存 SMB 配置后必须热加载。
-保存 SMB 配置会中断使用旧配置的运行中任务。
+保存 SMB connection 后必须热加载。
+保存某个 SMB connection 会中断使用该连接旧配置的运行中任务。
 真实 SMB 可用于本地手动开发测试。
 自动化测试仍不得依赖真实 SMB 服务器。
+媒体库和下载到本地模块只能引用 SMB connection 和目录，不重复填写 SMB 凭据。
 ```
 
 本地手动测试时，推荐先准备以下信息：
@@ -195,7 +198,6 @@ username: SMB 用户名
 password: SMB 密码
 domain: 可为空
 base_path: Sundarr 可写入的共享内相对根路径，例如 / 或 /SundarrManualTest
-libraries: movies / tv / anime 等媒体目录映射
 ```
 
 可以通过 FastAPI `/docs` 或命令行提交配置。示例：
@@ -210,12 +212,7 @@ curl -X POST http://localhost:8080/storage/config/save \
     "username": "your_user",
     "password": "your_password",
     "domain": "",
-    "base_path": "/SundarrManualTest",
-    "libraries": {
-      "movies": "Movies",
-      "tv": "TV",
-      "anime": "Anime"
-    }
+    "base_path": "/SundarrManualTest"
   }'
 ```
 
@@ -239,9 +236,9 @@ MVP 不开放 worker process 数量配置。后续如需多个 Worker 进程，�
 
 ---
 
-## 6. 挂载网盘导入配置
+## 6. 下载到本地配置
 
-挂载网盘导入配置保存到数据库 settings 表和后续 ingest bindings 表。
+下载到本地配置保存到数据库 settings 表、media_libraries 表和 download_to_local bindings 表。
 
 全局配置建议：
 
@@ -251,7 +248,19 @@ MVP 不开放 worker process 数量配置。后续如需多个 Worker 进程，�
   "delete_empty_source_dirs": true,
   "scan_interval_seconds": 60,
   "stable_seconds": 120,
-  "unclassified_target_path": "/unclassified"
+  "unclassified_library_id": "library_unclassified"
+}
+```
+
+媒体库配置建议：
+
+```json
+{
+  "name": "电影",
+  "media_type": "movie",
+  "enabled": true,
+  "connection_id": "media_library",
+  "base_path": "Movies"
 }
 ```
 
@@ -259,21 +268,12 @@ Binding 配置建议：
 
 ```json
 {
-  "name": "电影导入",
+  "name": "电影下载",
   "enabled": true,
   "media_type": "movie",
-  "source_smb": {
-    "host": "nas.example.invalid",
-    "port": 445,
-    "share": "cloud",
-    "base_path": "/movie"
-  },
-  "target_smb": {
-    "host": "nas.example.invalid",
-    "port": 445,
-    "share": "media",
-    "base_path": "/movie"
-  },
+  "source_connection_id": "cloud_mount",
+  "source_path": "movie",
+  "target_library_id": "library_movie",
   "delete_source_after_success": null,
   "delete_empty_source_dirs": null
 }
@@ -282,10 +282,13 @@ Binding 配置建议：
 规则：
 
 ```text
-source_smb 和 target_smb 通常指向同一 SMB server，但不能强制要求。
-source_smb 和 target_smb 可以跨不同 share。
+媒体库 connection_id 必须引用已配置 SMB connection。
+媒体库 base_path 是对应 SMB connection base_path 内的本地 NAS 目录。
+source_connection_id 必须引用已配置 SMB connection。
+source_path 是来源 SMB connection base_path 内的相对路径。
+target_library_id 必须引用已配置媒体库。
 media_type 支持 movie / series / unclassified。
-binding 不明确时进入 unclassified。
+binding 不明确时进入 unclassified 媒体库。
 delete_source_after_success 和 delete_empty_source_dirs 可由 binding 覆盖全局默认。
 真实 SMB 密码不写入 .env.example，不写入文档，不进入日志。
 ```
@@ -330,11 +333,12 @@ Web Console 不展示 password 明文。
 
 ```text
 API 和 Worker 可读取启动配置。
-settings 表可保存 SMB 配置。
-Web Console 可修改 SMB 配置。
-SMB 配置修改无需重启。
-SMB 配置修改中断旧配置运行中任务。
+可保存多个 SMB connection。
+Web Console 可通过列表和弹出表单修改 SMB connection。
+SMB connection 修改无需重启。
+SMB connection 修改中断旧配置运行中任务。
+媒体库配置可持久化，并绑定到 SMB connection 下的目录。
 Source 配置可持久化。
-挂载网盘导入配置可持久化。
+下载到本地配置可持久化。
 敏感字段不会明文返回。
 ```

@@ -132,7 +132,7 @@ target_path TEXT NOT NULL
 source_type TEXT
 source_path TEXT
 source_config_snapshot JSONB
-ingest_seen_file_id TEXT
+download_to_local_seen_file_id TEXT
 storage_config_snapshot JSONB
 total_bytes BIGINT NOT NULL DEFAULT 0
 done_bytes BIGINT NOT NULL DEFAULT 0
@@ -149,9 +149,9 @@ completed_at TIMESTAMP
 
 状态见 `docs/07-transfer-state-machine.md`。
 
-`link_id` 对搜索资源搬运任务必填；对挂载网盘导入任务可为空。
+`link_id` 对搜索资源搬运任务必填；对下载到本地任务可为空。
 
-`source_type`、`source_path`、`source_config_snapshot` 和 `ingest_seen_file_id` 用于记录挂载网盘导入来源。`storage_config_snapshot` 用于判断任务是否使用旧 SMB 配置。
+`source_type`、`source_path`、`source_config_snapshot` 和 `download_to_local_seen_file_id` 用于记录下载到本地来源。`storage_config_snapshot` 用于判断任务是否使用旧 SMB 配置。
 
 ---
 
@@ -224,9 +224,9 @@ cloud.local
 worker.enabled
 worker.concurrency
 source configuration
-library 映射
+media_libraries
 transfer 参数
-ingest 全局配置
+download_to_local 全局配置
 ```
 
 规则：
@@ -240,9 +240,69 @@ password 空值更新表示保留旧值。
 
 ---
 
-## 9. ingest_bindings
+## 9. smb_connections
 
-用途：保存挂载网盘来源目录和本地媒体库目标目录的绑定关系。
+用途：保存可复用的 SMB 连接。下载到本地、媒体库目录和其他 SMB 相关模块只能引用 SMB connection，不重复保存 SMB 凭据。
+
+字段建议：
+
+```text
+id TEXT PRIMARY KEY
+name TEXT NOT NULL
+enabled BOOLEAN NOT NULL DEFAULT TRUE
+host TEXT NOT NULL
+port INTEGER NOT NULL DEFAULT 445
+share TEXT NOT NULL
+username TEXT NOT NULL
+password TEXT
+domain TEXT
+base_path TEXT NOT NULL DEFAULT '/'
+created_at TIMESTAMP NOT NULL
+updated_at TIMESTAMP NOT NULL
+```
+
+规则：
+
+```text
+API 不返回 password 明文，只返回 password_set。
+password 空值更新表示保留旧 password。
+修改某个 SMB connection 会中断使用该 connection 旧配置快照的运行中任务。
+```
+
+---
+
+## 10. media_libraries
+
+用途：保存本地 NAS 媒体库定义。媒体库是 movie、series、unclassified 等逻辑库，并绑定到某个 SMB connection 下的本地目录。
+
+字段建议：
+
+```text
+id TEXT PRIMARY KEY
+name TEXT NOT NULL
+media_type TEXT NOT NULL
+enabled BOOLEAN NOT NULL DEFAULT TRUE
+connection_id TEXT NOT NULL
+base_path TEXT NOT NULL
+created_at TIMESTAMP NOT NULL
+updated_at TIMESTAMP NOT NULL
+```
+
+规则：
+
+```text
+media_type 允许 movie / series / unclassified，后续可扩展。
+connection_id 必须引用已配置 SMB connection。
+base_path 是 connection base_path 内的相对路径，指向本地 NAS 媒体库目录。
+API 不在媒体库中保存 SMB host/share/username/password。
+至少需要一个 unclassified 媒体库作为绑定不明确时的 fallback。
+```
+
+---
+
+## 11. download_to_local_bindings
+
+用途：保存已挂载网盘 SMB 目录到本地媒体库的下载规则。
 
 字段建议：
 
@@ -251,8 +311,9 @@ id TEXT PRIMARY KEY
 name TEXT NOT NULL
 enabled BOOLEAN NOT NULL DEFAULT TRUE
 media_type TEXT NOT NULL
-source_smb_json JSONB NOT NULL
-target_smb_json JSONB NOT NULL
+source_connection_id TEXT NOT NULL
+source_path TEXT NOT NULL
+target_library_id TEXT NOT NULL
 delete_source_after_success BOOLEAN
 delete_empty_source_dirs BOOLEAN
 created_at TIMESTAMP NOT NULL
@@ -262,19 +323,20 @@ updated_at TIMESTAMP NOT NULL
 规则：
 
 ```text
-media_type 允许 movie / series / unclassified。
-source_smb_json 保存来源 SMB host/share/base_path 等配置。
-target_smb_json 保存目标 SMB host/share/base_path 等配置。
-source 和 target 通常是同一 SMB server，但允许跨 share 或跨 server。
+media_type 允许 movie / series / unclassified，并应与目标媒体库类型一致。
+source_connection_id 必须引用已配置 SMB connection。
+target_library_id 必须引用已配置 media_libraries。
+source_path 是来源 SMB connection 的 base_path 内目录，通常是已挂载的网盘目录。
+目标写入目录来自 target_library_id 对应媒体库的 connection_id 和 base_path。
 delete_source_after_success 为空时使用全局默认。
 delete_empty_source_dirs 为空时使用全局默认。
 ```
 
 ---
 
-## 10. ingest_seen_files
+## 12. download_to_local_seen_files
 
-用途：记录已扫描或已处理的来源文件，避免重复导入。
+用途：记录已扫描或已处理的来源文件，避免重复下载到本地。
 
 字段建议：
 
@@ -294,12 +356,12 @@ updated_at TIMESTAMP NOT NULL
 规则：
 
 ```text
-source_fingerprint 由来源 SMB 标识和来源路径组成，用于避免重复发现同一路径。
-status 至少包含 discovered / stable / queued / importing / completed / failed / ignored。
+source_fingerprint 由来源 SMB connection、来源目录和来源文件路径组成，用于避免重复发现同一路径。
+status 至少包含 discovered / stable / queued / downloading / completed / failed / ignored。
 目录型资源可用目录路径和聚合 size/mtime 生成 fingerprint。
 ```
 
-## 11. 验收标准
+## 13. 验收标准
 
 数据模型完成时必须满足：
 
@@ -307,8 +369,9 @@ status 至少包含 discovered / stable / queued / importing / completed / faile
 迁移可创建所有核心表。
 Source / Resource / ResourceLink 可读写。
 TransferTask / TransferFile 状态可持久化。
-Setting 可保存 SMB 配置。
-Ingest binding 可保存来源和目标 SMB 目录绑定。
+SMB connection 可保存多个 SMB 连接配置。
+Media library 可引用 SMB connection 和本地目录。
+Download to local binding 可引用来源 SMB connection、来源目录和目标媒体库。
 transfer_logs 可记录状态变化。
 敏感字段不会通过 API 明文返回。
 ```

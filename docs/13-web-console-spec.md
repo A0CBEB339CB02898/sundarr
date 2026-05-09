@@ -28,14 +28,15 @@ Web Console 是核心控制台，不是完整媒体库 UI。
 搜索资源
 选择候选资源
 管理媒体源配置
-管理 SMB 配置
-浏览 SMB 目标目录
+管理多个 SMB 连接
+浏览 SMB 目录
+管理媒体库
 创建归档任务
 查看任务进度
 取消 / 重试任务
 显示关键错误和中断提示
-管理挂载网盘导入绑定
-手动触发挂载网盘扫描
+管理下载到本地绑定
+手动触发下载到本地来源扫描
 ```
 
 ---
@@ -68,9 +69,10 @@ MVP 页面：
 ```text
 /app/search       搜索和候选资源
 /app/transfers    完整任务列表和任务详情
-/app/storage      SMB 配置、连接测试、目录浏览
+/app/storage      SMB 连接列表、连接测试、目录浏览
+/app/libraries    媒体库管理
 /app/sources      媒体源配置
-/app/ingest       挂载网盘导入配置和扫描
+/app/download-to-local 下载到本地配置和扫描
 /app/status       API / Worker / DB / Redis 状态摘要
 ```
 
@@ -189,9 +191,9 @@ SMB 配置已变更，任务已中断。
 功能：
 
 ```text
-查看 SMB 配置摘要
-修改 host / port / share / username / password / domain / base_path
-配置 library: movies / tv / anime
+查看 SMB 连接列表
+通过新增按钮弹出表单创建 SMB 连接
+编辑 host / port / share / username / password / domain / base_path
 测试 SMB 连接
 浏览 SMB 目录
 ```
@@ -199,10 +201,12 @@ SMB 配置已变更，任务已中断。
 规则：
 
 ```text
+页面默认展示 SMB 连接列表，不默认展开空新增表单。
+新增和编辑使用弹出表单。
 password 不回显明文。
 password 留空表示保留原值。
-保存 SMB 配置后立即热加载。
-保存 SMB 配置会中断使用旧配置的运行中任务。
+保存 SMB 连接后立即热加载。
+保存某个 SMB 连接会中断使用该连接旧配置的运行中任务。
 目录浏览只能在允许范围内进行。
 SMB 连接测试必须由后端执行，验证后端运行环境到 SMB 服务器的网络、DNS、认证和权限。
 ```
@@ -214,6 +218,74 @@ GET  /storage/config
 POST /storage/config/save
 POST /storage/config/test
 GET  /storage/browse
+GET  /storage/smb-connections
+POST /storage/smb-connections/create
+POST /storage/smb-connections/{connection_id}/update
+POST /storage/smb-connections/{connection_id}/test
+GET  /storage/smb-connections/{connection_id}/browse
+```
+
+---
+
+## 7.1 媒体库页面
+
+功能：
+
+```text
+查看媒体库列表
+通过新增按钮弹出表单创建媒体库
+编辑、启用、禁用媒体库
+选择媒体库类型：movie / series / unclassified
+选择 SMB 连接和本地 NAS 目录
+测试媒体库目录可写
+```
+
+规则：
+
+```text
+媒体库是本地 NAS 上的逻辑目录，不是海报墙、播放器或完整媒体库 UI。
+页面默认展示媒体库列表，不默认展开空新增表单。
+新增和编辑使用弹出表单。
+媒体库表单只能选择已配置 SMB 连接，不重复填写 SMB host/share/username/password。
+至少需要一个 unclassified 媒体库作为下载到本地 fallback。
+```
+
+API：
+
+```text
+GET  /media-libraries
+POST /media-libraries/create
+GET  /media-libraries/{library_id}
+POST /media-libraries/{library_id}/update
+POST /media-libraries/{library_id}/enable
+POST /media-libraries/{library_id}/disable
+POST /media-libraries/{library_id}/test
+```
+
+---
+
+## 7.2 下载到本地页面
+
+功能：
+
+```text
+查看下载绑定列表
+通过新增按钮弹出表单创建绑定
+选择来源 SMB 连接和来源目录
+选择目标媒体库
+手动扫描来源目录
+为稳定文件创建下载任务
+查看发现文件和关联任务
+```
+
+规则：
+
+```text
+页面默认展示绑定列表和最近发现文件，不默认展开空新增表单。
+绑定表单只能选择已配置来源 SMB 连接和目标媒体库，不重复填写 SMB host/share/username/password。
+来源目录通过 SMB 连接目录浏览选择或手动输入相对路径。
+目标目录来自媒体库管理模块，不在下载到本地表单中重复配置。
+保存分享链接到网盘的后续模块命名为“保存到网盘”，不属于本页面。
 ```
 
 ---
@@ -274,30 +346,35 @@ Status 页面只显示摘要，不做复杂监控系统。
 
 ---
 
-## 10. Ingest 页面
+## 10. 下载到本地页面
 
 功能：
 
 ```text
-查看挂载网盘导入全局配置
+查看下载到本地全局配置
 配置 delete_source_after_success
 配置 delete_empty_source_dirs
 配置 unclassified 目录
 查看 binding 列表
-新增 / 编辑 / 启用 / 禁用 binding
+通过新增按钮弹出表单创建 binding
+编辑 / 启用 / 禁用 binding
+选择来源 SMB connection 和来源目录
+选择目标 SMB connection 和本地媒体库目录
 测试来源目录可读
 测试目标目录可写
 手动触发扫描
-查看最近发现文件和导入任务
+查看最近发现文件和下载任务
 ```
 
 限制：
 
 ```text
 不在 Web Console 中挂载网盘。
-不在 Web Console 中自动保存分享链接到网盘。
+不在 Web Console 中自动保存分享链接到网盘；后续模块命名为“保存到网盘”。
 不显示 SMB password 明文。
-删除源文件和空目录必须只发生在导入成功并完成校验之后。
+页面默认展示列表，不默认展开空新增表单。
+绑定表单只选择已配置 SMB connection，不重复填写 SMB 凭据。
+删除源文件和空目录必须只发生在下载成功并完成校验之后。
 ```
 
 ---
@@ -361,11 +438,11 @@ Web Console 完成时必须满足：
 可以创建 transfer task。
 可以查看任务进度。
 可以取消和重试任务。
-可以查看和修改 SMB 配置。
+可以查看和修改多个 SMB 连接。
 可以测试 SMB 连接。
 可以浏览 SMB 目标目录。
 可以管理已安装代码型 Source Adapter。
-可以管理挂载网盘导入绑定。
+可以管理下载到本地绑定。
 可以通过全局任务面板查看当前任务状态摘要。
 可以在 /app/transfers 查看完整任务列表和详情。
 支持亮色、暗色和跟随系统三种主题模式。

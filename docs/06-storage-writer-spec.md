@@ -85,7 +85,7 @@ class StorageWriter:
 
 Transfer Worker 只能依赖 StorageWriter 接口，不应直接调用 SMB 库。
 
-`open_read` 供挂载网盘导入读取 SMB 来源文件使用。`remove_empty_dir` 只能删除空目录，不能递归删除目录树。
+`open_read` 供下载到本地读取 SMB 来源文件使用。`remove_empty_dir` 只能删除空目录，不能递归删除目录树。
 
 ---
 

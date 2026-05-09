@@ -79,7 +79,8 @@ API 契约 -> docs/09-api-contract.md
 本地开发 -> docs/12-local-development.md
 Web Console -> docs/13-web-console-spec.md
 AI Tool API -> docs/14-ai-tool-api-spec.md
-挂载网盘导入 -> docs/15-mounted-cloud-ingest-spec.md
+下载到本地 -> docs/15-download-to-local-spec.md
+网盘直链下载 -> docs/16-cloud-direct-download-spec.md
 Agent 工作规则 -> AGENTS.md
 ```
 
@@ -109,10 +110,17 @@ SMB 配置修改会中断使用旧 SMB 配置的运行中任务。
 被中断任务进入 failed，错误码 STORAGE_CONFIG_CHANGED，retryable=true。
 被中断任务保留 .downloading 文件和 cloud staging。
 真实网盘直接下载不作为近期主链路，CloudProvider 保留为可选扩展。
-下一阶段主线是挂载网盘导入：通过 SMB 扫描 fnOS 暴露的网盘挂载目录，再通过 SMB 写入 NAS 本地媒体库。
-挂载网盘导入支持 movie / series / unclassified，绑定不明确时进入 unclassified。
-挂载网盘导入成功后按配置删除源文件和空目录。
-未来再考虑在 Sundarr 内挂载网盘和保存分享链接到网盘。
+Phase 8 模块命名为“下载到本地”：从已挂载的网盘 SMB 目录下载到本地 SMB 媒体库目录。
+未来“分享链接保存到网盘”模块命名为“保存到网盘”。
+SMB 存储模块必须支持多个 SMB 连接，媒体库和下载到本地模块只能引用已配置 SMB 连接和目录，不重复填写 SMB 凭据。
+媒体库指本地 NAS 媒体目录类型，例如 movie / series / unclassified。
+媒体库管理模块负责创建媒体库，并绑定到某个 SMB 连接下的本地目录。
+下载到本地模块负责将某个已挂载网盘 SMB 目录正向绑定到某个媒体库。
+Worker 定时扫描下载到本地绑定，将来源目录内容下载到绑定的本地媒体库目录。
+下载到本地支持 movie / series / unclassified，绑定不明确时进入 unclassified 媒体库。
+下载到本地成功后按配置删除来源文件和空目录。
+Web Console 中配置类页面默认先展示列表，通过新增按钮打开弹出表单，不默认展开空新增表单。
+媒体库管理是 MVP 的目录绑定管理能力，不等于完整媒体库 UI、海报墙或播放器。
 当前已实现的是媒体源框架和示例源，不是真实网站 Adapter。
 真实媒体源后续通过代码型 Source Adapter 逐站点接入。
 Web Console 只管理已安装 Adapter 的启用、禁用、参数、测试和错误查看，不在线编辑代码型 Source Adapter。
@@ -204,7 +212,7 @@ Phase 5: Transfer Worker
 Phase 6: Cleanup And Recovery
 Phase 7: Web Console
 Phase 7.8: Web Console UI Polish
-Phase 8: Mounted Cloud Ingest
+Phase 8: Download To Local
 Phase 9: Real Site Source Adapters
 Phase 10: AI Friendly API
 ```
