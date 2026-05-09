@@ -18,6 +18,13 @@ DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
     "worker.concurrency": {"value": 2},
     "cloud.local": {"staging_root": "/Sundarr/_staging"},
     INGEST_CONFIG_KEY: DEFAULT_INGEST_CONFIG,
+    "download_to_local.config": {
+        "delete_source_after_success": True,
+        "delete_empty_source_dirs": True,
+        "scan_interval_seconds": 60,
+        "stable_seconds": 120,
+        "unclassified_library_id": "",
+    },
 }
 
 

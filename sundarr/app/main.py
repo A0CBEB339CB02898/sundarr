@@ -8,8 +8,10 @@ from sqlalchemy import text
 
 from sundarr.app.api.health import router as health_router
 from sundarr.app.api.ingest import router as ingest_router
+from sundarr.app.api.media_libraries import router as media_libraries_router
 from sundarr.app.api.resources import router as resources_router
 from sundarr.app.api.search import router as search_router
+from sundarr.app.api.smb_connections import router as smb_connections_router
 from sundarr.app.api.sources import router as sources_router
 from sundarr.app.api.storage import router as storage_router
 from sundarr.app.api.transfers import router as transfers_router
@@ -46,6 +48,8 @@ def create_app() -> FastAPI:
     app.include_router(resources_router)
     app.include_router(sources_router)
     app.include_router(storage_router)
+    app.include_router(smb_connections_router)
+    app.include_router(media_libraries_router)
     app.include_router(transfers_router)
     app.include_router(ingest_router)
     return app
