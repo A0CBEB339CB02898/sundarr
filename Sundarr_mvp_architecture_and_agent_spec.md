@@ -1622,7 +1622,22 @@ SMB source -> SMB target 下载 Worker                               已实现
 /app/libraries Web Console 页面或等价媒体库管理入口                 已实现
 ```
 
-### Phase 9: Real Site Source Adapters
+### Phase 9: 模块重构
+
+目标：清理旧模块，统一术语，建立远程媒体库模型，重构同步绑定。
+
+交付：
+
+```text
+删除 Ingest 模块和旧 storage_config_service
+新增远程媒体库模型（RemoteMediaLibrary）
+重构同步绑定（SyncBinding）
+清理 TransferTask 字段
+统一 Worker 处理路径
+更新 Web Console
+```
+
+### Phase 10: Real Site Source Adapters
 
 交付：
 
@@ -1636,7 +1651,7 @@ fixture 测试模板
 文档型网站通用读取可行性实验
 ```
 
-### Phase 10: AI Friendly API
+### Phase 11: AI Friendly API
 
 交付：
 

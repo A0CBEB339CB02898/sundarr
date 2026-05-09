@@ -1,10 +1,10 @@
 # Sundarr
 
-Sundarr 是个人自用的网盘媒体资源搜索、暂存、搬运与 NAS 归档自动化系统。
+Sundarr 是个人自用的远程媒体库同步到本地媒体库自动化系统。
 
-当前状态：Phase 8 Download To Local 进行中。SMB 连接管理、媒体库管理、下载到本地绑定、扫描和任务创建已实现。Worker 下载执行、Web Console 前端页面待实现。
+当前状态：Phase 8 Download To Local 已完成。Phase 9 模块重构待启动，目标是清理旧模块、统一术语、建立远程媒体库模型。
 
-下一阶段主线：下载到本地。Sundarr 不把国内封闭网盘直接下载作为近期主链路，而是通过 SMB 扫描已挂载的网盘目录，再按绑定下载到本地 NAS 媒体库。媒体库指 movie、series、unclassified 等本地 NAS 目录绑定，不是海报墙或播放器。
+核心功能：将远程媒体库（如网盘通过 SMB 暴露的目录）同步到本地 NAS 媒体库。
 
 ## 技术栈
 
