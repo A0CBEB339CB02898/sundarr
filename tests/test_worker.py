@@ -5,7 +5,18 @@ import pytest
 
 from sundarr.app.cloud import LocalCloudProvider
 from sundarr.app.cloud.base import CloudFile
-from sundarr.app.models import IngestBinding, IngestSeenFile, Resource, ResourceLink, Setting, TransferFile, TransferLog, TransferTask
+from sundarr.app.models import (
+    DownloadToLocalBinding,
+    DownloadToLocalSeenFile,
+    IngestBinding,
+    IngestSeenFile,
+    Resource,
+    ResourceLink,
+    Setting,
+    TransferFile,
+    TransferLog,
+    TransferTask,
+)
 from sundarr.app.storage import LocalWriter
 from sundarr.app.storage.base import StorageWriter
 from sundarr.app.worker import (
@@ -14,6 +25,7 @@ from sundarr.app.worker import (
     cleanup_cloud_staging,
     load_local_runtime_config,
     load_worker_settings,
+    process_dtl_task,
     process_ingest_task,
     process_transfer_task,
     recover_running_tasks,
@@ -413,6 +425,162 @@ async def test_process_ingest_task_failure_keeps_source_and_downloading(db_sessi
     assert task.error_code == "SIZE_MISMATCH"
     assert source_file.exists()
     assert (target_root / "Movie.mkv.downloading").exists()
+
+
+@pytest.mark.anyio
+async def test_process_dtl_task_local_writers_happy_path(db_session, tmp_path: Path) -> None:
+    source_root = tmp_path / "source"
+    target_root = tmp_path / "target"
+    source_file = source_root / "CloudMovie" / "Movie.mkv"
+    payload = b"0123456789"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_bytes(payload)
+    task = _seed_dtl_task(db_session, size=len(payload))
+
+    await process_dtl_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
+
+    db_session.refresh(task)
+    assert task.status == "completed"
+    assert task.done_bytes == len(payload)
+    assert (target_root / "Movies" / "CloudMovie" / "Movie.mkv").read_bytes() == payload
+    assert not (target_root / "Movies" / "CloudMovie" / "Movie.mkv.downloading").exists()
+    assert not source_file.exists()
+    assert not source_file.parent.exists()
+    assert db_session.get(DownloadToLocalSeenFile, "seen_dtl").status == "completed"
+    assert db_session.query(TransferFile).filter(TransferFile.task_id == task.id).one().status == "completed"
+    assert {log.event for log in db_session.query(TransferLog).all()} >= {
+        "dtl_copy_started",
+        "dtl_transfer_completed",
+        "dtl_source_cleanup_completed",
+    }
+
+
+@pytest.mark.anyio
+async def test_process_dtl_task_failure_keeps_source_and_downloading(db_session, tmp_path: Path) -> None:
+    source_root = tmp_path / "source"
+    target_root = tmp_path / "target"
+    source_file = source_root / "CloudMovie" / "Movie.mkv"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_bytes(b"1234")
+    task = _seed_dtl_task(db_session, source_path="CloudMovie/Movie.mkv", target_path="Movies/CloudMovie/Movie.mkv", size=4)
+
+    await process_dtl_task(db_session, task, LocalWriter(source_root), WrongSizeWriter(target_root))
+
+    db_session.refresh(task)
+    assert task.status == "failed"
+    assert task.error_code == "SIZE_MISMATCH"
+    assert source_file.exists()
+    assert (target_root / "Movies" / "CloudMovie" / "Movie.mkv.downloading").exists()
+
+
+@pytest.mark.anyio
+async def test_process_dtl_task_cancelled_keeps_status(db_session, tmp_path: Path) -> None:
+    task = _seed_dtl_task(db_session)
+    task.status = "cancelled"
+    db_session.commit()
+
+    await process_dtl_task(db_session, task, LocalWriter(tmp_path / "source"), LocalWriter(tmp_path / "target"))
+
+    db_session.refresh(task)
+    assert task.status == "cancelled"
+    transfer_file = db_session.query(TransferFile).filter(TransferFile.task_id == task.id).one()
+    assert transfer_file.status == "pending"
+
+
+@pytest.mark.anyio
+async def test_process_dtl_task_no_delete_source_when_disabled(db_session, tmp_path: Path) -> None:
+    source_root = tmp_path / "source"
+    target_root = tmp_path / "target"
+    source_file = source_root / "CloudMovie" / "Movie.mkv"
+    payload = b"0123456789"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_bytes(payload)
+    task = _seed_dtl_task(db_session, size=len(payload), delete_source=False)
+
+    await process_dtl_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
+
+    db_session.refresh(task)
+    assert task.status == "completed"
+    assert source_file.exists()
+
+
+def _seed_dtl_task(
+    db_session,
+    source_path: str = "CloudMovie/Movie.mkv",
+    target_path: str = "Movies/CloudMovie/Movie.mkv",
+    size: int = 4,
+    delete_source: bool = True,
+) -> TransferTask:
+    binding = DownloadToLocalBinding(
+        id="binding_dtl",
+        name="下载测试",
+        enabled=True,
+        media_type="movie",
+        source_connection_id="conn_source",
+        source_path="CloudMovie",
+        target_library_id="lib_movie",
+        delete_source_after_success=delete_source,
+        delete_empty_source_dirs=True,
+    )
+    seen = DownloadToLocalSeenFile(
+        id="seen_dtl",
+        binding_id=binding.id,
+        source_fingerprint="fingerprint_dtl",
+        source_path=source_path,
+        source_size=size,
+        source_mtime="100",
+        status="queued",
+    )
+    task = TransferTask(
+        id="task_dtl",
+        resource_id=None,
+        link_id=None,
+        status="pending",
+        mode="download_to_local",
+        target_type="smb",
+        target_library="movie",
+        target_path=target_path,
+        source_type="smb",
+        source_path=source_path,
+        source_config_snapshot={
+            "connection_id": "conn_source",
+            "host": "nas.example.invalid",
+            "port": 445,
+            "share": "cloud",
+            "username": "user",
+            "domain": "",
+            "base_path": "/",
+            "password": None,
+        },
+        storage_config_snapshot={
+            "connection_id": "lib_movie",
+            "host": "nas.example.invalid",
+            "port": 445,
+            "share": "media",
+            "username": "user",
+            "domain": "",
+            "base_path": "/",
+            "password": None,
+        },
+        ingest_seen_file_id=seen.id,
+        total_bytes=size,
+    )
+    transfer_file = TransferFile(
+        id="file_dtl",
+        task_id=task.id,
+        cloud_file_id=None,
+        cloud_path=source_path,
+        target_path=target_path,
+        temp_path=f"{target_path}.downloading",
+        filename=target_path.rsplit("/", 1)[-1],
+        size_bytes=size,
+        done_bytes=0,
+        status="pending",
+    )
+    seen.task_id = task.id
+    db_session.add_all([binding, seen, task, transfer_file])
+    db_session.commit()
+    return task
 
 
 def _seed_transfer_tasks(db_session, statuses: list[str], target_type: str = "local") -> None:
