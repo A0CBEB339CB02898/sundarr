@@ -211,12 +211,12 @@ SMB connection password 不回显                                     已覆盖 
 目录型资源稳定性判断                                                  待覆盖
 binding 匹配 movie / series                                         已覆盖 (test_download_to_local.py)
 binding 不明确时进入 unclassified 媒体库                              待覆盖（Worker 实现后）
-SMB source -> SMB target 的 Worker 任务领取规则                      待覆盖
-LocalWriter 替身覆盖 source -> target 的下载成功路径                  待覆盖
-.downloading 写入、size 校验、rename                                 待覆盖
-成功后删除源文件                                                      待覆盖
-成功后删除空目录                                                      待覆盖
-失败时保留源文件和 .downloading                                      待覆盖
+SMB source -> SMB target 的 Worker 任务领取规则                    已覆盖 (test_worker.py)
+LocalWriter 替身覆盖 source -> target 的下载成功路径                 已覆盖 (test_worker.py)
+.downloading 写入、size 校验、rename                                已覆盖 (test_worker.py)
+成功后删除源文件                                                     已覆盖 (test_worker.py)
+成功后删除空目录                                                     已覆盖 (test_worker.py)
+失败时保留源文件和 .downloading                                     已覆盖 (test_worker.py)
 重复扫描不重复创建任务                                                已覆盖 (test_download_to_local.py)
 ```
 

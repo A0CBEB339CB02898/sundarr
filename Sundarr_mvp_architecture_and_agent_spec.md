@@ -1607,9 +1607,9 @@ download_to_local task 创建                                        已实现
 交付：
 
 ```text
-SMB source -> SMB target 下载 Worker                               待实现
-.downloading 写入、size 校验、rename                                待实现
-成功后删除源文件和空目录                                             待实现
+SMB source -> SMB target 下载 Worker                               已实现
+.downloading 写入、size 校验、rename                                已实现
+成功后删除源文件和空目录                                             已实现
 未分类 fallback                                                    待实现
 ```
 

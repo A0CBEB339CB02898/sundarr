@@ -1075,10 +1075,10 @@ download_to_local task 创建                                   已实现
 交付物：
 
 ```text
-SMB source -> SMB target 下载 Worker
-.downloading 写入、size 校验、rename
-成功后删除源文件和空目录
-未分类 fallback（binding 不明确时进入 unclassified 媒体库）
+SMB source -> SMB target 下载 Worker                              已实现
+.downloading 写入、size 校验、rename                               已实现
+成功后删除源文件和空目录                                            已实现
+未分类 fallback                                                   待实现（配置已有，Worker 自动 fallback 逻辑待实现）
 ```
 
 验收标准：
