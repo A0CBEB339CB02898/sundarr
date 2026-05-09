@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import './styles.css'
 
-type PageKey = 'search' | 'transfers' | 'storage' | 'sources' | 'libraries' | 'download-to-local' | 'status'
+type PageKey = 'search' | 'transfers' | 'storage' | 'sources' | 'libraries' | 'remote-libraries' | 'sync' | 'status'
 type ThemeMode = 'light' | 'dark' | 'system'
 
 type NavItem = {
@@ -443,7 +443,8 @@ const navItems: NavItem[] = [
   { key: 'storage', path: '/app/storage', label: '存储', description: '管理 SMB 配置和目录浏览' },
   { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
   { key: 'libraries', path: '/app/libraries', label: '媒体库', description: '管理本地媒体库目录绑定' },
-  { key: 'download-to-local', path: '/app/download-to-local', label: '下载到本地', description: '管理网盘目录到媒体库的下载绑定' },
+  { key: 'remote-libraries', path: '/app/remote-libraries', label: '远程媒体库', description: '管理远程媒体库目录绑定' },
+  { key: 'sync', path: '/app/sync', label: '同步', description: '管理远程到本地的同步绑定' },
   { key: 'status', path: '/app/status', label: '状态', description: '查看 API、Worker、数据库和 Redis' },
 ]
 
@@ -478,10 +479,16 @@ const pageCopy: Record<PageKey, { title: string; eyebrow: string; body: string; 
     body: '管理 movie / series / unclassified 等本地媒体库目录绑定。',
     next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
-  'download-to-local': {
-    eyebrow: 'Download To Local',
-    title: '下载到本地',
-    body: '管理网盘目录到媒体库的下载绑定，扫描来源目录并创建下载任务。',
+  'remote-libraries': {
+    eyebrow: 'Remote Libraries',
+    title: '远程媒体库管理',
+    body: '管理 movie / series / unclassified 等远程媒体库目录绑定。',
+    next: '当前页面暂不可用，请从左侧导航重新进入。',
+  },
+  sync: {
+    eyebrow: 'Sync',
+    title: '同步管理',
+    body: '管理远程媒体库到本地媒体库的同步绑定。',
     next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
   status: {
@@ -646,8 +653,11 @@ function PagePanel({
   if (activePage === 'libraries') {
     return <LibrariesPanel />
   }
-  if (activePage === 'download-to-local') {
-    return <DownloadToLocalPanel onTransfersChanged={onTransfersChanged} />
+  if (activePage === 'remote-libraries') {
+    return <RemoteLibrariesPanel />
+  }
+  if (activePage === 'sync') {
+    return <SyncPanel onTransfersChanged={onTransfersChanged} />
   }
 
   return (
@@ -1168,7 +1178,142 @@ function LibrariesPanel() {
   )
 }
 
-function DownloadToLocalPanel({ onTransfersChanged }: { onTransfersChanged: () => Promise<void> }) {
+function RemoteLibrariesPanel() {
+  const [libraries, setLibraries] = useState<MediaLibraryResponse[]>([])
+  const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [form, setForm] = useState<LibraryFormState>(emptyLibraryForm())
+  const [mode, setMode] = useState<'create' | 'edit'>('create')
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => { void loadLibraries() }, [])
+
+  const selectedLibrary = libraries.find((l) => l.id === selectedId) || null
+
+  async function loadLibraries(nextSelectedId = selectedId) {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const [libList, connList] = await Promise.all([
+        api.get<MediaLibraryListResponse>('/remote-media-libraries'),
+        api.get<SmbConnectionListResponse>('/storage/smb-connections'),
+      ])
+      setLibraries(libList.results)
+      setConnections(connList.results)
+      const next = libList.results.find((l) => l.id === nextSelectedId) || libList.results[0] || null
+      if (next) { selectLibrary(next, false) } else { startCreate() }
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '无法读取远程媒体库配置。')
+    } finally { setIsLoading(false) }
+  }
+
+  function selectLibrary(lib: MediaLibraryResponse, clearFeedback = true) {
+    setMode('edit'); setSelectedId(lib.id)
+    setForm({ id: lib.id, name: lib.name, media_type: lib.media_type, enabled: lib.enabled, connection_id: lib.connection_id, base_path: lib.base_path })
+    if (clearFeedback) { setMessage(null); setError(null) }
+  }
+
+  function startCreate() {
+    setMode('create'); setSelectedId(null)
+    setForm(emptyLibraryForm()); setMessage(null); setError(null)
+  }
+
+  async function saveLibrary() {
+    if (!window.confirm(`确认${mode === 'create' ? '创建' : '保存'}远程媒体库？`)) return
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      const payload = { name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/' }
+      const saved = mode === 'create'
+        ? await api.post<MediaLibraryResponse>('/remote-media-libraries/create', { id: form.id.trim(), ...payload })
+        : await api.post<MediaLibraryResponse>(`/remote-media-libraries/${encodeURIComponent(form.id)}/update`, payload)
+      setMessage(mode === 'create' ? '远程媒体库已创建。' : '远程媒体库已保存。')
+      await loadLibraries(saved.id)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '保存远程媒体库失败。') }
+    finally { setIsSaving(false) }
+  }
+
+  async function toggleLibrary(enabled: boolean) {
+    if (!selectedLibrary) return
+    if (!window.confirm(`确认${enabled ? '启用' : '禁用'}远程媒体库 ${selectedLibrary.name}？`)) return
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      await api.post<MediaLibraryResponse>(`/remote-media-libraries/${encodeURIComponent(selectedLibrary.id)}/${enabled ? 'enable' : 'disable'}`)
+      setMessage(enabled ? '远程媒体库已启用。' : '远程媒体库已禁用。')
+      await loadLibraries(selectedLibrary.id)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '切换远程媒体库状态失败。') }
+    finally { setIsSaving(false) }
+  }
+
+  async function testLibrary() {
+    if (!selectedLibrary) { setError('请先选择已保存的远程媒体库。'); return }
+    setIsSaving(true); setError(null); setMessage(null)
+    try {
+      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(`/remote-media-libraries/${encodeURIComponent(selectedLibrary.id)}/test`)
+      setMessage(result.ok ? '远程媒体库目录测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '测试远程媒体库失败。') }
+    finally { setIsSaving(false) }
+  }
+
+  function updateField(key: keyof LibraryFormState, value: string | boolean) { setForm((c) => ({ ...c, [key]: value })) }
+
+  return (
+    <section className="panel" aria-labelledby="remote-libraries-title">
+      <div className="panel-header-row">
+        <div>
+          <p className="panel-kicker">远程媒体库</p>
+          <h2 id="remote-libraries-title">远程媒体库管理</h2>
+          <p>管理远程媒体库目录绑定，用于同步到本地媒体库。</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="ghost-button" disabled={isLoading} onClick={() => void loadLibraries()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
+          <button className="primary-button" onClick={startCreate} type="button">新增</button>
+        </div>
+      </div>
+      {message && <div className="inline-message">{message}</div>}
+      {error && <div className="inline-message error">{error}</div>}
+      <div className="ingest-layout">
+        <section className="source-list" aria-labelledby="remote-lib-list-title">
+          <div className="section-heading"><h3 id="remote-lib-list-title">远程媒体库列表</h3><span>{libraries.length} 个</span></div>
+          <div className="transfer-list">
+            {libraries.map((lib) => (
+              <button key={lib.id} type="button" className={`source-row ${lib.id === selectedId ? 'selected' : ''}`} onClick={() => selectLibrary(lib)}>
+                <strong>{lib.name}</strong>
+                <span>{lib.media_type} · {lib.connection_id} · {lib.base_path} · {lib.enabled ? '已启用' : '已禁用'}</span>
+              </button>
+            ))}
+            {libraries.length === 0 && <EmptyState message="暂无远程媒体库。点击新增创建。" />}
+          </div>
+        </section>
+        <section className="source-editor" aria-labelledby="remote-lib-editor-title">
+          <div className="section-heading"><h3 id="remote-lib-editor-title">{mode === 'create' ? '创建远程媒体库' : '编辑远程媒体库'}</h3><span>{selectedLibrary ? selectedLibrary.id : 'new'}</span></div>
+          <div className="form-grid">
+            <label><span>唯一标识</span><input disabled={mode === 'edit'} value={form.id} onChange={(e) => updateField('id', e.target.value)} /></label>
+            <label><span>名称</span><input value={form.name} onChange={(e) => updateField('name', e.target.value)} /></label>
+            <label><span>媒体类型</span><select value={form.media_type} onChange={(e) => updateField('media_type', e.target.value)}>
+              <option value="movie">电影</option><option value="series">剧集</option><option value="unclassified">未分类</option>
+            </select></label>
+            <label><span>SMB 连接</span><select value={form.connection_id} onChange={(e) => updateField('connection_id', e.target.value)}>
+              <option value="">选择连接</option>{connections.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.host}/{c.share})</option>)}
+            </select></label>
+            <label><span>目录路径</span><input value={form.base_path} onChange={(e) => updateField('base_path', e.target.value)} /></label>
+          </div>
+          <div className="form-actions">
+            <button className="primary-button" disabled={isSaving} onClick={() => void saveLibrary()} type="button">{isSaving ? '保存中' : mode === 'create' ? '创建' : '保存'}</button>
+            {selectedLibrary && <>
+              <button className="ghost-button" disabled={isSaving} onClick={() => void toggleLibrary(!selectedLibrary.enabled)} type="button">{selectedLibrary.enabled ? '禁用' : '启用'}</button>
+              <button className="ghost-button" disabled={isSaving} onClick={() => void testLibrary()} type="button">测试</button>
+            </>}
+          </div>
+        </section>
+      </div>
+    </section>
+  )
+}
+
+function SyncPanel({ onTransfersChanged }: { onTransfersChanged: () => Promise<void> }) {
   const [configForm, setConfigForm] = useState<DtlConfigFormState>(emptyDtlConfigForm())
   const [bindings, setBindings] = useState<DtlBindingResponse[]>([])
   const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
