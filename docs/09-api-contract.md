@@ -174,7 +174,7 @@ POST /transfers
   "target_path": "Movies/Interstellar.mkv",
   "source_type": null,
   "source_path": null,
-  "download_to_local_seen_file_id": null,
+  "ingest_seen_file_id": null,
   "total_bytes": 0,
   "done_bytes": 0,
   "progress": 0,
@@ -282,6 +282,8 @@ Phase 6.5: GET /transfers/{task_id}/logs
 ---
 
 ## 7. Storage Settings
+
+状态：已实现（含多 SMB connection API）。
 
 ```http
 GET  /storage/config
@@ -416,7 +418,7 @@ binding 不明确时创建指向 unclassified 媒体库的下载任务。
       "target_path": "Movie/Movie.mkv",
       "source_type": "smb",
       "source_path": "Movie/Movie.mkv",
-      "download_to_local_seen_file_id": "seen_001",
+      "ingest_seen_file_id": "seen_001",
       "total_bytes": 0,
       "done_bytes": 0,
       "progress": 0,

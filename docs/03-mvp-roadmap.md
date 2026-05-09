@@ -1030,20 +1030,20 @@ npm run build 通过。
 交付物：
 
 ```text
-download_to_local 全局配置
-多个 SMB 连接管理
-媒体库管理，支持创建 movie / series / unclassified 等本地媒体库
-媒体库绑定到某个 SMB 连接下的本地 NAS 目录
-来源 SMB 连接和目录到媒体库的正向 binding
-SMB source scanner，来源只能选择已配置 SMB 连接
-稳定文件/目录判断
-download_to_local task 创建
-SMB source -> SMB target 下载 Worker
-.downloading 写入、size 校验、rename
-成功后删除源文件和空目录
-未分类 fallback
-Web Console /app/download-to-local 页面
-Web Console /app/libraries 页面或等价媒体库管理入口
+download_to_local 全局配置                                        已实现
+多个 SMB 连接管理                                                  已实现
+媒体库管理，支持创建 movie / series / unclassified 等本地媒体库      已实现
+媒体库绑定到某个 SMB 连接下的本地 NAS 目录                           已实现
+来源 SMB 连接和目录到媒体库的正向 binding                           已实现
+SMB source scanner，来源只能选择已配置 SMB 连接                     已实现
+稳定文件/目录判断                                                   已实现
+download_to_local task 创建                                        已实现
+SMB source -> SMB target 下载 Worker                               待实现
+.downloading 写入、size 校验、rename                                待实现
+成功后删除源文件和空目录                                             待实现
+未分类 fallback                                                    待实现（配置已有，Worker 自动 fallback 逻辑待实现）
+Web Console /app/download-to-local 页面                            待实现
+Web Console /app/libraries 页面或等价媒体库管理入口                  待实现
 ```
 
 验收标准：

@@ -1584,16 +1584,17 @@ GET /transfers 任务列表 API
 交付：
 
 ```text
-download_to_local 全局配置
-多个 SMB connection
-媒体库管理，支持 movie / series / unclassified 等本地 NAS 目录绑定
-来源目录到媒体库 binding
-SMB source scanner
-稳定文件/目录判断
-SMB source -> SMB target 下载 Worker
-成功后删除源文件和空目录
-/app/download-to-local Web Console 页面
-/app/libraries Web Console 页面或等价媒体库管理入口
+download_to_local 全局配置                                        已实现
+多个 SMB connection                                               已实现
+媒体库管理，支持 movie / series / unclassified 等本地 NAS 目录绑定  已实现
+来源目录到媒体库 binding                                           已实现
+SMB source scanner                                                已实现
+稳定文件/目录判断                                                   已实现
+download_to_local task 创建                                        已实现
+SMB source -> SMB target 下载 Worker                               待实现
+成功后删除源文件和空目录                                             待实现
+/app/download-to-local Web Console 页面                            待实现
+/app/libraries Web Console 页面或等价媒体库管理入口                  待实现
 ```
 
 ### Phase 9: Real Site Source Adapters

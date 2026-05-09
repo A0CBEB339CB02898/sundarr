@@ -171,7 +171,6 @@ SMB connection 配置结构：
   "username": "user",
   "password": "password",
   "domain": "",
-  "base_path": "/",
   "base_path": "/"
 }
 ```

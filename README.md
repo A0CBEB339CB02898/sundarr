@@ -2,7 +2,7 @@
 
 Sundarr 是个人自用的网盘媒体资源搜索、暂存、搬运与 NAS 归档自动化系统。
 
-当前状态：Phase 7 Web Console 已收口，MVP 已具备本地搜索、任务、存储、媒体源框架和状态控制台的最小闭环。Phase 0-7 手动验收发现的布局、移动端、主题和任务浮动面板问题已记录为 Phase 7.8 Web Console UI Polish。
+当前状态：Phase 8 Download To Local 进行中。SMB 连接管理、媒体库管理、下载到本地绑定、扫描和任务创建已实现。Worker 下载执行、Web Console 前端页面待实现。
 
 下一阶段主线：下载到本地。Sundarr 不把国内封闭网盘直接下载作为近期主链路，而是通过 SMB 扫描已挂载的网盘目录，再按绑定下载到本地 NAS 媒体库。媒体库指 movie、series、unclassified 等本地 NAS 目录绑定，不是海报墙或播放器。
 

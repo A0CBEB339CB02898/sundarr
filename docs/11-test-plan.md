@@ -200,24 +200,24 @@ cancel / retry / cleanup / recovery writes transfer_logs
 Phase 8 下载到本地必须覆盖：
 
 ```text
-多 SMB connection 配置校验
-SMB connection password 不回显
-媒体库只能引用 SMB connection 和本地目录
-媒体库至少覆盖 movie / series / unclassified
-下载到本地 binding 只能引用来源 SMB connection、来源目录和目标媒体库
-来源路径 traversal 防护
-媒体库目标路径 traversal 防护
-文件稳定性判断
-目录型资源稳定性判断
-binding 匹配 movie / series
-binding 不明确时进入 unclassified 媒体库
-SMB source -> SMB target 的 Worker 任务领取规则
-LocalWriter 替身覆盖 source -> target 的下载成功路径
-.downloading 写入、size 校验、rename
-成功后删除源文件
-成功后删除空目录
-失败时保留源文件和 .downloading
-重复扫描不重复创建任务
+多 SMB connection 配置校验                                          已覆盖 (test_smb_connections.py)
+SMB connection password 不回显                                     已覆盖 (test_smb_connections.py)
+媒体库只能引用 SMB connection 和本地目录                              已覆盖 (test_media_libraries.py)
+媒体库至少覆盖 movie / series / unclassified                        已覆盖 (test_media_libraries.py)
+下载到本地 binding 只能引用来源 SMB connection、来源目录和目标媒体库    已覆盖 (test_download_to_local.py)
+来源路径 traversal 防护                                              已覆盖 (test_download_to_local.py)
+媒体库目标路径 traversal 防护                                        已覆盖 (test_media_libraries.py)
+文件稳定性判断                                                       已覆盖 (test_download_to_local.py)
+目录型资源稳定性判断                                                  待覆盖
+binding 匹配 movie / series                                         已覆盖 (test_download_to_local.py)
+binding 不明确时进入 unclassified 媒体库                              待覆盖（Worker 实现后）
+SMB source -> SMB target 的 Worker 任务领取规则                      待覆盖
+LocalWriter 替身覆盖 source -> target 的下载成功路径                  待覆盖
+.downloading 写入、size 校验、rename                                 待覆盖
+成功后删除源文件                                                      待覆盖
+成功后删除空目录                                                      待覆盖
+失败时保留源文件和 .downloading                                      待覆盖
+重复扫描不重复创建任务                                                已覆盖 (test_download_to_local.py)
 ```
 
 真实挂载目录下载到本地属于手动集成验收，不纳入默认 pytest。手动验收必须使用测试目录和测试文件，避免误删正式媒体库。

@@ -132,7 +132,7 @@ target_path TEXT NOT NULL
 source_type TEXT
 source_path TEXT
 source_config_snapshot JSONB
-download_to_local_seen_file_id TEXT
+ingest_seen_file_id TEXT
 storage_config_snapshot JSONB
 total_bytes BIGINT NOT NULL DEFAULT 0
 done_bytes BIGINT NOT NULL DEFAULT 0
@@ -151,7 +151,7 @@ completed_at TIMESTAMP
 
 `link_id` 对搜索资源搬运任务必填；对下载到本地任务可为空。
 
-`source_type`、`source_path`、`source_config_snapshot` 和 `download_to_local_seen_file_id` 用于记录下载到本地来源。`storage_config_snapshot` 用于判断任务是否使用旧 SMB 配置。
+`source_type`、`source_path`、`source_config_snapshot` 和 `ingest_seen_file_id`（也用于 download_to_local）用于记录搬运来源。`storage_config_snapshot` 用于判断任务是否使用旧 SMB 配置。
 
 ---
 
@@ -242,6 +242,8 @@ password 空值更新表示保留旧值。
 
 ## 9. smb_connections
 
+状态：已实现。
+
 用途：保存可复用的 SMB 连接。下载到本地、媒体库目录和其他 SMB 相关模块只能引用 SMB connection，不重复保存 SMB 凭据。
 
 字段建议：
@@ -273,6 +275,8 @@ password 空值更新表示保留旧 password。
 
 ## 10. media_libraries
 
+状态：已实现。
+
 用途：保存本地 NAS 媒体库定义。媒体库是 movie、series、unclassified 等逻辑库，并绑定到某个 SMB connection 下的本地目录。
 
 字段建议：
@@ -301,6 +305,8 @@ API 不在媒体库中保存 SMB host/share/username/password。
 ---
 
 ## 11. download_to_local_bindings
+
+状态：已实现。
 
 用途：保存已挂载网盘 SMB 目录到本地媒体库的下载规则。
 
@@ -335,6 +341,8 @@ delete_empty_source_dirs 为空时使用全局默认。
 ---
 
 ## 12. download_to_local_seen_files
+
+状态：已实现。
 
 用途：记录已扫描或已处理的来源文件，避免重复下载到本地。
 
