@@ -81,6 +81,7 @@ Web Console -> docs/13-web-console-spec.md
 AI Tool API -> docs/14-ai-tool-api-spec.md
 下载到本地 -> docs/15-download-to-local-spec.md
 网盘直链下载 -> docs/16-cloud-direct-download-spec.md
+系统模块梳理 -> docs/17-system-module-review.md
 Agent 工作规则 -> AGENTS.md
 ```
 
