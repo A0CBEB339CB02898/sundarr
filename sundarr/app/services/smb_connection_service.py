@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from sundarr.app.models import SmbConnection, TransferLog, TransferTask
+from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection, SyncSeenFile, TransferLog, TransferTask
 from sundarr.app.schemas.smb_connection import (
     SmbBrowseEntry,
     SmbBrowseResponse,
@@ -28,14 +28,16 @@ RUNNING_TRANSFER_STATUSES = {
 
 
 class SmbConnectionService:
-    def list_connections(self, db: Session) -> SmbConnectionListResponse:
-        rows = db.query(SmbConnection).order_by(SmbConnection.created_at, SmbConnection.id).all()
-        results = [self._to_response(row) for row in rows]
-        return SmbConnectionListResponse(count=len(results), results=results)
+    def list_connections(self, db: Session, page: int = 1, page_size: int = 20) -> SmbConnectionListResponse:
+        query = db.query(SmbConnection).order_by(SmbConnection.created_at, SmbConnection.id)
+        count = query.count()
+        rows = query.offset((page - 1) * page_size).limit(page_size).all()
+        results = [self._to_response(db, row) for row in rows]
+        return SmbConnectionListResponse(count=count, page=page, page_size=page_size, results=results)
 
     def get_connection(self, db: Session, connection_id: str) -> SmbConnectionResponse | None:
         conn = db.get(SmbConnection, connection_id)
-        return self._to_response(conn) if conn else None
+        return self._to_response(db, conn) if conn else None
 
     def create_connection(self, db: Session, request: SmbConnectionCreateRequest) -> SmbConnectionResponse:
         if db.get(SmbConnection, request.id) is not None:
@@ -56,7 +58,7 @@ class SmbConnectionService:
         db.add(conn)
         db.commit()
         db.refresh(conn)
-        return self._to_response(conn)
+        return self._to_response(db, conn)
 
     def update_connection(self, db: Session, connection_id: str, request: SmbConnectionUpdateRequest) -> SmbConnectionResponse:
         conn = db.get(SmbConnection, connection_id)
@@ -82,13 +84,32 @@ class SmbConnectionService:
 
         db.commit()
         db.refresh(conn)
-        return self._to_response(conn)
+        return self._to_response(db, conn)
 
     def enable_connection(self, db: Session, connection_id: str) -> SmbConnectionResponse:
         return self._set_enabled(db, connection_id, True)
 
     def disable_connection(self, db: Session, connection_id: str) -> SmbConnectionResponse:
         return self._set_enabled(db, connection_id, False)
+
+    def delete_connection(self, db: Session, connection_id: str, action: str) -> None:
+        conn = db.get(SmbConnection, connection_id)
+        if conn is None:
+            raise ValueError("SMB_CONNECTION_NOT_FOUND")
+        if action == "unbind":
+            for lib in db.query(MediaLibrary).filter(MediaLibrary.connection_id == connection_id).all():
+                lib.connection_id = None
+            for lib in db.query(RemoteMediaLibrary).filter(RemoteMediaLibrary.connection_id == connection_id).all():
+                lib.connection_id = None
+                lib.enabled = False
+        elif action == "delete":
+            for lib in db.query(RemoteMediaLibrary).filter(RemoteMediaLibrary.connection_id == connection_id).all():
+                db.query(SyncSeenFile).filter(SyncSeenFile.binding_id == lib.id).delete()
+                db.delete(lib)
+            for lib in db.query(MediaLibrary).filter(MediaLibrary.connection_id == connection_id).all():
+                db.delete(lib)
+        db.delete(conn)
+        db.commit()
 
     async def test_connection(self, db: Session, connection_id: str) -> SmbConnectionTestResponse:
         conn = db.get(SmbConnection, connection_id)
@@ -139,7 +160,7 @@ class SmbConnectionService:
         conn.enabled = enabled
         db.commit()
         db.refresh(conn)
-        return self._to_response(conn)
+        return self._to_response(db, conn)
 
     def _interrupt_running_tasks(self, db: Session, connection_id: str) -> None:
         tasks = (
@@ -185,7 +206,9 @@ class SmbConnectionService:
         value["password"] = conn.password
         return value
 
-    def _to_response(self, conn: SmbConnection) -> SmbConnectionResponse:
+    def _to_response(self, db: Session, conn: SmbConnection) -> SmbConnectionResponse:
+        bound_local = [lib.name for lib in db.query(MediaLibrary).filter(MediaLibrary.connection_id == conn.id).all()]
+        bound_remote = [lib.name for lib in db.query(RemoteMediaLibrary).filter(RemoteMediaLibrary.connection_id == conn.id).all()]
         return SmbConnectionResponse(
             id=conn.id,
             name=conn.name,
@@ -197,6 +220,8 @@ class SmbConnectionService:
             password_set=bool(conn.password),
             domain=conn.domain or "",
             base_path=conn.base_path,
+            bound_local_libraries=bound_local,
+            bound_remote_libraries=bound_remote,
             created_at=conn.created_at.isoformat() if conn.created_at else None,
             updated_at=conn.updated_at.isoformat() if conn.updated_at else None,
         )

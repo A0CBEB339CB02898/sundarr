@@ -2,7 +2,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from sundarr.app.models import MediaLibrary, SmbConnection
+from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection, SyncSeenFile
 from sundarr.app.schemas.media_library import (
     MediaLibraryCreateRequest,
     MediaLibraryListResponse,
@@ -15,14 +15,16 @@ from sundarr.app.storage.smb import SmbStorageError
 
 
 class MediaLibraryService:
-    def list_libraries(self, db: Session) -> MediaLibraryListResponse:
-        rows = db.query(MediaLibrary).order_by(MediaLibrary.created_at, MediaLibrary.id).all()
-        results = [self._to_response(row) for row in rows]
-        return MediaLibraryListResponse(count=len(results), results=results)
+    def list_libraries(self, db: Session, page: int = 1, page_size: int = 20) -> MediaLibraryListResponse:
+        query = db.query(MediaLibrary).order_by(MediaLibrary.created_at, MediaLibrary.id)
+        count = query.count()
+        rows = query.offset((page - 1) * page_size).limit(page_size).all()
+        results = [self._to_response(db, row) for row in rows]
+        return MediaLibraryListResponse(count=count, page=page, page_size=page_size, results=results)
 
     def get_library(self, db: Session, library_id: str) -> MediaLibraryResponse | None:
         lib = db.get(MediaLibrary, library_id)
-        return self._to_response(lib) if lib else None
+        return self._to_response(db, lib) if lib else None
 
     def create_library(self, db: Session, request: MediaLibraryCreateRequest) -> MediaLibraryResponse:
         if db.get(MediaLibrary, request.id) is not None:
@@ -42,7 +44,7 @@ class MediaLibraryService:
         db.add(lib)
         db.commit()
         db.refresh(lib)
-        return self._to_response(lib)
+        return self._to_response(db, lib)
 
     def update_library(self, db: Session, library_id: str, request: MediaLibraryUpdateRequest) -> MediaLibraryResponse:
         lib = db.get(MediaLibrary, library_id)
@@ -60,13 +62,22 @@ class MediaLibraryService:
         lib.base_path = request.base_path
         db.commit()
         db.refresh(lib)
-        return self._to_response(lib)
+        return self._to_response(db, lib)
 
     def enable_library(self, db: Session, library_id: str) -> MediaLibraryResponse:
         return self._set_enabled(db, library_id, True)
 
     def disable_library(self, db: Session, library_id: str) -> MediaLibraryResponse:
         return self._set_enabled(db, library_id, False)
+
+    def delete_library(self, db: Session, library_id: str) -> None:
+        lib = db.get(MediaLibrary, library_id)
+        if lib is None:
+            raise ValueError("MEDIA_LIBRARY_NOT_FOUND")
+        for remote in db.query(RemoteMediaLibrary).filter(RemoteMediaLibrary.target_library_id == library_id).all():
+            remote.target_library_id = None
+        db.delete(lib)
+        db.commit()
 
     async def test_library(self, db: Session, library_id: str) -> MediaLibraryTestResponse:
         lib = db.get(MediaLibrary, library_id)
@@ -114,14 +125,15 @@ class MediaLibraryService:
         lib.enabled = enabled
         db.commit()
         db.refresh(lib)
-        return self._to_response(lib)
+        return self._to_response(db, lib)
 
     def _validate_base_path(self, base_path: str) -> None:
         normalized = base_path.replace("\\", "/")
         if ".." in normalized.split("/"):
             raise ValueError("SMB_PATH_INVALID")
 
-    def _to_response(self, lib: MediaLibrary) -> MediaLibraryResponse:
+    def _to_response(self, db: Session, lib: MediaLibrary) -> MediaLibraryResponse:
+        bound_remote = [r.name for r in db.query(RemoteMediaLibrary).filter(RemoteMediaLibrary.target_library_id == lib.id).all()]
         return MediaLibraryResponse(
             id=lib.id,
             name=lib.name,
@@ -129,6 +141,7 @@ class MediaLibraryService:
             enabled=lib.enabled,
             connection_id=lib.connection_id,
             base_path=lib.base_path,
+            bound_remote_libraries=bound_remote,
             created_at=lib.created_at.isoformat() if lib.created_at else None,
             updated_at=lib.updated_at.isoformat() if lib.updated_at else None,
         )

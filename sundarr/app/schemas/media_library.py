@@ -45,12 +45,15 @@ class MediaLibraryResponse(BaseModel):
     enabled: bool
     connection_id: str
     base_path: str
+    bound_remote_libraries: list[str] = Field(default_factory=list)
     created_at: str | None = None
     updated_at: str | None = None
 
 
 class MediaLibraryListResponse(BaseModel):
     count: int
+    page: int = 1
+    page_size: int = 20
     results: list[MediaLibraryResponse]
 
 
@@ -58,3 +61,13 @@ class MediaLibraryTestResponse(BaseModel):
     ok: bool
     error_code: str | None = None
     error_message: str | None = None
+
+
+class MediaLibraryDeleteRequest(BaseModel):
+    action: str = Field(pattern="^(delete|unbind|cancel)$")
+
+
+class MediaLibraryDeletePreview(BaseModel):
+    affected_remote_libraries: list[str] = Field(default_factory=list)
+    affected_sync_bindings: int = 0
+    affected_tasks: int = 0

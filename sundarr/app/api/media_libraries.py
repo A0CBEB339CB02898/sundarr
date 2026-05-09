@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
 from sundarr.app.schemas.media_library import (
     MediaLibraryCreateRequest,
+    MediaLibraryDeleteRequest,
     MediaLibraryListResponse,
     MediaLibraryResponse,
     MediaLibraryTestResponse,
@@ -15,8 +16,12 @@ router = APIRouter(tags=["media-libraries"])
 
 
 @router.get("/media-libraries", response_model=MediaLibraryListResponse)
-async def list_media_libraries(db: Session = Depends(get_db)) -> MediaLibraryListResponse:
-    return media_library_service.list_libraries(db)
+async def list_media_libraries(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> MediaLibraryListResponse:
+    return media_library_service.list_libraries(db, page=page, page_size=page_size)
 
 
 @router.post("/media-libraries/create", response_model=MediaLibraryResponse)
@@ -67,6 +72,17 @@ async def disable_media_library(library_id: str, db: Session = Depends(get_db)) 
 async def test_media_library(library_id: str, db: Session = Depends(get_db)) -> MediaLibraryTestResponse:
     try:
         return await media_library_service.test_library(db, library_id)
+    except ValueError as exc:
+        raise _media_library_error(exc) from exc
+
+
+@router.post("/media-libraries/{library_id}/delete")
+async def delete_media_library(
+    library_id: str, request: MediaLibraryDeleteRequest, db: Session = Depends(get_db)
+) -> dict:
+    try:
+        media_library_service.delete_library(db, library_id, request.action)
+        return {"ok": True}
     except ValueError as exc:
         raise _media_library_error(exc) from exc
 

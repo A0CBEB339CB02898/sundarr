@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
 from sundarr.app.schemas.smb_connection import (
     SmbBrowseResponse,
     SmbConnectionCreateRequest,
+    SmbConnectionDeleteRequest,
     SmbConnectionListResponse,
     SmbConnectionResponse,
     SmbConnectionTestResponse,
@@ -16,8 +17,12 @@ router = APIRouter(tags=["smb-connections"])
 
 
 @router.get("/storage/smb-connections", response_model=SmbConnectionListResponse)
-async def list_smb_connections(db: Session = Depends(get_db)) -> SmbConnectionListResponse:
-    return smb_connection_service.list_connections(db)
+async def list_smb_connections(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> SmbConnectionListResponse:
+    return smb_connection_service.list_connections(db, page=page, page_size=page_size)
 
 
 @router.post("/storage/smb-connections/create", response_model=SmbConnectionResponse)
@@ -78,6 +83,17 @@ async def browse_smb_connection(
 ) -> SmbBrowseResponse:
     try:
         return await smb_connection_service.browse(db, connection_id, path)
+    except ValueError as exc:
+        raise _smb_connection_error(exc) from exc
+
+
+@router.post("/storage/smb-connections/{connection_id}/delete")
+async def delete_smb_connection(
+    connection_id: str, request: SmbConnectionDeleteRequest, db: Session = Depends(get_db)
+) -> dict:
+    try:
+        smb_connection_service.delete_connection(db, connection_id, request.action)
+        return {"ok": True}
     except ValueError as exc:
         raise _smb_connection_error(exc) from exc
 

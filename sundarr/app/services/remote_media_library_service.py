@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection
+from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection, SyncSeenFile, TransferTask
 from sundarr.app.schemas.remote_media_library import (
     RemoteMediaLibraryCreateRequest,
     RemoteMediaLibraryListResponse,
@@ -13,14 +13,16 @@ from sundarr.app.storage.smb import SmbStorageError
 
 
 class RemoteMediaLibraryService:
-    def list_libraries(self, db: Session) -> RemoteMediaLibraryListResponse:
-        rows = db.query(RemoteMediaLibrary).order_by(RemoteMediaLibrary.created_at, RemoteMediaLibrary.id).all()
-        results = [self._to_response(row) for row in rows]
-        return RemoteMediaLibraryListResponse(count=len(results), results=results)
+    def list_libraries(self, db: Session, page: int = 1, page_size: int = 20) -> RemoteMediaLibraryListResponse:
+        query = db.query(RemoteMediaLibrary).order_by(RemoteMediaLibrary.created_at, RemoteMediaLibrary.id)
+        count = query.count()
+        rows = query.offset((page - 1) * page_size).limit(page_size).all()
+        results = [self._to_response(db, row) for row in rows]
+        return RemoteMediaLibraryListResponse(count=count, page=page, page_size=page_size, results=results)
 
     def get_library(self, db: Session, library_id: str) -> RemoteMediaLibraryResponse | None:
         lib = db.get(RemoteMediaLibrary, library_id)
-        return self._to_response(lib) if lib else None
+        return self._to_response(db, lib) if lib else None
 
     def create_library(self, db: Session, request: RemoteMediaLibraryCreateRequest) -> RemoteMediaLibraryResponse:
         if db.get(RemoteMediaLibrary, request.id) is not None:
@@ -28,6 +30,10 @@ class RemoteMediaLibraryService:
         conn = db.get(SmbConnection, request.connection_id)
         if conn is None:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
+        if request.target_library_id:
+            target = db.get(MediaLibrary, request.target_library_id)
+            if target is None:
+                raise ValueError("MEDIA_LIBRARY_NOT_FOUND")
         self._validate_path(request.base_path)
         lib = RemoteMediaLibrary(
             id=request.id,
@@ -36,11 +42,16 @@ class RemoteMediaLibraryService:
             enabled=request.enabled,
             connection_id=request.connection_id,
             base_path=request.base_path,
+            target_library_id=request.target_library_id,
+            scan_interval_seconds=request.scan_interval_seconds,
+            stable_seconds=request.stable_seconds,
+            delete_source_after_success=request.delete_source_after_success,
+            delete_empty_source_dirs=request.delete_empty_source_dirs,
         )
         db.add(lib)
         db.commit()
         db.refresh(lib)
-        return self._to_response(lib)
+        return self._to_response(db, lib)
 
     def update_library(self, db: Session, library_id: str, request: RemoteMediaLibraryUpdateRequest) -> RemoteMediaLibraryResponse:
         lib = db.get(RemoteMediaLibrary, library_id)
@@ -49,6 +60,10 @@ class RemoteMediaLibraryService:
         conn = db.get(SmbConnection, request.connection_id)
         if conn is None:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
+        if request.target_library_id:
+            target = db.get(MediaLibrary, request.target_library_id)
+            if target is None:
+                raise ValueError("MEDIA_LIBRARY_NOT_FOUND")
         self._validate_path(request.base_path)
 
         lib.name = request.name
@@ -56,15 +71,28 @@ class RemoteMediaLibraryService:
         lib.enabled = request.enabled
         lib.connection_id = request.connection_id
         lib.base_path = request.base_path
+        lib.target_library_id = request.target_library_id
+        lib.scan_interval_seconds = request.scan_interval_seconds
+        lib.stable_seconds = request.stable_seconds
+        lib.delete_source_after_success = request.delete_source_after_success
+        lib.delete_empty_source_dirs = request.delete_empty_source_dirs
         db.commit()
         db.refresh(lib)
-        return self._to_response(lib)
+        return self._to_response(db, lib)
 
     def enable_library(self, db: Session, library_id: str) -> RemoteMediaLibraryResponse:
         return self._set_enabled(db, library_id, True)
 
     def disable_library(self, db: Session, library_id: str) -> RemoteMediaLibraryResponse:
         return self._set_enabled(db, library_id, False)
+
+    def delete_library(self, db: Session, library_id: str) -> None:
+        lib = db.get(RemoteMediaLibrary, library_id)
+        if lib is None:
+            raise ValueError("REMOTE_MEDIA_LIBRARY_NOT_FOUND")
+        db.query(SyncSeenFile).filter(SyncSeenFile.binding_id == library_id).delete()
+        db.delete(lib)
+        db.commit()
 
     async def test_library(self, db: Session, library_id: str) -> RemoteMediaLibraryTestResponse:
         lib = db.get(RemoteMediaLibrary, library_id)
@@ -105,14 +133,19 @@ class RemoteMediaLibraryService:
         lib.enabled = enabled
         db.commit()
         db.refresh(lib)
-        return self._to_response(lib)
+        return self._to_response(db, lib)
 
     def _validate_path(self, base_path: str) -> None:
         normalized = base_path.replace("\\", "/")
         if ".." in normalized.split("/"):
             raise ValueError("SMB_PATH_INVALID")
 
-    def _to_response(self, lib: RemoteMediaLibrary) -> RemoteMediaLibraryResponse:
+    def _to_response(self, db: Session, lib: RemoteMediaLibrary) -> RemoteMediaLibraryResponse:
+        target_library_name = None
+        if lib.target_library_id:
+            target_lib = db.get(MediaLibrary, lib.target_library_id)
+            if target_lib:
+                target_library_name = target_lib.name
         return RemoteMediaLibraryResponse(
             id=lib.id,
             name=lib.name,
@@ -120,6 +153,12 @@ class RemoteMediaLibraryService:
             enabled=lib.enabled,
             connection_id=lib.connection_id,
             base_path=lib.base_path,
+            target_library_id=lib.target_library_id,
+            target_library_name=target_library_name,
+            scan_interval_seconds=lib.scan_interval_seconds,
+            stable_seconds=lib.stable_seconds,
+            delete_source_after_success=lib.delete_source_after_success,
+            delete_empty_source_dirs=lib.delete_empty_source_dirs,
             created_at=lib.created_at.isoformat() if lib.created_at else None,
             updated_at=lib.updated_at.isoformat() if lib.updated_at else None,
         )

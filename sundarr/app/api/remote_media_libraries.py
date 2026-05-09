@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
 from sundarr.app.schemas.remote_media_library import (
     RemoteMediaLibraryCreateRequest,
+    RemoteMediaLibraryDeleteRequest,
     RemoteMediaLibraryListResponse,
     RemoteMediaLibraryResponse,
     RemoteMediaLibraryTestResponse,
@@ -15,8 +16,12 @@ router = APIRouter(tags=["remote-media-libraries"])
 
 
 @router.get("/remote-media-libraries", response_model=RemoteMediaLibraryListResponse)
-async def list_remote_media_libraries(db: Session = Depends(get_db)) -> RemoteMediaLibraryListResponse:
-    return remote_media_library_service.list_libraries(db)
+async def list_remote_media_libraries(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> RemoteMediaLibraryListResponse:
+    return remote_media_library_service.list_libraries(db, page=page, page_size=page_size)
 
 
 @router.post("/remote-media-libraries/create", response_model=RemoteMediaLibraryResponse)
@@ -67,6 +72,17 @@ async def disable_remote_media_library(library_id: str, db: Session = Depends(ge
 async def test_remote_media_library(library_id: str, db: Session = Depends(get_db)) -> RemoteMediaLibraryTestResponse:
     try:
         return await remote_media_library_service.test_library(db, library_id)
+    except ValueError as exc:
+        raise _error(exc) from exc
+
+
+@router.post("/remote-media-libraries/{library_id}/delete")
+async def delete_remote_media_library(
+    library_id: str, request: RemoteMediaLibraryDeleteRequest, db: Session = Depends(get_db)
+) -> dict:
+    try:
+        remote_media_library_service.delete_library(db, library_id)
+        return {"ok": True}
     except ValueError as exc:
         raise _error(exc) from exc
 

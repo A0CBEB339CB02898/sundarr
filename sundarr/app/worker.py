@@ -445,30 +445,23 @@ def _mark_dtl_seen_file_completed(session: Session, task: TransferTask) -> None:
 def _load_dtl_cleanup_options(session: Session, task: TransferTask) -> tuple[bool, bool]:
     delete_source = DEFAULT_DTL_DELETE_SOURCE
     delete_empty_dirs = DEFAULT_DTL_DELETE_EMPTY_DIRS
-    setting = session.get(Setting, DTL_CONFIG_KEY)
-    if setting is not None:
-        value = setting.value_json
-        source_value = value.get("delete_source_after_success")
-        dirs_value = value.get("delete_empty_source_dirs")
-        delete_source = source_value if isinstance(source_value, bool) else delete_source
-        delete_empty_dirs = dirs_value if isinstance(dirs_value, bool) else delete_empty_dirs
 
-    binding = _get_dtl_binding_for_task(session, task)
-    if binding is not None:
-        if binding.delete_source_after_success is not None:
-            delete_source = binding.delete_source_after_success
-        if binding.delete_empty_source_dirs is not None:
-            delete_empty_dirs = binding.delete_empty_source_dirs
+    remote_lib = _get_dtl_binding_for_task(session, task)
+    if remote_lib is not None:
+        if remote_lib.delete_source_after_success is not None:
+            delete_source = remote_lib.delete_source_after_success
+        if remote_lib.delete_empty_source_dirs is not None:
+            delete_empty_dirs = remote_lib.delete_empty_source_dirs
     return delete_source, delete_empty_dirs
 
 
-def _get_dtl_binding_for_task(session: Session, task: TransferTask) -> SyncBinding | None:
+def _get_dtl_binding_for_task(session: Session, task: TransferTask) -> RemoteMediaLibrary | None:
     if not task.sync_seen_file_id:
         return None
     seen = session.get(SyncSeenFile, task.sync_seen_file_id)
     if seen is None or not seen.binding_id:
         return None
-    return session.get(SyncBinding, seen.binding_id)
+    return session.get(RemoteMediaLibrary, seen.binding_id)
 
 
 def _get_or_create_dtl_file(session: Session, task: TransferTask) -> TransferFile:

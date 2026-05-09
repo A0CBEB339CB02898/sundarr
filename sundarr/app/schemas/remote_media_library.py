@@ -10,6 +10,11 @@ class RemoteMediaLibraryCreateRequest(BaseModel):
     enabled: bool = True
     connection_id: str = Field(min_length=1)
     base_path: str = "/"
+    target_library_id: str | None = None
+    scan_interval_seconds: int = Field(default=60, ge=5, le=86400)
+    stable_seconds: int = Field(default=120, ge=5, le=86400)
+    delete_source_after_success: bool | None = None
+    delete_empty_source_dirs: bool | None = None
 
     @field_validator("base_path")
     @classmethod
@@ -26,6 +31,11 @@ class RemoteMediaLibraryUpdateRequest(BaseModel):
     enabled: bool = True
     connection_id: str = Field(min_length=1)
     base_path: str = "/"
+    target_library_id: str | None = None
+    scan_interval_seconds: int = Field(default=60, ge=5, le=86400)
+    stable_seconds: int = Field(default=120, ge=5, le=86400)
+    delete_source_after_success: bool | None = None
+    delete_empty_source_dirs: bool | None = None
 
     @field_validator("base_path")
     @classmethod
@@ -43,12 +53,20 @@ class RemoteMediaLibraryResponse(BaseModel):
     enabled: bool
     connection_id: str
     base_path: str
+    target_library_id: str | None = None
+    target_library_name: str | None = None
+    scan_interval_seconds: int = 60
+    stable_seconds: int = 120
+    delete_source_after_success: bool | None = None
+    delete_empty_source_dirs: bool | None = None
     created_at: str | None = None
     updated_at: str | None = None
 
 
 class RemoteMediaLibraryListResponse(BaseModel):
     count: int
+    page: int = 1
+    page_size: int = 20
     results: list[RemoteMediaLibraryResponse]
 
 
@@ -56,3 +74,12 @@ class RemoteMediaLibraryTestResponse(BaseModel):
     ok: bool
     error_code: str | None = None
     error_message: str | None = None
+
+
+class RemoteMediaLibraryDeleteRequest(BaseModel):
+    action: str = Field(pattern="^(delete|cancel)$")
+
+
+class RemoteMediaLibraryDeletePreview(BaseModel):
+    affected_sync_files: int = 0
+    affected_tasks: int = 0

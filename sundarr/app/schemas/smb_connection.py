@@ -55,12 +55,16 @@ class SmbConnectionResponse(BaseModel):
     password_set: bool
     domain: str = ""
     base_path: str = "/"
+    bound_local_libraries: list[str] = Field(default_factory=list)
+    bound_remote_libraries: list[str] = Field(default_factory=list)
     created_at: str | None = None
     updated_at: str | None = None
 
 
 class SmbConnectionListResponse(BaseModel):
     count: int
+    page: int = 1
+    page_size: int = 20
     results: list[SmbConnectionResponse]
 
 
@@ -82,3 +86,14 @@ class SmbBrowseResponse(BaseModel):
     connection_id: str
     path: str
     entries: list[SmbBrowseEntry] = Field(default_factory=list)
+
+
+class SmbConnectionDeleteRequest(BaseModel):
+    action: str = Field(pattern="^(delete|unbind|cancel)$")
+
+
+class SmbConnectionDeletePreview(BaseModel):
+    affected_local_libraries: list[str] = Field(default_factory=list)
+    affected_remote_libraries: list[str] = Field(default_factory=list)
+    affected_sync_bindings: int = 0
+    affected_tasks: int = 0
