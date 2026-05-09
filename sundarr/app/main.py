@@ -14,6 +14,7 @@ from sundarr.app.api.resources import router as resources_router
 from sundarr.app.api.search import router as search_router
 from sundarr.app.api.smb_connections import router as smb_connections_router
 from sundarr.app.api.sources import router as sources_router
+from sundarr.app.api.sync import router as sync_router
 from sundarr.app.api.transfers import router as transfers_router
 from sundarr.app.config import get_settings, redact_url_password
 from sundarr.app.core.database import get_engine
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(smb_connections_router)
     app.include_router(media_libraries_router)
     app.include_router(remote_media_libraries_router)
+    app.include_router(sync_router)
     app.include_router(download_to_local_router)
     app.include_router(transfers_router)
     return app
