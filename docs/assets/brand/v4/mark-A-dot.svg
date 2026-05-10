@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · Mark A — Dot
+  Wordmark: Sundar · r  (· = solid dot)
+  Concept: The purest form. Just a dot.
+  Badge: terracotta base + cream solid disc centered.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · Dot</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <circle cx="32" cy="32" r="10" fill="var(--mark-fg, #f2ead8)"/>
+</svg>

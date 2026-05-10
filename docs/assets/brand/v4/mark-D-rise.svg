@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · Mark D — Rise
+  Wordmark: Sundar · r  (· = half sun above horizon)
+  Concept: Sunrise moment. Not fully risen, still rising.
+  Badge: terracotta base + cream horizon line + half disc.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · Rise</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <line x1="14" y1="40" x2="50" y2="40"
+        stroke="var(--mark-fg, #f2ead8)" stroke-width="2"
+        stroke-linecap="round" opacity="0.55"/>
+  <path d="M 20 40 A 12 12 0 0 1 44 40 Z"
+        fill="var(--mark-fg, #f2ead8)"/>
+</svg>

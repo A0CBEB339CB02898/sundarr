@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · Primary mark "K" — Rising Sun between r and r
+
+  Concept: Sunday + arr, wordmark 的核心规则 r-dot-r.
+  徽章把这条规则可视化: 两个 r 作为书挡, 一颗太阳从它们
+  之间的地平线升起.
+  Canvas: 64x64, radius 14 (与 Servarr 家族一致)
+  Colors driven by CSS custom properties:
+    mark-bg: terracotta badge
+    mark-fg: cream foreground
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr</title>
+
+  <!-- 1. Badge 底色 -->
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+
+  <!-- 2. 左 r (抽象为简体 r 轮廓, 宽 stem + 顶端短臂) -->
+  <!--    stem: x=11..16, y=18..48; arm: 从 stem 顶向右 curl 至 x=19 -->
+  <path d="M 11 18
+           L 16 18
+           L 16 48
+           L 11 48
+           Z
+           M 16 18
+           C 19.5 18, 22 20.5, 22 24.5
+           L 18 24.5
+           C 18 22, 17 20.5, 16 20.5
+           Z"
+        fill="var(--mark-fg, #f2ead8)"/>
+
+  <!-- 3. 右 r (水平镜像) -->
+  <path d="M 53 18
+           L 48 18
+           L 48 48
+           L 53 48
+           Z
+           M 48 18
+           C 44.5 18, 42 20.5, 42 24.5
+           L 46 24.5
+           C 46 22, 47 20.5, 48 20.5
+           Z"
+        fill="var(--mark-fg, #f2ead8)"/>
+
+  <!-- 4. 地平线 (在两个 r 脚下, 细线, 作为"升起"的基准) -->
+  <rect x="18" y="46" width="28" height="2" rx="1"
+        fill="var(--mark-fg, #f2ead8)" opacity="0.55"/>
+
+  <!-- 5. 太阳圆盘 (正在升起, 圆心略低于 badge 几何中心) -->
+  <circle cx="32" cy="38" r="7" fill="var(--mark-fg, #f2ead8)"/>
+
+  <!-- 6. 阳光 (4 道短射线, 只向上半球) -->
+  <g stroke="var(--mark-fg, #f2ead8)" stroke-width="2" stroke-linecap="round">
+    <line x1="32" y1="26" x2="32" y2="22"/>
+    <line x1="24.5" y1="30.5" x2="22" y2="28"/>
+    <line x1="39.5" y1="30.5" x2="42" y2="28"/>
+  </g>
+</svg>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · T — Arc Segments (cycle)
+  Pattern family: Arc/Broken Circle
+  Story: 外弧 270 度 + 内弧 180 度 + 中心实点.
+  动态感, 隐喻 Sundarr 的周期: 抓取 - 处理 - 同步的循环.
+  两段弧旋向相反, 制造张力.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     role="img" aria-label="Sundarr">
+  <title>Sundarr · Arc Cycle</title>
+  <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+    <!-- Outer arc: 270 degrees, opening at bottom-right -->
+    <path d="M 50 18 A 32 32 0 1 1 18 50"/>
+    <!-- Inner arc: 180 degrees, opening opposite direction -->
+    <path d="M 32 50 A 18 18 0 0 1 68 50"/>
+  </g>
+  <!-- Solid center dot -->
+  <circle cx="50" cy="50" r="3.5" fill="currentColor"/>
+</svg>

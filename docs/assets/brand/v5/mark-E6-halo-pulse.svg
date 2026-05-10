@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · E6 — Halo Pulse
+  E0 with a halo ring crowning the center bar: the middle
+  pulse rises into a solar corona. Feels like a VU meter with
+  a status ring, or a progress indicator hitting its peak.
+  Concept: Media pulse blooms into Sunday's halo.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · E6 Halo Pulse</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <g fill="var(--mark-fg, #f2ead8)">
+    <rect x="22" y="28" width="6" height="14" rx="3"/>
+    <rect x="30" y="24" width="6" height="18" rx="3"/>
+    <rect x="38" y="30" width="6" height="12" rx="3"/>
+  </g>
+  <!-- Halo ring around the top of the center bar -->
+  <circle cx="33" cy="18" r="7" fill="none"
+          stroke="var(--mark-fg, #f2ead8)" stroke-width="2.2"/>
+</svg>

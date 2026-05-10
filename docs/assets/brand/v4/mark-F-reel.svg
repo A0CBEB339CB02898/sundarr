@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · Mark F — Reel
+  Wordmark: Sundar · r  (· = rounded pixel frame)
+  Concept: Media container / film frame / pixel cell.
+  Badge: terracotta base + cream rounded square (a cell of media).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · Reel</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <rect x="20" y="20" width="24" height="24" rx="5"
+        fill="var(--mark-fg, #f2ead8)"/>
+</svg>

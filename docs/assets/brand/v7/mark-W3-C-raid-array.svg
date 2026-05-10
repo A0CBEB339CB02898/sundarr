@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · W3-C — RAID Array
+  Derived from: W3 Punched Disc
+  Extension: punches become a 3×2 regular grid of rounded
+  squares. Evokes RAID storage array / block grid.
+  Grid is off-center (shifted down-right) for asymmetry.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · W3-C RAID Array</title>
+  <defs>
+    <mask id="array">
+      <rect width="100" height="100" fill="white"/>
+      <g fill="black">
+        <rect x="39" y="41" width="5" height="5" rx="1"/>
+        <rect x="47.5" y="41" width="5" height="5" rx="1"/>
+        <rect x="56" y="41" width="5" height="5" rx="1"/>
+        <rect x="39" y="50" width="5" height="5" rx="1"/>
+        <rect x="47.5" y="50" width="5" height="5" rx="1"/>
+        <rect x="56" y="50" width="5" height="5" rx="1"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <circle cx="50" cy="50" r="28"
+          fill="var(--mark-fg, #f2ead8)"
+          mask="url(#array)"/>
+</svg>

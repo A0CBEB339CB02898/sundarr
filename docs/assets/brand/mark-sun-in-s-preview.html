@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sundarr · 太阳藏在 S 两弧之间 · 候选 L 系</title>
+<style>
+  :root {
+    --bg: #11100e;
+    --surface-1: #1a1814;
+    --surface-2: #221f1a;
+    --text: #f2ead8;
+    --text-muted: #b9ad96;
+    --text-subtle: #847a68;
+    --hairline: rgba(240, 225, 200, 0.10);
+    --accent: #d97642;
+    --mark-bg: #d97642;
+    --mark-fg: #f2ead8;
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f1e7;
+    --surface-1: #fdfaf2;
+    --surface-2: #ece4d3;
+    --text: #201910;
+    --text-muted: #5c4f3d;
+    --text-subtle: #8b7d67;
+    --hairline: rgba(31, 22, 10, 0.10);
+    --accent: #b05623;
+    --mark-bg: #b05623;
+    --mark-fg: #fdfaf2;
+  }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: Inter, -apple-system, "Segoe UI", Roboto, "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    transition: background-color .2s, color .2s; }
+  header { padding: 48px 48px 8px; display: flex; align-items: flex-start;
+    justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.4px; }
+  header p { margin: 6px 0 0; color: var(--text-muted); font-size: 13.5px;
+    max-width: 640px; line-height: 1.6; }
+  header code { font-family: "JetBrains Mono", ui-monospace, monospace;
+    background: var(--surface-1); padding: 1px 6px; border-radius: 4px;
+    font-size: 12px; }
+  .theme-switch { display: inline-flex; gap: 2px; padding: 2px;
+    background: var(--surface-2); border-radius: 9999px;
+    border: 1px solid var(--hairline); }
+  .theme-switch button { border: 0; background: transparent; padding: 6px 14px;
+    font-size: 12px; font-weight: 500; color: var(--text-muted);
+    border-radius: 9999px; cursor: pointer; font-family: inherit; }
+  .theme-switch button[aria-selected="true"] {
+    background: var(--surface-1); color: var(--text);
+    box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+
+  section { padding: 16px 48px 48px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 24px; }
+  .card { background: var(--surface-1); border: 1px solid var(--hairline);
+    border-radius: 16px; padding: 24px; display: flex; flex-direction: column;
+    gap: 16px; }
+  .card[data-recommend="true"] { border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent); }
+  .card .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.8px;
+    color: var(--text-subtle); text-transform: uppercase; }
+  .card[data-recommend="true"] .eyebrow { color: var(--accent); }
+  .card .title { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+  .card .stage { display: flex; align-items: center; justify-content: center;
+    min-height: 180px; padding: 12px 0; }
+  .mark-hero { width: 140px; height: 140px; display: block; }
+  .scale-test { display: flex; gap: 28px; justify-content: center;
+    padding: 14px 0; border-top: 1px dashed var(--hairline);
+    border-bottom: 1px dashed var(--hairline); }
+  .scale-test figure { margin: 0; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; }
+  .scale-test figcaption { font-size: 10px; color: var(--text-subtle);
+    letter-spacing: 0.4px; font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.65; }
+  .desc b { color: var(--text); font-weight: 600; }
+
+  /* wordmark pairing */
+  .pair { display: inline-flex; align-items: center; gap: 12px;
+    padding: 10px 14px; background: var(--surface-2);
+    border: 1px solid var(--hairline); border-radius: 10px;
+    align-self: flex-start; }
+  .pair svg { width: 32px; height: 32px; }
+  .pair .wm { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+  .pair .sun-ch { color: var(--accent); margin: 0 0.06em;
+    font-family: "DejaVu Sans", Arial, sans-serif; font-variant-emoji: text;
+    font-weight: normal; font-size: 0.82em; position: relative; top: 0.03em; }
+
+  footer { padding: 0 48px 48px; color: var(--text-subtle); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Sundarr · 太阳藏在 S 两弧之间 · 候选 L 系</h1>
+    <p>三种诠释：<b>L1</b> 完整 S，腰部开圆窗透出太阳（最字面）；
+      <b>L2</b> 打掉 S 中段，只留上下两段弧抱着带光的太阳（最强"两弧之间"）；
+      <b>L3</b> 放弃 S 字形，抽象成镜像双弧把太阳夹在正中（最诗意）。
+      画布 <code>64 × 64</code>、圆角 <code>14</code>、terracotta 底 + 奶油前景，与现有徽章家族同语。</p>
+  </div>
+  <div class="theme-switch" role="tablist" aria-label="主题切换">
+    <button data-theme-btn="light" aria-selected="false">亮色</button>
+    <button data-theme-btn="dark"  aria-selected="false">暗色</button>
+    <button data-theme-btn="auto"  aria-selected="true">跟随系统</button>
+  </div>
+</header>
+
+<!-- ================================================================= -->
+<!--  SVG symbol 定义                                                   -->
+<!-- ================================================================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- L1 用的 mask: 白保留、黑挖洞 -->
+    <mask id="L1-hole" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="white"/>
+      <circle cx="32" cy="32" r="5.5" fill="black"/>
+    </mask>
+  </defs>
+
+  <!-- L1 · 挖洞 S · 太阳从腰部透出 -->
+  <symbol id="L1" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+    <!-- 底层太阳圆盘 -->
+    <circle cx="32" cy="32" r="5.5" fill="var(--mark-fg)"/>
+    <!-- S 字母覆盖在太阳上，但中心被 mask 挖空 -->
+    <text x="32" y="50" text-anchor="middle" fill="var(--mark-fg)"
+          font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
+          font-weight="900" font-size="54" letter-spacing="-3"
+          mask="url(#L1-hole)">S</text>
+  </symbol>
+
+  <!-- L2 · 打开 S · 上下双弧抱日（带四道对角光芒） -->
+  <symbol id="L2" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+    <!-- 上弧: 从右上到左中，保留 S 上半的笔势 -->
+    <path d="M 46 18 C 46 11, 22 11, 20 22"
+          stroke="var(--mark-fg)" stroke-width="5" fill="none"
+          stroke-linecap="round"/>
+    <!-- 下弧: 点对称镜像，从左下到右中 -->
+    <path d="M 18 46 C 18 53, 42 53, 44 42"
+          stroke="var(--mark-fg)" stroke-width="5" fill="none"
+          stroke-linecap="round"/>
+    <!-- 太阳圆盘 -->
+    <circle cx="32" cy="32" r="6.5" fill="var(--mark-fg)"/>
+    <!-- 对角光芒: 避开上下弧，填满 45°/135°/225°/315° -->
+    <g stroke="var(--mark-fg)" stroke-width="2" stroke-linecap="round">
+      <line x1="25.5" y1="25.5" x2="22.5" y2="22.5"/>
+      <line x1="38.5" y1="38.5" x2="41.5" y2="41.5"/>
+      <line x1="25.5" y1="38.5" x2="22.5" y2="41.5"/>
+      <line x1="38.5" y1="25.5" x2="41.5" y2="22.5"/>
+    </g>
+  </symbol>
+
+  <!-- L3 · 抽象镜像双弧 · 顶棚与底座，太阳为主 -->
+  <symbol id="L3" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+    <!-- 上弧: 水平对称拱起 -->
+    <path d="M 16 22 C 16 12, 48 12, 48 22"
+          stroke="var(--mark-fg)" stroke-width="4" fill="none"
+          stroke-linecap="round"/>
+    <!-- 下弧: 水平对称下凹 -->
+    <path d="M 48 42 C 48 52, 16 52, 16 42"
+          stroke="var(--mark-fg)" stroke-width="4" fill="none"
+          stroke-linecap="round"/>
+    <!-- 太阳圆盘 -->
+    <circle cx="32" cy="32" r="7" fill="var(--mark-fg)"/>
+    <!-- 十字光芒: 上下左右各一道 -->
+    <g stroke="var(--mark-fg)" stroke-width="2" stroke-linecap="round">
+      <line x1="32" y1="22.5" x2="32" y2="19.5"/>
+      <line x1="32" y1="41.5" x2="32" y2="44.5"/>
+      <line x1="22.5" y1="32" x2="19.5" y2="32"/>
+      <line x1="41.5" y1="32" x2="44.5" y2="32"/>
+    </g>
+  </symbol>
+</svg>
+
+<!-- ================================================================= -->
+<!--  三个候选                                                           -->
+<!-- ================================================================= -->
+<section>
+  <div class="grid">
+
+    <div class="card" data-recommend="true">
+      <span class="eyebrow">L1 · 挖洞 S · 默认推荐</span>
+      <div class="title">太阳从 S 腰中透出</div>
+      <div class="stage">
+        <svg class="mark-hero" viewBox="0 0 64 64"><use href="#L1"/></svg>
+      </div>
+      <div class="scale-test">
+        <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#L1"/></svg><figcaption>48px</figcaption></figure>
+        <figure><svg width="32" height="32" viewBox="0 0 64 64"><use href="#L1"/></svg><figcaption>32px</figcaption></figure>
+        <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#L1"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#L1"/></svg><figcaption>16px</figcaption></figure>
+      </div>
+      <div class="pair">
+        <svg viewBox="0 0 64 64"><use href="#L1"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="sun-ch">&#x2600;&#xFE0E;</span><span>r</span></span>
+      </div>
+      <div class="desc">完整粗体 <b>S</b> 底下藏着一颗太阳，S 腰部开一扇圆窗恰好露出它。
+        上弧和下弧真的在<b>抱</b>这颗太阳——字面上的「藏在两个弧之间」。
+        远看一眼是 Servarr 家族的 S，凑近才发现腰里嵌了颗日；
+        16px 下仍能读出 S 的轮廓。</div>
+    </div>
+
+    <div class="card">
+      <span class="eyebrow">L2 · 打开 S</span>
+      <div class="title">上下双弧 · 太阳独立居中</div>
+      <div class="stage">
+        <svg class="mark-hero" viewBox="0 0 64 64"><use href="#L2"/></svg>
+      </div>
+      <div class="scale-test">
+        <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#L2"/></svg><figcaption>48px</figcaption></figure>
+        <figure><svg width="32" height="32" viewBox="0 0 64 64"><use href="#L2"/></svg><figcaption>32px</figcaption></figure>
+        <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#L2"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#L2"/></svg><figcaption>16px</figcaption></figure>
+      </div>
+      <div class="pair">
+        <svg viewBox="0 0 64 64"><use href="#L2"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="sun-ch">&#x2600;&#xFE0E;</span><span>r</span></span>
+      </div>
+      <div class="desc">只留 S 的上弧（右上→左上）和下弧（左下→右下），
+        保留 S 的 180° 旋转对称笔势，但删掉中段对角线。
+        两段弧真的<b>不相连</b>，太阳带四道斜光独立居中。
+        「两个弧之间」视觉最强，但小尺寸时 S 的暗示会弱化。</div>
+    </div>
+
+    <div class="card">
+      <span class="eyebrow">L3 · 抽象镜像双弧</span>
+      <div class="title">顶棚 + 底座 · 诗意日光</div>
+      <div class="stage">
+        <svg class="mark-hero" viewBox="0 0 64 64"><use href="#L3"/></svg>
+      </div>
+      <div class="scale-test">
+        <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#L3"/></svg><figcaption>48px</figcaption></figure>
+        <figure><svg width="32" height="32" viewBox="0 0 64 64"><use href="#L3"/></svg><figcaption>32px</figcaption></figure>
+        <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#L3"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#L3"/></svg><figcaption>16px</figcaption></figure>
+      </div>
+      <div class="pair">
+        <svg viewBox="0 0 64 64"><use href="#L3"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="sun-ch">&#x2600;&#xFE0E;</span><span>r</span></span>
+      </div>
+      <div class="desc">放弃 S 字形，改成两道水平对称的拱弧——像<b>顶棚与底座</b>——
+        把一颗带十字光芒的太阳夹在正中。最像"日出日落被两道云层托住"的诗意，
+        也是牺牲 Servarr 家族 S 标识的极端版。
+        代价：它更像通用的"sun badge"，品牌识别靠 wordmark 兜底。</div>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  候选 L 系 · 若你选定一款，我把它添加进 <code>logo-preview.html</code> 的四款并排对比，
+  并生成独立 SVG 源文件。
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const KEY = "sundarr-L-theme";
+  const buttons = document.querySelectorAll("[data-theme-btn]");
+  function apply(mode) {
+    if (mode === "auto") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", mode);
+    buttons.forEach(b => b.setAttribute("aria-selected",
+      b.dataset.themeBtn === mode ? "true" : "false"));
+    localStorage.setItem(KEY, mode);
+  }
+  buttons.forEach(b => b.addEventListener("click",
+    () => apply(b.dataset.themeBtn)));
+  apply(localStorage.getItem(KEY) || "auto");
+</script>
+
+</body>
+</html>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · L3 — Mirrored arcs cradling the sun (poetic)
+
+  Concept: 放弃 S 字形, 抽象成两道水平对称的拱弧 (顶棚 + 底座),
+  把一颗带十字光芒的太阳夹在正中. 最像 "日出/日落被两层云托住"
+  的诗意, 也是最不像 Servarr 家族的一版.
+  Canvas: 64×64, radius 14
+  Colors driven by CSS custom properties:
+    mark-bg: terracotta badge
+    mark-fg: cream foreground
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr</title>
+
+  <!-- Badge 底色 -->
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+
+  <!-- 顶弧 (拱起) -->
+  <path d="M 16 22 C 16 12, 48 12, 48 22"
+        stroke="var(--mark-fg, #f2ead8)" stroke-width="4" fill="none"
+        stroke-linecap="round"/>
+
+  <!-- 底弧 (下凹) -->
+  <path d="M 48 42 C 48 52, 16 52, 16 42"
+        stroke="var(--mark-fg, #f2ead8)" stroke-width="4" fill="none"
+        stroke-linecap="round"/>
+
+  <!-- 太阳圆盘 -->
+  <circle cx="32" cy="32" r="7" fill="var(--mark-fg, #f2ead8)"/>
+
+  <!-- 十字光芒 -->
+  <g stroke="var(--mark-fg, #f2ead8)" stroke-width="2" stroke-linecap="round">
+    <line x1="32" y1="22.5" x2="32" y2="19.5"/>
+    <line x1="32" y1="41.5" x2="32" y2="44.5"/>
+    <line x1="22.5" y1="32" x2="19.5" y2="32"/>
+    <line x1="41.5" y1="32" x2="44.5" y2="32"/>
+  </g>
+</svg>

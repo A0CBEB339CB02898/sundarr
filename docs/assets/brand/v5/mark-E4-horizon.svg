@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · E4 — Horizon Bars
+  3 bars standing on a horizon line, a half-sun rising above.
+  The equalizer becomes a city skyline at dawn.
+  Concept: Your media is the horizon; Sunday is the sun
+  rising over it.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · E4 Horizon Bars</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <!-- Half sun rising in the upper half -->
+  <path d="M 22 20 A 10 10 0 0 1 42 20 Z"
+        fill="var(--mark-fg, #f2ead8)"/>
+  <!-- Horizon line -->
+  <line x1="12" y1="42" x2="52" y2="42"
+        stroke="var(--mark-fg, #f2ead8)" stroke-width="1.5"
+        stroke-linecap="round" opacity="0.5"/>
+  <!-- 3 bars standing on horizon, bottom y=42 -->
+  <g fill="var(--mark-fg, #f2ead8)">
+    <rect x="22" y="30" width="5" height="12" rx="2.5"/>
+    <rect x="29.5" y="24" width="5" height="18" rx="2.5"/>
+    <rect x="37" y="32" width="5" height="10" rx="2.5"/>
+  </g>
+</svg>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · W6 — Punched Ring
+  Archetype: logo-generator-skill (hybrid of Arc Segments 1.2 +
+  Punched Circle 4221df1d..)
+  Principle: Rounded negative space cuts; asymmetric perforation.
+  Execution: thick outline ring (stroke 5), with a rounded
+  opening at the top. A single solid dot at the opening is the
+  Sunday that rose out of the cut.
+  Concept: The media container ring opens at the Sunday moment.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · W6 Punched Ring</title>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <path d="M 28.4 30.7 A 28 28 0 1 1 71.6 30.7"
+        fill="none"
+        stroke="var(--mark-fg, #f2ead8)" stroke-width="5"
+        stroke-linecap="round"/>
+  <circle cx="50" cy="22" r="5" fill="var(--mark-fg, #f2ead8)"/>
+</svg>

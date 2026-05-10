@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · W3 — Punched Disc
+  Archetype: logo-generator-skill / Punched Circle (4221df1d..)
+  Principle: Solid shape + asymmetric perforation grid. Subtract
+  rather than add. Negative space as design element.
+  Concept: The Sunday sun, punched through by media catalog
+  entries. Sunday AND Arr, figure AND ground.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · W3 Punched Disc</title>
+  <defs>
+    <mask id="punches">
+      <rect width="100" height="100" fill="white"/>
+      <circle cx="40" cy="38" r="5" fill="black"/>
+      <circle cx="54" cy="42" r="3" fill="black"/>
+      <circle cx="38" cy="56" r="3" fill="black"/>
+      <circle cx="58" cy="60" r="4" fill="black"/>
+    </mask>
+  </defs>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <circle cx="50" cy="50" r="28"
+          fill="var(--mark-fg, #f2ead8)"
+          mask="url(#punches)"/>
+</svg>

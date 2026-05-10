@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sundarr · v4 · Sundar·r wordmark variants</title>
+<style>
+  :root {
+    --bg:        #f3ede0;
+    --surface:   #fbf7ec;
+    --ink:       #1a1714;
+    --ink-soft:  rgba(26,23,20,0.58);
+    --ink-fade:  rgba(26,23,20,0.30);
+    --rule:      rgba(26,23,20,0.12);
+    --mark-bg:   #d97642;
+    --mark-fg:   #f2ead8;
+  }
+  :root[data-theme="dark"] {
+    --bg:        #0e0d0b;
+    --surface:   #1a1814;
+    --ink:       #f2ead8;
+    --ink-soft:  rgba(242,234,216,0.58);
+    --ink-fade:  rgba(242,234,216,0.28);
+    --rule:      rgba(242,234,216,0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .35s, color .35s; }
+
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 64px 56px 96px; }
+
+  /* ============ Header ============ */
+  .head-row { display: flex; align-items: flex-end;
+    justify-content: space-between; gap: 24px; flex-wrap: wrap;
+    margin-bottom: 56px; }
+  .eyebrow { font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 500; color: var(--ink-soft); }
+  h1 { margin: 12px 0 0; font-size: 44px; font-weight: 500;
+    letter-spacing: -0.02em; line-height: 1.1; }
+  h1 em { font-style: normal; color: var(--ink-soft); }
+  .lede { margin: 20px 0 0; font-size: 15px; line-height: 1.65;
+    color: var(--ink-soft); max-width: 640px; }
+  .lede b { color: var(--ink); font-weight: 500; }
+
+  .control { display: inline-flex; gap: 1px; padding: 1px;
+    background: var(--rule); border-radius: 999px; }
+  .control button { border: 0; background: transparent;
+    padding: 7px 16px; font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-soft); border-radius: 999px;
+    cursor: pointer; font-family: inherit;
+    transition: background-color .2s, color .2s; }
+  .control button[aria-selected="true"] {
+    background: var(--ink); color: var(--bg); }
+
+  /* ============ Hero: Sundar · r ============ */
+  .hero {
+    padding: 80px 40px; margin-bottom: 48px;
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 20px; text-align: center;
+  }
+  .hero .hero-eyebrow { font-size: 11px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--ink-fade);
+    margin-bottom: 24px; }
+  .hero .hero-wordmark {
+    font-size: 72px; font-weight: 500;
+    letter-spacing: -0.035em; line-height: 1;
+    display: inline-flex; align-items: center; gap: 0.02em;
+    color: var(--ink);
+  }
+  .hero .hero-wordmark .dot {
+    color: var(--mark-bg); margin: 0 0.08em;
+    font-size: 0.6em; position: relative; top: -0.08em;
+  }
+  .hero .hero-note { margin-top: 28px;
+    font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+  .hero .hero-note code { font-family: "JetBrains Mono",
+    ui-monospace, monospace; background: var(--bg);
+    padding: 2px 7px; border-radius: 4px; font-size: 12px; }
+
+  /* ============ Variants grid ============ */
+  .eyebrow-section { display: block; margin-bottom: 18px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+
+  .card { background: var(--surface);
+    border: 1px solid var(--rule); border-radius: 14px;
+    padding: 36px; display: flex; flex-direction: column; gap: 24px;
+    transition: transform .25s, box-shadow .25s; }
+  .card:hover { transform: translateY(-2px);
+    box-shadow: 0 16px 48px -22px rgba(0,0,0,0.28); }
+
+  .card .header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding-bottom: 16px; border-bottom: 1px solid var(--rule);
+  }
+  .card .code { font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 0.1em; color: var(--mark-bg);
+    font-weight: 600; }
+  .card .tag { font-size: 10.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-fade); }
+
+  /* Wordmark preview using custom dot SVG */
+  .card .wm-preview {
+    display: flex; align-items: center; justify-content: center;
+    padding: 32px 0; gap: 0;
+    font-size: 36px; font-weight: 500;
+    letter-spacing: -0.025em; color: var(--ink); }
+  .card .wm-preview .dot-slot {
+    display: inline-flex; align-items: center;
+    width: 0.75em; height: 0.75em; margin: 0 0.15em;
+    position: relative; top: -0.04em; }
+  .card .wm-preview .dot-slot svg {
+    width: 100%; height: 100%; }
+
+  /* Badge + wordmark pairing row */
+  .card .pair-row {
+    display: flex; align-items: center; gap: 18px;
+    padding-top: 12px; border-top: 1px dashed var(--rule);
+  }
+  .card .pair-row .badge {
+    width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+    display: block;
+  }
+  .card .pair-row .pair-wm {
+    font-size: 20px; font-weight: 500; letter-spacing: -0.02em;
+    color: var(--ink); display: inline-flex; align-items: center; }
+  .card .pair-row .pair-wm .pair-dot {
+    display: inline-flex; width: 0.75em; height: 0.75em;
+    margin: 0 0.12em; position: relative; top: -0.04em; }
+  .card .pair-row .pair-wm .pair-dot svg { width: 100%; height: 100%; }
+
+  .card .meta { display: flex; flex-direction: column; gap: 6px;
+    padding-top: 4px; }
+  .card .title { font-size: 16px; font-weight: 600;
+    letter-spacing: -0.01em; margin: 0; }
+  .card .rationale { font-size: 12.5px; line-height: 1.6;
+    color: var(--ink-soft); margin: 0; }
+
+  /* ============ Scale strip ============ */
+  .scale-strip { margin-top: 56px;
+    border: 1px solid var(--rule); border-radius: 14px;
+    padding: 36px 40px; }
+  .scale-row { display: grid; grid-template-columns: repeat(6, 1fr);
+    gap: 20px; margin-top: 20px; }
+  .scale-col { display: flex; flex-direction: column;
+    align-items: center; gap: 12px; }
+  .scale-col .code { font-family: "JetBrains Mono",
+    ui-monospace, monospace; font-size: 10px;
+    letter-spacing: 0.12em; color: var(--mark-bg); font-weight: 600; }
+  .scale-col .sizes { display: flex; align-items: flex-end; gap: 12px; }
+  .scale-col .sizes figure { margin: 0; display: flex;
+    flex-direction: column; align-items: center; gap: 5px; }
+  .scale-col .sizes figcaption { font-size: 9px;
+    letter-spacing: 0.08em; color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .scale-col svg { border-radius: 3px; display: block; }
+
+  /* ============ Footer ============ */
+  footer { margin-top: 64px; padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-size: 11px; letter-spacing: 0.06em;
+    color: var(--ink-fade);
+    display: flex; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; }
+
+  @media (max-width: 860px) {
+    .wrap { padding: 40px 24px 64px; }
+    h1 { font-size: 32px; }
+    .hero { padding: 48px 24px; }
+    .hero .hero-wordmark { font-size: 44px; }
+    .grid { grid-template-columns: 1fr; }
+    .scale-row { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head-row">
+    <div>
+      <div class="eyebrow">Sundarr · Identity Exploration · v4</div>
+      <h1>Sundar·r<br/><em>品牌写法的六种点。</em></h1>
+      <p class="lede">
+        <b>Sundar·r</b> 和 <b>Sundarr</b> 的唯一区别就是中间那个「·」，
+        也就是品牌写法的灵魂。这一轮把「·」本身作为设计对象，
+        做六种不同形态：每一种「·」同时是一个迷你徽章雏形。
+        徽章把这个「·」放大到占满画布。
+      </p>
+    </div>
+    <div class="control" role="tablist" aria-label="theme">
+      <button data-theme="light" aria-selected="true">Paper</button>
+      <button data-theme="dark"  aria-selected="false">Ink</button>
+    </div>
+  </div>
+
+  <!-- Hero: Sundar · r with the generic bullet -->
+  <section class="hero">
+    <div class="hero-eyebrow">Canonical brand form</div>
+    <div class="hero-wordmark">
+      Sunda<span>r</span><span class="dot">·</span><span>r</span>
+    </div>
+    <p class="hero-note">
+      这个「<code>·</code>」是 Sundarr 的视觉基因。它同时是
+      <code>sun</code> 的暗示、<code>arr</code> 的接缝、一个小小的日轮。
+      下面六款把它替换成六种不同的迷你符号。
+    </p>
+  </section>
+
+  <!-- ============== Symbol defs ============== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+
+    <!-- Dot shapes (for in-line wordmark, no badge background, stand-alone) -->
+    <symbol id="dot-A" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="6" fill="var(--mark-bg)"/>
+    </symbol>
+    <symbol id="dot-B" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="6" fill="none"
+              stroke="var(--mark-bg)" stroke-width="2.4"/>
+    </symbol>
+    <symbol id="dot-C" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4" fill="var(--mark-bg)"/>
+      <g stroke="var(--mark-bg)" stroke-width="1.6" stroke-linecap="round">
+        <line x1="12" y1="5" x2="12" y2="2"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+        <line x1="5" y1="12" x2="2" y2="12"/>
+        <line x1="19" y1="12" x2="22" y2="12"/>
+        <line x1="7.5" y1="7.5" x2="5.5" y2="5.5"/>
+        <line x1="16.5" y1="7.5" x2="18.5" y2="5.5"/>
+        <line x1="7.5" y1="16.5" x2="5.5" y2="18.5"/>
+        <line x1="16.5" y1="16.5" x2="18.5" y2="18.5"/>
+      </g>
+    </symbol>
+    <symbol id="dot-D" viewBox="0 0 24 24">
+      <path d="M 5 14 A 7 7 0 0 1 19 14 Z" fill="var(--mark-bg)"/>
+      <line x1="3" y1="14" x2="21" y2="14"
+            stroke="var(--mark-bg)" stroke-width="1.5"
+            stroke-linecap="round" opacity="0.6"/>
+    </symbol>
+    <symbol id="dot-E" viewBox="0 0 24 24">
+      <g fill="var(--mark-bg)">
+        <rect x="4" y="8" width="3.5" height="8" rx="1.75"/>
+        <rect x="10.25" y="4" width="3.5" height="16" rx="1.75"/>
+        <rect x="16.5" y="10" width="3.5" height="4" rx="1.75"/>
+      </g>
+    </symbol>
+    <symbol id="dot-F" viewBox="0 0 24 24">
+      <rect x="4" y="4" width="16" height="16" rx="3.2"
+            fill="var(--mark-bg)"/>
+    </symbol>
+
+    <!-- Full badges (for pairing and scale test) -->
+    <symbol id="badge-A" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <circle cx="32" cy="32" r="10" fill="var(--mark-fg)"/>
+    </symbol>
+    <symbol id="badge-B" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <circle cx="32" cy="32" r="11" fill="none"
+              stroke="var(--mark-fg)" stroke-width="3.5"/>
+    </symbol>
+    <symbol id="badge-C" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <circle cx="32" cy="32" r="7" fill="var(--mark-fg)"/>
+      <g stroke="var(--mark-fg)" stroke-width="2.2" stroke-linecap="round">
+        <line x1="32" y1="18" x2="32" y2="13"/>
+        <line x1="32" y1="46" x2="32" y2="51"/>
+        <line x1="18" y1="32" x2="13" y2="32"/>
+        <line x1="46" y1="32" x2="51" y2="32"/>
+        <line x1="22" y1="22" x2="18.5" y2="18.5"/>
+        <line x1="42" y1="22" x2="45.5" y2="18.5"/>
+        <line x1="22" y1="42" x2="18.5" y2="45.5"/>
+        <line x1="42" y1="42" x2="45.5" y2="45.5"/>
+      </g>
+    </symbol>
+    <symbol id="badge-D" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <line x1="14" y1="40" x2="50" y2="40"
+            stroke="var(--mark-fg)" stroke-width="2"
+            stroke-linecap="round" opacity="0.55"/>
+      <path d="M 20 40 A 12 12 0 0 1 44 40 Z" fill="var(--mark-fg)"/>
+    </symbol>
+    <symbol id="badge-E" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <g fill="var(--mark-fg)">
+        <rect x="22" y="24" width="6" height="16" rx="3"/>
+        <rect x="30" y="18" width="6" height="28" rx="3"/>
+        <rect x="38" y="28" width="6" height="12" rx="3"/>
+      </g>
+    </symbol>
+    <symbol id="badge-F" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <rect x="20" y="20" width="24" height="24" rx="5"
+            fill="var(--mark-fg)"/>
+    </symbol>
+  </svg>
+
+  <!-- ============== Variants grid ============== -->
+  <span class="eyebrow eyebrow-section">Six dot variants</span>
+  <div class="grid">
+
+    <!-- A — Dot -->
+    <article class="card">
+      <div class="header">
+        <span class="code">A · DOT</span>
+        <span class="tag">purest form</span>
+      </div>
+      <div class="wm-preview">
+        Sunda<span>r</span>
+        <span class="dot-slot"><svg><use href="#dot-A"/></svg></span>
+        <span>r</span>
+      </div>
+      <div class="pair-row">
+        <svg class="badge" viewBox="0 0 64 64"><use href="#badge-A"/></svg>
+        <span class="pair-wm">Sunda<span>r</span><span class="pair-dot"><svg><use href="#dot-A"/></svg></span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">Dot · 朴素基准</h3>
+        <p class="rationale">最简形态：就是一个实心小圆。
+          徽章即等比放大。极致克制，永不过时。</p>
+      </div>
+    </article>
+
+    <!-- B — Halo -->
+    <article class="card">
+      <div class="header">
+        <span class="code">B · HALO</span>
+        <span class="tag">ring · open center</span>
+      </div>
+      <div class="wm-preview">
+        Sunda<span>r</span>
+        <span class="dot-slot"><svg><use href="#dot-B"/></svg></span>
+        <span>r</span>
+      </div>
+      <div class="pair-row">
+        <svg class="badge" viewBox="0 0 64 64"><use href="#badge-B"/></svg>
+        <span class="pair-wm">Sunda<span>r</span><span class="pair-dot"><svg><use href="#dot-B"/></svg></span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">Halo · 日晕 / 目录环</h3>
+        <p class="rationale">空心圆环，中心留白。
+          既像日晕也像一条媒体环线。克制但有呼吸感。</p>
+      </div>
+    </article>
+
+    <!-- C — Solar -->
+    <article class="card">
+      <div class="header">
+        <span class="code">C · SOLAR</span>
+        <span class="tag">full radiance</span>
+      </div>
+      <div class="wm-preview">
+        Sunda<span>r</span>
+        <span class="dot-slot"><svg><use href="#dot-C"/></svg></span>
+        <span>r</span>
+      </div>
+      <div class="pair-row">
+        <svg class="badge" viewBox="0 0 64 64"><use href="#badge-C"/></svg>
+        <span class="pair-wm">Sunda<span>r</span><span class="pair-dot"><svg><use href="#dot-C"/></svg></span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">Solar · 烈日</h3>
+        <p class="rationale">圆心 + 8 道交替光芒。
+          Sunday 概念最强的一版，但中间点稍大，
+          wordmark 里读感会"撑开"。</p>
+      </div>
+    </article>
+
+    <!-- D — Rise -->
+    <article class="card">
+      <div class="header">
+        <span class="code">D · RISE</span>
+        <span class="tag">sunrise moment</span>
+      </div>
+      <div class="wm-preview">
+        Sunda<span>r</span>
+        <span class="dot-slot"><svg><use href="#dot-D"/></svg></span>
+        <span>r</span>
+      </div>
+      <div class="pair-row">
+        <svg class="badge" viewBox="0 0 64 64"><use href="#badge-D"/></svg>
+        <span class="pair-wm">Sunda<span>r</span><span class="pair-dot"><svg><use href="#dot-D"/></svg></span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">Rise · 日出时刻</h3>
+        <p class="rationale">地平线 + 半个太阳。
+          "正在升起"的张力，wordmark 里像一个小小的
+          舞台剪影。叙事感最强。</p>
+      </div>
+    </article>
+
+    <!-- E — Bars -->
+    <article class="card">
+      <div class="header">
+        <span class="code">E · BARS</span>
+        <span class="tag">media pulse</span>
+      </div>
+      <div class="wm-preview">
+        Sunda<span>r</span>
+        <span class="dot-slot"><svg><use href="#dot-E"/></svg></span>
+        <span>r</span>
+      </div>
+      <div class="pair-row">
+        <svg class="badge" viewBox="0 0 64 64"><use href="#badge-E"/></svg>
+        <span class="pair-wm">Sunda<span>r</span><span class="pair-dot"><svg><use href="#dot-E"/></svg></span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">Bars · 媒体脉动</h3>
+        <p class="rationale">3 根短竖刻度，中间最高。
+          Media equalizer 原语。wordmark 里像一个
+          小小的频谱，把"动态媒体"写进品牌。</p>
+      </div>
+    </article>
+
+    <!-- F — Reel -->
+    <article class="card">
+      <div class="header">
+        <span class="code">F · REEL</span>
+        <span class="tag">container / pixel</span>
+      </div>
+      <div class="wm-preview">
+        Sunda<span>r</span>
+        <span class="dot-slot"><svg><use href="#dot-F"/></svg></span>
+        <span>r</span>
+      </div>
+      <div class="pair-row">
+        <svg class="badge" viewBox="0 0 64 64"><use href="#badge-F"/></svg>
+        <span class="pair-wm">Sunda<span>r</span><span class="pair-dot"><svg><use href="#dot-F"/></svg></span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">Reel · 像素帧 / 容器</h3>
+        <p class="rationale">圆角小方块。
+          徽章的形状自指——圆角方块是 Servarr 家族语法。
+          wordmark 里像一个小 app icon。</p>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- ============== Scale test ============== -->
+  <section class="scale-strip">
+    <span class="eyebrow eyebrow-section">Badge scale test · 48 / 24 / 16</span>
+    <div class="scale-row">
+      <div class="scale-col">
+        <span class="code">A</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#badge-A"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#badge-A"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#badge-A"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">B</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#badge-B"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#badge-B"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#badge-B"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">C</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#badge-C"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#badge-C"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#badge-C"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">D</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#badge-D"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#badge-D"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#badge-D"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">E</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#badge-E"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#badge-E"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#badge-E"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">F</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#badge-F"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#badge-F"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#badge-F"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>docs/assets/brand/v4 · 6 dot variants · Sundar·r core rule</span>
+    <span>wordmark-driven · badge as echo</span>
+  </footer>
+
+</div>
+
+<script>
+  const root = document.documentElement;
+  const KEY = "sundarr-v4-theme";
+  const btns = document.querySelectorAll("[data-theme]");
+  function apply(v) {
+    root.setAttribute("data-theme", v);
+    btns.forEach(b => b.setAttribute("aria-selected",
+      b.dataset.theme === v ? "true" : "false"));
+    localStorage.setItem(KEY, v);
+  }
+  btns.forEach(b => b.addEventListener("click",
+    () => apply(b.dataset.theme)));
+  apply(localStorage.getItem(KEY) || "light");
+</script>
+</body>
+</html>
