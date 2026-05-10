@@ -634,6 +634,7 @@ function App() {
   const [transfers, setTransfers] = useState<TransferResponse[]>([])
   const [transferError, setTransferError] = useState<string | null>(null)
   const [isTransferPanelOpen, setIsTransferPanelOpen] = useState(true)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error' | 'info'; message: string; duration: number }[]>([])
   const TOAST_DURATION_MS = 4500
 
@@ -657,6 +658,21 @@ function App() {
     applyThemeMode(themeMode)
     window.localStorage.setItem('sundarr.theme', themeMode)
   }, [themeMode])
+
+  // Drawer · 手机/平板：Esc 关闭 + 首次打开时滚动锁定
+  useEffect(() => {
+    if (!isDrawerOpen) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setIsDrawerOpen(false)
+    }
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [isDrawerOpen])
 
   useEffect(() => {
     void loadTransfers()
@@ -693,6 +709,7 @@ function App() {
   function navigate(item: NavItem) {
     window.history.pushState({}, '', item.path)
     setActivePage(item.key)
+    setIsDrawerOpen(false)
     if (item.key === 'transfers') {
       setIsTransferPanelOpen(false)
     }
@@ -701,13 +718,44 @@ function App() {
   function navigateToTransfers(taskId?: string) {
     window.history.pushState({}, '', '/app/transfers')
     setActivePage('transfers')
+    setIsDrawerOpen(false)
     setIsTransferPanelOpen(false)
     window.dispatchEvent(new CustomEvent('sundarr:select-transfer', { detail: { taskId } }))
   }
 
   return (
     <div className="app-shell">
-      <aside className="sidebar" aria-label="主导航">
+      <header className="top-bar" role="banner">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">S</span>
+          <div>
+            <p>Sundarr</p>
+            <small>Web Console</small>
+          </div>
+        </div>
+        <div className="top-bar-actions">
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="打开导航"
+            aria-expanded={isDrawerOpen}
+            onClick={() => setIsDrawerOpen(true)}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </button>
+        </div>
+      </header>
+      <div
+        className="scrim"
+        data-open={isDrawerOpen || undefined}
+        onClick={() => setIsDrawerOpen(false)}
+        aria-hidden="true"
+      />
+      <aside className="sidebar" aria-label="主导航" data-open={isDrawerOpen || undefined}>
         <div className="brand">
           <span className="brand-mark">S</span>
           <div>

@@ -194,8 +194,15 @@ button:disabled {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: 272px minmax(0, 1fr);
   min-height: 100vh;
+}
+
+/* Shell · 响应式（docs/16 §9） ---------------------------------- */
+@media (max-width: 1023px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .sidebar {
@@ -1638,4 +1645,394 @@ h2 {
     width: auto;
     max-width: none;
   }
+}
+
+
+
+/* ================================================================ */
+/* Phase 7.8 · Shell 响应式（top-bar · drawer · scrim）              */
+/* docs/16-design-system.md §6.1                                    */
+/* ================================================================ */
+
+/* 桌面：保持现有 grid 布局。
+   平板/手机：.sidebar 变 off-canvas drawer，由 [data-open=true] 控制。 */
+
+.top-bar {
+  display: none;
+}
+
+.scrim {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .top-bar { display: none; }
+  .scrim { display: none !important; }
+}
+
+@media (max-width: 1023px) {
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--surface-1);
+    border-bottom: 1px solid var(--hairline);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+  .top-bar .brand {
+    gap: var(--space-3);
+  }
+  .top-bar .brand-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    font-size: 18px;
+  }
+  .top-bar .brand p {
+    font-size: 15px;
+  }
+  .top-bar .brand small {
+    display: none;
+  }
+  .top-bar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .icon-button {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-md);
+    background: var(--surface-1);
+    color: var(--text);
+    cursor: pointer;
+    transition: background-color var(--motion-fast) var(--ease-out);
+  }
+  .icon-button:hover {
+    background: var(--surface-2);
+  }
+  .icon-button svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(84vw, 320px);
+    z-index: 30;
+    transform: translateX(-100%);
+    transition: transform var(--motion-slow) var(--ease-out);
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar[data-open="true"] {
+    transform: translateX(0);
+  }
+
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 25;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--motion-base) var(--ease-out);
+  }
+  .scrim[data-open="true"] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .content-shell {
+    padding: var(--space-4);
+    padding-right: var(--space-4);
+  }
+}
+
+@media (min-width: 1024px) {
+  /* 桌面永远展开，忽略 data-open */
+  .sidebar[data-open] {
+    transform: none;
+  }
+}
+
+/* ================================================================ */
+/* Phase 7.8 · UI primitives — namespaced .ui-*                     */
+/* docs/16-design-system.md §6                                      */
+/* 这些类供 web/src/ui/ 下的 React 组件使用。旧页面规则 (.panel /    */
+/* .primary-button / .field / 等) 保留不动，待 Step 5 按页迁移。    */
+/* ================================================================ */
+
+/* Card (§6.4) ---------------------------------------------------- */
+.ui-card {
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+.ui-card[data-emphasis="featured"] { background: var(--surface-2); }
+.ui-card[data-emphasis="sunken"]   { background: var(--surface-sunken); }
+
+/* Button (§6.5) · variants: primary / secondary / ghost / danger / icon */
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.ui-button:focus-visible {
+  outline: 2px solid var(--accent-pressed);
+  outline-offset: 2px;
+}
+.ui-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ui-button[data-variant="primary"] {
+  background: var(--accent);
+  color: var(--bg);
+}
+.ui-button[data-variant="primary"]:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.ui-button[data-variant="primary"]:active:not(:disabled) {
+  background: var(--accent-pressed);
+}
+.ui-button[data-variant="secondary"] {
+  background: var(--surface-1);
+  color: var(--text);
+  border-color: var(--hairline);
+}
+.ui-button[data-variant="secondary"]:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--hairline-strong);
+}
+.ui-button[data-variant="ghost"] {
+  background: transparent;
+  color: var(--text-muted);
+}
+.ui-button[data-variant="ghost"]:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.ui-button[data-variant="danger"] {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: color-mix(in srgb, var(--danger-text) 30%, transparent);
+}
+.ui-button[data-variant="danger"]:hover:not(:disabled) {
+  background: var(--danger-text);
+  color: var(--bg);
+}
+.ui-button[data-size="sm"] { padding: 6px 12px; font-size: 13px; }
+.ui-button[data-size="lg"] { padding: 10px 18px; font-size: 15px; }
+
+/* Field (§6.8) --------------------------------------------------- */
+.ui-field {
+  display: grid;
+  gap: 6px;
+}
+.ui-field > label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.ui-field input,
+.ui-field select,
+.ui-field textarea {
+  width: 100%;
+  background: var(--surface-sunken);
+  color: var(--text);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font: inherit;
+  transition: border-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+.ui-field input:focus,
+.ui-field select:focus,
+.ui-field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.ui-field .helper {
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+.ui-field[data-error="true"] input,
+.ui-field[data-error="true"] select,
+.ui-field[data-error="true"] textarea {
+  border-color: var(--danger-text);
+}
+.ui-field[data-error="true"] .helper {
+  color: var(--danger-text);
+}
+
+/* StatusBadge (§6.6) --------------------------------------------- */
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.ui-badge::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.ui-badge[data-tone="info"]     { color: var(--info);        background: var(--info-tint); }
+.ui-badge[data-tone="running"]  { color: var(--accent);      background: var(--accent-tint); }
+.ui-badge[data-tone="paused"]   { color: var(--warning);     background: var(--warning-tint); }
+.ui-badge[data-tone="success"]  { color: var(--success);     background: var(--success-tint); }
+.ui-badge[data-tone="danger"]   { color: var(--danger-text); background: var(--danger-bg); }
+
+.ui-badge[data-pulse="true"]::before {
+  animation: ui-badge-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ui-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+/* ProgressBar (§6.12) ------------------------------------------- */
+.ui-progress {
+  display: grid;
+  gap: 4px;
+}
+.ui-progress .track {
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.ui-progress .fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  transition: width 300ms var(--ease-out);
+}
+.ui-progress[data-indeterminate="true"] .fill {
+  width: 30% !important;
+  animation: ui-progress-sweep 1.6s linear infinite;
+}
+@keyframes ui-progress-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.ui-progress .label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+/* State components (§6.13) -------------------------------------- */
+.ui-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-7) var(--space-5);
+  color: var(--text-muted);
+  text-align: center;
+}
+.ui-state .ui-state-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--text-subtle);
+}
+.ui-state .ui-state-msg {
+  font-size: 18px;
+  color: var(--text);
+  font-weight: 500;
+}
+.ui-state .ui-state-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.ui-state[data-tone="error"] {
+  border-left: 3px solid var(--danger-text);
+  padding-left: var(--space-5);
+  text-align: left;
+  justify-items: start;
+}
+.ui-state[data-tone="error"] .ui-state-icon { color: var(--danger-text); }
+
+.ui-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--hairline);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: ui-spin 0.9s linear infinite;
+}
+@keyframes ui-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Skeleton ------------------------------------------------------- */
+.ui-skeleton {
+  background: var(--surface-2);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--text) 4%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-sm);
+  animation: ui-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes ui-skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Keycap (§6.15) ------------------------------------------------- */
+.ui-kbd {
+  display: inline-flex;
+  align-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
