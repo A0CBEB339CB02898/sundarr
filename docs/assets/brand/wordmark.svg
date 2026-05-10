@@ -28,10 +28,10 @@
 
   Coloring:
     currentColor drives letters (inherits from host CSS color)
-    CSS var `--accent` drives the middle dot (falls back to currentColor)
+    CSS var 'accent' drives the middle dot (falls back to currentColor)
 
   Host recipe:
-    .wm-host     sets color = text, --accent = accent
+    .wm-host     sets color = text, accent = accent
     .wm-host svg sets height = 1em, width = auto, inline-block
 
   Accessibility: role + aria-label + title announce "Sundarr".
