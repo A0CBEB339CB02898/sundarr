@@ -253,10 +253,18 @@ Sonarr / Lidarr 等），沿用**圆角正方形徽章 + 单一主色底**的家
 品牌全称写作 **Sundar·r**——核心规则是两个 `r` 之间有一个中点，**用 accent
 terracotta 上色**。这是 Servarr 家族 `*arr` 后缀的视觉签名。
 
-**实现注意**：中间的 `·` 在小字号下会被字体 hinting 吃掉，并与右侧 `r`
-粘连。所以我们**不使用字符画点**，而是用真实 CSS 圆渲染，尺寸和间距按档
-以 px 驱动，小尺寸下的圆还会相对放大以保持可见度。`·` 字符仍保留在 DOM 中
-供屏幕阅读器朗读与复制粘贴，但视觉上被 `font-size: 0` 抑制。
+**实现有两个必须满足的正确性要求**：
+
+1. **点必须落在文字的视觉水平线**（x-height 中线），不是 line-box 的
+   几何中心。所以不用 `inline-flex + align-items: center`——那个会对
+   到 cap-height 附近，看起来偏上。用 `display: inline-block` +
+   `vertical-align: middle`，CSS 规范定义的 middle 正是 baseline + ex/2。
+2. **左右 margin 不相等**：因为字母 `r` 的右上短臂造成右 r 的 stem
+   视觉上"离点更远"，需要把 `margin-right` 设为 `margin-left` 的 ~70%
+   来补偿，这样右 r 才真正看起来在中间。
+3. 字符 `·` 仍保留在 DOM 中（供屏幕阅读器朗读与复制粘贴），用
+   `text-indent: -9999px; overflow: hidden` 视觉隐藏，比 `font-size: 0`
+   更可靠（后者在某些嵌套 flex 场景下会影响布局）。
 
 ```html
 <span class="wordmark">
@@ -266,39 +274,36 @@ terracotta 上色**。这是 Servarr 家族 `*arr` 后缀的视觉签名。
 
 ```css
 .wordmark {
-  display: inline-flex;
-  align-items: center;                 /* 关键: 点精确落在 x-height 中线 */
+  display: inline-block;               /* 不用 inline-flex */
   font-weight: 500;                    /* Inter 500 */
   letter-spacing: -0.025em;
   color: var(--text);
-  /* 每档通过 --dot-size / --dot-gap 调整 */
+  /* 每档通过 --dot-size / --dot-ml / --dot-mr 调整 */
 }
 .wordmark .dot {
-  display: inline-flex;
-  font-size: 0 !important;             /* 隐藏字符, 保留 a11y */
-  color: transparent;
+  display: inline-block;
+  vertical-align: middle;              /* 关键: 对齐到 x-height 中线 */
   width:  var(--dot-size);
   height: var(--dot-size);
-  margin: 0 var(--dot-gap);
-}
-.wordmark .dot::before {
-  content: ""; display: block;
-  width: 100%; height: 100%;
+  margin-left:  var(--dot-ml);
+  margin-right: var(--dot-mr);         /* ~70% of ml, 补偿 r 右臂错觉 */
   border-radius: 50%;
-  background: var(--accent);           /* terracotta */
+  background: var(--accent);
+  text-indent: -9999px; overflow: hidden;  /* 隐藏 "·" 保留 a11y */
 }
 ```
 
-三档尺寸（尺寸 / 点直径 / 两侧 gap）：
+三档尺寸（尺寸 / 点直径 / 左 margin / 右 margin）：
 
-| 档位 | 字号 | 点直径 | 两侧间距 | 用途 |
-|---|---|---|---|---|
-| `hero`   | 64 px | 12 px | 8 px   | 文档封面、splash、关于页独立展示 |
-| `brand`  | 16 px | 5 px  | 3.5 px | 顶栏、侧栏副标、导航品牌区 |
-| `inline` | 14 px | 4.5 px| 3 px   | 正文引用；< 13 px 退化为不带点的 `Sundarr` |
+| 档位 | 字号 | 点直径 | `--dot-ml` | `--dot-mr` | 用途 |
+|---|---|---|---|---|---|
+| `hero`   | 64 px | 12 px  | 8 px   | 5.5 px | 文档封面、splash、关于页独立展示 |
+| `brand`  | 16 px | 5 px   | 3.5 px | 2.5 px | 顶栏、侧栏副标、导航品牌区 |
+| `inline` | 14 px | 4.5 px | 3 px   | 2 px   | 正文引用；< 13 px 退化为不带点的 `Sundarr` |
 
-注意**小尺寸下点相对更大、间距相对更宽**（反直觉但正确）——抗锯齿会吞小圆，
-必须用 px 粒度校准、不能用 em 比例。
+注意**小尺寸下点相对更大、间距以 px 定义**（反直觉但正确）——抗锯齿会吞小圆，
+em 在小字号下也会坍缩。而**点的直径占字号约 14–32%**，字号越大相对占比越小
+（否则大字号下点会显"肥"）。
 
 组合规则："徽章 + 横向间距 10~14px + wordmark"。禁止全大写、禁止斜体、
 禁止移除中间的 `·`。

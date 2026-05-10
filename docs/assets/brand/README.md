@@ -55,10 +55,20 @@ cover.html?variant=hero&subtitle=Sunday%20morning.%20Your%20cloud.%20Your%20NAS.
 ## Wordmark 规则（r · r rule）
 
 wordmark 的核心规则：`Sundarr` 渲染为 `Sunda r · r`，**中间的点用 `--accent`
-上色**，小号、垂直 x-height 居中。这是 Servarr 家族 `*arr` 后缀的视觉签名。
+上色**，落在 x-height 视觉中线上。这是 Servarr 家族 `*arr` 后缀的视觉签名。
 
-**不要用字符画点**：`·`（U+00B7）在小字号下会被字体 hinting 吃掉，并与右侧
-`r` 粘连。用真实 CSS 圆渲染，保留字符在 DOM 中只做 a11y：
+### 两个对齐细节
+
+1. **点必须在视觉水平线**（x-height 中线）。用 `display: inline-block`
+   + `vertical-align: middle`，**不要**用 `inline-flex + align-items: center`
+   （后者对齐到 line-box 几何中心，会偏上）。
+2. **左右 margin 不相等**。字母 `r` 的右上短臂让右 r 的 stem "漂"在更远，
+   所以把 `margin-right` 设为 `margin-left` 的 ~70% 来补偿。
+
+### 为什么不直接用 `·` 字符
+
+`·`（U+00B7）在小字号下会被字体 hinting 吃掉。用真实 CSS 圆渲染，保留字符
+在 DOM 中只做 a11y：
 
 ```html
 <span class="wordmark">
@@ -68,39 +78,38 @@ wordmark 的核心规则：`Sundarr` 渲染为 `Sunda r · r`，**中间的点�
 
 ```css
 .wordmark {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   font-weight: 500;
   letter-spacing: -0.025em;
   /* 档位默认 = brand */
   --dot-size: 5px;
-  --dot-gap:  3.5px;
+  --dot-ml:   3.5px;
+  --dot-mr:   2.5px;                /* ~70% of --dot-ml */
 }
 .wordmark .dot {
-  display: inline-flex;
-  font-size: 0 !important;      /* 字符不可见 */
-  color: transparent;
+  display: inline-block;
+  vertical-align: middle;           /* → baseline + ex/2 */
   width:  var(--dot-size);
   height: var(--dot-size);
-  margin: 0 var(--dot-gap);
-}
-.wordmark .dot::before {
-  content: ""; display: block;
-  width: 100%; height: 100%;
+  margin-left:  var(--dot-ml);
+  margin-right: var(--dot-mr);
   border-radius: 50%;
   background: var(--accent);
+  text-indent: -9999px; overflow: hidden;
 }
 ```
 
-三档尺寸（字号 / 点直径 / gap）：
+三档尺寸（字号 / 点直径 / 左右 margin）：
 
-| 档位 | 字号 | 点直径 | 两侧间距 | 用途 |
-|---|---|---|---|---|
-| **hero**   | 64 px | 12 px  | 8 px   | 文档封面、splash、关于页 |
-| **brand**  | 16 px | 5 px   | 3.5 px | 顶栏、侧栏副标、导航品牌区 |
-| **inline** | 14 px | 4.5 px | 3 px   | 正文引用；< 13 px 退化为 `Sundarr` |
+| 档位 | 字号 | 点直径 | `--dot-ml` | `--dot-mr` | 用途 |
+|---|---|---|---|---|---|
+| **hero**   | 64 px | 12 px  | 8 px   | 5.5 px | 文档封面、splash、关于页 |
+| **brand**  | 16 px | 5 px   | 3.5 px | 2.5 px | 顶栏、侧栏副标、导航品牌区 |
+| **inline** | 14 px | 4.5 px | 3 px   | 2 px   | 正文引用；< 13 px 退化为 `Sundarr` |
 
-反直觉要点：**越小的字号，点要相对越大**——抗锯齿会吞掉小圆。
+反直觉要点：**越小的字号，点要相对越大**——抗锯齿会吞掉小圆。但大字号下
+反过来，**点相对占比要变小**（hero 档 12/64 = 18.75%，about 档 14/96 ≈ 14.6%），
+否则点看起来像个"按钮"而不是一个"点"。
 
 ## 颜色锚点
 

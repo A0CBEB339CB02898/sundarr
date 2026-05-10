@@ -169,43 +169,49 @@
 
   /* ============================================================
      Wordmark · r · r rule (core)
-     The middle dot is rendered as a REAL CSS circle, not the
-     U+00B7 character. This keeps it crisp at every size and
-     gives us pixel-accurate control over diameter and gap.
-     The original "·" is still in the markup for copy-paste /
-     screen readers, but is visually suppressed.
+
+     The middle dot is a REAL CSS circle, not the U+00B7 character.
+     Two correctness requirements this implementation satisfies:
+
+       1. The dot must sit on the visual horizontal line of the
+          text — i.e. the x-height midline (baseline + ex / 2),
+          not the geometric center of the line-box.
+          `vertical-align: middle` on an inline-block does exactly
+          that per the CSS spec, and works across fonts & sizes.
+
+       2. Because `r`'s upper arm protrudes to its right, the right
+          `r` in "r · r" reads as visually farther than the left r.
+          Compensate by making --dot-mr SMALLER than --dot-ml (≈70%),
+          so the right r optically sits in the middle.
+
+     The "·" character is kept in the DOM for copy-paste and screen
+     readers, but visually hidden via text-indent+overflow.
      ============================================================ */
-  .wordmark { display: inline-flex; align-items: center;
+  .wordmark { display: inline-block;
     font-weight: 500; letter-spacing: -0.025em;
     color: var(--ink); white-space: nowrap; line-height: 1; }
   .wordmark .dot {
-    /* Hide the "·" character. Its text still reads aloud. */
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 0 !important;
-    color: transparent;
-    /* Per-size dot diameter + gap driven by CSS vars, set below. */
-    width:  var(--dot-size, 6px);
-    height: var(--dot-size, 6px);
-    margin: 0 var(--dot-gap, 4px);
-    position: relative;
-  }
-  .wordmark .dot::before {
-    content: "";
-    display: block;
-    width: 100%; height: 100%;
+    display: inline-block;
+    vertical-align: middle;                 /* ← baseline + ex/2 */
+    width:  var(--dot-size, 5px);
+    height: var(--dot-size, 5px);
+    margin-left:  var(--dot-ml, 3.5px);
+    margin-right: var(--dot-mr, 2.5px);     /* ~70% of ml */
     border-radius: 50%;
     background: var(--accent);
+    /* suppress the "·" glyph but keep the text node for a11y */
+    text-indent: -9999px; overflow: hidden;
   }
 
-  /* Per-tier tuning. Small sizes get *relatively larger* dots +
-     wider gaps — the only way to keep the ring crisp and the
-     right-hand "r" from touching. */
+  /* Per-tier tuning. Small sizes get *relatively larger* dots so
+     antialiasing doesn't eat them; all gaps in px (not em) so they
+     don't collapse at small font sizes. */
   .wordmark[data-size="hero"]   { font-size: 64px; letter-spacing: -0.035em;
-    --dot-size: 12px; --dot-gap: 8px; }
+    --dot-size: 12px;  --dot-ml: 8px;   --dot-mr: 5.5px; }
   .wordmark[data-size="brand"]  { font-size: 16px;
-    --dot-size: 5px;  --dot-gap: 3.5px; }
+    --dot-size: 5px;   --dot-ml: 3.5px; --dot-mr: 2.5px; }
   .wordmark[data-size="inline"] { font-size: 14px;
-    --dot-size: 4.5px; --dot-gap: 3px; }
+    --dot-size: 4.5px; --dot-ml: 3px;   --dot-mr: 2px; }
 
   /* --- scale test (§03) ---------------------------------------- */
   .scale-strip { padding: 36px 40px;
