@@ -24,11 +24,23 @@ type NavItem = {
   description: string
 }
 
+type ComponentHealth = {
+  status: string
+  checked_at: string
+}
+
 type HealthResponse = {
   status: string
   database: string
   redis: string
   worker: string
+  checked_at: string
+  components: {
+    api: ComponentHealth
+    database: ComponentHealth
+    redis: ComponentHealth
+    worker: ComponentHealth
+  }
 }
 
 type TransferResponse = {
@@ -3138,7 +3150,6 @@ function StatusPanel() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isMutating, setIsMutating] = useState(false)
-  const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
 
   useEffect(() => { void loadHealth() }, [])
 
@@ -3150,7 +3161,6 @@ function StatusPanel() {
         api.get<{ enabled: boolean; running: boolean; pid: number | null }>('/worker/status'),
       ])
       setHealth(h); setWorkerState(w)
-      setLastCheckedAt(new Date())
     } catch (exc) {
       setHealth(null); setWorkerState(null)
       setError(exc instanceof Error ? exc.message : '无法读取系统状态。')
@@ -3166,14 +3176,15 @@ function StatusPanel() {
     finally { setIsMutating(false) }
   }
 
-  const items: { label: string; value: string }[] = health ? [
-    { label: 'API', value: health.status },
-    { label: 'Database', value: health.database },
-    { label: 'Redis', value: health.redis },
-    { label: 'Worker', value: health.worker },
+  // Each component reports its own `checked_at` from the backend (see
+  // sundarr/app/api/health.py). We render that directly so a stale probe
+  // stays visible even if the whole panel was refreshed recently.
+  const items: { label: string; value: string; checkedAt: string | null }[] = health ? [
+    { label: 'API', value: health.status, checkedAt: health.components.api.checked_at },
+    { label: 'Database', value: health.database, checkedAt: health.components.database.checked_at },
+    { label: 'Redis', value: health.redis, checkedAt: health.components.redis.checked_at },
+    { label: 'Worker', value: health.worker, checkedAt: health.components.worker.checked_at },
   ] : []
-
-  const lastCheckedLabel = lastCheckedAt ? formatClock(lastCheckedAt) : '--:--:--'
 
   return (
     <section className="st-page" aria-labelledby="status-title">
@@ -3209,7 +3220,12 @@ function StatusPanel() {
         <>
           <div className="st-grid" role="list" aria-label="系统状态卡片">
             {items.map((item) => (
-              <StatusCard key={item.label} label={item.label} value={item.value} lastChecked={lastCheckedLabel} />
+              <StatusCard
+                key={item.label}
+                label={item.label}
+                value={item.value}
+                lastChecked={formatClockFromISO(item.checkedAt)}
+              />
             ))}
           </div>
 
@@ -3864,7 +3880,9 @@ function formatDateTime(value: string) {
   return date.toLocaleString('zh-CN')
 }
 
-function formatClock(date: Date) {
+function formatClockFromISO(value: string | null) {
+  if (!value) return '--:--:--'
+  const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '--:--:--'
   const hh = String(date.getHours()).padStart(2, '0')
   const mm = String(date.getMinutes()).padStart(2, '0')

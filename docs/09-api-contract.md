@@ -45,7 +45,14 @@ GET /health
   "status": "ok",
   "database": "ok",
   "redis": "ok",
-  "worker": "ok"
+  "worker": "ok",
+  "checked_at": "2026-05-10T12:34:56.789Z",
+  "components": {
+    "api":      { "status": "ok", "checked_at": "2026-05-10T12:34:56.780Z" },
+    "database": { "status": "ok", "checked_at": "2026-05-10T12:34:56.784Z" },
+    "redis":    { "status": "ok", "checked_at": "2026-05-10T12:34:56.786Z" },
+    "worker":   { "status": "ok", "checked_at": "2026-05-10T12:34:56.789Z" }
+  }
 }
 ```
 
@@ -56,6 +63,8 @@ ok: 本地 Worker pid 存在且进程运行中。
 error: 本地 Worker pid 存在但进程不存在。
 unknown: 当前环境没有 Worker pid，或无法判断 Worker 状态。
 ```
+
+顶层标量字段（`status` / `database` / `redis` / `worker`）与旧契约保持兼容，供外部监控和 smoke test 使用。`components` 用于 Web Console 展示每个组件自己的 `checked_at`（ISO-8601 UTC，后缀 `Z`）。
 
 ---
 
