@@ -2,7 +2,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session, object_session
 
-from sundarr.app.models import ResourceLink, Setting, TransferFile, TransferLog, TransferTask
+from sundarr.app.models import ResourceLink, Setting, SyncSeenFile, TransferFile, TransferLog, TransferTask
 from sundarr.app.schemas.transfer import TransferCreateRequest, TransferLogResponse, TransferResponse
 
 CANCELLABLE_TRANSFER_STATUSES = {"pending", "staging_to_cloud", "cloud_ready", "downloading", "verifying"}
@@ -132,6 +132,7 @@ class TransferService:
             raise ValueError("TRANSFER_TASK_NOT_FOUND")
         if task.status in ("downloading", "verifying", "renaming", "cleaning_source", "cleaning_cloud"):
             raise ValueError("TRANSFER_TASK_NOT_CANCELLABLE")
+        db.query(SyncSeenFile).filter(SyncSeenFile.task_id == task_id).update({"task_id": None})
         db.query(TransferLog).filter(TransferLog.task_id == task_id).delete()
         db.query(TransferFile).filter(TransferFile.task_id == task_id).delete()
         db.delete(task)
@@ -141,6 +142,7 @@ class TransferService:
         completed_tasks = db.query(TransferTask).filter(TransferTask.status == "completed").all()
         count = 0
         for task in completed_tasks:
+            db.query(SyncSeenFile).filter(SyncSeenFile.task_id == task.id).update({"task_id": None})
             db.query(TransferLog).filter(TransferLog.task_id == task.id).delete()
             db.query(TransferFile).filter(TransferFile.task_id == task.id).delete()
             db.delete(task)

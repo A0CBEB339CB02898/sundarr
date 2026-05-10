@@ -366,6 +366,8 @@ async def process_dtl_task(
     try:
         return await _process_dtl_task(session, task, source_writer, target_writer)
     except TaskCancelled:
+        tw = target_writer or SmbWriter(SmbConfig.from_dict(task.storage_config_snapshot or {}))
+        await _cleanup_downloading_files(session, task, tw)
         return task
     except Exception as exc:
         _mark_task_failed(session, task, exc)
@@ -393,6 +395,10 @@ async def _process_dtl_task(
     _add_log(session, task.id, "info", "dtl_copy_started", "开始从 SMB 来源下载到本地媒体库。")
     session.commit()
 
+    import time as time_mod
+    speed_start = time_mod.monotonic()
+    speed_bytes = 0
+
     with await source_writer.open_read(task.source_path) as input_file:
         with await target_writer.open_append(transfer_file.temp_path) as output_file:
             while True:
@@ -403,6 +409,12 @@ async def _process_dtl_task(
                 output_file.write(chunk)
                 transfer_file.done_bytes += len(chunk)
                 task.done_bytes += len(chunk)
+                speed_bytes += len(chunk)
+                elapsed = time_mod.monotonic() - speed_start
+                if elapsed >= 1.0:
+                    task.speed_bytes_per_sec = int(speed_bytes / elapsed)
+                    speed_start = time_mod.monotonic()
+                    speed_bytes = 0
                 session.commit()
 
     _raise_if_cancelled(session, task)
@@ -600,6 +612,18 @@ def _mark_task_failed(session: Session, task: TransferTask, exc: Exception) -> N
         transfer_file.error_message = task.error_message
     _add_log(session, task.id, "error", "transfer_failed", f"任务失败：{task.error_message}")
     session.commit()
+
+
+async def _cleanup_downloading_files(session: Session, task: TransferTask, target_writer: StorageWriter) -> None:
+    files = session.query(TransferFile).filter(
+        TransferFile.task_id == task.id,
+        TransferFile.status.in_(["pending", "downloading", "verified"]),
+    ).all()
+    for f in files:
+        try:
+            await target_writer.remove(f.temp_path)
+        except Exception:
+            pass
 
 
 def _error_code_from_exception(exc: Exception) -> str:

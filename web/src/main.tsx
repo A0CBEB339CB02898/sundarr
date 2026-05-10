@@ -569,12 +569,12 @@ type IngestConfigFormState = {
 }
 
 const navItems: NavItem[] = [
+  { key: 'storage', path: '/app/storage', label: '存储', description: '管理 SMB 配置和目录浏览' },
+  { key: 'libraries', path: '/app/libraries', label: '本地媒体库', description: '管理本地媒体库目录绑定' },
+  { key: 'remote-libraries', path: '/app/remote-libraries', label: '远程媒体库', description: '管理远程媒体库目录绑定' },
+  { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
   { key: 'search', path: '/app/search', label: '搜索', description: '搜索资源并创建搬运任务' },
   { key: 'transfers', path: '/app/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
-  { key: 'storage', path: '/app/storage', label: '存储', description: '管理 SMB 配置和目录浏览' },
-  { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
-  { key: 'libraries', path: '/app/libraries', label: '媒体库', description: '管理本地媒体库目录绑定' },
-  { key: 'remote-libraries', path: '/app/remote-libraries', label: '远程媒体库', description: '管理远程媒体库目录绑定' },
   { key: 'status', path: '/app/status', label: '状态', description: '查看 API、Worker、数据库和 Redis' },
 ]
 
@@ -605,7 +605,7 @@ const pageCopy: Record<PageKey, { title: string; eyebrow: string; body: string; 
   },
   libraries: {
     eyebrow: 'Libraries',
-    title: '媒体库管理',
+    title: '本地媒体库管理',
     body: '管理 movie / series / unclassified 等本地媒体库目录绑定。',
     next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
@@ -630,7 +630,7 @@ function App() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => storedThemeMode())
   const [transfers, setTransfers] = useState<TransferResponse[]>([])
   const [transferError, setTransferError] = useState<string | null>(null)
-  const [isTransferPanelOpen, setIsTransferPanelOpen] = useState(false)
+  const [isTransferPanelOpen, setIsTransferPanelOpen] = useState(true)
   const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error' | 'info'; message: string }[]>([])
 
   function showToast(type: 'success' | 'error' | 'info', message: string) {
@@ -673,6 +673,17 @@ function App() {
     } catch (exc) {
       setTransferError(exc instanceof Error ? exc.message : '无法读取任务列表。')
     }
+  }
+
+  async function clearNonRunningTasks() {
+    const nonRunning = transfers.filter((t) => !['pending', 'downloading', 'verifying', 'renaming', 'cleaning_source', 'cleaning_cloud'].includes(t.status))
+    if (nonRunning.length === 0) { showToast('info', '没有可清空的任务。'); return }
+    if (!window.confirm(`确认清空 ${nonRunning.length} 个非运行中的任务？（包括已完成、失败、取消的任务）`)) return
+    try {
+      const result = await api.post<{ ok: boolean; deleted_count: number }>('/transfers/clear-completed')
+      showToast('success', `已清空 ${result.deleted_count} 个任务。`)
+      void loadTransfers()
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '清空失败。') }
   }
 
   function navigate(item: NavItem) {
@@ -727,6 +738,7 @@ function App() {
         onClose={() => setIsTransferPanelOpen(false)}
         onOpen={() => setIsTransferPanelOpen(true)}
         onRefresh={() => void loadTransfers()}
+        onClear={() => void clearNonRunningTasks()}
         onSelect={navigateToTransfers}
         transfers={transfers}
       />
@@ -2662,6 +2674,7 @@ function GlobalTransferPanel({
   onClose,
   onOpen,
   onRefresh,
+  onClear,
   onSelect,
   transfers,
 }: {
@@ -2670,6 +2683,7 @@ function GlobalTransferPanel({
   onClose: () => void
   onOpen: () => void
   onRefresh: () => void
+  onClear: () => void
   onSelect: (taskId?: string) => void
   transfers: TransferResponse[]
 }) {
@@ -2685,7 +2699,10 @@ function GlobalTransferPanel({
       <div className="global-transfer-card">
         <div className="section-heading">
           <h3>当前任务</h3>
-          <button className="ghost-button compact-button" onClick={onRefresh} type="button">刷新</button>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button className="ghost-button compact-button" onClick={onRefresh} type="button">刷新</button>
+            <button className="ghost-button compact-button" onClick={onClear} type="button">清空</button>
+          </div>
         </div>
         {error ? <ErrorState message={error} /> : null}
         {!error && visibleTransfers.length === 0 ? <EmptyState message="暂无任务。" /> : null}

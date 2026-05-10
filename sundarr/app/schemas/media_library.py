@@ -16,10 +16,10 @@ class MediaLibraryCreateRequest(BaseModel):
     @field_validator("base_path")
     @classmethod
     def reject_unsafe_base_path(cls, value: str) -> str:
-        normalized = value.replace("\\", "/")
+        normalized = value.replace("\\", "/").replace("//", "/").rstrip("/") or "/"
         if ".." in normalized.split("/"):
             raise ValueError("媒体库路径不能包含 ..。")
-        return value or "/"
+        return normalized
 
 
 class MediaLibraryUpdateRequest(BaseModel):
@@ -32,10 +32,10 @@ class MediaLibraryUpdateRequest(BaseModel):
     @field_validator("base_path")
     @classmethod
     def reject_unsafe_base_path(cls, value: str) -> str:
-        normalized = value.replace("\\", "/")
+        normalized = value.replace("\\", "/").replace("//", "/").rstrip("/") or "/"
         if ".." in normalized.split("/"):
             raise ValueError("媒体库路径不能包含 ..。")
-        return value or "/"
+        return normalized
 
 
 class MediaLibraryResponse(BaseModel):

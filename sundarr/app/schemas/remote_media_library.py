@@ -19,10 +19,10 @@ class RemoteMediaLibraryCreateRequest(BaseModel):
     @field_validator("base_path")
     @classmethod
     def reject_unsafe_base_path(cls, value: str) -> str:
-        normalized = value.replace("\\", "/")
+        normalized = value.replace("\\", "/").replace("//", "/").rstrip("/") or "/"
         if ".." in normalized.split("/"):
             raise ValueError("远程媒体库路径不能包含 ..。")
-        return value or "/"
+        return normalized
 
 
 class RemoteMediaLibraryUpdateRequest(BaseModel):
@@ -40,10 +40,10 @@ class RemoteMediaLibraryUpdateRequest(BaseModel):
     @field_validator("base_path")
     @classmethod
     def reject_unsafe_base_path(cls, value: str) -> str:
-        normalized = value.replace("\\", "/")
+        normalized = value.replace("\\", "/").replace("//", "/").rstrip("/") or "/"
         if ".." in normalized.split("/"):
             raise ValueError("远程媒体库路径不能包含 ..。")
-        return value or "/"
+        return normalized
 
 
 class RemoteMediaLibraryResponse(BaseModel):
