@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sundarr · 字标样张 v0.1</title>
+<style>
+  /* === design tokens (dark defaults, light via [data-theme=light]) === */
+  :root {
+    --bg: #11100e;
+    --surface-1: #1a1814;
+    --surface-2: #221f1a;
+    --text: #f2ead8;
+    --text-muted: #b9ad96;
+    --text-subtle: #847a68;
+    --hairline: rgba(240, 225, 200, 0.10);
+    --hairline-strong: rgba(240, 225, 200, 0.20);
+    --accent: #d97642;
+    --accent-soft: rgba(217, 118, 66, 0.18);
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f1e7;
+    --surface-1: #fdfaf2;
+    --surface-2: #ece4d3;
+    --text: #201910;
+    --text-muted: #5c4f3d;
+    --text-subtle: #8b7d67;
+    --hairline: rgba(31, 22, 10, 0.10);
+    --hairline-strong: rgba(31, 22, 10, 0.20);
+    --accent: #b05623;
+    --accent-soft: rgba(176, 86, 35, 0.14);
+  }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: Inter, -apple-system, "Segoe UI", Roboto, "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    transition: background-color .2s, color .2s; }
+  header { padding: 48px 48px 16px; display: flex; align-items: center;
+    justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.4px; }
+  header p { margin: 4px 0 0; color: var(--text-muted); font-size: 14px; }
+  .theme-switch { display: inline-flex; gap: 2px; padding: 2px;
+    background: var(--surface-2); border-radius: 9999px;
+    border: 1px solid var(--hairline); }
+  .theme-switch button { border: 0; background: transparent; padding: 6px 14px;
+    font-size: 12px; font-weight: 500; color: var(--text-muted);
+    border-radius: 9999px; cursor: pointer; font-family: inherit; }
+  .theme-switch button[aria-selected="true"] {
+    background: var(--surface-1); color: var(--text);
+    box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px; padding: 24px 48px 48px; }
+  .card { background: var(--surface-1); border: 1px solid var(--hairline);
+    border-radius: 12px; padding: 28px; display: flex; flex-direction: column;
+    gap: 16px; min-height: 200px; }
+  .card .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.8px;
+    color: var(--text-subtle); text-transform: uppercase; }
+  .card .caption { font-size: 12px; color: var(--text-muted);
+    font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    margin-top: auto; line-height: 1.5; }
+  .stage { flex: 1; display: flex; align-items: center; justify-content: center;
+    min-height: 96px; }
+
+  /* === marks === */
+  /* 1. inline wordmark S· */
+  .mark-inline { font-size: 56px; font-weight: 700; letter-spacing: -2px;
+    color: var(--text); line-height: 1; display: inline-flex;
+    align-items: baseline; }
+  .mark-inline .dot { color: var(--accent); font-family: "JetBrains Mono",
+    ui-monospace, "SF Mono", Menlo, monospace; font-weight: 400;
+    margin-left: 2px; position: relative; top: -0.02em; }
+
+  /* 2. square block (sidebar brand mark) */
+  .mark-block { width: 64px; height: 64px; border-radius: 16px;
+    background: var(--accent); display: inline-flex; align-items: center;
+    justify-content: center; color: var(--bg); font-size: 32px; font-weight: 700;
+    letter-spacing: -1px; position: relative; }
+  .mark-block::after { content: "·"; position: absolute; right: 12px;
+    bottom: 10px; font-size: 20px; color: var(--bg); opacity: .7;
+    font-family: "JetBrains Mono", monospace; }
+
+  /* 3. outlined block */
+  .mark-block-outline { width: 64px; height: 64px; border-radius: 16px;
+    background: transparent; border: 2px solid var(--accent);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--accent); font-size: 32px; font-weight: 700;
+    letter-spacing: -1px; position: relative; }
+  .mark-block-outline::after { content: "·"; position: absolute; right: 12px;
+    bottom: 10px; font-size: 20px; color: var(--accent); opacity: .9;
+    font-family: "JetBrains Mono", monospace; }
+
+  /* 4. small nav brand */
+  .nav-brand { display: inline-flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: var(--surface-2);
+    border: 1px solid var(--hairline); border-radius: 10px; }
+  .nav-brand .mark-sm { width: 28px; height: 28px; border-radius: 8px;
+    background: var(--accent); color: var(--bg); display: inline-flex;
+    align-items: center; justify-content: center; font-weight: 700;
+    font-size: 14px; letter-spacing: -0.5px; }
+  .nav-brand .word { font-weight: 600; font-size: 15px; letter-spacing: -0.2px; }
+  .nav-brand .word .tail { color: var(--accent); opacity: 0.85; }
+
+  /* 5. full wordmark 'sundarr' */
+  .wordmark { font-size: 48px; font-weight: 600; letter-spacing: -1.2px;
+    color: var(--text); }
+  .wordmark .tail { color: var(--accent); }
+
+  /* 6. pulse mark (animated dot glow) */
+  .mark-pulse { font-size: 56px; font-weight: 700; letter-spacing: -2px;
+    color: var(--text); display: inline-flex; align-items: baseline; }
+  .mark-pulse .dot { color: var(--accent); font-family: "JetBrains Mono", monospace;
+    font-weight: 400; margin-left: 2px; position: relative; top: -0.02em;
+    animation: pulse 3s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { filter: drop-shadow(0 0 2px var(--accent)); }
+    50%      { filter: drop-shadow(0 0 10px var(--accent)); }
+  }
+
+  /* 7. favicon-sized tile */
+  .favicon-row { display: flex; align-items: center; gap: 24px; }
+  .favicon-row .fv { background: var(--bg); padding: 4px; border-radius: 10px;
+    border: 1px solid var(--hairline); }
+  .favicon-row .fv .mark { background: var(--accent); color: var(--bg);
+    font-weight: 700; letter-spacing: -.5px; display: inline-flex;
+    align-items: center; justify-content: center; }
+  .fv-16 .mark { width: 16px; height: 16px; border-radius: 4px; font-size: 10px; }
+  .fv-32 .mark { width: 32px; height: 32px; border-radius: 7px; font-size: 18px; }
+  .fv-48 .mark { width: 48px; height: 48px; border-radius: 10px; font-size: 26px; }
+
+  /* 8. sidebar mockup */
+  .sidebar-mock { width: 100%; background: var(--surface-1);
+    border: 1px solid var(--hairline); border-radius: 12px; padding: 16px;
+    display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+  .sidebar-mock .row { display: flex; align-items: center; gap: 12px;
+    width: 100%; }
+  .sidebar-mock .brand-mark { width: 40px; height: 40px; border-radius: 10px;
+    background: var(--accent); color: var(--bg); display: inline-flex;
+    align-items: center; justify-content: center; font-weight: 700;
+    font-size: 22px; letter-spacing: -0.5px; position: relative; }
+  .sidebar-mock .brand-mark::after { content: "·"; position: absolute;
+    right: 7px; bottom: 4px; font-size: 14px; opacity: 0.7;
+    font-family: "JetBrains Mono", monospace; }
+  .sidebar-mock .brand-text .word { font-weight: 600; font-size: 16px;
+    letter-spacing: -0.2px; }
+  .sidebar-mock .brand-text .word .tail { color: var(--accent); opacity: 0.85; }
+  .sidebar-mock .brand-text .role { font-size: 11px; color: var(--text-subtle);
+    text-transform: uppercase; letter-spacing: 0.8px; }
+  .sidebar-mock .nav-item { width: 100%; padding: 10px 12px;
+    border-radius: 8px; display: flex; align-items: center; gap: 10px;
+    color: var(--text-muted); font-size: 14px; }
+  .sidebar-mock .nav-item.active { background: var(--accent-soft);
+    color: var(--accent); position: relative; }
+  .sidebar-mock .nav-item.active::before { content: ""; position: absolute;
+    left: -16px; top: 8px; bottom: 8px; width: 3px; background: var(--accent);
+    border-radius: 0 2px 2px 0; }
+  .sidebar-mock .dot-icon { width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; opacity: 0.6; }
+
+  footer { padding: 24px 48px 48px; color: var(--text-subtle); font-size: 12px;
+    border-top: 1px solid var(--hairline); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Sundarr · 字标样张 v0.1</h1>
+    <p>8 种变体 · 点右边按钮在亮色/暗色/跟随系统之间切换</p>
+  </div>
+  <div class="theme-switch" role="tablist" aria-label="主题切换">
+    <button data-theme-btn="light" aria-selected="false">亮色</button>
+    <button data-theme-btn="dark"  aria-selected="false">暗色</button>
+    <button data-theme-btn="auto"  aria-selected="true">跟随系统</button>
+  </div>
+</header>
+
+<div class="grid">
+
+  <div class="card">
+    <span class="eyebrow">01 · inline wordmark</span>
+    <div class="stage"><span class="mark-inline">S<span class="dot">·</span></span></div>
+    <span class="caption">主字标 · Inter 700 "S" + JetBrains Mono "·"<br>出现在登录 / 关于页 / 加载大屏</span>
+  </div>
+
+  <div class="card">
+    <span class="eyebrow">02 · square block (solid)</span>
+    <div class="stage"><span class="mark-block">S</span></div>
+    <span class="caption">实心方块 · 64px/16r · 侧边栏 brand · favicon 源<br>"·" 位于右下 baseline-trailing</span>
+  </div>
+
+  <div class="card">
+    <span class="eyebrow">03 · square block (outline)</span>
+    <div class="stage"><span class="mark-block-outline">S</span></div>
+    <span class="caption">描边方块 · 作 hover / disabled / 退出态备用</span>
+  </div>
+
+  <div class="card">
+    <span class="eyebrow">04 · nav mini-brand</span>
+    <div class="stage">
+      <div class="nav-brand">
+        <span class="mark-sm">S</span>
+        <span class="word">Sunda<span class="tail">r·r</span></span>
+      </div>
+    </div>
+    <span class="caption">手机顶栏 / 折叠侧边栏头部<br>尾部 r·r 点染 terracotta 呼应 *arr 家族</span>
+  </div>
+
+  <div class="card">
+    <span class="eyebrow">05 · full wordmark</span>
+    <div class="stage"><span class="wordmark">sunda<span class="tail">r·r</span></span></div>
+    <span class="caption">全小写 wordmark · 文档封面 / PR 描述 / 关于页</span>
+  </div>
+
+  <div class="card">
+    <span class="eyebrow">06 · power-on pulse</span>
+    <div class="stage"><span class="mark-pulse">S<span class="dot">·</span></span></div>
+    <span class="caption">仅 "·" drop-shadow 呼吸 3s ease-in-out<br>唯一的装饰性动效 · 应用加载 splash 使用</span>
+  </div>
+
+  <div class="card">
+    <span class="eyebrow">07 · favicon ladder</span>
+    <div class="stage">
+      <div class="favicon-row">
+        <div class="fv fv-16"><span class="mark">S</span></div>
+        <div class="fv fv-32"><span class="mark">S</span></div>
+        <div class="fv fv-48"><span class="mark">S</span></div>
+      </div>
+    </div>
+    <span class="caption">16 / 32 / 48 px · 16px 以下省略 "·"<br>apple-touch-icon 使用填色底而非透明</span>
+  </div>
+
+  <div class="card">
+    <span class="eyebrow">08 · sidebar application</span>
+    <div class="stage" style="padding:0;width:100%">
+      <div class="sidebar-mock">
+        <div class="row">
+          <span class="brand-mark">S</span>
+          <span class="brand-text">
+            <div class="word">Sunda<span class="tail">r·r</span></div>
+            <div class="role">Web Console</div>
+          </span>
+        </div>
+        <div class="nav-item active">
+          <span class="dot-icon"></span> 任务
+        </div>
+        <div class="nav-item">
+          <span class="dot-icon"></span> 存储
+        </div>
+      </div>
+    </div>
+    <span class="caption">字标在侧边栏的真实应用位置<br>活动 nav 项继承同色规范</span>
+  </div>
+
+</div>
+
+<footer>
+  docs/16-design-system.md §5 · 实际 SVG/PNG/ICO 导出会在 Phase 7.8 开发时一起交付
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const KEY = "sundarr-logo-preview-theme";
+  const buttons = document.querySelectorAll("[data-theme-btn]");
+
+  function apply(mode) {
+    if (mode === "auto") {
+      root.removeAttribute("data-theme");
+    } else {
+      root.setAttribute("data-theme", mode);
+    }
+    buttons.forEach(b => b.setAttribute(
+      "aria-selected",
+      b.dataset.themeBtn === mode ? "true" : "false"
+    ));
+    localStorage.setItem(KEY, mode);
+  }
+  buttons.forEach(b => b.addEventListener("click",
+    () => apply(b.dataset.themeBtn)));
+  apply(localStorage.getItem(KEY) || "auto");
+</script>
+
+</body>
+</html>
