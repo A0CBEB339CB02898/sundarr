@@ -12,7 +12,7 @@ def local_writer(tmp_path: Path) -> LocalWriter:
 
 @pytest.mark.anyio
 async def test_local_writer_appends_checks_size_and_renames(local_writer: LocalWriter) -> None:
-    temp_path = "Movies/Movie.mkv.downloading"
+    temp_path = "Movies/Movie.mkv.sundarr.downloading"
     final_path = "Movies/Movie.mkv"
 
     file = await local_writer.open_append(temp_path)
@@ -38,12 +38,12 @@ async def test_local_writer_does_not_overwrite_existing_target(local_writer: Loc
     first = await local_writer.open_append("Movies/Existing.mkv")
     with first:
         first.write(b"old")
-    second = await local_writer.open_append("Movies/New.mkv.downloading")
+    second = await local_writer.open_append("Movies/New.mkv.sundarr.downloading")
     with second:
         second.write(b"new")
 
     with pytest.raises(ValueError, match="TARGET_EXISTS"):
-        await local_writer.rename("Movies/New.mkv.downloading", "Movies/Existing.mkv")
+        await local_writer.rename("Movies/New.mkv.sundarr.downloading", "Movies/Existing.mkv")
 
 
 @pytest.mark.anyio
