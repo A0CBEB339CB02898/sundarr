@@ -79,7 +79,7 @@ def test_get_transfer_returns_progress_and_current_file(db_session: Session) -> 
             task_id=task.id,
             cloud_path="/Sundarr/_staging/task/Movie.mkv",
             target_path="Movies/Movie.mkv",
-            temp_path="Movies/Movie.mkv.downloading",
+            temp_path="Movies/Movie.mkv.sundarr.downloading",
             filename="Movie.mkv",
             size_bytes=10,
             done_bytes=4,
@@ -163,7 +163,7 @@ def test_cancel_running_transfer_cancels_active_files(db_session: Session) -> No
             task_id=task.id,
             cloud_path="/Sundarr/_staging/task/Movie.mkv",
             target_path="Movies/Movie.mkv",
-            temp_path="Movies/Movie.mkv.downloading",
+            temp_path="Movies/Movie.mkv.sundarr.downloading",
             filename="Movie.mkv",
             size_bytes=10,
             done_bytes=4,
@@ -179,7 +179,7 @@ def test_cancel_running_transfer_cancels_active_files(db_session: Session) -> No
     transfer_file = db_session.get(TransferFile, "file_cancel")
     assert task.status == "cancelled"
     assert transfer_file.status == "cancelled"
-    assert transfer_file.temp_path == "Movies/Movie.mkv.downloading"
+    assert transfer_file.temp_path == "Movies/Movie.mkv.sundarr.downloading"
 
 
 def test_cancel_completed_transfer_is_rejected(db_session: Session) -> None:
@@ -233,7 +233,7 @@ def test_retry_failed_retryable_transfer(db_session: Session) -> None:
             task_id=task.id,
             cloud_path="/Sundarr/_staging/task/Movie.mkv",
             target_path="Movies/Movie.mkv",
-            temp_path="Movies/Movie.mkv.downloading",
+            temp_path="Movies/Movie.mkv.sundarr.downloading",
             filename="Movie.mkv",
             size_bytes=10,
             done_bytes=4,
@@ -257,7 +257,7 @@ def test_retry_failed_retryable_transfer(db_session: Session) -> None:
     transfer_file = db_session.get(TransferFile, "file_retry")
     assert task.done_bytes == 0
     assert task.storage_config_snapshot is None
-    assert transfer_file.temp_path == "Movies/Movie.mkv.downloading"
+    assert transfer_file.temp_path == "Movies/Movie.mkv.sundarr.downloading"
     assert transfer_file.status == "failed"
     log = db_session.query(TransferLog).order_by(TransferLog.created_at.desc()).first()
     assert log.event == "task_retried"
