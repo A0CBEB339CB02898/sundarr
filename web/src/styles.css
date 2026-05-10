@@ -2036,3 +2036,547 @@ h2 {
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
+
+
+/* ================================================================ */
+/* Phase 7.8 Step 5 (a) · Transfers page                            */
+/* docs/16-design-system.md §6.6 / §6.7 / §6.10 / §6.12 / §7.6      */
+/* ================================================================ */
+
+/* 通用 eyebrow label (uppercase tracking)                          */
+.ui-eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+/* Transfers · 页面布局 --------------------------------------------- */
+.tx-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.tx-overview {
+  display: grid;
+  gap: var(--space-3);
+}
+.tx-overview-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+.tx-overview-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+.tx-overview-lead {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  max-width: 640px;
+}
+.tx-overview-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .tx-overview-head {
+    flex-direction: column;
+  }
+  .tx-overview-head h2 {
+    font-size: 20px;
+  }
+}
+
+/* Transfers · 任务表格（§6.7） ------------------------------------ */
+.tx-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+.tx-table-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--hairline);
+}
+.tx-table-count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-subtle);
+}
+.tx-table {
+  display: grid;
+}
+.tx-table-header {
+  display: grid;
+  grid-template-columns: 110px 1fr 180px 110px 110px 120px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-5);
+  height: 32px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--hairline);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+.tx-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+  border-bottom: 1px solid var(--hairline);
+  transition: background-color var(--motion-fast) var(--ease-out);
+  position: relative;
+}
+.tx-row:last-child {
+  border-bottom: none;
+}
+.tx-row:hover {
+  background: var(--surface-2);
+}
+.tx-row[data-selected="true"] {
+  background: var(--accent-tint);
+}
+.tx-row[data-selected="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+}
+.tx-row-main {
+  all: unset;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 110px 1fr 180px 110px 110px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-5);
+  min-height: 48px;
+  font-size: 14px;
+}
+.tx-row-main:focus-visible {
+  outline: 2px solid var(--accent-pressed);
+  outline-offset: -2px;
+}
+.tx-col-status {
+  display: inline-flex;
+}
+.tx-col-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.tx-col-title strong {
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tx-col-title small {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tx-col-progress {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+.tx-col-progress em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  min-width: 36px;
+  text-align: right;
+}
+.tx-col-num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.tx-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-5) 0 var(--space-3);
+}
+
+/* 响应式：平板折叠更新列；手机折叠为卡片 */
+@media (max-width: 1023px) {
+  .tx-table-header {
+    grid-template-columns: 96px 1fr 140px 96px 120px;
+  }
+  .tx-row-main {
+    grid-template-columns: 96px 1fr 140px 96px 120px;
+  }
+  .tx-table-header > :nth-child(5) { display: none; }
+  .tx-row-main > .tx-col-num:last-child { display: none; }
+  .tx-table-header {
+    grid-template-columns: 96px 1fr 140px 96px;
+  }
+  .tx-row-main {
+    grid-template-columns: 96px 1fr 140px 96px;
+  }
+}
+@media (max-width: 640px) {
+  .tx-table-header { display: none; }
+  .tx-row {
+    grid-template-columns: 1fr;
+  }
+  .tx-row-main {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-5);
+  }
+  .tx-row-main > .tx-col-num { display: none; }
+  .tx-row-main > .tx-col-progress {
+    grid-template-columns: 1fr auto;
+  }
+  .tx-row-actions {
+    padding: 0 var(--space-5) var(--space-4);
+    justify-content: flex-end;
+  }
+}
+
+/* Transfers · 查询表单 -------------------------------------------- */
+.tx-lookup {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: var(--space-4);
+}
+@media (max-width: 640px) {
+  .tx-lookup {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Transfers · 操作行 ---------------------------------------------- */
+.tx-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Transfers · 任务摘要 -------------------------------------------- */
+.tx-summary {
+  display: grid;
+  gap: var(--space-4);
+}
+.tx-summary-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.tx-summary-id {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-subtle);
+}
+.tx-summary-path {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+  word-break: break-all;
+}
+.tx-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+}
+.tx-detail-item {
+  display: grid;
+  gap: 2px;
+}
+.tx-detail-item dt {
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+.tx-detail-item dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+.tx-detail-item dd[data-mono="true"] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.tx-error-card {
+  padding: var(--space-3) var(--space-4);
+  background: var(--danger-bg);
+  border: 1px solid color-mix(in srgb, var(--danger-text) 30%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--danger-text);
+}
+.tx-error-card strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.tx-error-card p {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* Transfers · Notice --------------------------------------------- */
+.tx-notice {
+  border-left: 3px solid var(--warning);
+}
+.tx-notice strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.tx-notice p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Transfers · 日志 ------------------------------------------------ */
+.tx-logs {
+  padding: 0;
+  overflow: hidden;
+}
+.tx-logs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--hairline);
+}
+.tx-logs-count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+.tx-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.tx-log-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--hairline);
+}
+.tx-log-item:last-child {
+  border-bottom: none;
+}
+.tx-log-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.tx-log-head strong {
+  font-weight: 500;
+  color: var(--text);
+  font-size: 14px;
+}
+.tx-log-head time {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.tx-log-level {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.tx-log-level[data-level="info"]    { color: var(--info);        background: var(--info-tint); }
+.tx-log-level[data-level="warning"] { color: var(--warning);     background: var(--warning-tint); }
+.tx-log-level[data-level="warn"]    { color: var(--warning);     background: var(--warning-tint); }
+.tx-log-level[data-level="error"]   { color: var(--danger-text); background: var(--danger-bg); }
+.tx-log-level[data-level="debug"]   { color: var(--text-subtle); }
+.tx-log-item p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.tx-log-item code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  display: block;
+}
+
+/* Transfers · 全局浮动面板（§6.10） ------------------------------- */
+.tx-dock {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  width: 420px;
+  max-width: calc(100vw - 2 * var(--space-5));
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.tx-dock-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-4);
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.tx-dock-tab:hover {
+  background: var(--surface-2);
+}
+.tx-dock-tab strong {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--bg);
+}
+.tx-dock-card {
+  display: none;
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.tx-dock[data-open] .tx-dock-card {
+  display: grid;
+}
+.tx-dock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--hairline);
+}
+.tx-dock-head .ui-eyebrow {
+  margin: 0;
+}
+.tx-dock-head-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+.tx-dock-list {
+  display: grid;
+  gap: 0;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+.tx-dock-row {
+  all: unset;
+  cursor: pointer;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--hairline);
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.tx-dock-row:hover {
+  background: var(--surface-2);
+}
+.tx-dock-row:focus-visible {
+  outline: 2px solid var(--accent-pressed);
+  outline-offset: -2px;
+}
+.tx-dock-row:last-child {
+  border-bottom: none;
+}
+.tx-dock-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.tx-dock-row-head strong {
+  font-weight: 500;
+  color: var(--text);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+.tx-dock-row small {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tx-dock-cta {
+  margin: 0 var(--space-4) var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .tx-dock {
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: var(--space-3);
+    width: auto;
+    align-items: stretch;
+  }
+  .tx-dock-tab {
+    width: max-content;
+    align-self: flex-end;
+  }
+}
