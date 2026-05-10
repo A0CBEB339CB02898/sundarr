@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
@@ -34,10 +36,23 @@ def test_health_returns_ok() -> None:
         health_api._worker_status = original_worker_status
 
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
-    assert response.json()["database"] == "ok"
-    assert response.json()["redis"] == "ok"
-    assert response.json()["worker"] == "ok"
+    body = response.json()
+    # Scalar fields (legacy contract, docs/09-api-contract.md §2).
+    assert body["status"] == "ok"
+    assert body["database"] == "ok"
+    assert body["redis"] == "ok"
+    assert body["worker"] == "ok"
+    # Per-component block with its own checked_at timestamp so the web
+    # console can surface staleness per component.
+    assert set(body["components"].keys()) == {"api", "database", "redis", "worker"}
+    for name, component in body["components"].items():
+        assert component["status"] in {"ok", "error", "unknown"}, name
+        # Timestamps must parse as ISO-8601 UTC (`...Z` suffix).
+        timestamp = component["checked_at"]
+        assert timestamp.endswith("Z"), timestamp
+        datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    # Top-level checked_at is kept as a convenience (last probe timestamp).
+    assert body["checked_at"].endswith("Z")
 
 
 def test_worker_status_unknown_without_pid(monkeypatch) -> None:
