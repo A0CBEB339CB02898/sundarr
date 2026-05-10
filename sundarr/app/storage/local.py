@@ -29,11 +29,14 @@ class LocalWriter(StorageWriter):
         target.parent.mkdir(parents=True, exist_ok=True)
         return target.open("ab")
 
-    async def open_read(self, path: str) -> BinaryIO:
+    async def open_read(self, path: str, offset: int = 0) -> BinaryIO:
         target = self._resolve_path(path)
         if not target.exists() or not target.is_file():
             raise ValueError("STORAGE_PATH_NOT_FOUND")
-        return target.open("rb")
+        handle = target.open("rb")
+        if offset:
+            handle.seek(offset)
+        return handle
 
     async def rename(self, src: str, dst: str) -> None:
         source = self._resolve_path(src)
@@ -57,6 +60,13 @@ class LocalWriter(StorageWriter):
         if target == self.root:
             raise ValueError("STORAGE_REMOVE_ROOT_FORBIDDEN")
         target.rmdir()
+
+    async def truncate(self, path: str, size: int = 0) -> None:
+        target = self._resolve_path(path)
+        if not target.exists():
+            return
+        with target.open("r+b") as handle:
+            handle.truncate(max(0, int(size)))
 
     def _resolve_path(self, path: str) -> Path:
         relative = path.strip().replace("\\", "/").strip("/")

@@ -22,7 +22,7 @@ class StorageWriter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def open_read(self, path: str) -> BinaryIO:
+    async def open_read(self, path: str, offset: int = 0) -> BinaryIO:
         raise NotImplementedError
 
     @abstractmethod
@@ -35,4 +35,8 @@ class StorageWriter(ABC):
 
     @abstractmethod
     async def remove_empty_dir(self, path: str) -> None:
+        raise NotImplementedError
+
+    async def truncate(self, path: str, size: int = 0) -> None:
+        """Truncate an existing file to ``size`` bytes. Default clears the file."""
         raise NotImplementedError

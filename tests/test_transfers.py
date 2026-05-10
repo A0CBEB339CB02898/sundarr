@@ -255,7 +255,7 @@ def test_retry_failed_retryable_transfer(db_session: Session) -> None:
     assert body["retry_count"] == 3
     db_session.refresh(task)
     transfer_file = db_session.get(TransferFile, "file_retry")
-    assert task.done_bytes == 0
+    assert task.done_bytes == 4
     assert task.storage_config_snapshot is None
     assert transfer_file.temp_path == "Movies/Movie.mkv.sundarr.downloading"
     assert transfer_file.status == "failed"
@@ -393,3 +393,81 @@ def _add_task(db_session: Session, link: ResourceLink, status: str) -> TransferT
     db_session.add(task)
     db_session.commit()
     return task
+
+
+
+def test_pause_running_transfer(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "downloading")
+    task.done_bytes = 42
+    task.speed_bytes_per_sec = 1024
+    db_session.commit()
+
+    response = client.post(f"/transfers/{task.id}/pause")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "paused"
+    assert body["speed_bytes_per_sec"] == 0
+    db_session.refresh(task)
+    assert task.status == "paused"
+    assert task.done_bytes == 42
+    log = db_session.query(TransferLog).order_by(TransferLog.created_at.desc()).first()
+    assert log.event == "task_paused"
+    assert log.data_json == {"previous_status": "downloading", "done_bytes": 42}
+
+
+def test_pause_completed_transfer_rejected(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "completed")
+
+    response = client.post(f"/transfers/{task.id}/pause")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "当前任务状态不允许暂停。"
+
+
+def test_resume_paused_transfer(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "paused")
+    task.done_bytes = 7
+    db_session.commit()
+
+    response = client.post(f"/transfers/{task.id}/resume")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "pending"
+    assert body["done_bytes"] == 7
+    db_session.refresh(task)
+    assert task.status == "pending"
+    log = db_session.query(TransferLog).order_by(TransferLog.created_at.desc()).first()
+    assert log.event == "task_resumed"
+    assert log.data_json == {"done_bytes": 7}
+
+
+def test_resume_non_paused_transfer_rejected(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "downloading")
+
+    response = client.post(f"/transfers/{task.id}/resume")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "当前任务未处于暂停状态。"
+
+
+def test_transfer_response_exposes_speed(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "downloading")
+    task.speed_bytes_per_sec = 2048
+    db_session.commit()
+
+    response = client.get(f"/transfers/{task.id}")
+
+    assert response.status_code == 200
+    assert response.json()["speed_bytes_per_sec"] == 2048

@@ -79,12 +79,32 @@ class SmbWriter(StorageWriter):
         except Exception as exc:
             raise ValueError("SMB_WRITE_FAILED") from exc
 
-    async def open_read(self, path: str) -> BinaryIO:
+    async def open_read(self, path: str, offset: int = 0) -> BinaryIO:
         smbclient = self._require_smbclient()
         try:
-            return smbclient.open_file(self._build_unc_path(path), mode="rb")
+            handle = smbclient.open_file(self._build_unc_path(path), mode="rb")
         except Exception as exc:
             self._raise_smb_error(exc)
+            raise  # pragma: no cover - _raise_smb_error always raises
+        if offset:
+            try:
+                handle.seek(offset)
+            except Exception as exc:
+                handle.close()
+                self._raise_smb_error(exc)
+                raise  # pragma: no cover
+        return handle
+
+    async def truncate(self, path: str, size: int = 0) -> None:
+        smbclient = self._require_smbclient()
+        target = self._build_unc_path(path)
+        try:
+            if not smbclient.path.exists(target):
+                return
+            with smbclient.open_file(target, mode="r+b") as handle:
+                handle.truncate(max(0, int(size)))
+        except Exception as exc:
+            raise ValueError("SMB_WRITE_FAILED") from exc
 
     async def rename(self, src: str, dst: str) -> None:
         smbclient = self._require_smbclient()

@@ -5,8 +5,10 @@ from sqlalchemy.orm import Session, object_session
 from sundarr.app.models import ResourceLink, Setting, SyncSeenFile, TransferFile, TransferLog, TransferTask
 from sundarr.app.schemas.transfer import TransferCreateRequest, TransferLogResponse, TransferResponse
 
-CANCELLABLE_TRANSFER_STATUSES = {"pending", "staging_to_cloud", "cloud_ready", "downloading", "verifying"}
+CANCELLABLE_TRANSFER_STATUSES = {"pending", "staging_to_cloud", "cloud_ready", "downloading", "verifying", "paused"}
 CANCELLABLE_FILE_STATUSES = {"pending", "downloading", "verified"}
+PAUSABLE_TRANSFER_STATUSES = {"pending", "staging_to_cloud", "cloud_ready", "downloading", "verifying"}
+RESUMABLE_TRANSFER_STATUSES = {"paused"}
 SENSITIVE_LOG_KEYS = {"password", "token", "cookie", "secret"}
 
 
@@ -85,7 +87,8 @@ class TransferService:
         task.error_message = None
         task.retryable = None
         task.retry_count += 1
-        task.done_bytes = 0
+        # Keep done_bytes so the worker can resume from the existing .sundarr.downloading file.
+        task.speed_bytes_per_sec = 0
         task.completed_at = None
         task.storage_config_snapshot = None
         db.add(
@@ -96,6 +99,53 @@ class TransferService:
                 event="task_retried",
                 message="任务已重新入队，保留 .downloading 文件和 cloud staging。",
                 data_json={"previous_error_code": previous_error_code, "retry_count": task.retry_count},
+            )
+        )
+        db.commit()
+        db.refresh(task)
+        return self._to_response(task)
+
+    def pause_transfer(self, db: Session, task_id: str) -> TransferResponse:
+        task = db.get(TransferTask, task_id)
+        if task is None:
+            raise ValueError("TRANSFER_TASK_NOT_FOUND")
+        if task.status not in PAUSABLE_TRANSFER_STATUSES:
+            raise ValueError("TRANSFER_TASK_NOT_PAUSABLE")
+
+        previous_status = task.status
+        task.status = "paused"
+        task.speed_bytes_per_sec = 0
+        db.add(
+            TransferLog(
+                id=uuid4().hex,
+                task_id=task.id,
+                level="info",
+                event="task_paused",
+                message="任务已暂停，保留 .sundarr.downloading 文件。",
+                data_json={"previous_status": previous_status, "done_bytes": task.done_bytes},
+            )
+        )
+        db.commit()
+        db.refresh(task)
+        return self._to_response(task)
+
+    def resume_transfer(self, db: Session, task_id: str) -> TransferResponse:
+        task = db.get(TransferTask, task_id)
+        if task is None:
+            raise ValueError("TRANSFER_TASK_NOT_FOUND")
+        if task.status not in RESUMABLE_TRANSFER_STATUSES:
+            raise ValueError("TRANSFER_TASK_NOT_RESUMABLE")
+
+        task.status = "pending"
+        task.speed_bytes_per_sec = 0
+        db.add(
+            TransferLog(
+                id=uuid4().hex,
+                task_id=task.id,
+                level="info",
+                event="task_resumed",
+                message="任务已恢复，将从断点继续。",
+                data_json={"done_bytes": task.done_bytes},
             )
         )
         db.commit()
@@ -166,6 +216,7 @@ class TransferService:
             sync_seen_file_id=task.sync_seen_file_id,
             total_bytes=task.total_bytes,
             done_bytes=task.done_bytes,
+            speed_bytes_per_sec=task.speed_bytes_per_sec or 0,
             progress=self._progress(task),
             current_file=self._current_file(task),
             error_code=task.error_code,

@@ -45,6 +45,22 @@ async def retry_transfer(task_id: str, db: Session = Depends(get_db)) -> Transfe
         raise _transfer_error(exc) from exc
 
 
+@router.post("/transfers/{task_id}/pause", response_model=TransferResponse)
+async def pause_transfer(task_id: str, db: Session = Depends(get_db)) -> TransferResponse:
+    try:
+        return transfer_service.pause_transfer(db, task_id)
+    except ValueError as exc:
+        raise _transfer_error(exc) from exc
+
+
+@router.post("/transfers/{task_id}/resume", response_model=TransferResponse)
+async def resume_transfer(task_id: str, db: Session = Depends(get_db)) -> TransferResponse:
+    try:
+        return transfer_service.resume_transfer(db, task_id)
+    except ValueError as exc:
+        raise _transfer_error(exc) from exc
+
+
 @router.get("/transfers/{task_id}/logs", response_model=list[TransferLogResponse])
 async def list_transfer_logs(task_id: str, db: Session = Depends(get_db)) -> list[TransferLogResponse]:
     try:
@@ -74,6 +90,18 @@ def _transfer_error(exc: ValueError) -> HTTPException:
         "TRANSFER_TASK_NOT_FOUND": "搬运任务不存在。",
         "TRANSFER_TASK_NOT_CANCELLABLE": "当前任务状态不允许取消。",
         "TRANSFER_TASK_NOT_RETRYABLE": "当前任务状态不允许重试。",
+        "TRANSFER_TASK_NOT_PAUSABLE": "当前任务状态不允许暂停。",
+        "TRANSFER_TASK_NOT_RESUMABLE": "当前任务未处于暂停状态。",
     }
-    status_code = 409 if str(exc) in {"TRANSFER_TASK_NOT_CANCELLABLE", "TRANSFER_TASK_NOT_RETRYABLE"} else 404
+    status_code = (
+        409
+        if str(exc)
+        in {
+            "TRANSFER_TASK_NOT_CANCELLABLE",
+            "TRANSFER_TASK_NOT_RETRYABLE",
+            "TRANSFER_TASK_NOT_PAUSABLE",
+            "TRANSFER_TASK_NOT_RESUMABLE",
+        }
+        else 404
+    )
     return HTTPException(status_code=status_code, detail=messages.get(str(exc), "搬运任务请求无效。"))
