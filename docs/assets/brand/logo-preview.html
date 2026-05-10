@@ -83,21 +83,14 @@
   .mark-24 { width: 24px; height: 24px; display: block; }
   .mark-16 { width: 16px; height: 16px; display: block; }
 
-  /* === wordmark（☀ 文本形态版）=== */
-  /* 使用 ☀︎（U+2600 U+FE0E 文本变体），强制文本呈现而非彩色 emoji。
-     字体栈主动排除所有 Color Emoji，浏览器就会落到普通字体的 ☀ 轮廓字符。 */
+  /* === wordmark（r·r 规则）=== */
+  /* 中间的 · 用 accent 主色调渲染 */
   .sundarr { display: inline-flex; align-items: baseline; white-space: nowrap;
     font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
-  .sundarr .sun { display: inline-block;
-    /* 故意不包含任何 Color Emoji 字体；系统会用 Symbol/sans 字体里的单色字形 */
-    font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif;
-    font-variant-emoji: text;                 /* 现代浏览器强制文本呈现 */
-    font-weight: normal;
-    color: var(--accent);                     /* 文本形态跟随 currentColor，染 terracotta */
-    margin: 0 0.08em;
-    font-size: 0.82em;
-    position: relative; top: 0.02em;
-    line-height: 1;
+  .sundarr .sep {
+    color: var(--accent);                     /* · 跟随 accent terracotta */
+    font-weight: 700;                         /* 让点更显眼 */
+    margin: 0 0.02em;
   }
   .sundarr[data-size="hero"]   { font-size: 48px; letter-spacing: -1.2px; }
   .sundarr[data-size="brand"]  { font-size: 15px; }
@@ -142,8 +135,8 @@
 
 <header>
   <div>
-    <h1>Sundarr · 品牌标识 v0.9</h1>
-    <p>☀ 用 Unicode 字符的<strong>文本形态</strong> · 单色 · 跟随 accent 颜色</p>
+    <h1>Sundarr · 品牌标识 v1.0</h1>
+    <p>wordmark 回归 r·r ·  中间的 · 用 accent 主色调 · 徽章仍用 ☀</p>
   </div>
   <div class="theme-switch" role="tablist" aria-label="主题切换">
     <button data-theme-btn="light" aria-selected="false">亮色</button>
@@ -153,12 +146,11 @@
 </header>
 
 <div class="note">
-  <strong>文本形态 ☀︎</strong>：使用 <code>U+2600</code> +
-  <strong><code>U+FE0E</code></strong>（文本变体选择符）。配合
-  <code>font-variant-emoji: text</code> 和一个不含 Color Emoji 的字体栈，
-  浏览器会渲染为<strong>单色轮廓字符</strong>，而不是 Apple/Segoe 的彩色 emoji。
-  颜色跟随 <code>color</code> 属性（我们设为 <code>--accent</code> terracotta）。
-  跨平台也稳定，不会出现 macOS 是饱满彩色、Windows 是另一种彩色的差异。
+  <strong>wordmark 回到 r·r</strong>：中间的 <code>·</code> 用 CSS 染成
+  <code>--accent</code> terracotta 主色调。不再在文字之间混入 ☀ 字形，
+  视觉最简洁、跨平台零风险。<br>
+  <strong>徽章里的 ☀</strong>（I / J 候选）仍保留 Unicode 文本形态（U+2600 + U+FE0E），
+  单色、跟随 mark-fg 奶油白。wordmark 和徽章分工清晰：文字归文字、图形归图形。
 </div>
 
 <!-- ================================================================= -->
@@ -207,27 +199,27 @@
 <!--  wordmark 三档                                                      -->
 <!-- ================================================================= -->
 <section>
-  <h2>wordmark · r☀r 规则</h2>
-  <p>所有 <code>Sundarr</code> 文本的 <code>r·r</code> 中间永远是 ☀ emoji。</p>
+  <h2>wordmark · r·r 规则</h2>
+  <p>所有 <code>Sundarr</code> 文本的 <code>r·r</code> 中间用 <code>--accent</code> terracotta 主色染色。</p>
   <div class="grid">
     <div class="card">
       <span class="eyebrow">hero · 48px</span>
       <div class="stage">
-        <span class="sundarr" data-size="hero">sunda<span>r</span><span class="sun">☀︎</span><span>r</span></span>
+        <span class="sundarr" data-size="hero">sunda<span>r</span><span class="sep">·</span><span>r</span></span>
       </div>
       <div class="desc">文档封面 / splash / 关于页。</div>
     </div>
     <div class="card">
       <span class="eyebrow">brand · 15px</span>
       <div class="stage">
-        <span class="sundarr" data-size="brand">Sunda<span>r</span><span class="sun">☀︎</span><span>r</span></span>
+        <span class="sundarr" data-size="brand">Sunda<span>r</span><span class="sep">·</span><span>r</span></span>
       </div>
       <div class="desc">顶栏 / 侧栏副标。</div>
     </div>
     <div class="card">
       <span class="eyebrow">inline · 16px</span>
       <div class="stage">
-        <span class="sundarr" data-size="inline">Sunda<span>r</span><span class="sun">☀︎</span><span>r</span></span>
+        <span class="sundarr" data-size="inline">Sunda<span>r</span><span class="sep">·</span><span>r</span></span>
       </div>
       <div class="desc">正文引用。小于 13px 退化为 ·</div>
     </div>
@@ -300,7 +292,7 @@
       <div class="stage">
         <div class="pattern-nav-brand">
           <svg class="mark-sm"><use href="#mark-I"/></svg>
-          <span class="sundarr" data-size="brand">Sunda<span>r</span><span class="sun">☀︎</span><span>r</span></span>
+          <span class="sundarr" data-size="brand">Sunda<span>r</span><span class="sep">·</span><span>r</span></span>
         </div>
       </div>
       <div class="desc">徽章 28px · wordmark 15px。</div>
@@ -310,7 +302,7 @@
       <span class="eyebrow">05 · 全 wordmark</span>
       <div class="title">文档封面 / 关于页 / PR 模板</div>
       <div class="stage">
-        <span class="sundarr" data-size="hero">sunda<span>r</span><span class="sun">☀︎</span><span>r</span></span>
+        <span class="sundarr" data-size="hero">sunda<span>r</span><span class="sep">·</span><span>r</span></span>
       </div>
       <div class="desc">无徽章、全小写 wordmark。</div>
     </div>
@@ -324,7 +316,7 @@
             <svg class="mark-md"><use href="#mark-I"/></svg>
             <div class="brand-text">
               <div>
-                <span class="sundarr" data-size="inline">Sunda<span>r</span><span class="sun">☀︎</span><span>r</span></span>
+                <span class="sundarr" data-size="inline">Sunda<span>r</span><span class="sep">·</span><span>r</span></span>
               </div>
               <div class="role">Web Console</div>
             </div>
