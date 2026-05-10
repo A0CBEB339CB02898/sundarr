@@ -32,8 +32,10 @@ type TransferResponse = {
   source_type: string | null
   source_path: string | null
   ingest_seen_file_id: string | null
+  sync_seen_file_id: string | null
   total_bytes: number
   done_bytes: number
+  speed_bytes_per_sec: number
   progress: number
   current_file: string | null
   error_code: string | null
@@ -745,6 +747,7 @@ function App() {
       <div className="toast-container">
         {toasts.map((toast) => (
           <div className={`toast ${toast.type}`} key={toast.id}>
+            <div className="toast-icon">{toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'i'}</div>
             <span className="toast-message">{toast.message}</span>
             <button className="toast-close" onClick={() => removeToast(toast.id)} type="button">×</button>
           </div>
@@ -1407,7 +1410,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>目录浏览</h3>
-              <button className="ghost-button" onClick={() => setShowBrowse(false)} type="button">×</button>
+              <button className="ghost-button" onClick={() => { setShowBrowse(false); setBrowseResult(null); setBrowsePath('') }} type="button">×</button>
             </div>
             <form className="lookup-form" onSubmit={(event) => { event.preventDefault(); void doBrowse() }}>
               <label>
@@ -1713,7 +1716,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>目录浏览</h3>
-              <button className="ghost-button" onClick={() => setShowBrowse(false)} type="button">×</button>
+              <button className="ghost-button" onClick={() => { setShowBrowse(false); setBrowseResult(null); setBrowsePath('') }} type="button">×</button>
             </div>
             <form className="lookup-form" onSubmit={(event) => { event.preventDefault(); void doBrowse() }}>
               <label>
@@ -2415,7 +2418,7 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>目录浏览</h3>
-              <button className="ghost-button" onClick={() => setShowBrowse(false)} type="button">×</button>
+              <button className="ghost-button" onClick={() => { setShowBrowse(false); setBrowseResult(null); setBrowsePath('') }} type="button">×</button>
             </div>
             <form className="lookup-form" onSubmit={(event) => { event.preventDefault(); void doBrowse() }}>
               <label>
@@ -2743,6 +2746,7 @@ function TransferSummary({ transfer }: { transfer: TransferResponse }) {
         <DetailItem label="目标类型" value={transfer.target_type} />
         <DetailItem label="已完成" value={formatBytes(transfer.done_bytes)} />
         <DetailItem label="总大小" value={formatBytes(transfer.total_bytes)} />
+        <DetailItem label="速度" value={transfer.speed_bytes_per_sec > 0 ? `${formatBytes(transfer.speed_bytes_per_sec)}/s` : '--'} />
         <DetailItem label="重试次数" value={String(transfer.retry_count)} />
         <DetailItem label="可重试" value={transfer.retryable === true ? '是' : '否'} />
       </div>
@@ -2804,34 +2808,42 @@ function TransferLogs({ logs }: { logs: TransferLogResponse[] }) {
 
 function StatusPanel() {
   const [health, setHealth] = useState<HealthResponse | null>(null)
+  const [workerState, setWorkerState] = useState<{ enabled: boolean; running: boolean; pid: number | null } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isMutating, setIsMutating] = useState(false)
 
-  useEffect(() => {
-    void loadHealth()
-  }, [])
+  useEffect(() => { void loadHealth() }, [])
 
   async function loadHealth() {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true); setError(null)
     try {
-      setHealth(await api.get<HealthResponse>('/health'))
+      const [h, w] = await Promise.all([
+        api.get<HealthResponse>('/health'),
+        api.get<{ enabled: boolean; running: boolean; pid: number | null }>('/worker/status'),
+      ])
+      setHealth(h); setWorkerState(w)
     } catch (exc) {
-      setHealth(null)
+      setHealth(null); setWorkerState(null)
       setError(exc instanceof Error ? exc.message : '无法读取系统状态。')
-    } finally {
-      setIsLoading(false)
-    }
+    } finally { setIsLoading(false) }
   }
 
-  const items = health
-    ? [
-        { label: 'API', value: health.status },
-        { label: 'PostgreSQL', value: health.database },
-        { label: 'Redis', value: health.redis },
-        { label: 'Worker', value: health.worker },
-      ]
-    : []
+  async function toggleWorker(enable: boolean) {
+    setIsMutating(true); setError(null)
+    try {
+      await api.post(enable ? '/worker/resume' : '/worker/pause')
+      void loadHealth()
+    } catch (exc) { setError(exc instanceof Error ? exc.message : '操作失败。') }
+    finally { setIsMutating(false) }
+  }
+
+  const items = health ? [
+    { label: 'API', value: health.status },
+    { label: 'PostgreSQL', value: health.database },
+    { label: 'Redis', value: health.redis },
+    { label: 'Worker', value: health.worker },
+  ] : []
 
   return (
     <section className="panel" aria-labelledby="status-title">
@@ -2841,21 +2853,26 @@ function StatusPanel() {
           <h2 id="status-title">系统状态</h2>
           <p>调用 GET /health，展示 API、PostgreSQL、Redis 和 Worker 的当前状态。</p>
         </div>
-        <button className="primary-button" disabled={isLoading} onClick={loadHealth} type="button">
-          {isLoading ? '刷新中' : '刷新状态'}
-        </button>
+        <button className="primary-button" disabled={isLoading} onClick={() => void loadHealth()} type="button">{isLoading ? '刷新中' : '刷新状态'}</button>
       </div>
 
       {isLoading && !health ? <LoadingState message="正在读取系统状态。" /> : null}
-      {error ? <ErrorState message={error} /> : null}
-      {!isLoading && !error && !health ? <EmptyState message="尚未读取到系统状态。" /> : null}
+      {error ? <div className="inline-message error">{error}</div> : null}
 
       {health ? (
-        <div className="status-grid">
-          {items.map((item) => (
-            <StatusCard key={item.label} label={item.label} value={item.value} />
-          ))}
-        </div>
+        <>
+          <div className="status-grid">
+            {items.map((item) => (
+              <StatusCard key={item.label} label={item.label} value={item.value} />
+            ))}
+          </div>
+          {workerState && (
+            <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+              <button className="ghost-button" disabled={isMutating || !workerState.enabled} onClick={() => void toggleWorker(false)} type="button">暂停 Worker</button>
+              <button className="ghost-button" disabled={isMutating || workerState.enabled} onClick={() => void toggleWorker(true)} type="button">恢复 Worker</button>
+            </div>
+          )}
+        </>
       ) : null}
 
       <ApiClientPreview />

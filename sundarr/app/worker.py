@@ -307,7 +307,7 @@ async def _process_transfer_task(
 
     for file in files:
         target_path = task.target_path if len(files) == 1 else f"{task.target_path.rstrip('/')}/{file.name}"
-        temp_path = f"{target_path}.downloading"
+        temp_path = f"{target_path}.sundarr.downloading"
         transfer_file = TransferFile(
             id=uuid4().hex,
             task_id=task.id,
@@ -516,7 +516,7 @@ def _get_or_create_dtl_file(session: Session, task: TransferTask) -> TransferFil
         cloud_file_id=None,
         cloud_path=task.source_path,
         target_path=task.target_path,
-        temp_path=f"{task.target_path}.downloading",
+        temp_path=f"{task.target_path}.sundarr.downloading",
         filename=task.target_path.rsplit("/", 1)[-1] or task.target_path,
         size_bytes=task.total_bytes,
         done_bytes=0,

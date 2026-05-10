@@ -383,7 +383,7 @@ class DownloadToLocalService:
                 cloud_file_id=None,
                 cloud_path=seen.source_path,
                 target_path=target_path,
-                temp_path=f"{target_path}.downloading",
+                temp_path=f"{target_path}.sundarr.downloading",
                 filename=target_path.rsplit("/", 1)[-1] or target_path,
                 size_bytes=seen.source_size or 0,
                 status="pending",

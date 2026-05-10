@@ -117,7 +117,7 @@ def test_recover_running_tasks_marks_running_tasks_failed_retryable(db_session) 
             task_id="task_1",
             cloud_path="/Sundarr/_staging/task_1/Movie.mkv",
             target_path="Movies/Movie1.mkv",
-            temp_path="Movies/Movie1.mkv.downloading",
+            temp_path="Movies/Movie1.mkv.sundarr.downloading",
             filename="Movie.mkv",
             size_bytes=4,
             done_bytes=2,
@@ -138,7 +138,7 @@ def test_recover_running_tasks_marks_running_tasks_failed_retryable(db_session) 
         assert task.retryable is True
     transfer_file = db_session.get(TransferFile, "file_recovery")
     assert transfer_file.status == "failed"
-    assert transfer_file.temp_path == "Movies/Movie1.mkv.downloading"
+    assert transfer_file.temp_path == "Movies/Movie1.mkv.sundarr.downloading"
     logs = db_session.query(TransferLog).filter(TransferLog.event == "worker_startup_recovered").all()
     assert len(logs) == 2
 
@@ -223,7 +223,7 @@ async def test_process_transfer_task_local_happy_path(db_session, tmp_path: Path
     assert task.total_bytes == len(payload)
     assert task.done_bytes == len(payload)
     assert (storage_root / "Movies" / "Movie.mkv").read_bytes() == payload
-    assert not (storage_root / "Movies" / "Movie.mkv.downloading").exists()
+    assert not (storage_root / "Movies" / "Movie.mkv.sundarr.downloading").exists()
     assert not (staging_root / "task_local").exists()
 
     transfer_file = db_session.query(TransferFile).one()
@@ -368,7 +368,7 @@ async def test_process_transfer_task_marks_target_exists_and_keeps_temp(db_sessi
     assert task.status == "failed"
     assert task.error_code == "TARGET_EXISTS"
     assert task.retryable is False
-    assert (storage_root / "Movies" / "Movie.mkv.downloading").exists()
+    assert (storage_root / "Movies" / "Movie.mkv.sundarr.downloading").exists()
     assert target.read_bytes() == b"existing"
 
 
@@ -388,7 +388,7 @@ async def test_process_dtl_task_local_writers_happy_path(db_session, tmp_path: P
     assert task.status == "completed", f"Task failed: {task.error_code} - {task.error_message}"
     assert task.done_bytes == len(payload)
     assert (target_root / "Movies" / "CloudMovie" / "Movie.mkv").read_bytes() == payload
-    assert not (target_root / "Movies" / "CloudMovie" / "Movie.mkv.downloading").exists()
+    assert not (target_root / "Movies" / "CloudMovie" / "Movie.mkv.sundarr.downloading").exists()
     assert not source_file.exists()
     assert not source_file.parent.exists()
     assert db_session.get(SyncSeenFile, "seen_dtl").status == "completed"
@@ -415,7 +415,7 @@ async def test_process_dtl_task_failure_keeps_source_and_downloading(db_session,
     assert task.status == "failed"
     assert task.error_code == "SIZE_MISMATCH"
     assert source_file.exists()
-    assert (target_root / "Movies" / "CloudMovie" / "Movie.mkv.downloading").exists()
+    assert (target_root / "Movies" / "CloudMovie" / "Movie.mkv.sundarr.downloading").exists()
 
 
 @pytest.mark.anyio
@@ -530,7 +530,7 @@ def _seed_dtl_task(
         cloud_file_id=None,
         cloud_path=source_path,
         target_path=target_path,
-        temp_path=f"{target_path}.downloading",
+        temp_path=f"{target_path}.sundarr.downloading",
         filename=target_path.rsplit("/", 1)[-1],
         size_bytes=size,
         done_bytes=0,
@@ -602,7 +602,7 @@ def _seed_cleanup_task(
         task_id=task.id,
         cloud_path="/Sundarr/_staging/task_cleanup/Movie.mkv",
         target_path="Movies/Movie.mkv",
-        temp_path="Movies/Movie.mkv.downloading",
+        temp_path="Movies/Movie.mkv.sundarr.downloading",
         filename="Movie.mkv",
         size_bytes=4,
         done_bytes=4,
