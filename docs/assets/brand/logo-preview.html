@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Sundarr · 品牌标识 v0.7</title>
+<title>Sundarr · 品牌标识 v0.8</title>
 <style>
   :root {
     --bg: #11100e;
@@ -59,8 +59,6 @@
 
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px; }
-  .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-    gap: 20px; }
   .card { background: var(--surface-1); border: 1px solid var(--hairline);
     border-radius: 12px; padding: 24px; display: flex; flex-direction: column;
     gap: 14px; }
@@ -71,7 +69,6 @@
   .card .desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; }
   .card .stage { display: flex; align-items: center; justify-content: center;
     min-height: 140px; padding: 12px 0 4px; }
-  .card .stage.row { gap: 24px; }
   .card .scale-test { display: flex; align-items: center; justify-content: center;
     gap: 24px; padding: 10px 0; border-top: 1px dashed var(--hairline);
     border-bottom: 1px dashed var(--hairline); }
@@ -79,9 +76,6 @@
     align-items: center; gap: 4px; }
   .card .scale-test figcaption { font-size: 10px; color: var(--text-subtle);
     letter-spacing: 0.4px; font-family: "JetBrains Mono", ui-monospace, monospace; }
-  .card .ctx { padding-top: 4px; display: flex; align-items: center; gap: 10px; }
-  .card .ctx .role { font-size: 11px; color: var(--text-subtle);
-    text-transform: uppercase; letter-spacing: 0.8px; margin-left: auto; }
 
   .mark-lg { width: 120px; height: 120px; display: block; }
   .mark-md { width: 40px; height: 40px; display: block; flex: 0 0 40px; }
@@ -89,23 +83,21 @@
   .mark-24 { width: 24px; height: 24px; display: block; }
   .mark-16 { width: 16px; height: 16px; display: block; }
 
-  .chip { display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 10px; background: var(--accent-soft); color: var(--accent);
-    border-radius: 9999px; font-size: 11px; font-weight: 600;
-    letter-spacing: 0.4px; text-transform: uppercase; }
-
-  /* wordmark */
-  .sundarr { display: inline-flex; align-items: baseline; white-space: nowrap; }
-  .sundarr .sun {
-    display: inline-block; color: var(--accent); vertical-align: baseline;
-    margin: 0 0.04em; position: relative; top: 0.08em;
+  /* === wordmark（☀ emoji 版）=== */
+  /* 字符级别的 emoji 渲染，不会再有 SVG bug */
+  .sundarr { display: inline-flex; align-items: baseline; white-space: nowrap;
+    font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
+  .sundarr .sun { display: inline-block;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif;
+    font-weight: normal;                      /* emoji 不需要加粗 */
+    margin: 0 0.08em;                         /* 和前后 r 之间留点气 */
+    font-size: 0.78em;                        /* 相对当前字号小一点 */
+    position: relative; top: 0.02em;          /* 基线微调，让它视觉居中 */
+    line-height: 1;
   }
-  .sundarr[data-size="hero"]  { font-size: 48px; font-weight: 600; letter-spacing: -1.2px; color: var(--text); }
-  .sundarr[data-size="hero"]  .sun svg { width: .7em; height: .7em; }
-  .sundarr[data-size="brand"] { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
-  .sundarr[data-size="brand"] .sun svg { width: .82em; height: .82em; }
-  .sundarr[data-size="inline"] { font-size: 16px; font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
-  .sundarr[data-size="inline"] .sun svg { width: .82em; height: .82em; }
+  .sundarr[data-size="hero"]   { font-size: 48px; letter-spacing: -1.2px; }
+  .sundarr[data-size="brand"]  { font-size: 15px; }
+  .sundarr[data-size="inline"] { font-size: 16px; }
 
   .pattern-nav-brand { display: inline-flex; align-items: center; gap: 10px;
     padding: 10px 12px; background: var(--surface-2);
@@ -138,13 +130,6 @@
     background: var(--surface-1); padding: 1px 6px; border-radius: 4px;
     font-size: 12px; }
 
-  .atom-row { display: flex; gap: 32px; align-items: center; flex-wrap: wrap; }
-  .atom-row .bit { width: 120px; height: 120px; background: var(--bg);
-    border: 1px solid var(--hairline); border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--accent); }
-  .atom-row .bit svg { width: 88px; height: 88px; }
-
   footer { padding: 24px 48px 48px; color: var(--text-subtle); font-size: 12px;
     border-top: 1px solid var(--hairline); margin-top: 24px; }
 </style>
@@ -153,8 +138,8 @@
 
 <header>
   <div>
-    <h1>Sundarr · 品牌标识 v0.7</h1>
-    <p>彻底修日心与光芒"分离感" · 同时提供 A / B 两款 ☀ 让你选</p>
+    <h1>Sundarr · 品牌标识 v0.8</h1>
+    <p>☀ 全部换成 emoji 字符 · 零 SVG bug · 跨平台一致</p>
   </div>
   <div class="theme-switch" role="tablist" aria-label="主题切换">
     <button data-theme-btn="light" aria-selected="false">亮色</button>
@@ -164,104 +149,18 @@
 </header>
 
 <div class="note">
-  <strong>上一版还像 "1/4 太阳" 的根本原因</strong>：v0.6 里光芒 base 在 <code>r=5.05</code>，
-  而日心只到 <code>r=4.6</code> —— 中间空了 0.45 单位。所以眼睛看到的不是 "☀"，
-  而是 "球 + 孤立针"。这一版把 <strong>光芒 base 嵌入日心内部</strong>，焊成一坨。
-  <br>同时给 <strong>两款风格</strong>让你挑 —— 都是"饱满的完整太阳"，视觉气质不同：
-  <br>&nbsp;&nbsp;<strong>A · 钝三角光芒</strong>（emoji ☀ 风格，几何硬）
-  <br>&nbsp;&nbsp;<strong>B · 圆角棒光芒</strong>（天气图标风格，几何软）
-  <br>选定后 wordmark / 徽章 / favicon 全部统一用这一款。
+  <strong>终局简化</strong>：所有 ☀ 用 emoji 字符（<code>U+2600 FE0F</code>），
+  不再有任何 sun-ray SVG 基元。wordmark 的 <code>r☀r</code> 里是 emoji，
+  徽章里的 ☀ 也是 emoji。好处：零 SVG bug、跨平台一致、实现最简。
+  系统会用 Apple Color Emoji / Segoe UI Emoji / Noto Color Emoji 自动渲染。
 </div>
 
 <!-- ================================================================= -->
-<!--  SVG 基元                                                          -->
+<!--  徽章 SVG symbol                                                   -->
 <!-- ================================================================= -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 
-  <!-- ☀ A · 钝三角光芒 · base 嵌入日心 0.5 单位 -->
-  <symbol id="atom-sunray-A" viewBox="-10 -10 20 20">
-    <circle cx="0" cy="0" r="4.2" fill="currentColor"/>
-    <g fill="currentColor">
-      <!-- N / S / E / W: base 在 r=3.7（嵌入日心 0.5），外顶点在 r=8.0 -->
-      <path d="M -2.1 -3.7 L 2.1 -3.7 L 0 -8.0 Z"/>
-      <path d="M  5.05 0 L 3.7 -2.1 L 3.7 2.1 L 5.05 0 L 8.0 0 Z"
-            style="display:none"/>
-      <path d="M 3.7 -2.1 L 3.7 2.1 L 8.0 0 Z"/>
-      <path d="M -2.1  3.7 L 2.1  3.7 L 0  8.0 Z"/>
-      <path d="M -3.7 -2.1 L -3.7 2.1 L -8.0 0 Z"/>
-      <!-- NE / NW / SE / SW: 对角线位置，base 中心在对角线 r=3.7 -->
-      <!-- NE base 中心 (2.62, -2.62)，切线方向 (0.707, 0.707)，±2.1 → (4.10,-1.14) & (1.14,-4.10) -->
-      <path d="M 1.14 -4.10 L 4.10 -1.14 L 5.66 -5.66 Z"/>
-      <path d="M -1.14 -4.10 L -4.10 -1.14 L -5.66 -5.66 Z"/>
-      <path d="M 1.14  4.10 L 4.10  1.14 L 5.66  5.66 Z"/>
-      <path d="M -1.14  4.10 L -4.10  1.14 L -5.66  5.66 Z"/>
-    </g>
-  </symbol>
-
-  <!-- ☀ B · 圆角棒光芒 · weather-icon 风格 -->
-  <symbol id="atom-sunray-B" viewBox="-10 -10 20 20">
-    <circle cx="0" cy="0" r="4.4" fill="currentColor"/>
-    <g fill="currentColor">
-      <!-- 每条光芒：圆角矩形，宽 1.8，长 3.6（从 r=4.4 到 r=8.0） -->
-      <!-- N -->  <rect x="-0.9" y="-8.0" width="1.8" height="3.6" rx="0.9"/>
-      <!-- S -->  <rect x="-0.9" y="4.4"  width="1.8" height="3.6" rx="0.9"/>
-      <!-- E -->  <rect x="4.4"  y="-0.9" width="3.6" height="1.8" rx="0.9"/>
-      <!-- W -->  <rect x="-8.0" y="-0.9" width="3.6" height="1.8" rx="0.9"/>
-      <!-- 对角线 4 条，旋转 45° -->
-      <g transform="rotate(45)">
-        <rect x="-0.9" y="-8.0" width="1.8" height="3.6" rx="0.9"/>
-        <rect x="-0.9" y="4.4"  width="1.8" height="3.6" rx="0.9"/>
-        <rect x="4.4"  y="-0.9" width="3.6" height="1.8" rx="0.9"/>
-        <rect x="-8.0" y="-0.9" width="3.6" height="1.8" rx="0.9"/>
-      </g>
-    </g>
-  </symbol>
-
-  <!-- ============ 徽章 I/A · S + ☀A 角标 ============ -->
-  <symbol id="mark-I-A" viewBox="0 0 64 64">
-    <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
-    <text x="27" y="50" text-anchor="middle" fill="var(--mark-fg)"
-          font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
-          font-weight="900" font-size="48" letter-spacing="-2.6">S</text>
-    <g transform="translate(50 15) scale(0.82)" style="color: var(--mark-fg);">
-      <use href="#atom-sunray-A" x="-10" y="-10" width="20" height="20"/>
-    </g>
-  </symbol>
-
-  <!-- ============ 徽章 I/B · S + ☀B 角标 ============ -->
-  <symbol id="mark-I-B" viewBox="0 0 64 64">
-    <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
-    <text x="27" y="50" text-anchor="middle" fill="var(--mark-fg)"
-          font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
-          font-weight="900" font-size="48" letter-spacing="-2.6">S</text>
-    <g transform="translate(50 15) scale(0.82)" style="color: var(--mark-fg);">
-      <use href="#atom-sunray-B" x="-10" y="-10" width="20" height="20"/>
-    </g>
-  </symbol>
-
-  <!-- ============ 徽章 J/A · ☀A 主角 + 小 S ============ -->
-  <symbol id="mark-J-A" viewBox="0 0 64 64">
-    <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
-    <g transform="translate(32 26) scale(1.65)" style="color: var(--mark-fg);">
-      <use href="#atom-sunray-A" x="-10" y="-10" width="20" height="20"/>
-    </g>
-    <text x="32" y="58" text-anchor="middle" fill="var(--mark-fg)"
-          font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
-          font-weight="900" font-size="16" letter-spacing="-0.6">S</text>
-  </symbol>
-
-  <!-- ============ 徽章 J/B · ☀B 主角 + 小 S ============ -->
-  <symbol id="mark-J-B" viewBox="0 0 64 64">
-    <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
-    <g transform="translate(32 26) scale(1.65)" style="color: var(--mark-fg);">
-      <use href="#atom-sunray-B" x="-10" y="-10" width="20" height="20"/>
-    </g>
-    <text x="32" y="58" text-anchor="middle" fill="var(--mark-fg)"
-          font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
-          font-weight="900" font-size="16" letter-spacing="-0.6">S</text>
-  </symbol>
-
-  <!-- ============ 徽章 H · 纯 S（与 ☀ 款无关） ============ -->
+  <!-- H · 纯 S -->
   <symbol id="mark-H" viewBox="0 0 64 64">
     <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
     <text x="32" y="50" text-anchor="middle" fill="var(--mark-fg)"
@@ -269,80 +168,58 @@
           font-weight="900" font-size="52" letter-spacing="-2.8">S</text>
   </symbol>
 
+  <!-- I · S + ☀ emoji 角标 -->
+  <symbol id="mark-I" viewBox="0 0 64 64">
+    <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
+    <text x="26" y="50" text-anchor="middle" fill="var(--mark-fg)"
+          font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
+          font-weight="900" font-size="48" letter-spacing="-2.6">S</text>
+    <!-- emoji ☀，系统彩色渲染；居中对齐点 (49, 20) -->
+    <text x="49" y="25" text-anchor="middle"
+          font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, system-ui"
+          font-size="18">&#x2600;&#xFE0F;</text>
+  </symbol>
+
+  <!-- J · ☀ emoji 主角 + 小 S 副标 -->
+  <symbol id="mark-J" viewBox="0 0 64 64">
+    <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
+    <!-- 大号 ☀ emoji，居中偏上 -->
+    <text x="32" y="36" text-anchor="middle"
+          font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, system-ui"
+          font-size="34">&#x2600;&#xFE0F;</text>
+    <!-- 小 S 副标 -->
+    <text x="32" y="58" text-anchor="middle" fill="var(--mark-fg)"
+          font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
+          font-weight="900" font-size="16" letter-spacing="-0.6">S</text>
+  </symbol>
+
 </svg>
 
 <!-- ================================================================= -->
-<!--  ☀ 两款对比                                                         -->
+<!--  wordmark 三档                                                      -->
 <!-- ================================================================= -->
 <section>
-  <h2>选 ☀：A 款 or B 款</h2>
-  <p>两款都是"饱满的完整太阳"，base 都嵌入日心，不再是 1/4。</p>
-  <div class="grid2">
-
-    <div class="card">
-      <span class="eyebrow">A 款 · 钝三角光芒</span>
-      <div class="stage">
-        <div class="atom-row">
-          <div class="bit"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray-A" x="-10" y="-10" width="20" height="20"/></svg></div>
-        </div>
-      </div>
-      <div class="desc">日心 r=4.2 + 8 条钝三角光芒，base 宽 4.2 嵌入日心 0.5 单位。
-        几何硬、比例紧凑，像 emoji ☀ 的简化几何版。徽章尺寸下辨识度最高，
-        16px favicon 仍能看出 8 芒轮廓。</div>
-    </div>
-
-    <div class="card">
-      <span class="eyebrow">B 款 · 圆角棒光芒</span>
-      <div class="stage">
-        <div class="atom-row">
-          <div class="bit"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray-B" x="-10" y="-10" width="20" height="20"/></svg></div>
-        </div>
-      </div>
-      <div class="desc">日心 r=4.4 + 8 条圆角棒光芒（宽 1.8 × 长 3.6，半径 0.9）。
-        几何软、看起来更友好，接近 Apple Weather 的 sunny 图标。
-        小尺寸下光芒会细一些，但整体更"温暖"。</div>
-    </div>
-
-  </div>
-</section>
-
-<!-- ================================================================= -->
-<!--  wordmark 三档尺寸（用 A 款占位）                                    -->
-<!-- ================================================================= -->
-<section>
-  <h2>wordmark · r☀r 规则（占位 A 款）</h2>
-  <p>三档尺寸 + 紧跟宽度的视觉对齐。</p>
+  <h2>wordmark · r☀r 规则</h2>
+  <p>所有 <code>Sundarr</code> 文本的 <code>r·r</code> 中间永远是 ☀ emoji。</p>
   <div class="grid">
     <div class="card">
       <span class="eyebrow">hero · 48px</span>
       <div class="stage">
-        <span class="sundarr" data-size="hero">
-          <span>sunda</span><span>r</span>
-          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray-A" x="-10" y="-10" width="20" height="20"/></svg></span>
-          <span>r</span>
-        </span>
+        <span class="sundarr" data-size="hero">sunda<span>r</span><span class="sun">☀️</span><span>r</span></span>
       </div>
       <div class="desc">文档封面 / splash / 关于页。</div>
     </div>
     <div class="card">
       <span class="eyebrow">brand · 15px</span>
       <div class="stage">
-        <span class="sundarr" data-size="brand">
-          <span>Sunda</span><span>r</span>
-          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray-A" x="-10" y="-10" width="20" height="20"/></svg></span>
-          <span>r</span>
-        </span>
+        <span class="sundarr" data-size="brand">Sunda<span>r</span><span class="sun">☀️</span><span>r</span></span>
       </div>
       <div class="desc">顶栏 / 侧栏副标。</div>
     </div>
     <div class="card">
       <span class="eyebrow">inline · 16px</span>
       <div class="stage">
-        <span class="sundarr" data-size="inline">
-          <span>Sunda</span><span>r</span>
-          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray-A" x="-10" y="-10" width="20" height="20"/></svg></span>
-          <span>r</span>
-        </span>
+        <span class="sundarr" data-size="inline">Sunda<span>r</span><span class="sun">☀️</span><span>r</span></span>
       </div>
       <div class="desc">正文引用。小于 13px 退化为 ·</div>
     </div>
@@ -350,11 +227,11 @@
 </section>
 
 <!-- ================================================================= -->
-<!--  徽章 · I / J 两款 A/B 对比                                          -->
+<!--  徽章 3 款                                                          -->
 <!-- ================================================================= -->
 <section>
-  <h2>徽章候选 · A 款 vs B 款</h2>
-  <p>H（纯 S）不含 ☀，保持不变。I 和 J 分别展示 A / B 两款。</p>
+  <h2>徽章候选 v0.8</h2>
+  <p>3 款，从零整合到全整合。</p>
   <div class="grid">
 
     <div class="card">
@@ -371,66 +248,42 @@
     </div>
 
     <div class="card" data-recommend="true">
-      <span class="eyebrow">I/A · S + ☀A 角标</span>
-      <div class="title">S 主 + 钝三角 ☀ <span class="chip">A 款</span></div>
+      <span class="eyebrow">I · S + ☀ 角标</span>
+      <div class="title">S 主 · ☀ 右上 · 默认推荐</div>
       <div class="stage">
-        <svg class="mark-lg"><use href="#mark-I-A"/></svg>
+        <svg class="mark-lg"><use href="#mark-I"/></svg>
       </div>
       <div class="scale-test">
-        <figure><svg class="mark-24"><use href="#mark-I-A"/></svg><figcaption>24px</figcaption></figure>
-        <figure><svg class="mark-16"><use href="#mark-I-A"/></svg><figcaption>16px</figcaption></figure>
+        <figure><svg class="mark-24"><use href="#mark-I"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg class="mark-16"><use href="#mark-I"/></svg><figcaption>16px</figcaption></figure>
       </div>
-      <div class="desc">几何硬版本。☀ 饱满、光芒锋利，与 S 的粗壮字形匹配。</div>
+      <div class="desc">S 主角，右上角放一颗 ☀ emoji。徽章与 wordmark 视觉语言统一。
+        emoji 在 terracotta 底色上保留原生彩色（黄/橙），像徽章上印的小阳光。</div>
     </div>
 
     <div class="card">
-      <span class="eyebrow">I/B · S + ☀B 角标</span>
-      <div class="title">S 主 + 圆角棒 ☀ <span class="chip">B 款</span></div>
+      <span class="eyebrow">J · ☀ 主角 + 小 S 副标</span>
+      <div class="title">☀ 居中 · 类 Radarr 构图</div>
       <div class="stage">
-        <svg class="mark-lg"><use href="#mark-I-B"/></svg>
+        <svg class="mark-lg"><use href="#mark-J"/></svg>
       </div>
       <div class="scale-test">
-        <figure><svg class="mark-24"><use href="#mark-I-B"/></svg><figcaption>24px</figcaption></figure>
-        <figure><svg class="mark-16"><use href="#mark-I-B"/></svg><figcaption>16px</figcaption></figure>
+        <figure><svg class="mark-24"><use href="#mark-J"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg class="mark-16"><use href="#mark-J"/></svg><figcaption>16px</figcaption></figure>
       </div>
-      <div class="desc">几何软版本。☀ 更像天气图标，温暖但小尺寸略弱。</div>
-    </div>
-
-    <div class="card">
-      <span class="eyebrow">J/A · ☀A 主角 + 小 S</span>
-      <div class="title">☀ 主角 <span class="chip">A 款</span></div>
-      <div class="stage">
-        <svg class="mark-lg"><use href="#mark-J-A"/></svg>
-      </div>
-      <div class="scale-test">
-        <figure><svg class="mark-24"><use href="#mark-J-A"/></svg><figcaption>24px</figcaption></figure>
-        <figure><svg class="mark-16"><use href="#mark-J-A"/></svg><figcaption>16px</figcaption></figure>
-      </div>
-      <div class="desc">Radarr / Sonarr 构图。大号 A 款 ☀ 做主角，S 退为副标。</div>
-    </div>
-
-    <div class="card">
-      <span class="eyebrow">J/B · ☀B 主角 + 小 S</span>
-      <div class="title">☀ 主角 <span class="chip">B 款</span></div>
-      <div class="stage">
-        <svg class="mark-lg"><use href="#mark-J-B"/></svg>
-      </div>
-      <div class="scale-test">
-        <figure><svg class="mark-24"><use href="#mark-J-B"/></svg><figcaption>24px</figcaption></figure>
-        <figure><svg class="mark-16"><use href="#mark-J-B"/></svg><figcaption>16px</figcaption></figure>
-      </div>
-      <div class="desc">Radarr / Sonarr 构图。大号 B 款 ☀，气质更柔和友好。</div>
+      <div class="desc">大号 ☀ emoji 做主角，S 退为下方小号副标。
+        远看一眼就是"橘底 + 彩色阳光"，走近才读 S。</div>
     </div>
 
   </div>
 </section>
 
 <!-- ================================================================= -->
-<!--  应用模式（占位 I/A）                                                -->
+<!--  应用模式（占位 I）                                                  -->
 <!-- ================================================================= -->
 <section>
-  <h2>应用模式（占位使用 I/A）</h2>
-  <p>你选定徽章 + ☀ 款后统一替换。</p>
+  <h2>应用模式（占位使用 I）</h2>
+  <p>你选定徽章后替换。wordmark 的 ☀ 不随徽章变。</p>
   <div class="grid">
 
     <div class="card">
@@ -438,12 +291,8 @@
       <div class="title">手机顶栏 / 折叠侧栏头部</div>
       <div class="stage">
         <div class="pattern-nav-brand">
-          <svg class="mark-sm"><use href="#mark-I-A"/></svg>
-          <span class="sundarr" data-size="brand">
-            <span>Sunda</span><span>r</span>
-            <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray-A" x="-10" y="-10" width="20" height="20"/></svg></span>
-            <span>r</span>
-          </span>
+          <svg class="mark-sm"><use href="#mark-I"/></svg>
+          <span class="sundarr" data-size="brand">Sunda<span>r</span><span class="sun">☀️</span><span>r</span></span>
         </div>
       </div>
       <div class="desc">徽章 28px · wordmark 15px。</div>
@@ -453,11 +302,7 @@
       <span class="eyebrow">05 · 全 wordmark</span>
       <div class="title">文档封面 / 关于页 / PR 模板</div>
       <div class="stage">
-        <span class="sundarr" data-size="hero">
-          <span>sunda</span><span>r</span>
-          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray-A" x="-10" y="-10" width="20" height="20"/></svg></span>
-          <span>r</span>
-        </span>
+        <span class="sundarr" data-size="hero">sunda<span>r</span><span class="sun">☀️</span><span>r</span></span>
       </div>
       <div class="desc">无徽章、全小写 wordmark。</div>
     </div>
@@ -468,14 +313,10 @@
       <div class="stage" style="padding:0;width:100%">
         <div class="sidebar-mock">
           <div class="row">
-            <svg class="mark-md"><use href="#mark-I-A"/></svg>
+            <svg class="mark-md"><use href="#mark-I"/></svg>
             <div class="brand-text">
               <div>
-                <span class="sundarr" data-size="inline">
-                  <span>Sunda</span><span>r</span>
-                  <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray-A" x="-10" y="-10" width="20" height="20"/></svg></span>
-                  <span>r</span>
-                </span>
+                <span class="sundarr" data-size="inline">Sunda<span>r</span><span class="sun">☀️</span><span>r</span></span>
               </div>
               <div class="role">Web Console</div>
             </div>
@@ -492,7 +333,7 @@
 </section>
 
 <footer>
-  docs/16-design-system.md §3 / §5 · 你选定徽章 + ☀ 款后一次性回填
+  docs/16-design-system.md §3 / §5 · 你选定徽章后一次性回填
 </footer>
 
 <script>
