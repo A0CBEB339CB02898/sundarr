@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · S — Radial Burst (sunrise)
+  Pattern family: Radial/Geometric
+  Story: 8 道射线从中心辐射, 交替长短 (21/14), 中心实心小圆.
+  最直接的"日出"符号. 线宽 3, 圆角收尾.
+  不对称: 下半的射线略长, 上半略短, 模拟刚冒头的太阳.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     role="img" aria-label="Sundarr">
+  <title>Sundarr · Radial Burst</title>
+  <g stroke="currentColor" stroke-width="3" stroke-linecap="round">
+    <!-- 8 rays, alternating short (14) / long (21) lengths -->
+    <!-- 12 o'clock (short) -->
+    <line x1="50" y1="36" x2="50" y2="22"/>
+    <!-- 1:30 (long) -->
+    <line x1="60" y1="40" x2="70.5" y2="29.5"/>
+    <!-- 3 o'clock (short) -->
+    <line x1="64" y1="50" x2="78" y2="50"/>
+    <!-- 4:30 (long) -->
+    <line x1="60" y1="60" x2="70.5" y2="70.5"/>
+    <!-- 6 o'clock (short) -->
+    <line x1="50" y1="64" x2="50" y2="78"/>
+    <!-- 7:30 (long) -->
+    <line x1="40" y1="60" x2="29.5" y2="70.5"/>
+    <!-- 9 o'clock (short) -->
+    <line x1="36" y1="50" x2="22" y2="50"/>
+    <!-- 10:30 (long) -->
+    <line x1="40" y1="40" x2="29.5" y2="29.5"/>
+  </g>
+  <!-- Solid core -->
+  <circle cx="50" cy="50" r="7" fill="currentColor"/>
+</svg>

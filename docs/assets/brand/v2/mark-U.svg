@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · U — Node Network
+  Pattern family: Node Network
+  Story: 三个主节点 + 两个次级节点, 曲线连接. 
+  最强不对称构图: 主节点沿对角线分布, 次级节点补充张力.
+  隐喻分布式架构 (媒体源/存储/同步端).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     role="img" aria-label="Sundarr">
+  <title>Sundarr · Node Network</title>
+  <g fill="none" stroke="currentColor" stroke-width="2.5"
+     stroke-linecap="round">
+    <!-- Primary edges -->
+    <path d="M 28 72 Q 50 72, 50 50"/>
+    <path d="M 50 50 Q 50 28, 72 28"/>
+    <!-- Secondary edges (lighter) -->
+    <path d="M 28 72 Q 22 48, 38 38" opacity="0.4"/>
+    <path d="M 38 38 Q 50 40, 50 50" opacity="0.4"/>
+  </g>
+  <g fill="currentColor">
+    <!-- Primary nodes -->
+    <circle cx="28" cy="72" r="5"/>
+    <circle cx="50" cy="50" r="6"/>
+    <circle cx="72" cy="28" r="5"/>
+    <!-- Secondary nodes -->
+    <circle cx="38" cy="38" r="2.5" opacity="0.5"/>
+    <circle cx="65" cy="55" r="2" opacity="0.35"/>
+  </g>
+</svg>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · R — Boolean Intersection (Sunday and arr)
+  Pattern family: Geometry (Boolean Ops)
+  Story: 两圆相交, 交集就是 Sundarr 本身.
+  左圆 = Sunday (起源), 右圆 = arr (家族), 重叠区域填实表示合流.
+  最贴合名字构造的几何叙事.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     role="img" aria-label="Sundarr">
+  <title>Sundarr · Intersection</title>
+  <defs>
+    <clipPath id="right">
+      <circle cx="60" cy="50" r="22"/>
+    </clipPath>
+  </defs>
+  <g>
+    <!-- Two outlined circles, stroke 3 -->
+    <circle cx="40" cy="50" r="22" fill="none"
+            stroke="currentColor" stroke-width="3"/>
+    <circle cx="60" cy="50" r="22" fill="none"
+            stroke="currentColor" stroke-width="3"/>
+    <!-- Intersection area filled solid -->
+    <circle cx="40" cy="50" r="22" clip-path="url(#right)"
+            fill="currentColor"/>
+  </g>
+</svg>
