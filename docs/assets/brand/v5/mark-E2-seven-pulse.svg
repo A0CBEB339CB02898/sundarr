@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · E2 — Seven Pulse
+  7 bars = 7 days of the week. Mon-Sat are muted, short,
+  uniform (0.55 opacity). Sunday is a tall bar crowned with
+  a sun disc + 3 rays at the rightmost position.
+  Concept: A week of quiet pulses, then Sunday blooms.
+  This is the most narrative variant.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · E2 Seven Pulse</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <!-- Mon to Sat: 6 muted short bars, bottom aligned at y=40 -->
+  <g fill="var(--mark-fg, #f2ead8)" opacity="0.5">
+    <rect x="9"  y="33" width="4" height="7" rx="1.5"/>
+    <rect x="16" y="33" width="4" height="7" rx="1.5"/>
+    <rect x="23" y="33" width="4" height="7" rx="1.5"/>
+    <rect x="30" y="33" width="4" height="7" rx="1.5"/>
+    <rect x="37" y="33" width="4" height="7" rx="1.5"/>
+    <rect x="44" y="33" width="4" height="7" rx="1.5"/>
+  </g>
+  <!-- Sunday: tall bar + sun on top -->
+  <rect x="51" y="22" width="4" height="18" rx="1.5"
+        fill="var(--mark-fg, #f2ead8)"/>
+  <circle cx="53" cy="16" r="3.5" fill="var(--mark-fg, #f2ead8)"/>
+  <g stroke="var(--mark-fg, #f2ead8)" stroke-width="1.2" stroke-linecap="round">
+    <line x1="53" y1="9"  x2="53" y2="7"/>
+    <line x1="48" y1="14" x2="46" y2="14"/>
+    <line x1="58" y1="14" x2="60" y2="14"/>
+  </g>
+</svg>

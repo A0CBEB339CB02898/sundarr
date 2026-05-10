@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · E3 — Reel Bars
+  E0 inside a film strip: top & bottom rows of sprocket holes
+  frame the 3 bars. Media container + equalizer = media player.
+  Concept: Your media player is reading Sunday.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · E3 Reel Bars</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <!-- Top sprocket holes -->
+  <g fill="var(--mark-fg, #f2ead8)">
+    <rect x="10" y="11" width="3" height="3" rx="0.8"/>
+    <rect x="20" y="11" width="3" height="3" rx="0.8"/>
+    <rect x="30" y="11" width="3" height="3" rx="0.8"/>
+    <rect x="40" y="11" width="3" height="3" rx="0.8"/>
+    <rect x="50" y="11" width="3" height="3" rx="0.8"/>
+  </g>
+  <!-- Bottom sprocket holes -->
+  <g fill="var(--mark-fg, #f2ead8)">
+    <rect x="10" y="50" width="3" height="3" rx="0.8"/>
+    <rect x="20" y="50" width="3" height="3" rx="0.8"/>
+    <rect x="30" y="50" width="3" height="3" rx="0.8"/>
+    <rect x="40" y="50" width="3" height="3" rx="0.8"/>
+    <rect x="50" y="50" width="3" height="3" rx="0.8"/>
+  </g>
+  <!-- 3 bars within the film frame -->
+  <g fill="var(--mark-fg, #f2ead8)">
+    <rect x="22" y="26" width="6" height="14" rx="3"/>
+    <rect x="30" y="20" width="6" height="26" rx="3"/>
+    <rect x="38" y="28" width="6" height="12" rx="3"/>
+  </g>
+</svg>

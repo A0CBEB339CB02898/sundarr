@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · E1 — Sun-Topped
+  Extends E0: middle bar shortened to make room for a sun emerging
+  above it. The tallest pulse in the media waveform IS Sunday.
+  Concept: Sunday crowns the equalizer's center peak.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · E1 Sun-Topped</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <g fill="var(--mark-fg, #f2ead8)">
+    <rect x="22" y="28" width="6" height="14" rx="3"/>
+    <rect x="30" y="22" width="6" height="20" rx="3"/>
+    <rect x="38" y="30" width="6" height="12" rx="3"/>
+  </g>
+  <!-- Sun disc above center bar -->
+  <circle cx="33" cy="14" r="3.8" fill="var(--mark-fg, #f2ead8)"/>
+  <!-- 3 short rays (up, up-left, up-right) -->
+  <g stroke="var(--mark-fg, #f2ead8)" stroke-width="1.3" stroke-linecap="round">
+    <line x1="33" y1="7"  x2="33" y2="5"/>
+    <line x1="27" y1="10" x2="25" y2="8"/>
+    <line x1="39" y1="10" x2="41" y2="8"/>
+  </g>
+</svg>
