@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · V4 — Horizon
+  Concept: Media x Sunday
+  Story: 圆角徽章本身 = 媒体容器 (Servarr 家族的 DNA).
+  容器内一条地平线 + 半个升起的太阳 + 三道光芒.
+  极简到只剩一个 "日出" 动作. 让徽章底和前景成为 figure-ground
+  的统一叙事: 媒体容器里藏着周日的光.
+  Canvas: 64x64, radius 14.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · Horizon</title>
+
+  <!-- Badge base = media container -->
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+
+  <!-- Horizon line -->
+  <line x1="12" y1="42" x2="52" y2="42"
+        stroke="var(--mark-fg, #f2ead8)" stroke-width="1.8"
+        stroke-linecap="round" opacity="0.55"/>
+
+  <!-- Half-sun emerging above horizon -->
+  <path d="M 21 42 A 11 11 0 0 1 43 42 Z"
+        fill="var(--mark-fg, #f2ead8)"/>
+
+  <!-- Three ascending rays (only upper hemisphere) -->
+  <g stroke="var(--mark-fg, #f2ead8)" stroke-width="2"
+     stroke-linecap="round">
+    <line x1="32" y1="22" x2="32" y2="17"/>
+    <line x1="22" y1="26" x2="19" y2="23"/>
+    <line x1="42" y1="26" x2="45" y2="23"/>
+  </g>
+</svg>

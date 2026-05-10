@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · V2 — Reel Sun
+  Concept: Media x Sunday
+  Story: 胶片帧 (film cell) 上下两排打孔 = Media 原语,
+  中间升起一颗太阳 = Sunday.
+  把 "看一场电影" 和 "周日的光" 叠合在同一个画面.
+  Canvas: 64x64, radius 14.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · Reel Sun</title>
+
+  <!-- Badge base -->
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+
+  <!-- Film sprocket holes: 2 rows of 5 rounded squares -->
+  <g fill="var(--mark-fg, #f2ead8)">
+    <!-- Top row, y=13 -->
+    <rect x="12" y="13" width="4" height="4" rx="1"/>
+    <rect x="22" y="13" width="4" height="4" rx="1"/>
+    <rect x="30" y="13" width="4" height="4" rx="1"/>
+    <rect x="38" y="13" width="4" height="4" rx="1"/>
+    <rect x="48" y="13" width="4" height="4" rx="1"/>
+    <!-- Bottom row, y=47 -->
+    <rect x="12" y="47" width="4" height="4" rx="1"/>
+    <rect x="22" y="47" width="4" height="4" rx="1"/>
+    <rect x="30" y="47" width="4" height="4" rx="1"/>
+    <rect x="38" y="47" width="4" height="4" rx="1"/>
+    <rect x="48" y="47" width="4" height="4" rx="1"/>
+  </g>
+
+  <!-- Horizon line across the frame, subtle -->
+  <line x1="10" y1="38" x2="54" y2="38"
+        stroke="var(--mark-fg, #f2ead8)" stroke-width="1.5"
+        stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Half-sun rising above the horizon -->
+  <path d="M 22 38 A 10 10 0 0 1 42 38 Z"
+        fill="var(--mark-fg, #f2ead8)"/>
+</svg>
