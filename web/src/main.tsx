@@ -1289,6 +1289,14 @@ function DiscoveredFiles({ files }: { files: IngestDiscoveredFileResponse[] }) {
   )
 }
 
+/**
+ * 本地媒体库页面 · docs/16-design-system.md §7.4
+ *
+ * §7.4 要求：name · type · path · scan settings · stats · actions。
+ * Local library schema 没有 scan_interval/stable_seconds/last_scan 字段
+ * （这些属于 remote_media_libraries 同步配置），所以 stats 列用
+ * `bound_remote_libraries` 的引用数代替，path 列显示 SMB 连接名 + mono path。
+ */
 function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [libraries, setLibraries] = useState<MediaLibraryResponse[]>([])
   const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
@@ -1296,6 +1304,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
@@ -1310,6 +1319,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
 
   const [showBrowse, setShowBrowse] = useState(false)
   const [browseConnectionId, setBrowseConnectionId] = useState<string | null>(null)
+  const [browseLibraryName, setBrowseLibraryName] = useState('')
   const [browsePath, setBrowsePath] = useState('')
   const [browseResult, setBrowseResult] = useState<StorageBrowseResponse | null>(null)
   const [isBrowsing, setIsBrowsing] = useState(false)
@@ -1318,6 +1328,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
 
   async function loadAll() {
     setIsLoading(true)
+    setLoadError(null)
     try {
       const [libResult, connResult] = await Promise.all([
         api.get<MediaLibraryListResponse>(`/media-libraries?page=${page}&page_size=${pageSize}`),
@@ -1325,7 +1336,11 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
       ])
       setLibraries(libResult.results); setTotalCount(libResult.count)
       setConnections(connResult.results)
-    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '无法读取媒体库。') }
+    } catch (exc) {
+      const message = exc instanceof Error ? exc.message : '无法读取媒体库。'
+      setLoadError(message)
+      showToast('error', message)
+    }
     finally { setIsLoading(false) }
   }
 
@@ -1379,6 +1394,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
     const conn = connections.find((c) => c.id === lib.connection_id)
     if (!conn) { showToast('error', '未找到关联的 SMB 连接。'); return }
     setBrowseConnectionId(conn.id)
+    setBrowseLibraryName(lib.name)
     setBrowsePath(lib.base_path || '')
     setBrowseResult(null)
     setShowBrowse(true)
@@ -1421,131 +1437,512 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
   }
 
   function updateForm(key: keyof MediaLibraryFormState, value: string | boolean) { setForm((c) => ({ ...c, [key]: value })) }
+
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
   const connName = (id: string) => connections.find((c) => c.id === id)?.name || id
+  const showEmpty = !isLoading && !loadError && libraries.length === 0
+  const showList = libraries.length > 0
 
   return (
-    <section className="panel" aria-labelledby="libraries-title">
-      <div className="panel-header-row">
-        <div>
-          <p className="panel-kicker">媒体库</p>
-          <h2 id="libraries-title">本地媒体库管理</h2>
-          <p>管理 movie / series / unclassified 等本地媒体库目录绑定。</p>
+    <section className="lb-page" aria-labelledby="libraries-title">
+      <Card className="lb-overview">
+        <div className="lb-overview-head">
+          <div>
+            <p className="ui-eyebrow">本地媒体库</p>
+            <h2 id="libraries-title">本地媒体库管理</h2>
+            <p className="lb-overview-lead">
+              管理 movie / series / unclassified 本地媒体库目录绑定。每个媒体库绑定一个 SMB 连接及其共享内的子路径，
+              随后可被远程媒体库作为同步目标引用。
+            </p>
+          </div>
+          <div className="lb-overview-actions">
+            <Button variant="ghost" disabled={isLoading} onClick={() => void loadAll()}>
+              {isLoading ? '读取中' : '重新读取'}
+            </Button>
+            <Button variant="primary" onClick={openCreate}>新增媒体库</Button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="ghost-button" disabled={isLoading} onClick={() => void loadAll()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
-          <button className="primary-button" onClick={openCreate} type="button">新增</button>
+      </Card>
+
+      <Card emphasis="sunken" className="lb-table-card">
+        <div className="lb-table-head">
+          <p className="ui-eyebrow">媒体库</p>
+          <span className="lb-table-count">
+            {totalCount} 个{totalPages > 1 ? ` · 第 ${page} / ${totalPages} 页` : ''}
+          </span>
         </div>
-      </div>
 
-      {isLoading && <LoadingState message="正在读取媒体库。" />}
+        {isLoading && libraries.length === 0 ? (
+          <UILoadingState message="正在读取媒体库…" />
+        ) : null}
 
-      <div className="transfer-list-section">
-        <div className="section-heading"><h3>媒体库列表</h3><span>{totalCount} 个</span></div>
-        {libraries.length === 0 ? <EmptyState message="暂无媒体库。点击新增创建。" /> : (
-          <div className="transfer-list">
-            {libraries.map((lib) => (
-              <div key={lib.id} className="transfer-row">
-                <div className="transfer-row-main">
-                  <strong>{lib.name}</strong>
-                  <span>{lib.media_type} · {connName(lib.connection_id)} · {lib.base_path} · {lib.enabled ? '已启用' : '已禁用'}</span>
-                  <small>绑定远程库: {lib.bound_remote_libraries.length > 0 ? lib.bound_remote_libraries.join('、') : '无'}</small>
-                </div>
-                <div className="transfer-row-actions">
-                  <button className="ghost-button" onClick={() => openEdit(lib)} type="button">编辑</button>
-                  <button className="ghost-button" onClick={() => void testLibrary(lib)} type="button">测试</button>
-                  <button className="ghost-button" onClick={() => openBrowse(lib)} type="button">浏览</button>
-                  <button className="ghost-button" onClick={() => void toggleEnabled(lib)} type="button">{lib.enabled ? '禁用' : '启用'}</button>
-                  <button className="ghost-button danger" onClick={() => openDeleteModal(lib)} type="button">删除</button>
-                </div>
+        {loadError ? (
+          <UIErrorState
+            message="无法读取媒体库"
+            sub={loadError}
+            action={<Button variant="secondary" onClick={() => void loadAll()}>重试</Button>}
+          />
+        ) : null}
+
+        {showEmpty ? (
+          <UIEmptyState
+            message="暂无媒体库"
+            sub="点击上方 新增媒体库 创建第一个本地媒体库。"
+            action={<Button variant="primary" onClick={openCreate}>新增媒体库</Button>}
+          />
+        ) : null}
+
+        {showList ? (
+          <>
+            <div className="lb-table" role="table" aria-label="媒体库列表">
+              <div className="lb-table-header" role="row">
+                <span role="columnheader">状态</span>
+                <span role="columnheader">名称</span>
+                <span role="columnheader">类型</span>
+                <span role="columnheader">路径</span>
+                <span role="columnheader">绑定</span>
+                <span role="columnheader" aria-label="操作" />
               </div>
-            ))}
-          </div>
-        )}
-        {totalPages > 1 && (
-          <div className="pagination">
-            <button className="ghost-button" disabled={page <= 1} onClick={() => setPage(page - 1)} type="button">上一页</button>
-            <span>第 {page} / {totalPages} 页</span>
-            <button className="ghost-button" disabled={page >= totalPages} onClick={() => setPage(page + 1)} type="button">下一页</button>
-          </div>
-        )}
-      </div>
-
-      {showForm && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{formMode === 'create' ? '创建媒体库' : '编辑媒体库'}</h3>
-              <button className="ghost-button" onClick={() => setShowForm(false)} type="button">×</button>
+              {libraries.map((lib) => {
+                const tone: StatusTone = lib.enabled ? 'success' : 'paused'
+                const typeLabel =
+                  lib.media_type === 'movie' ? '电影'
+                  : lib.media_type === 'series' ? '剧集'
+                  : '未分类'
+                const typeTone: StatusTone =
+                  lib.media_type === 'movie' ? 'info'
+                  : lib.media_type === 'series' ? 'running'
+                  : 'paused'
+                const remoteCount = lib.bound_remote_libraries.length
+                return (
+                  <div className="lb-row" key={lib.id} role="row">
+                    <span className="lb-col-status" role="cell">
+                      <StatusBadge tone={tone}>{lib.enabled ? '已启用' : '已禁用'}</StatusBadge>
+                    </span>
+                    <span className="lb-col-title" role="cell">
+                      <strong title={lib.name}>{lib.name}</strong>
+                      <small title={lib.id}>{lib.id}</small>
+                    </span>
+                    <span className="lb-col-type" role="cell">
+                      <StatusBadge tone={typeTone}>{typeLabel}</StatusBadge>
+                    </span>
+                    <span className="lb-col-path" role="cell">
+                      <span title={connName(lib.connection_id)}>{connName(lib.connection_id)}</span>
+                      <code title={lib.base_path}>{lib.base_path || '/'}</code>
+                    </span>
+                    <span className="lb-col-bindings" role="cell">
+                      {remoteCount > 0 ? (
+                        <span
+                          className="lb-bindings-count"
+                          title={lib.bound_remote_libraries.join('、')}
+                        >
+                          远程 {remoteCount}
+                        </span>
+                      ) : (
+                        <span className="lb-bindings-empty">—</span>
+                      )}
+                    </span>
+                    <div className="lb-row-actions" role="cell">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(lib)}>编辑</Button>
+                      <Button variant="ghost" size="sm" onClick={() => void testLibrary(lib)}>测试</Button>
+                      <Button variant="ghost" size="sm" onClick={() => openBrowse(lib)}>浏览</Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={isSaving}
+                        onClick={() => void toggleEnabled(lib)}
+                      >
+                        {lib.enabled ? '禁用' : '启用'}
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => openDeleteModal(lib)}>删除</Button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-            <div className="form-grid">
-              <TextField disabled={formMode === 'edit'} helper="唯一 ID，保存后不可改。" label="唯一标识" onChange={(v) => updateForm('id', v)} required value={form.id} />
-              <TextField helper="页面展示名称。" label="名称" onChange={(v) => updateForm('name', v)} required value={form.name} />
-              <label className="field"><span>媒体类型</span><select value={form.media_type} onChange={(e) => updateForm('media_type', e.target.value)}>
-                <option value="movie">电影</option><option value="series">剧集</option><option value="unclassified">未分类</option>
-              </select><small>电影、剧集或未分类。</small></label>
-              <label className="field"><span>SMB 连接</span><select value={form.connection_id} onChange={(e) => updateForm('connection_id', e.target.value)}>
-                <option value="">选择连接</option>{connections.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.host}/{c.share})</option>)}
-              </select><small>绑定到某个已配置的 SMB 连接。</small></label>
-              <TextField helper="相对于 SMB 连接 Base Path 的本地目录。" label="目录路径" onChange={(v) => updateForm('base_path', v)} required value={form.base_path} />
-            </div>
-            <div className="form-actions">
-              <button className="ghost-button" onClick={() => setShowForm(false)} type="button">取消</button>
-              <button className="ghost-button" disabled={isTesting} onClick={() => void testLibraryInForm()} type="button">{isTesting ? '测试中' : '测试连接'}</button>
-              <button className="primary-button" disabled={isSaving} onClick={() => void saveLibrary()} type="button">{isSaving ? '保存中' : formMode === 'create' ? '创建' : '保存'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showBrowse && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>目录浏览</h3>
-              <button className="ghost-button" onClick={() => { setShowBrowse(false); setBrowseResult(null); setBrowsePath('') }} type="button">×</button>
-            </div>
-            <form className="lookup-form" onSubmit={(event) => { event.preventDefault(); void doBrowse() }}>
-              <label>
-                <span>路径</span>
-                <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
-              </label>
-              <button className="primary-button" disabled={isBrowsing} type="submit">{isBrowsing ? '浏览中' : '浏览'}</button>
-            </form>
-            <p className="lookup-form-hint">相对于 Base Path 的目录。</p>
-            {isBrowsing && !browseResult ? <LoadingState message="正在读取目录。" /> : null}
-            {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void doBrowse(path)} /> : <EmptyState message="输入路径后浏览目录。" />}
-          </div>
-        </div>
-      )}
-
-      {showDelete && deleteTarget && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>删除媒体库</h3>
-              <button className="ghost-button" onClick={() => setShowDelete(false)} type="button">×</button>
-            </div>
-            <p>删除 <strong>{deleteTarget.name}</strong> 将影响以下绑定：</p>
-            {deleteTarget.bound_remote_libraries.length > 0 && (
-              <div><strong>远程媒体库：</strong>{deleteTarget.bound_remote_libraries.join('、')}</div>
+            {totalPages > 1 && (
+              <div className="lb-pagination">
+                <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                  上一页
+                </Button>
+                <span>
+                  第 <strong>{page}</strong> / {totalPages} 页
+                </span>
+                <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+                  下一页
+                </Button>
+              </div>
             )}
-            {deleteTarget.bound_remote_libraries.length === 0 && (
-              <p>此媒体库没有绑定的远程媒体库。</p>
-            )}
-            <div className="form-actions">
-              <button className="ghost-button" onClick={() => void executeDelete('cancel')} type="button">取消</button>
-              {deleteTarget.bound_remote_libraries.length > 0 && (
-                <button className="ghost-button" disabled={isSaving} onClick={() => void executeDelete('unbind')} type="button">仅解绑</button>
-              )}
-              <button className="ghost-button danger" disabled={isSaving} onClick={() => void executeDelete('delete')} type="button">删除所有</button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        ) : null}
+      </Card>
 
-      <ApiClientPreview />
+      {showForm ? (
+        <LibraryEditModal
+          mode={formMode}
+          form={form}
+          connections={connections}
+          isSaving={isSaving}
+          isTesting={isTesting}
+          onFieldChange={updateForm}
+          onClose={() => setShowForm(false)}
+          onTest={() => void testLibraryInForm()}
+          onSubmit={() => void saveLibrary()}
+        />
+      ) : null}
+
+      {showDelete && deleteTarget ? (
+        <LibraryDeleteModal
+          target={deleteTarget}
+          isSaving={isSaving}
+          onClose={() => setShowDelete(false)}
+          onAction={(action) => void executeDelete(action)}
+        />
+      ) : null}
+
+      {showBrowse ? (
+        <LibraryBrowseModal
+          libraryName={browseLibraryName}
+          connectionName={browseConnectionId ? connName(browseConnectionId) : ''}
+          browsePath={browsePath}
+          browseResult={browseResult}
+          isBrowsing={isBrowsing}
+          onPathChange={setBrowsePath}
+          onBrowse={() => void doBrowse()}
+          onOpenEntry={(path) => void doBrowse(path, browseConnectionId)}
+          onClose={() => {
+            setShowBrowse(false)
+            setBrowseResult(null)
+            setBrowsePath('')
+            setBrowseConnectionId(null)
+            setBrowseLibraryName('')
+          }}
+        />
+      ) : null}
     </section>
+  )
+}
+
+function LibraryEditModal({
+  mode,
+  form,
+  connections,
+  isSaving,
+  isTesting,
+  onFieldChange,
+  onClose,
+  onTest,
+  onSubmit,
+}: {
+  mode: 'create' | 'edit'
+  form: MediaLibraryFormState
+  connections: SmbConnectionResponse[]
+  isSaving: boolean
+  isTesting: boolean
+  onFieldChange: (key: keyof MediaLibraryFormState, value: string | boolean) => void
+  onClose: () => void
+  onTest: () => void
+  onSubmit: () => void
+}) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [onClose])
+
+  return (
+    <div
+      className="lb-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="lb-form-title"
+      onClick={onClose}
+    >
+      <div className="lb-modal" onClick={(event) => event.stopPropagation()}>
+        <header className="lb-modal-head">
+          <div>
+            <p className="ui-eyebrow">{mode === 'create' ? '新增' : '编辑'}</p>
+            <h3 id="lb-form-title">{mode === 'create' ? '创建媒体库' : '编辑媒体库'}</h3>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="关闭">×</Button>
+        </header>
+        <form
+          className="lb-modal-body"
+          onSubmit={(event) => {
+            event.preventDefault()
+            onSubmit()
+          }}
+        >
+          <div className="lb-form-grid">
+            <Field label="唯一标识" helper="用于在其他模块中引用，保存后不可修改。" htmlFor="lb-f-id">
+              <input
+                id="lb-f-id"
+                type="text"
+                value={form.id}
+                required
+                disabled={mode === 'edit'}
+                onChange={(event) => onFieldChange('id', event.target.value)}
+              />
+            </Field>
+            <Field label="名称" helper="页面展示名称。" htmlFor="lb-f-name">
+              <input
+                id="lb-f-name"
+                type="text"
+                value={form.name}
+                required
+                onChange={(event) => onFieldChange('name', event.target.value)}
+              />
+            </Field>
+            <Field label="媒体类型" helper="电影、剧集或未分类。" htmlFor="lb-f-type">
+              <select
+                id="lb-f-type"
+                value={form.media_type}
+                onChange={(event) => onFieldChange('media_type', event.target.value)}
+              >
+                <option value="movie">电影</option>
+                <option value="series">剧集</option>
+                <option value="unclassified">未分类</option>
+              </select>
+            </Field>
+            <Field label="SMB 连接" helper="绑定到某个已配置的 SMB 连接。" htmlFor="lb-f-conn">
+              <select
+                id="lb-f-conn"
+                value={form.connection_id}
+                onChange={(event) => onFieldChange('connection_id', event.target.value)}
+                required
+              >
+                <option value="">选择连接</option>
+                {connections.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.host}/{c.share})
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field
+              label="目录路径"
+              helper="相对于 SMB 连接 Base Path 的子目录。"
+              htmlFor="lb-f-path"
+              className="lb-field-wide"
+            >
+              <input
+                id="lb-f-path"
+                type="text"
+                value={form.base_path}
+                required
+                onChange={(event) => onFieldChange('base_path', event.target.value)}
+              />
+            </Field>
+          </div>
+          <div className="lb-modal-toggle">
+            <label>
+              <input
+                type="checkbox"
+                checked={form.enabled}
+                onChange={(event) => onFieldChange('enabled', event.target.checked)}
+              />
+              <span>启用媒体库</span>
+            </label>
+            <small>禁用后远程媒体库不会向该目录写入。</small>
+          </div>
+          <footer className="lb-modal-actions">
+            <Button variant="ghost" onClick={onClose} type="button">取消</Button>
+            <Button variant="secondary" onClick={onTest} disabled={isTesting} type="button">
+              {isTesting ? '测试中…' : '测试连接'}
+            </Button>
+            <Button variant="primary" disabled={isSaving} type="submit">
+              {isSaving ? '保存中…' : mode === 'create' ? '创建' : '保存'}
+            </Button>
+          </footer>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function LibraryDeleteModal({
+  target,
+  isSaving,
+  onClose,
+  onAction,
+}: {
+  target: MediaLibraryResponse
+  isSaving: boolean
+  onClose: () => void
+  onAction: (action: 'delete' | 'unbind' | 'cancel') => void
+}) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const hasBindings = target.bound_remote_libraries.length > 0
+
+  return (
+    <div
+      className="lb-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="lb-del-title"
+      onClick={onClose}
+    >
+      <div className="lb-modal lb-modal-sm" onClick={(event) => event.stopPropagation()}>
+        <header className="lb-modal-head">
+          <div>
+            <p className="ui-eyebrow">删除</p>
+            <h3 id="lb-del-title">删除媒体库</h3>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="关闭">×</Button>
+        </header>
+        <div className="lb-modal-body">
+          <p className="lb-danger-lede">
+            确定要删除 <strong>{target.name}</strong> 吗？
+          </p>
+          {hasBindings ? (
+            <div className="lb-bindings">
+              <div className="lb-binding-row">
+                <span className="ui-eyebrow">关联的远程媒体库</span>
+                <p>{target.bound_remote_libraries.join('、')}</p>
+              </div>
+              <p className="lb-danger-hint">
+                选择 <em>仅解绑</em> 会保留以上远程媒体库但解除对该本地媒体库的引用；
+                选择 <em>删除所有</em> 将连同上述远程媒体库一起移除。
+              </p>
+            </div>
+          ) : (
+            <p className="lb-danger-hint">该媒体库没有被任何远程媒体库引用，可以安全删除。</p>
+          )}
+        </div>
+        <footer className="lb-modal-actions">
+          <Button variant="ghost" onClick={() => onAction('cancel')} type="button">取消</Button>
+          {hasBindings ? (
+            <Button
+              variant="secondary"
+              onClick={() => onAction('unbind')}
+              disabled={isSaving}
+              type="button"
+            >
+              仅解绑
+            </Button>
+          ) : null}
+          <Button
+            variant="danger"
+            onClick={() => onAction('delete')}
+            disabled={isSaving}
+            type="button"
+          >
+            {isSaving ? '删除中…' : hasBindings ? '删除所有' : '删除'}
+          </Button>
+        </footer>
+      </div>
+    </div>
+  )
+}
+
+function LibraryBrowseModal({
+  libraryName,
+  connectionName,
+  browsePath,
+  browseResult,
+  isBrowsing,
+  onPathChange,
+  onBrowse,
+  onOpenEntry,
+  onClose,
+}: {
+  libraryName: string
+  connectionName: string
+  browsePath: string
+  browseResult: StorageBrowseResponse | null
+  isBrowsing: boolean
+  onPathChange: (value: string) => void
+  onBrowse: () => void
+  onOpenEntry: (path: string) => void
+  onClose: () => void
+}) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [onClose])
+
+  return (
+    <div
+      className="lb-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="lb-browse-title"
+      onClick={onClose}
+    >
+      <div className="lb-modal lb-modal-lg" onClick={(event) => event.stopPropagation()}>
+        <header className="lb-modal-head">
+          <div>
+            <p className="ui-eyebrow">浏览</p>
+            <h3 id="lb-browse-title">目录浏览</h3>
+            {libraryName || connectionName ? (
+              <p className="lb-browse-subtitle">
+                {libraryName}
+                {connectionName ? <> · {connectionName}</> : null}
+              </p>
+            ) : null}
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="关闭">×</Button>
+        </header>
+        <form
+          className="lb-modal-body lb-browse-body"
+          onSubmit={(event) => {
+            event.preventDefault()
+            onBrowse()
+          }}
+        >
+          <div className="lb-browse-toolbar">
+            <Field
+              label="路径"
+              htmlFor="lb-browse-path"
+              helper={<>相对于 SMB 连接 Base Path 的目录。按 <Kbd>Enter</Kbd> 浏览。</>}
+            >
+              <input
+                id="lb-browse-path"
+                type="text"
+                value={browsePath}
+                placeholder="例如 Movies"
+                onChange={(event) => onPathChange(event.target.value)}
+              />
+            </Field>
+            <Button variant="primary" type="submit" disabled={isBrowsing}>
+              {isBrowsing ? '浏览中…' : '浏览'}
+            </Button>
+          </div>
+          {isBrowsing && !browseResult ? (
+            <UILoadingState message="正在读取目录…" />
+          ) : browseResult ? (
+            <StorageBrowser result={browseResult} onOpen={onOpenEntry} />
+          ) : (
+            <UIEmptyState
+              message="输入路径后浏览 SMB 目录"
+              sub="空值表示浏览连接 Base Path 下的根目录。"
+            />
+          )}
+        </form>
+      </div>
+    </div>
   )
 }
 
