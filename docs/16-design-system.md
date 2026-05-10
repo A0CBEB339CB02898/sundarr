@@ -203,28 +203,39 @@ No `box-shadow` on static cards. Depth is carried by surface steps + hairline �
 
 ## 5. Brand & Logo
 
-"Sundarr" = Sunday + ·arr suffix. The mark reflects both.
+"Sundarr" = Sunday + ·arr suffix. 视觉上 Sundarr 隶属于 Servarr 家族（Radarr / Sonarr / Lidarr 等），沿用**圆角正方形徽章 + 粗体单字母 + 单一主色底**的家族语言；差异化在于 **"S" 与播放三角形的整合方式**，以及暖色 terracotta 底色（其他 *arr 多用冷色）。
 
-### 5.1 Primary Mark: `S·`
+### 5.1 Primary Mark
 
-- **Construction**: Inter Display 700 "S" + JetBrains Mono "·" (middle-dot). The dot is terracotta; the S is cream (dark) or espresso (light). Dot diameter = cap-height of S × 0.22, positioned at the S optical baseline-trailing.
-- **Clear space**: ½ cap-height on all sides.
-- **Minimum**: 20px cap-height (below this, drop the dot).
-- **Square containment** (used in sidebar `brand-mark`): 40×40 square, `--radius-xl`, `--accent` fill, `--surface-1` "S" (currently this is the 46×46 accent block with a white "S" — keeping the concept, adjusting dimensions to match the new scale).
+- **载体**：64×64 圆角正方形（桌面 logo），`border-radius: 14px`（@64px，等比缩放）。
+- **底色**：`--mark-bg` = `--accent`（terracotta）。
+- **前景**：`--mark-fg` = 奶油白（dark 模式）/ 奶油米（light 模式），约对应 `--text` / `--surface-1`。
+- **主字形**：Inter 900 / 46pt "S"，字距 -2.5px，垂直光学居中。
+- **整合元素**：播放三角形（▶），具体整合强度与位置由最终选定的 logo 概念决定。
+  候选概念见 `docs/assets/brand/logo-preview.html`，四档强度（纯 S / 指示灯点 /
+  内嵌三角 / 播放尾整合）供挑选，默认推荐"内嵌三角"（中度整合）。
+- **Clear space**：徽章外留白 ≥ cap-height / 2（@64px 即 ≥ 12px）。
+- **最小尺寸**：16px favicon 仍保留圆角 + 单字 S；< 14px 允许降级为纯色方块。
+
+> 以下字段在选定最终概念后由 Agent 回填：路径 SVG、PNG 导出清单、象素级
+> 对齐表。实施计划见 §11 第 4 步 Brand。
 
 ### 5.2 Wordmark
 
-`Sundarr` in Inter 600, -0.3px tracking, all lowercase **or** sentence-case only. Never uppercase. On dark: `--text` with the final `r·r` tinted `--accent` at 80% opacity to echo the *arr family lineage. On light: same hue adjustments.
+`sundarr` 全小写，Inter 600，字距 -0.3px。尾部 `r·r` 上色 `--accent`（80% 不透明度），
+呼应 Servarr 家族 *arr 后缀。不允许全大写、不允许斜体。组合使用："徽章 + 横向间距 10px + wordmark"。
 
 ### 5.3 Favicon
 
-16/32/180px PNGs of the `S·` square mark. Apple touch icon uses `--bg` as the field, not transparent — works on iOS home screens.
+16 / 32 / 48 / 180px PNG + ICO + SVG。所有尺寸均使用圆角 + 实色底（非透明），
+便于深色浏览器 tab 与 iOS 主屏图标显示。≤ 16px 时内部三角细节可省略。
 
-### 5.4 Brand voice (for copy, error toasts, empty states)
+### 5.4 Brand Voice（用于界面文案、错误提示、空状态）
 
-- Direct, second-person ("你的任务已暂停" not "The task has been paused").
-- Never apologize for errors; state what happened and what to do next.
-- Prefer Chinese for user-facing copy, English for technical terms (`Worker`, `Adapter`, `SMB`) — matches the existing codebase.
+- 直接、第二人称（"你的任务已暂停"而非"任务已被暂停"）。
+- 不为错误道歉；陈述发生了什么 + 下一步该怎么做。
+- 面向用户文案用简中，技术术语（`Worker` `Adapter` `SMB` `Transfer`）保留英文，
+  与代码库一致。
 
 ---
 
