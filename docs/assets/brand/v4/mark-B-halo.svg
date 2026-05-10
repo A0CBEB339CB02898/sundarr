@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · Mark B — Halo
+  Wordmark: Sundar · r  (· = ring)
+  Concept: Solar halo / library ring. Empty center, outline only.
+  Badge: terracotta base + cream ring (stroke only).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · Halo</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <circle cx="32" cy="32" r="11" fill="none"
+          stroke="var(--mark-fg, #f2ead8)" stroke-width="3.5"/>
+</svg>
