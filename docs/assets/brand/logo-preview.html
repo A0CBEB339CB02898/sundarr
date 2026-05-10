@@ -3,9 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Sundarr · 品牌标识 v0.3</title>
+<title>Sundarr · 品牌标识 v0.5</title>
 <style>
-  /* === design tokens === */
   :root {
     --bg: #11100e;
     --surface-1: #1a1814;
@@ -63,6 +62,7 @@
   .card { background: var(--surface-1); border: 1px solid var(--hairline);
     border-radius: 12px; padding: 24px; display: flex; flex-direction: column;
     gap: 14px; }
+  .card[data-recommend="true"] { border-color: var(--accent); }
   .card .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.8px;
     color: var(--text-subtle); text-transform: uppercase; }
   .card .title { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
@@ -70,7 +70,7 @@
   .card .stage { display: flex; align-items: center; justify-content: center;
     min-height: 140px; padding: 12px 0 4px; }
   .card .scale-test { display: flex; align-items: center; justify-content: center;
-    gap: 20px; padding: 10px 0; border-top: 1px dashed var(--hairline);
+    gap: 24px; padding: 10px 0; border-top: 1px dashed var(--hairline);
     border-bottom: 1px dashed var(--hairline); }
   .card .scale-test figure { margin: 0; display: flex; flex-direction: column;
     align-items: center; gap: 4px; }
@@ -79,27 +79,33 @@
 
   .card .ctx { padding-top: 4px; display: flex; align-items: center; gap: 10px; }
   .card .ctx .word { font-weight: 600; font-size: 15px; letter-spacing: -0.2px; }
-  .card .ctx .word .tail { color: var(--accent); opacity: 0.85; }
   .card .ctx .role { font-size: 11px; color: var(--text-subtle);
     text-transform: uppercase; letter-spacing: 0.8px; margin-left: auto; }
 
   .mark-lg { width: 120px; height: 120px; display: block; }
   .mark-md { width: 40px; height: 40px; display: block; flex: 0 0 40px; }
-  .mark-sm { width: 28px; height: 28px; display: block; }
+  .mark-sm { width: 28px; height: 28px; display: block; flex: 0 0 28px; }
   .mark-24 { width: 24px; height: 24px; display: block; }
   .mark-16 { width: 16px; height: 16px; display: block; }
 
-  /* === kept patterns === */
+  /* ===== wordmark 组件（r · r 中间的 · 被渲染为一个 sun-ray SVG） ===== */
+  /* 通用：把 · 位置处的 <svg> 垂直居中 */
+  .sundarr { display: inline-flex; align-items: baseline; white-space: nowrap; }
+  .sundarr .sun {
+    display: inline-block; color: var(--accent); vertical-align: baseline;
+    margin: 0 0.04em; position: relative; top: 0.08em;
+  }
+  /* 三个 wordmark 尺寸档 */
+  .sundarr[data-size="hero"]  { font-size: 48px; font-weight: 600; letter-spacing: -1.2px; color: var(--text); }
+  .sundarr[data-size="hero"]  .sun  svg { width: .6em; height: .6em; }
+  .sundarr[data-size="brand"] { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
+  .sundarr[data-size="brand"] .sun svg { width: .7em; height: .7em; }
+  .sundarr[data-size="inline"] { font-size: 16px; font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
+  .sundarr[data-size="inline"] .sun svg { width: .7em; height: .7em; }
+
   .pattern-nav-brand { display: inline-flex; align-items: center; gap: 10px;
     padding: 10px 12px; background: var(--surface-2);
     border: 1px solid var(--hairline); border-radius: 10px; }
-  .pattern-nav-brand .word { font-weight: 600; font-size: 15px;
-    letter-spacing: -0.2px; }
-  .pattern-nav-brand .word .tail { color: var(--accent); opacity: 0.85; }
-
-  .wordmark { font-size: 48px; font-weight: 600; letter-spacing: -1.2px;
-    color: var(--text); }
-  .wordmark .tail { color: var(--accent); }
 
   .sidebar-mock { width: 100%; background: var(--surface-1);
     border: 1px solid var(--hairline); border-radius: 12px; padding: 16px;
@@ -107,11 +113,8 @@
   .sidebar-mock .row { display: flex; align-items: center; gap: 12px;
     width: 100%; padding-bottom: 12px;
     border-bottom: 1px solid var(--hairline); margin-bottom: 4px; }
-  .sidebar-mock .brand-text .word { font-weight: 600; font-size: 16px;
-    letter-spacing: -0.2px; }
-  .sidebar-mock .brand-text .word .tail { color: var(--accent); opacity: 0.85; }
   .sidebar-mock .brand-text .role { font-size: 11px; color: var(--text-subtle);
-    text-transform: uppercase; letter-spacing: 0.8px; }
+    text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
   .sidebar-mock .nav-item { width: 100%; padding: 10px 12px;
     border-radius: 8px; display: flex; align-items: center; gap: 10px;
     color: var(--text-muted); font-size: 14px; box-sizing: border-box; }
@@ -125,11 +128,22 @@
 
   .note { background: var(--surface-2); border: 1px solid var(--hairline);
     border-radius: 10px; padding: 14px 18px; font-size: 13px;
-    color: var(--text-muted); line-height: 1.6; margin: 0 48px; }
+    color: var(--text-muted); line-height: 1.65; margin: 0 48px; }
   .note strong { color: var(--text); font-weight: 600; }
   .note code { font-family: "JetBrains Mono", ui-monospace, monospace;
     background: var(--surface-1); padding: 1px 6px; border-radius: 4px;
     font-size: 12px; }
+
+  .atlas { display: flex; gap: 20px; align-items: center; padding: 12px 0;
+    flex-wrap: wrap; }
+  .atlas .bits { display: flex; gap: 12px; }
+  .atlas .bit { width: 64px; height: 64px; background: var(--bg);
+    border: 1px solid var(--hairline); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; }
+  .atlas .bit svg { width: 48px; height: 48px; }
+  .atlas .atom-note { font-size: 12px; color: var(--text-muted);
+    line-height: 1.55; flex: 1; min-width: 200px; }
+  .atlas .atom-note strong { color: var(--text); font-weight: 600; }
 
   footer { padding: 24px 48px 48px; color: var(--text-subtle); font-size: 12px;
     border-top: 1px solid var(--hairline); margin-top: 24px; }
@@ -139,8 +153,8 @@
 
 <header>
   <div>
-    <h1>Sundarr · 品牌标识 v0.3</h1>
-    <p>3 个概念（融合 S + Sunday + 播放）· 3 个应用模式（原 04 / 05 / 08）</p>
+    <h1>Sundarr · 品牌标识 v0.5</h1>
+    <p>融合你的两条 live-steering：sun-ray 替换 wordmark 中间的 · · 新增 G 概念（S 左下负空间即播放三角）</p>
   </div>
   <div class="theme-switch" role="tablist" aria-label="主题切换">
     <button data-theme-btn="light" aria-selected="false">亮色</button>
@@ -150,149 +164,297 @@
 </header>
 
 <div class="note">
-  <strong>这一版做了什么</strong>：延续你认可的 02 / 03 方向，把"点"和"内嵌三角"都升级为
-  <strong>太阳</strong>（对应 <code>sun</code>day 词根），并把<strong>播放三角</strong>整合为
-  太阳的"光芒"之一 —— 三要素（S / Sunday / 播放）共存一体。每张卡底部有
-  <strong>24px / 16px 缩小预览</strong>，看看细节在 favicon 尺寸是否还撑得住。
+  <strong>这一版吸收了你的两条新想法</strong>：
+  <br>&nbsp;&nbsp;① <strong>wordmark 中间的 · 升级为 sun-ray 图元</strong>（三角形光芒的小太阳），
+  所有 <code>Sundarr</code> wordmark 统一应用。
+  <br>&nbsp;&nbsp;② 新增 <strong>概念 G · 负空间播放</strong>：S 的左下角弧线下方那片 negative space 本来就
+  像一个指向右下的三角，把它直接确认为播放三角。
+  <br>同时保留 v0.4 的 D / E / F 给你对比。字体商用风险：<strong>Inter</strong> 和 <strong>JetBrains Mono</strong> 都是
+  <a href="https://scripts.sil.org/ofl" style="color:var(--accent);">SIL OFL 1.1</a>，免费商用，已记入 §3.1。
 </div>
 
-<!-- =========================================================== -->
-<!--  SVG 图形符号                                                 -->
-<!-- =========================================================== -->
+<!-- ================================================================= -->
+<!--  SVG 基元                                                          -->
+<!-- ================================================================= -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 
-  <!-- ===== A: 日点 S (evolved from 02) ======================= -->
-  <!-- S 主字 + 右上小太阳（圆心 + 3 条直线光芒 + 1 条三角光芒作为播放指针）-->
-  <symbol id="mark-A" viewBox="0 0 64 64">
+  <!-- 基础图元 1 · sun-play · 圆盘带右向三角缺口（pac-man） -->
+  <symbol id="atom-sunplay" viewBox="-10 -10 20 20">
+    <path d="M 6.93 -4 A 8 8 0 1 0 6.93 4 L 0 0 Z" fill="currentColor"/>
+  </symbol>
+
+  <!-- 基础图元 2 · sun-ray · 小太阳 · 光芒是三角形 · 响应 currentColor -->
+  <!-- r=3.2 日心 · 8 条三角光芒指向八方 -->
+  <symbol id="atom-sunray" viewBox="-10 -10 20 20">
+    <!-- 日心 -->
+    <circle cx="0" cy="0" r="3.2" fill="currentColor"/>
+    <!-- 8 条三角光芒（每 45°一条），内顶点在 r=4.6，外顶点 r=8.4 -->
+    <g fill="currentColor">
+      <!-- N -->
+      <path d="M -1.7 -4.6 L 1.7 -4.6 L 0 -8.4 Z"/>
+      <!-- S -->
+      <path d="M -1.7  4.6 L 1.7  4.6 L 0  8.4 Z"/>
+      <!-- E -->
+      <path d="M 4.6 -1.7 L 4.6 1.7 L 8.4 0 Z"/>
+      <!-- W -->
+      <path d="M -4.6 -1.7 L -4.6 1.7 L -8.4 0 Z"/>
+      <!-- NE -->
+      <path d="M 2.05 -4.45 L 4.45 -2.05 L 5.94 -5.94 Z"/>
+      <!-- NW -->
+      <path d="M -2.05 -4.45 L -4.45 -2.05 L -5.94 -5.94 Z"/>
+      <!-- SE -->
+      <path d="M 2.05  4.45 L 4.45  2.05 L 5.94  5.94 Z"/>
+      <!-- SW -->
+      <path d="M -2.05  4.45 L -4.45  2.05 L -5.94  5.94 Z"/>
+    </g>
+  </symbol>
+
+  <!-- ============ 概念 D · 外标（v0.4 保留） ============ -->
+  <symbol id="mark-D" viewBox="0 0 64 64">
     <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
     <text x="27" y="47" text-anchor="middle" fill="var(--mark-fg)"
           font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
           font-weight="900" font-size="44" letter-spacing="-2.4">S</text>
-    <g transform="translate(49,15)">
-      <!-- 日心 -->
-      <circle cx="0" cy="0" r="3.6" fill="var(--mark-fg)"/>
-      <!-- 3 条线型光芒（N / W / S） -->
-      <g stroke="var(--mark-fg)" stroke-width="1.6" stroke-linecap="round">
-        <line x1="0"    y1="-6.6" x2="0"    y2="-8.8"/>
-        <line x1="-6.6" y1="0"    x2="-8.8" y2="0"/>
-        <line x1="0"    y1="6.6"  x2="0"    y2="8.8"/>
-      </g>
-      <!-- E 光芒 = 播放三角 -->
-      <path d="M 5.4 -2.8 L 5.4 2.8 L 9.2 0 Z" fill="var(--mark-fg)"/>
+    <g transform="translate(49 15) scale(0.625)" fill="var(--mark-fg)">
+      <path d="M 6.93 -4 A 8 8 0 1 0 6.93 4 L 0 0 Z"/>
     </g>
   </symbol>
 
-  <!-- ===== B: 晨光 S (evolved from 03) ======================= -->
-  <!-- S 主字 + 上腔内嵌太阳(日心 + 3 短光芒) + 播放三角作为第 4 条光芒 -->
-  <symbol id="mark-B" viewBox="0 0 64 64">
+  <!-- ============ 概念 E · 内嵌（v0.4 保留） ============ -->
+  <symbol id="mark-E" viewBox="0 0 64 64">
     <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
     <text x="32" y="47" text-anchor="middle" fill="var(--mark-fg)"
           font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
           font-weight="900" font-size="44" letter-spacing="-2.4">S</text>
-    <!-- 上腔内的日+播放复合 -->
-    <g transform="translate(41.5,20)">
-      <!-- 日心：反白填 mark-bg、描 mark-fg -->
-      <circle cx="0" cy="0" r="3.1" fill="var(--mark-bg)"
-              stroke="var(--mark-fg)" stroke-width="1.2"/>
-      <!-- 3 条短光芒 N / NW / W -->
-      <g stroke="var(--mark-fg)" stroke-width="1.1" stroke-linecap="round">
-        <line x1="0"    y1="-4.6" x2="0"    y2="-6.4"/>
-        <line x1="-3.3" y1="-3.3" x2="-4.6" y2="-4.6"/>
-        <line x1="-4.6" y1="0"    x2="-6.4" y2="0"/>
-      </g>
-      <!-- E 光芒 = 播放三角 -->
-      <path d="M 4.4 -2.4 L 4.4 2.4 L 7.8 0 Z" fill="var(--mark-fg)"/>
+    <g transform="translate(42 21) scale(0.45)">
+      <path d="M 6.93 -4 A 8 8 0 1 0 6.93 4 L 0 0 Z"
+            fill="var(--mark-bg)"
+            stroke="var(--mark-fg)" stroke-width="2.3"
+            stroke-linejoin="round"/>
     </g>
   </symbol>
 
-  <!-- ===== C: 朝阳 S (new: sun ascends above S) ============== -->
-  <!-- 小号 S 居下 + 上方完整太阳场景（日+四条光芒，东方光芒为播放）-->
-  <symbol id="mark-C" viewBox="0 0 64 64">
+  <!-- ============ 概念 F · 主图（v0.4 保留） ============ -->
+  <symbol id="mark-F" viewBox="0 0 64 64">
     <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
-    <!-- 上方太阳 -->
-    <g transform="translate(32,20)">
-      <circle cx="0" cy="0" r="4.4" fill="var(--mark-fg)"/>
-      <g stroke="var(--mark-fg)" stroke-width="1.7" stroke-linecap="round">
-        <line x1="0"    y1="-7.6" x2="0"    y2="-10.6"/>
-        <line x1="-5.6" y1="-5.6" x2="-7.8" y2="-7.8"/>
-        <line x1="-7.6" y1="0"    x2="-10.6" y2="0"/>
-        <line x1="5.6"  y1="-5.6" x2="7.8"  y2="-7.8"/>
-      </g>
-      <!-- E 光芒 = 播放三角 -->
-      <path d="M 6.8 -3.4 L 6.8 3.4 L 11.2 0 Z" fill="var(--mark-fg)"/>
+    <g transform="translate(32 26) scale(1.375)" fill="var(--mark-fg)">
+      <path d="M 6.93 -4 A 8 8 0 1 0 6.93 4 L 0 0 Z"/>
     </g>
-    <!-- 下方 S -->
-    <text x="32" y="56" text-anchor="middle" fill="var(--mark-fg)"
+    <text x="32" y="55" text-anchor="middle" fill="var(--mark-fg)"
           font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
-          font-weight="900" font-size="30" letter-spacing="-1.6">S</text>
+          font-weight="900" font-size="18" letter-spacing="-0.8">S</text>
   </symbol>
+
+  <!-- ============ 概念 G · 负空间播放（新） =============== -->
+  <!-- 几何化的 S：上半段 cap + 下半段 cup，S 的左下负空间就是
+       一个指向右下的三角（▶ 转 45°）。这里把它显化：
+       底色 = mark-bg。S 的"墨"是 mark-fg。S 内本来留白、留白区按 S 形状勾出，
+       下方负空间保持 mark-bg，也就是播放三角形本色。  -->
+  <symbol id="mark-G" viewBox="0 0 64 64">
+    <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
+
+    <!-- 构造 S：用两段"钩"构成，保证左下有明确的三角负空间 -->
+    <!-- 上半段：类似字母 S 的上半 C，向右开口 -->
+    <path d="
+      M 48 18
+      L 48 22
+      L 24 22
+      L 24 29
+      L 48 29
+      L 48 47
+      Q 48 50 45 50
+      L 16 50
+      L 16 46
+      L 44 46
+      L 44 33
+      L 20 33
+      Q 16 33 16 29
+      L 16 17
+      Q 16 14 19 14
+      L 48 14
+      Z"
+      fill="var(--mark-fg)"/>
+    <!-- 显化 S 左下负空间的播放三角：在 16,46 → 16,50 → 12 附近是死角，
+         为让播放寓意更突出，在 S 右下缺口处补一个独立三角，作为 "阅读暗示" -->
+    <!-- 已由 S 的形状天然形成左下的明显负空间斜角；增强一点小三角作为强调 -->
+    <g transform="translate(44 46)" fill="var(--mark-bg)"
+       stroke="var(--mark-fg)" stroke-width="1.2" stroke-linejoin="round">
+      <path d="M -4 -3 L 3 0 L -4 3 Z"/>
+    </g>
+  </symbol>
+
 </svg>
 
-<!-- =========================================================== -->
-<!--  第一部分：概念卡                                             -->
-<!-- =========================================================== -->
+<!-- ================================================================= -->
+<!--  图元展板                                                            -->
+<!-- ================================================================= -->
 <section>
-  <h2>品牌标识候选 v0.3</h2>
-  <p>S + Sunday（太阳）+ 播放三角 —— 三要素共存，差异在"太阳"元素的位置与权重。</p>
+  <h2>共享图元</h2>
+  <div class="grid">
+    <div class="card">
+      <span class="eyebrow">atoms · 本系统只用这两个基元</span>
+      <div class="atlas">
+        <div class="bits">
+          <div class="bit" style="color:var(--mark-fg); background:var(--mark-bg);">
+            <svg viewBox="-10 -10 20 20"><path d="M 6.93 -4 A 8 8 0 1 0 6.93 4 L 0 0 Z" fill="currentColor"/></svg>
+          </div>
+          <div class="bit" style="color:var(--accent);">
+            <svg viewBox="-10 -10 20 20"><use href="#atom-sunray"/></svg>
+          </div>
+        </div>
+        <div class="atom-note">
+          <strong>sun-play</strong>（左）：pac-man 形态，圆盘 + 右向三角缺口。一形两义 = 太阳 + 播放。徽章专用。
+          <br><strong>sun-ray</strong>（右）：三角形光芒的小太阳。<strong>wordmark 中间的 · 将永远用它</strong>。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<!--  新 wordmark（应用 sun-ray）                                        -->
+<!-- ================================================================= -->
+<section>
+  <h2>新 wordmark · r <span style="color:var(--accent);">☀</span> r 规则</h2>
+  <p>所有 <code>Sundarr</code> 文本的 r · r 中间统一用 sun-ray 替换，不再使用 · 字符。</p>
+  <div class="grid">
+    <div class="card">
+      <span class="eyebrow">hero size · 48px</span>
+      <div class="stage">
+        <span class="sundarr" data-size="hero">
+          <span>sunda</span>
+          <span>r</span>
+          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray"/></svg></span>
+          <span>r</span>
+        </span>
+      </div>
+      <div class="desc">文档封面 / 关于页 / splash 使用。sun-ray 直径 ≈ 0.6em，微微下沉以对齐 x-height。</div>
+    </div>
+    <div class="card">
+      <span class="eyebrow">brand size · 15px</span>
+      <div class="stage">
+        <span class="sundarr" data-size="brand">
+          <span>Sunda</span>
+          <span>r</span>
+          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray"/></svg></span>
+          <span>r</span>
+        </span>
+      </div>
+      <div class="desc">顶栏 / 侧栏副标。</div>
+    </div>
+    <div class="card">
+      <span class="eyebrow">inline size · 16px</span>
+      <div class="stage">
+        <span class="sundarr" data-size="inline">
+          <span>Sunda</span>
+          <span>r</span>
+          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray"/></svg></span>
+          <span>r</span>
+        </span>
+      </div>
+      <div class="desc">正文 / Markdown / 对话中引用产品名。小于 13px 可退化为 ·</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<!--  徽章候选（4 个）                                                    -->
+<!-- ================================================================= -->
+<section>
+  <h2>徽章候选 v0.5</h2>
+  <p>4 个候选。G 是你新提的负空间方向；D / E / F 从 v0.4 保留作对照。</p>
   <div class="grid">
 
-    <div class="card">
-      <span class="eyebrow">A · 日点 S（演进自 02）</span>
-      <div class="title">角标太阳</div>
+    <div class="card" data-recommend="true">
+      <span class="eyebrow">G · 负空间播放（新）</span>
+      <div class="title">S 本身即播放</div>
       <div class="stage">
-        <svg class="mark-lg"><use href="#mark-A"/></svg>
+        <svg class="mark-lg"><use href="#mark-G"/></svg>
       </div>
       <div class="scale-test">
-        <figure><svg class="mark-24"><use href="#mark-A"/></svg><figcaption>24px</figcaption></figure>
-        <figure><svg class="mark-16"><use href="#mark-A"/></svg><figcaption>16px</figcaption></figure>
+        <figure><svg class="mark-24"><use href="#mark-G"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg class="mark-16"><use href="#mark-G"/></svg><figcaption>16px</figcaption></figure>
       </div>
-      <div class="desc">保留 02 的"右上角点"构图，把圆点升级为<strong>小太阳</strong>：
-        日心 + 3 条线型光芒 + 1 条<strong>三角形光芒</strong>（即播放 ▶）。
-        S 本体几乎不动，辨识度与 02 持平，太阳 + 播放融入一个紧凑集合。</div>
+      <div class="desc"><strong>一个形 · 两层语义</strong>：几何化的 S 字形。字母本身的左下负空间
+        天然是指向右下的三角（播放箭头旋转 45°），右下收尾处再补一个清晰三角作为阅读锚点。
+        不额外加太阳元素 —— sunday 的语义<strong>交给 wordmark 里的 sun-ray</strong> 承担。
+        徽章只说"S + 播放"，wordmark 只说"Sundarr + 太阳"，分工清晰。</div>
       <div class="ctx">
-        <svg class="mark-md"><use href="#mark-A"/></svg>
-        <span class="word">Sunda<span class="tail">r·r</span></span>
+        <svg class="mark-md"><use href="#mark-G"/></svg>
+        <span class="sundarr" data-size="brand">
+          <span>Sunda</span><span>r</span>
+          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray"/></svg></span>
+          <span>r</span>
+        </span>
         <span class="role">Console</span>
       </div>
     </div>
 
     <div class="card">
-      <span class="eyebrow">B · 晨光 S（演进自 03）</span>
-      <div class="title">内嵌晨光 · 默认推荐</div>
+      <span class="eyebrow">D · 外标（v0.4 保留）</span>
+      <div class="title">S + 右上 sun-play</div>
       <div class="stage">
-        <svg class="mark-lg"><use href="#mark-B"/></svg>
+        <svg class="mark-lg"><use href="#mark-D"/></svg>
       </div>
       <div class="scale-test">
-        <figure><svg class="mark-24"><use href="#mark-B"/></svg><figcaption>24px</figcaption></figure>
-        <figure><svg class="mark-16"><use href="#mark-B"/></svg><figcaption>16px</figcaption></figure>
+        <figure><svg class="mark-24"><use href="#mark-D"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg class="mark-16"><use href="#mark-D"/></svg><figcaption>16px</figcaption></figure>
       </div>
-      <div class="desc">S 的右上腔里原本内嵌的播放三角，现在换成<strong>微型太阳</strong>：
-        空心日 + 3 短光芒 + 1 条三角光芒（播放）。S 仍主导阅读顺序，
-        上腔里是一颗正在"投光"的微型日。三元素融合程度最高。</div>
+      <div class="desc">02 的直系后代。S 几乎不动，右上的点升级为 sun-play 图元。
+        辨识度最高，16px 下缺口退化为圆点可接受。</div>
       <div class="ctx">
-        <svg class="mark-md"><use href="#mark-B"/></svg>
-        <span class="word">Sunda<span class="tail">r·r</span></span>
+        <svg class="mark-md"><use href="#mark-D"/></svg>
+        <span class="sundarr" data-size="brand">
+          <span>Sunda</span><span>r</span>
+          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray"/></svg></span>
+          <span>r</span>
+        </span>
         <span class="role">Console</span>
       </div>
     </div>
 
     <div class="card">
-      <span class="eyebrow">C · 朝阳 S（新增）</span>
-      <div class="title">双要素场景</div>
+      <span class="eyebrow">E · 内嵌（v0.4 保留）</span>
+      <div class="title">S + 上腔 sun-play 反白</div>
       <div class="stage">
-        <svg class="mark-lg"><use href="#mark-C"/></svg>
+        <svg class="mark-lg"><use href="#mark-E"/></svg>
       </div>
       <div class="scale-test">
-        <figure><svg class="mark-24"><use href="#mark-C"/></svg><figcaption>24px</figcaption></figure>
-        <figure><svg class="mark-16"><use href="#mark-C"/></svg><figcaption>16px</figcaption></figure>
+        <figure><svg class="mark-24"><use href="#mark-E"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg class="mark-16"><use href="#mark-E"/></svg><figcaption>16px</figcaption></figure>
       </div>
-      <div class="desc">上半部：完整太阳（日心 + 4 光芒，东方为播放三角）。
-        下半部：小号 S。读作"朝阳投射 + S"。叙事最强但 16px 下
-        S 会变小，favicon 可能退化为"纯太阳+播放"（也可接受，因为 Sundarr
-        尾部 <code>rr</code> 可以挑大梁）。</div>
+      <div class="desc">03 的直系后代。上腔里镶嵌 sun-play 反白图元。
+        三要素融合度最高，但与 wordmark 的 sun-ray 存在符号重复。</div>
       <div class="ctx">
-        <svg class="mark-md"><use href="#mark-C"/></svg>
-        <span class="word">Sunda<span class="tail">r·r</span></span>
+        <svg class="mark-md"><use href="#mark-E"/></svg>
+        <span class="sundarr" data-size="brand">
+          <span>Sunda</span><span>r</span>
+          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray"/></svg></span>
+          <span>r</span>
+        </span>
+        <span class="role">Console</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="eyebrow">F · 主图（v0.4 保留）</span>
+      <div class="title">大号 sun-play + 小 S 副标</div>
+      <div class="stage">
+        <svg class="mark-lg"><use href="#mark-F"/></svg>
+      </div>
+      <div class="scale-test">
+        <figure><svg class="mark-24"><use href="#mark-F"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg class="mark-16"><use href="#mark-F"/></svg><figcaption>16px</figcaption></figure>
+      </div>
+      <div class="desc">最接近 Radarr / Sonarr 的构图。品牌独特性最强，
+        与 wordmark 的 sun-ray 有重复但分工是"徽章主角 ↔ 文字副奏"，仍可行。</div>
+      <div class="ctx">
+        <svg class="mark-md"><use href="#mark-F"/></svg>
+        <span class="sundarr" data-size="brand">
+          <span>Sunda</span><span>r</span>
+          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray"/></svg></span>
+          <span>r</span>
+        </span>
         <span class="role">Console</span>
       </div>
     </div>
@@ -300,12 +462,12 @@
   </div>
 </section>
 
-<!-- =========================================================== -->
-<!--  第二部分：应用模式（占位使用概念 B）                          -->
-<!-- =========================================================== -->
+<!-- ================================================================= -->
+<!--  应用模式（占位用 G）                                                -->
+<!-- ================================================================= -->
 <section>
-  <h2>应用模式（占位使用概念 B）</h2>
-  <p>你选完概念后，这三处的徽章会统一替换成最终 mark。</p>
+  <h2>应用模式（占位使用 G）</h2>
+  <p>选定徽章后替换。wordmark 的 sun-ray 已固化，不随徽章变。</p>
   <div class="grid">
 
     <div class="card">
@@ -313,21 +475,28 @@
       <div class="title">手机顶栏 / 折叠侧栏头部</div>
       <div class="stage">
         <div class="pattern-nav-brand">
-          <svg class="mark-sm"><use href="#mark-B"/></svg>
-          <span class="word">Sunda<span class="tail">r·r</span></span>
+          <svg class="mark-sm"><use href="#mark-G"/></svg>
+          <span class="sundarr" data-size="brand">
+            <span>Sunda</span><span>r</span>
+            <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray"/></svg></span>
+            <span>r</span>
+          </span>
         </div>
       </div>
-      <div class="desc">字标 28 px，紧凑横向布局。
-        尾部 <code>r·r</code> 点染 terracotta 呼应 *arr 家族。</div>
+      <div class="desc">徽章 28px · wordmark 15px。</div>
     </div>
 
     <div class="card">
       <span class="eyebrow">05 · 全 wordmark</span>
       <div class="title">文档封面 / 关于页 / PR 模板</div>
       <div class="stage">
-        <span class="wordmark">sunda<span class="tail">r·r</span></span>
+        <span class="sundarr" data-size="hero">
+          <span>sunda</span><span>r</span>
+          <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray"/></svg></span>
+          <span>r</span>
+        </span>
       </div>
-      <div class="desc">无字标、全小写 wordmark，仅文本场景使用。</div>
+      <div class="desc">无徽章、全小写 wordmark。</div>
     </div>
 
     <div class="card">
@@ -336,49 +505,42 @@
       <div class="stage" style="padding:0;width:100%">
         <div class="sidebar-mock">
           <div class="row">
-            <svg class="mark-md"><use href="#mark-B"/></svg>
-            <span class="brand-text">
-              <div class="word">Sunda<span class="tail">r·r</span></div>
+            <svg class="mark-md"><use href="#mark-G"/></svg>
+            <div class="brand-text">
+              <div>
+                <span class="sundarr" data-size="inline">
+                  <span>Sunda</span><span>r</span>
+                  <span class="sun" aria-hidden="true"><svg viewBox="-10 -10 20 20"><use href="#atom-sunray"/></svg></span>
+                  <span>r</span>
+                </span>
+              </div>
               <div class="role">Web Console</div>
-            </span>
+            </div>
           </div>
-          <div class="nav-item active">
-            <span class="dot"></span> 任务
-          </div>
-          <div class="nav-item">
-            <span class="dot"></span> 存储
-          </div>
-          <div class="nav-item">
-            <span class="dot"></span> 媒体源
-          </div>
+          <div class="nav-item active"><span class="dot"></span> 任务</div>
+          <div class="nav-item"><span class="dot"></span> 存储</div>
+          <div class="nav-item"><span class="dot"></span> 媒体源</div>
         </div>
       </div>
-      <div class="desc">字标 40 px，副标"Web Console" eyebrow 格式。
-        活动 nav 项使用 accent-soft 背景 + 3 px 左指示条。</div>
+      <div class="desc">徽章 40px · wordmark 16px · 副标 eyebrow。</div>
     </div>
 
   </div>
 </section>
 
 <footer>
-  docs/16-design-system.md §5 · 选定概念后导出 SVG / PNG / ICO 进入 Phase 7.8 brand 步骤
+  docs/16-design-system.md §3 / §5 · 字体 License / 徽章规范 / wordmark sun-ray 规则将在定稿后一次性回填
 </footer>
 
 <script>
   const root = document.documentElement;
   const KEY = "sundarr-logo-preview-theme";
   const buttons = document.querySelectorAll("[data-theme-btn]");
-
   function apply(mode) {
-    if (mode === "auto") {
-      root.removeAttribute("data-theme");
-    } else {
-      root.setAttribute("data-theme", mode);
-    }
-    buttons.forEach(b => b.setAttribute(
-      "aria-selected",
-      b.dataset.themeBtn === mode ? "true" : "false"
-    ));
+    if (mode === "auto") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", mode);
+    buttons.forEach(b => b.setAttribute("aria-selected",
+      b.dataset.themeBtn === mode ? "true" : "false"));
     localStorage.setItem(KEY, mode);
   }
   buttons.forEach(b => b.addEventListener("click",

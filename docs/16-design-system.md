@@ -127,9 +127,18 @@ Never as a section background, decorative flourish, or icon-colour dump. If a ba
              "Liberation Mono", monospace;
 ```
 
-Inter carries everything. JetBrains Mono shows up for: task IDs, timestamps, paths, log lines, code, the terracotta separator in the logo (`S·`), and tabular numbers via `font-variant-numeric: tabular-nums` (on all progress / size / speed columns).
+Inter 承担绝大多数文本。JetBrains Mono 出现在：任务 ID、时间戳、路径、日志、代码、wordmark 中间的 sun-ray（小太阳）备用字符、以及通过 `font-variant-numeric: tabular-nums` 打开的表格数字（进度 / 大小 / 速度列）。
 
-CJK fallback is explicit — a chunk of UI is Chinese, and we must not let Inter fall back to a system serif mid-string.
+CJK 回退必须显式声明 —— 界面有大量中文，不能让 Inter 回退到系统衬线字体。`PingFang SC` / `Hiragino Sans GB` / `Microsoft YaHei` 只作为系统字体被引用，不随产品分发。
+
+**License 合规**：两款字体均采用 [SIL Open Font License 1.1](https://scripts.sil.org/ofl)，允许免费商用、嵌入、重分发。唯一限制是"不得单独售卖字体本身"。当我们在 Docker 镜像或 `web/public/fonts/` 随产品分发字体文件时，需要在 `LICENSES/` 目录保留各自的 OFL 文本：
+
+| 字体 | 来源 | License |
+|---|---|---|
+| Inter | [github.com/rsms/inter](https://github.com/rsms/inter) | SIL OFL 1.1 |
+| JetBrains Mono | [github.com/JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) | SIL OFL 1.1 |
+
+CJK 回退字体不涉及分发，零风险。
 
 ### 3.2 Scale
 
