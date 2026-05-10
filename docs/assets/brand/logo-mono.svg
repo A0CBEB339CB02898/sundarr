@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · Monochrome Mark
+  =========================
+  Single-color variant of the primary mark, for:
+    - Print on single-ink presses
+    - Engraving / watermark / foil stamp
+    - Reversed contexts where badge background must match carrier
+      (e.g., the mark appearing on a terracotta surface itself)
+  Fill is currentColor so the host can color it via CSS:
+    color: var(text);            light on dark
+    color: var(mark-bg);         on cream cards
+    color: var(mark-fg);         on terracotta surfaces (reversed)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr</title>
+  <defs>
+    <mask id="sundarr-mono-punches" maskUnits="userSpaceOnUse"
+          x="0" y="0" width="100" height="100">
+      <rect width="100" height="100" fill="white"/>
+      <rect x="0" y="0" width="100" height="100" rx="22" ry="22"
+            fill="black" fill-opacity="0"/>
+      <!-- Keep outer rect, punch the disc area via holes only -->
+      <circle cx="40" cy="38" r="5" fill="black"/>
+      <circle cx="54" cy="42" r="3" fill="black"/>
+      <circle cx="38" cy="56" r="3" fill="black"/>
+      <circle cx="58" cy="60" r="4" fill="black"/>
+    </mask>
+  </defs>
+
+  <!-- Outlined badge + filled disc, all in currentColor.
+       Thin 2.5 stroke on the badge; filled disc with holes. -->
+  <rect x="1.25" y="1.25" width="97.5" height="97.5" rx="21" ry="21"
+        fill="none" stroke="currentColor" stroke-width="2.5"/>
+  <circle cx="50" cy="50" r="28"
+          fill="currentColor"
+          mask="url(#sundarr-mono-punches)"/>
+</svg>

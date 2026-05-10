@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sundarr · Cover</title>
+<!--
+  Sundarr · Universal Cover Template
+  ==================================
+  一个模板，四种用途：
+    1. 文档封面        标题 + 副标题 + 章节号/版本
+    2. 关于页 splash    居中大 wordmark + tagline
+    3. PR 模板 banner   短横幅 + 分支/PR 号
+    4. README hero     项目名 + 一行介绍 + 两个 CTA
+
+  用法：直接打开或 iframe 嵌入，支持 URL query 注入：
+    ?title=任务状态机          主标题
+    ?eyebrow=DOCS / 07         上方小标签
+    ?subtitle=状态图 + 事件表    副标题/描述
+    ?variant=doc|about|pr|hero 布局变体，默认 doc
+    ?theme=light|dark          强制主题，默认跟随系统
+
+  例：
+    cover.html?variant=about&title=Sundarr&subtitle=你的%20Sunday%20媒体管家
+    cover.html?variant=doc&eyebrow=DOCS%20/%2007&title=任务状态机
+-->
+<style>
+  :root {
+    --bg:        #f3ede0;
+    --surface:   #fbf7ec;
+    --ink:       #1a1714;
+    --ink-soft:  rgba(26,23,20,0.60);
+    --ink-fade:  rgba(26,23,20,0.32);
+    --rule:      rgba(26,23,20,0.12);
+    --mark-bg:   #d97642;
+    --mark-fg:   #f2ead8;
+  }
+  :root[data-theme="dark"] {
+    --bg:        #11100e;
+    --surface:   #1a1814;
+    --ink:       #f2ead8;
+    --ink-soft:  rgba(242,234,216,0.60);
+    --ink-fade:  rgba(242,234,216,0.30);
+    --rule:      rgba(242,234,216,0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+      --bg:        #11100e;
+      --surface:   #1a1814;
+      --ink:       #f2ead8;
+      --ink-soft:  rgba(242,234,216,0.60);
+      --ink-fade:  rgba(242,234,216,0.30);
+      --rule:      rgba(242,234,216,0.12);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--ink);
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+
+  .cover {
+    min-height: 100vh; display: flex; flex-direction: column;
+    justify-content: center; padding: 80px 72px;
+    max-width: 1280px; margin: 0 auto; }
+
+  .eyebrow { font-size: 11px; letter-spacing: 0.22em;
+    text-transform: uppercase; font-weight: 600;
+    color: var(--ink-fade); margin: 0 0 24px;
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  h1 { margin: 0; font-size: 72px; font-weight: 500;
+    letter-spacing: -0.03em; line-height: 1.05; color: var(--ink); }
+  h1 em { font-style: normal; color: var(--ink-soft); font-weight: 400; }
+
+  .subtitle { margin: 28px 0 0; font-size: 20px; line-height: 1.55;
+    color: var(--ink-soft); font-weight: 400; max-width: 680px; }
+
+  /* Wordmark (r·r rule). The dot is colored accent. */
+  .wordmark { display: inline-flex; align-items: baseline;
+    font-weight: 500; letter-spacing: -0.025em;
+    color: var(--ink); white-space: nowrap; line-height: 1; }
+  .wordmark .dot { color: var(--mark-bg); margin: 0 0.02em;
+    font-size: 0.65em; position: relative; top: -0.12em; font-weight: 400; }
+
+  /* Top + bottom meta bars */
+  .meta-bar { display: flex; justify-content: space-between;
+    align-items: center; gap: 24px;
+    padding: 20px 0; font-size: 12px;
+    color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    letter-spacing: 0.08em; }
+  .meta-bar.top { border-bottom: 1px solid var(--rule);
+    margin-bottom: 56px; }
+  .meta-bar.bottom { border-top: 1px solid var(--rule);
+    margin-top: auto; padding-top: 24px; }
+  .meta-bar .brand-inline { display: inline-flex;
+    align-items: center; gap: 10px; color: var(--ink); }
+  .meta-bar .brand-inline svg { width: 20px; height: 20px;
+    border-radius: 4px; }
+
+  /* ====== variants ====== */
+
+  /* DOC: left-aligned, eyebrow + large title + subtitle */
+  .cover[data-variant="doc"] h1 { font-size: 64px; }
+
+  /* ABOUT: center-aligned splash, huge wordmark */
+  .cover[data-variant="about"] {
+    justify-content: center; text-align: center;
+    align-items: center; padding: 48px; }
+  .cover[data-variant="about"] .stage-mark {
+    width: 140px; height: 140px; margin-bottom: 40px;
+    border-radius: 30px; display: block; }
+  .cover[data-variant="about"] .wordmark {
+    font-size: 96px; }
+  .cover[data-variant="about"] .subtitle {
+    margin-top: 20px; font-size: 18px; text-align: center; }
+  .cover[data-variant="about"] .meta-bar { display: none; }
+
+  /* PR: short banner, 2-row layout, constrained height */
+  .cover[data-variant="pr"] {
+    min-height: 320px; padding: 32px 56px;
+    justify-content: center; }
+  .cover[data-variant="pr"] .eyebrow { margin-bottom: 16px; }
+  .cover[data-variant="pr"] h1 { font-size: 40px; }
+  .cover[data-variant="pr"] .subtitle { font-size: 15px; margin-top: 14px; }
+  .cover[data-variant="pr"] .meta-bar.bottom { display: none; }
+
+  /* HERO: README style, brand mark top-left, centered text */
+  .cover[data-variant="hero"] {
+    justify-content: center; align-items: center;
+    text-align: center; }
+  .cover[data-variant="hero"] .stage-mark {
+    width: 96px; height: 96px; border-radius: 22px;
+    margin-bottom: 32px; }
+  .cover[data-variant="hero"] h1 { font-size: 56px; }
+  .cover[data-variant="hero"] .subtitle { margin: 24px auto 0; }
+  .cover[data-variant="hero"] .cta-row {
+    display: flex; gap: 12px; margin-top: 40px;
+    justify-content: center; flex-wrap: wrap; }
+  .cover[data-variant="hero"] .cta-row a {
+    padding: 10px 20px; border-radius: 8px;
+    font-size: 14px; font-weight: 500; letter-spacing: -0.005em;
+    text-decoration: none; transition: background-color .15s; }
+  .cover[data-variant="hero"] .cta-row a.primary {
+    background: var(--mark-bg); color: var(--mark-fg); }
+  .cover[data-variant="hero"] .cta-row a.primary:hover {
+    background: var(--ink); }
+  .cover[data-variant="hero"] .cta-row a.secondary {
+    color: var(--ink); border: 1px solid var(--rule); }
+  .cover[data-variant="hero"] .cta-row a.secondary:hover {
+    border-color: var(--ink); }
+
+  /* SVG symbol defs */
+  @media (max-width: 720px) {
+    .cover { padding: 48px 24px; }
+    .cover h1 { font-size: 44px !important; }
+    .cover[data-variant="about"] .wordmark { font-size: 56px; }
+    .cover[data-variant="hero"] h1 { font-size: 36px !important; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <mask id="c-punches">
+      <rect width="100" height="100" fill="white"/>
+      <circle cx="40" cy="38" r="5" fill="black"/>
+      <circle cx="54" cy="42" r="3" fill="black"/>
+      <circle cx="38" cy="56" r="3" fill="black"/>
+      <circle cx="58" cy="60" r="4" fill="black"/>
+    </mask>
+  </defs>
+  <symbol id="logo" viewBox="0 0 100 100">
+    <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+    <circle cx="50" cy="50" r="28" fill="var(--mark-fg)"
+            mask="url(#c-punches)"/>
+  </symbol>
+</svg>
+
+<main class="cover" id="cover" data-variant="doc">
+
+  <!-- Top meta bar (doc + pr variants) -->
+  <div class="meta-bar top">
+    <span class="brand-inline">
+      <svg viewBox="0 0 100 100"><use href="#logo"/></svg>
+      <span class="wordmark" style="font-size:15px">
+        Sunda<span>r</span><span class="dot">·</span><span>r</span>
+      </span>
+    </span>
+    <span id="meta-right">docs/assets/brand/cover.html</span>
+  </div>
+
+  <!-- Stage mark, shown only for about + hero -->
+  <svg class="stage-mark" viewBox="0 0 100 100"
+       style="display:none" id="stage-mark"><use href="#logo"/></svg>
+
+  <p class="eyebrow" id="eyebrow">DOCS / SECTION</p>
+  <h1 id="title">Sundarr</h1>
+  <p class="subtitle" id="subtitle"></p>
+
+  <!-- CTA row (hero only) -->
+  <div class="cta-row" id="cta-row" style="display:none">
+    <a href="#" class="primary" id="cta-primary">快速开始</a>
+    <a href="#" class="secondary" id="cta-secondary">查看文档</a>
+  </div>
+
+  <!-- Bottom meta bar (doc variant: brand + version/status) -->
+  <div class="meta-bar bottom">
+    <span>Sundarr · Self-hosted media mover</span>
+    <span id="meta-bottom-right">v0.1 · docs</span>
+  </div>
+
+</main>
+
+<script>
+  const q = new URLSearchParams(location.search);
+  const set = (id, v) => { const el = document.getElementById(id);
+    if (el && v != null) el.textContent = v; };
+  const show = (id, v) => { const el = document.getElementById(id);
+    if (el) el.style.display = v ? '' : 'none'; };
+
+  const variant = q.get('variant') || 'doc';
+  document.getElementById('cover').dataset.variant = variant;
+
+  if (variant === 'about') {
+    document.getElementById('title').innerHTML =
+      `<span class="wordmark">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>`;
+    show('stage-mark', true);
+  } else if (variant === 'hero') {
+    show('stage-mark', true);
+    show('cta-row', true);
+  }
+
+  if (q.get('eyebrow')) set('eyebrow', q.get('eyebrow'));
+  if (q.get('title'))   set('title',   q.get('title'));
+  if (q.get('subtitle'))set('subtitle',q.get('subtitle'));
+  if (q.get('meta'))    set('meta-right', q.get('meta'));
+
+  const theme = q.get('theme');
+  if (theme === 'light' || theme === 'dark')
+    document.documentElement.setAttribute('data-theme', theme);
+
+  // Default-fill the subtitle per variant when unspecified
+  if (!q.get('subtitle')) {
+    const defaults = {
+      doc:   'Sundarr · Self-hosted media mover for homelabbers.',
+      about: '一个把云端媒体搬运到你自家 NAS 的小工具。',
+      pr:    'Review-ready · follows docs/16-design-system.md',
+      hero:  'Sunday morning. Your cloud. Your NAS. Automated.'
+    };
+    set('subtitle', defaults[variant] || defaults.doc);
+  }
+</script>
+
+</body>
+</html>
