@@ -212,39 +212,153 @@ No `box-shadow` on static cards. Depth is carried by surface steps + hairline �
 
 ## 5. Brand & Logo
 
-"Sundarr" = Sunday + ·arr suffix. 视觉上 Sundarr 隶属于 Servarr 家族（Radarr / Sonarr / Lidarr 等），沿用**圆角正方形徽章 + 粗体单字母 + 单一主色底**的家族语言；差异化在于 **"S" 与播放三角形的整合方式**，以及暖色 terracotta 底色（其他 *arr 多用冷色）。
+"Sundarr" = Sunday + ·arr suffix. 视觉上 Sundarr 隶属于 Servarr 家族（Radarr /
+Sonarr / Lidarr 等），沿用**圆角正方形徽章 + 单一主色底**的家族语言；不同之处
+在于前景不是单字母，而是一颗被不对称穿孔的 **Punched Disc**——一个 Sunday 日轮，
+被四个圆孔打穿，figure（日轮）与 ground（穿孔）同时讲两件事。
 
-### 5.1 Primary Mark
+设计原型来自 [op7418/logo-generator-skill](https://github.com/op7418/logo-generator-skill)
+文档中分析的 **Punched Circle** (ref 4221df1d)，其核心原则是
+**subtract rather than add**：负空间即设计。
 
-- **载体**：64×64 圆角正方形（桌面 logo），`border-radius: 14px`（@64px，等比缩放）。
-- **底色**：`--mark-bg` = `--accent`（terracotta）。
-- **前景**：`--mark-fg` = 奶油白（dark 模式）/ 奶油米（light 模式），约对应 `--text` / `--surface-1`。
-- **主字形**：Inter 900 / 46pt "S"，字距 -2.5px，垂直光学居中。
-- **整合元素**：播放三角形（▶），具体整合强度与位置由最终选定的 logo 概念决定。
-  候选概念见 `docs/assets/brand/logo-preview.html`，四档强度（纯 S / 指示灯点 /
-  内嵌三角 / 播放尾整合）供挑选，默认推荐"内嵌三角"（中度整合）。
-- **Clear space**：徽章外留白 ≥ cap-height / 2（@64px 即 ≥ 12px）。
-- **最小尺寸**：16px favicon 仍保留圆角 + 单字 S；< 14px 允许降级为纯色方块。
+> **实物资产**：`docs/assets/brand/`
+> - `logo.svg` · 主徽章（彩色）
+> - `logo-mono.svg` · 单色变体（`currentColor` 驱动）
+> - `cover.html` · 文档 / 关于 / PR / README 四用封面模板
+> - `showcase.html` · 品牌综合示例页（建议本节作为交叉引用）
+> - `README.md` · brand 目录速查
 
-> 以下字段在选定最终概念后由 Agent 回填：路径 SVG、PNG 导出清单、象素级
-> 对齐表。实施计划见 §11 第 4 步 Brand。
+### 5.1 Primary Mark — Punched Disc
 
-### 5.2 Wordmark
+- **载体**：100×100 viewBox 圆角正方形，`rx="22"`（相当于 64px 实际尺寸下的 14px 圆角）。
+- **底色**：`--mark-bg` = terracotta。
+- **前景 Disc**：`cx=50 cy=50 r=28`，`fill=var(--mark-fg)`（奶油）。
+- **Punches**（不对称，上左重下右轻）：
+  - `(40, 38) r=5` — 最大，承担视觉重量
+  - `(54, 42) r=3` — 右上小伴星
+  - `(38, 56) r=3` — 左下小伴星
+  - `(58, 60) r=4` — 右下中号
 
-`sundarr` 全小写，Inter 600，字距 -0.3px。尾部 `r·r` 上色 `--accent`（80% 不透明度），
-呼应 Servarr 家族 *arr 后缀。不允许全大写、不允许斜体。组合使用："徽章 + 横向间距 10px + wordmark"。
+| 属性 | 值 |
+|---|---|
+| Viewport | `viewBox="0 0 100 100"` |
+| Badge radius | `rx=22`（等比 14px @ 64px 实际尺寸） |
+| Disc radius | `r=28` |
+| 前景驱动 | CSS vars `--mark-bg` / `--mark-fg` |
+| Clear space | ≥ 0.15 × 徽章边长（@64px 即 ≥ 10px） |
+| 最小尺寸 | 16px（4 个穿孔在此尺寸下仍可辨） |
 
-### 5.3 Favicon
+### 5.2 Wordmark — r · r Rule
 
-16 / 32 / 48 / 180px PNG + ICO + SVG。所有尺寸均使用圆角 + 实色底（非透明），
-便于深色浏览器 tab 与 iOS 主屏图标显示。≤ 16px 时内部三角细节可省略。
+品牌全称写作 **Sundar·r**——核心规则是两个 `r` 之间有一个中点，**用 accent
+terracotta 上色**。这是 Servarr 家族 `*arr` 后缀的视觉签名。
 
-### 5.4 Brand Voice（用于界面文案、错误提示、空状态）
+**实现有两个必须满足的正确性要求**：
+
+1. **点必须落在文字的视觉水平线**（x-height 中线），不是 line-box 的
+   几何中心。所以不用 `inline-flex + align-items: center`——那个会对
+   到 cap-height 附近，看起来偏上。用 `display: inline-block` +
+   `vertical-align: middle`，CSS 规范定义的 middle 正是 baseline + ex/2。
+2. **左右 margin 不相等**：因为字母 `r` 的右上短臂造成右 r 的 stem
+   视觉上"离点更远"，需要把 `margin-right` 设为 `margin-left` 的 ~70%
+   来补偿，这样右 r 才真正看起来在中间。
+3. 字符 `·` 仍保留在 DOM 中（供屏幕阅读器朗读与复制粘贴），用
+   `text-indent: -9999px; overflow: hidden` 视觉隐藏，比 `font-size: 0`
+   更可靠（后者在某些嵌套 flex 场景下会影响布局）。
+
+```html
+<span class="wordmark">
+  Sunda<span>r</span><span class="dot">·</span><span>r</span>
+</span>
+```
+
+```css
+.wordmark {
+  display: inline-block;               /* 不用 inline-flex */
+  font-weight: 500;                    /* Inter 500 */
+  letter-spacing: -0.025em;
+  color: var(--text);
+  /* 每档通过 --dot-size / --dot-ml / --dot-mr 调整 */
+}
+.wordmark .dot {
+  display: inline-block;
+  vertical-align: middle;              /* 关键: 对齐到 x-height 中线 */
+  width:  var(--dot-size);
+  height: var(--dot-size);
+  margin-left:  var(--dot-ml);
+  margin-right: var(--dot-mr);         /* ~70% of ml, 补偿 r 右臂错觉 */
+  border-radius: 50%;
+  background: var(--accent);
+  text-indent: -9999px; overflow: hidden;  /* 隐藏 "·" 保留 a11y */
+}
+```
+
+三档尺寸（尺寸 / 点直径 / 左 margin / 右 margin / 比例）：
+
+| 档位 | 字号 | 点直径 | `--dot-ml` | `--dot-mr` | mr/ml | 用途 |
+|---|---|---|---|---|---|---|
+| `hero`   | 64 px | 12 px  | 7 px   | 6 px   | 86%  | 文档封面、splash、关于页独立展示 |
+| `brand`  | 16 px | 5 px   | 3.5 px | 2.5 px | 71%  | 顶栏、侧栏副标、导航品牌区 |
+| `inline` | 14 px | 4.5 px | 3 px   | 2 px   | 67%  | 正文引用；< 13 px 退化为不带点的 `Sundarr` |
+
+**关于 mr/ml 的渐变补偿**：补偿幅度不是常量，而是随字号变化。原因是字母
+`r` 的右上短臂造成的视觉偏心在**小字号下占字母视觉权重 ~35-40%**，但在
+**96px 下只占 ~20%**——大字号会被人眼的 Weber-Fechner 感知稀释。所以
+inline 档最激进（67%），hero 档放缓（86%），cover 的 about (96px) 则
+完全使用对称 margin (`mr = ml`)。
+
+注意**小尺寸下点相对更大、间距以 px 定义**（反直觉但正确）——抗锯齿会吞
+小圆，em 在小字号下也会坍缩。而**点的直径占字号约 14–32%**，字号越大相
+对占比越小（否则大字号下点会显"肥"）。
+
+组合规则："徽章 + 横向间距 10~14px + wordmark"。禁止全大写、禁止斜体、
+禁止移除中间的 `·`。
+
+### 5.3 Covers · Universal Template
+
+单一模板 `docs/assets/brand/cover.html` 覆盖四种用途，通过 URL query 控制：
+
+| variant | 场景 | 布局 |
+|---|---|---|
+| `doc`   | 各章节文档封面 | 左对齐，eyebrow + 大标题 + 副标题 + 顶底 meta bar |
+| `about` | 关于页 / splash | 居中，大号 wordmark 为主视觉 |
+| `pr`    | PR 评审横幅 | 短高度（320px），紧凑 |
+| `hero`  | README 首屏 | 居中徽章 + 标题 + 双 CTA |
+
+查询参数：`?variant=X&eyebrow=...&title=...&subtitle=...&theme=light|dark`
+
+### 5.4 Favicon
+
+16 / 32 / 48 / 180 px PNG + ICO + SVG。所有尺寸使用圆角 + 实色底（非透明），
+便于深色浏览器 tab 与 iOS 主屏图标显示。16 px 时 4 个穿孔仍可辨，不需要简化。
+
+### 5.5 Monochrome Variant
+
+`logo-mono.svg` 用 `fill="currentColor"`，适合：
+
+- 单色印刷 / 浮雕 / 箔压
+- 徽章须与承载色融合（如出现在 terracotta 背景上时反白显示）
+
+用法：
+
+```css
+.mark--on-dark  { color: var(--text); }       /* 奶油 on 深底 */
+.mark--on-terracotta { color: var(--mark-fg); } /* 奶油 on 主色底 */
+```
+
+### 5.6 Brand Voice（用于界面文案、错误提示、空状态）
 
 - 直接、第二人称（"你的任务已暂停"而非"任务已被暂停"）。
 - 不为错误道歉；陈述发生了什么 + 下一步该怎么做。
 - 面向用户文案用简中，技术术语（`Worker` `Adapter` `SMB` `Transfer`）保留英文，
   与代码库一致。
+
+### 5.7 不变式（Invariants）
+
+- ✗ 不要在 logo 内部添加任何新元素（遵循 subtract rather than add）。
+- ✗ 不要用纯白 `#ffffff` 或纯黑 `#000000`。
+- ✗ 不要把 wordmark 写成全大写、斜体、或去掉中间的 `·`。
+- ✗ 不要把 terracotta 用作大面积背景色；它是信号色，只出现在 §2.4 列出的位置。
 
 ---
 
@@ -473,7 +587,9 @@ Touch targets: 44×44 minimum on mobile for buttons, row-action icons, and nav i
 1. **Tokens**: rewrite `styles.css` top block to include every token in §2, keeping the theme-switching logic.
 2. **Global primitives**: extract `Card`, `Button`, `StatusBadge`, `ProgressBar`, `Field`, `Table`, `EmptyState`, `LoadingState`, `ErrorState`, `Toast`, `Skeleton`, `Kbd` into `web/src/ui/` as tiny React components with className + variant props.
 3. **Shell**: rebuild `App` / `Sidebar` / `TopBar` to the §6 recipes, add the hamburger + drawer + mobile top bar.
-4. **Brand**: add `S·` SVG component, wire it into `brand-mark` + favicon + meta.
+4. **Brand**: 资产已落位 `docs/assets/brand/`。接下来将 `logo.svg` /
+   `logo-mono.svg` 接入 `web/src/ui/` 的 `<Brand />` 组件，生成 16/32/48/180 px
+   favicon，并接上 `<meta>` 标签。
 5. **Pages**: redo in this order — (a) Transfers (hero), (b) Status, (c) Storage, (d) Sources, (e) Libraries, (f) Remote Libraries, (g) Search. Each page PR-reviewable independently once the shell is in.
 6. **Polish**: skeletons for initial load states, keyboard shortcuts, reduced-motion audit.
 

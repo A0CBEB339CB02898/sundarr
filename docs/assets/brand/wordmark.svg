@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr Wordmark (Sundar · r)
+
+  All-SVG wordmark. The geometry is frozen by the viewBox, so the
+  layout is identical at every rendered size (14px to 960px).
+  The middle dot is a real circle, never a typographic character.
+
+  Font handling: Letters render via text elements with Inter fallback
+  stack baked in. The "r dot r" placement uses absolute x coordinates
+  so the dot is always on x-height midline and the right-r gap is
+  always ~79% of the left-r gap. These do NOT drift with font size.
+
+  For zero-font-dependency: run a one-time "text to path" conversion
+  (Inkscape CLI or Puppeteer + PathKit) to freeze Inter glyphs into
+  path outlines. See README for tooling notes.
+
+  ViewBox:    0 0 500 100
+  Baseline:   y = 72
+  Font size:  70
+  Font:       Inter / Medium
+
+  Geometry of "r · r" cluster (absolute coords):
+    Sundar spans up to ~384 (font-dependent, but tspan locks position)
+    dot: cx = 418, cy = 48, r = 9
+    final r: x = 444 (absolute tspan x)
+    ml gap ~28u, mr gap ~22u, mr/ml = 79%
+
+  Coloring:
+    currentColor drives letters (inherits from host CSS color)
+    CSS var `wm-dot` drives the middle dot (falls back to currentColor)
+
+  Host recipe:
+    .wm-host     sets color = text, wm-dot = accent
+    .wm-host svg sets height = 1em, width = auto, inline-block
+
+  Accessibility: role + aria-label + title announce "Sundarr".
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 500 100"
+     role="img"
+     aria-label="Sundarr"
+     preserveAspectRatio="xMidYMid meet">
+  <title>Sundarr</title>
+  <style>
+    .wm-text {
+      font-family: "Inter", -apple-system, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+      font-weight: 500;
+      font-size: 70px;
+      letter-spacing: -1.2px;
+      fill: currentColor;
+    }
+    .wm-dot {
+      fill: var(--wm-dot, currentColor);
+    }
+  </style>
+
+  <!-- Main cluster "Sundar" -->
+  <text class="wm-text" x="8" y="72">Sundar</text>
+
+  <!-- Middle dot: x-height midline, sized ~30% of x-height -->
+  <circle class="wm-dot" cx="418" cy="48" r="9"/>
+
+  <!-- Trailing "r" with absolute x for optical compensation
+       (mr ~79% of ml, baked into coordinates) -->
+  <text class="wm-text" x="444" y="72">r</text>
+</svg>

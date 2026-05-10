@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sundarr · Brand Showcase</title>
+<style>
+  /* ===================================================================
+     Sundarr Brand Showcase
+     ----------------------
+     Consolidates the final identity system: primary mark, wordmark rule,
+     scale tests, cover previews, and in-product application patterns
+     (top-bar, sidebar, PR banner).
+
+     Layout language: editorial, rule-heavy, 11px mono eyebrows — merged
+     from docs/assets/brand/v4/showcase.html (editorial grid) and the
+     earlier logo-preview.html (application patterns).
+
+     Every token here mirrors docs/16-design-system.md §2 and §5.
+     =================================================================== */
+  :root {
+    --bg:        #f3ede0;
+    --surface-1: #fbf7ec;
+    --surface-2: #ece4d3;
+    --ink:       #1a1714;
+    --ink-soft:  rgba(26,23,20,0.58);
+    --ink-fade:  rgba(26,23,20,0.30);
+    --rule:      rgba(26,23,20,0.12);
+    --rule-strong: rgba(26,23,20,0.22);
+    --mark-bg:   #d97642;
+    --mark-fg:   #f2ead8;
+    --accent:    #b05623;
+    --accent-tint: rgba(176, 86, 35, 0.10);
+  }
+  :root[data-theme="dark"] {
+    --bg:        #11100e;
+    --surface-1: #1a1814;
+    --surface-2: #221f1a;
+    --ink:       #f2ead8;
+    --ink-soft:  rgba(242,234,216,0.58);
+    --ink-fade:  rgba(242,234,216,0.28);
+    --rule:      rgba(242,234,216,0.10);
+    --rule-strong: rgba(242,234,216,0.22);
+    --accent:    #d97642;
+    --accent-tint: rgba(217, 118, 66, 0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+      --bg:        #11100e;
+      --surface-1: #1a1814;
+      --surface-2: #221f1a;
+      --ink:       #f2ead8;
+      --ink-soft:  rgba(242,234,216,0.58);
+      --ink-fade:  rgba(242,234,216,0.28);
+      --rule:      rgba(242,234,216,0.10);
+      --rule-strong: rgba(242,234,216,0.22);
+      --accent:    #d97642;
+      --accent-tint: rgba(217, 118, 66, 0.18);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .35s, color .35s; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 56px 48px 96px; }
+
+  /* --- head ----------------------------------------------------- */
+  .head { display: flex; align-items: flex-end;
+    justify-content: space-between; gap: 24px; flex-wrap: wrap;
+    margin-bottom: 48px; }
+  .eyebrow { font-size: 11px; letter-spacing: 0.2em;
+    text-transform: uppercase; font-weight: 600;
+    color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .head h1 { margin: 12px 0 0; font-size: 44px; font-weight: 500;
+    letter-spacing: -0.02em; line-height: 1.1; }
+  .head h1 em { font-style: normal; color: var(--ink-soft); }
+  .lede { margin: 20px 0 0; font-size: 15px; line-height: 1.65;
+    color: var(--ink-soft); max-width: 640px; }
+  .lede b { color: var(--ink); font-weight: 500; }
+
+  .control { display: inline-flex; gap: 1px; padding: 1px;
+    background: var(--rule); border-radius: 999px; }
+  .control button { border: 0; background: transparent;
+    padding: 7px 16px; font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-soft); border-radius: 999px;
+    cursor: pointer; font-family: inherit;
+    transition: background-color .2s, color .2s; }
+  .control button[aria-selected="true"] {
+    background: var(--ink); color: var(--bg); }
+
+  /* --- section scaffold ---------------------------------------- */
+  section { margin-top: 72px; }
+  section > .section-head {
+    display: flex; align-items: baseline;
+    justify-content: space-between; gap: 16px;
+    padding-bottom: 16px; margin-bottom: 32px;
+    border-bottom: 1px solid var(--rule); }
+  section > .section-head h2 {
+    margin: 0; font-size: 20px; font-weight: 500;
+    letter-spacing: -0.015em; }
+  section > .section-head .section-meta {
+    font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  /* --- hero mark (§01) ----------------------------------------- */
+  .hero-mark {
+    display: grid; grid-template-columns: minmax(280px, 420px) 1fr;
+    gap: 56px; align-items: center;
+    padding: 48px 48px 56px;
+    background: var(--surface-1);
+    border: 1px solid var(--rule); border-radius: 20px; }
+  .hero-mark .logo-stage {
+    display: flex; align-items: center; justify-content: center; }
+  .hero-mark .logo-stage svg {
+    width: 240px; height: 240px;
+    border-radius: 54px; display: block; }
+  .hero-mark .body dl { margin: 0; display: grid;
+    grid-template-columns: 140px 1fr; row-gap: 14px; column-gap: 20px; }
+  .hero-mark .body dt {
+    font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    padding-top: 2px; }
+  .hero-mark .body dd { margin: 0; font-size: 14px; line-height: 1.55;
+    color: var(--ink); }
+  .hero-mark .body dd b { font-weight: 500; }
+  .hero-mark .body dd code { font-family: "JetBrains Mono",
+    ui-monospace, monospace; font-size: 12.5px;
+    background: var(--bg); padding: 1px 6px; border-radius: 3px;
+    border: 1px solid var(--rule); }
+  .hero-mark .body .caption {
+    margin: 24px 0 0; padding-top: 20px;
+    border-top: 1px dashed var(--rule);
+    font-size: 12.5px; line-height: 1.6; color: var(--ink-soft);
+    font-style: italic; }
+
+  /* --- wordmark (§02) ------------------------------------------ */
+  .wordmark-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border: 1px solid var(--rule); border-radius: 16px;
+    overflow: hidden; background: var(--surface-1); }
+  .wordmark-grid > .wm-cell {
+    padding: 40px 32px 32px; display: flex; flex-direction: column;
+    gap: 16px; min-height: 260px;
+    border-right: 1px solid var(--rule); }
+  .wordmark-grid > .wm-cell:last-child { border-right: none; }
+  .wordmark-grid .wm-stage { flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    padding: 12px 0; }
+  .wordmark-grid .wm-cell .wm-label {
+    display: flex; justify-content: space-between;
+    align-items: baseline; font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .wordmark-grid .wm-cell .wm-label b {
+    color: var(--accent); font-weight: 600; }
+  .wordmark-grid .wm-cell .wm-desc {
+    font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; }
+
+  /* ============================================================
+     Wordmark · r · r rule (core)
+
+     The middle dot is a REAL CSS circle, not the U+00B7 character.
+     Three correctness requirements this implementation satisfies:
+
+       1. The dot must sit on the visual horizontal line of the
+          text — i.e. the x-height midline (baseline + ex / 2),
+          not the geometric center of the line-box.
+          `vertical-align: middle` on an inline-block does exactly
+          that per the CSS spec, and works across fonts & sizes.
+
+       2. Because `r`'s upper arm protrudes to its right, the right
+          `r` in "r · r" reads as visually farther than the left r
+          — BUT only at small sizes where the arm dominates the
+          glyph's visual mass (~40% at 14px, ~20% at 96px).
+          So --dot-mr < --dot-ml with the ratio *tapering* toward
+          1:1 as font-size grows. See per-tier values below.
+
+       3. The "·" character is kept in the DOM for copy-paste and
+          screen readers, but visually hidden via
+          text-indent+overflow.
+     ============================================================ */
+  .wordmark { display: inline-block;
+    font-weight: 500; letter-spacing: -0.025em;
+    color: var(--ink); white-space: nowrap; line-height: 1; }
+  .wordmark .dot {
+    display: inline-block;
+    vertical-align: middle;                 /* ← baseline + ex/2 */
+    width:  var(--dot-size, 5px);
+    height: var(--dot-size, 5px);
+    margin-left:  var(--dot-ml, 3.5px);
+    margin-right: var(--dot-mr, 2.5px);     /* ~70% of ml */
+    border-radius: 50%;
+    background: var(--accent);
+    /* suppress the "·" glyph but keep the text node for a11y */
+    text-indent: -9999px; overflow: hidden;
+  }
+
+  /* Per-tier tuning. Small sizes get *relatively larger* dots so
+     antialiasing doesn't eat them; all gaps in px (not em) so they
+     don't collapse at small font sizes. The asymmetric margin
+     correction (mr < ml) fights r's right-arm bias, but the bias
+     is size-sensitive: it dominates at 14–16px (~35-40% of the
+     glyph's visual mass) and fades at 64px+ (~25%). So the mr/ml
+     ratio tapers from ~67% at inline to ~85% at hero. */
+  .wordmark[data-size="hero"]   { font-size: 64px; letter-spacing: -0.035em;
+    --dot-size: 12px;  --dot-ml: 7px;   --dot-mr: 6px; }
+  .wordmark[data-size="brand"]  { font-size: 16px;
+    --dot-size: 5px;   --dot-ml: 3.5px; --dot-mr: 2.5px; }
+  .wordmark[data-size="inline"] { font-size: 14px;
+    --dot-size: 4.5px; --dot-ml: 3px;   --dot-mr: 2px; }
+
+  /* --- scale test (§03) ---------------------------------------- */
+  .scale-strip { padding: 36px 40px;
+    border: 1px solid var(--rule); border-radius: 16px; }
+  .scale-row { display: flex; align-items: flex-end;
+    gap: 48px; flex-wrap: wrap; }
+  .scale-row figure { margin: 0; display: flex;
+    flex-direction: column; align-items: center; gap: 10px; }
+  .scale-row figcaption { font-size: 10px;
+    letter-spacing: 0.14em; color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .scale-row svg { border-radius: 10%; display: block; }
+
+  /* --- color tokens (§04) -------------------------------------- */
+  .tokens-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px; }
+  .tok { padding: 20px 18px; border-radius: 12px;
+    border: 1px solid var(--rule); background: var(--surface-1);
+    display: flex; flex-direction: column; gap: 14px; }
+  .tok .chip {
+    height: 56px; border-radius: 8px;
+    border: 1px solid var(--rule); }
+  .tok .tok-name {
+    font-size: 11px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .tok .tok-role { font-size: 13px; font-weight: 500;
+    letter-spacing: -0.005em; }
+  .tok .tok-val { font-size: 11.5px; color: var(--ink-soft);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    letter-spacing: 0.02em; }
+
+  /* --- covers (§05) -------------------------------------------- */
+  .covers { display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 24px; }
+  .cover-card { background: var(--surface-1);
+    border: 1px solid var(--rule); border-radius: 14px;
+    overflow: hidden; display: flex; flex-direction: column; }
+  .cover-card .cover-label {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--rule);
+    display: flex; justify-content: space-between;
+    align-items: center; }
+  .cover-card .cover-label .code {
+    font-size: 11px; letter-spacing: 0.14em;
+    color: var(--accent); font-weight: 600;
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .cover-card .cover-label a { color: var(--ink-soft);
+    text-decoration: none; font-size: 11.5px;
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .cover-card .cover-label a:hover { color: var(--accent); }
+  .cover-card iframe {
+    width: 100%; aspect-ratio: 16/10;
+    border: none; display: block; background: var(--bg); }
+  .cover-card p { margin: 0; padding: 16px 20px;
+    font-size: 12.5px; color: var(--ink-soft);
+    line-height: 1.6; border-top: 1px solid var(--rule); }
+
+  /* --- application patterns (§06) ------------------------------ */
+  .apps { display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 24px; }
+  .app-card { background: var(--surface-1);
+    border: 1px solid var(--rule); border-radius: 14px;
+    padding: 28px 28px 24px; display: flex; flex-direction: column;
+    gap: 20px; }
+  .app-card .app-label {
+    font-size: 11px; letter-spacing: 0.14em;
+    color: var(--accent); font-weight: 600;
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .app-card .app-title { font-size: 16px; font-weight: 500;
+    margin: -12px 0 0; letter-spacing: -0.01em; }
+  .app-card .app-stage {
+    padding: 28px 24px; border-radius: 10px;
+    background: var(--surface-2);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 180px; }
+  .app-card .app-note { margin: 0; font-size: 12px;
+    line-height: 1.55; color: var(--ink-soft); }
+
+  /* mini patterns */
+  .nav-brand { display: inline-flex; align-items: center; gap: 10px;
+    padding: 10px 14px; background: var(--surface-1);
+    border: 1px solid var(--rule); border-radius: 10px; }
+  .nav-brand svg { width: 28px; height: 28px;
+    border-radius: 6px; }
+  .pr-banner { width: 100%; display: flex;
+    align-items: center; gap: 14px;
+    padding: 14px 18px; background: var(--bg);
+    border: 1px solid var(--rule-strong); border-radius: 10px; }
+  .pr-banner svg { width: 26px; height: 26px;
+    border-radius: 6px; flex-shrink: 0; }
+  .pr-banner .pr-meta { display: flex; flex-direction: column;
+    gap: 2px; flex: 1; min-width: 0; }
+  .pr-banner .pr-meta .line1 { font-size: 13px;
+    font-weight: 500; letter-spacing: -0.005em; color: var(--ink); }
+  .pr-banner .pr-meta .line2 { font-size: 11px;
+    color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    letter-spacing: 0.06em; }
+  .pr-banner .pr-status {
+    padding: 3px 10px; font-size: 10px; font-weight: 600;
+    letter-spacing: 0.1em; border-radius: 999px;
+    background: var(--accent-tint); color: var(--accent);
+    text-transform: uppercase; }
+
+  /* Sidebar mock, from the original logo-preview (content only, no
+     logo decision UI). This mirrors web console main sidebar. */
+  .sidebar-mock { width: 100%; background: var(--bg);
+    border: 1px solid var(--rule); border-radius: 10px;
+    padding: 18px 14px; display: flex; flex-direction: column;
+    gap: 6px; }
+  .sidebar-mock .brand-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 2px 8px 14px;
+    border-bottom: 1px solid var(--rule); margin-bottom: 8px; }
+  .sidebar-mock .brand-row svg {
+    width: 32px; height: 32px; border-radius: 8px; }
+  .sidebar-mock .brand-row .brand-text {
+    display: flex; flex-direction: column; gap: 2px; }
+  .sidebar-mock .brand-row .role {
+    font-size: 10px; color: var(--ink-fade);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .sidebar-mock .nav-item {
+    padding: 9px 12px; border-radius: 8px;
+    display: flex; align-items: center; gap: 10px;
+    color: var(--ink-soft); font-size: 13.5px;
+    font-weight: 400;
+    position: relative; }
+  .sidebar-mock .nav-item.active {
+    background: var(--accent-tint); color: var(--accent);
+    font-weight: 500; }
+  .sidebar-mock .nav-item.active::before {
+    content: ""; position: absolute;
+    left: -14px; top: 8px; bottom: 8px; width: 3px;
+    background: var(--accent);
+    border-radius: 0 2px 2px 0; }
+  .sidebar-mock .nav-item .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; opacity: 0.5; }
+
+  /* --- footer ---------------------------------------------------- */
+  footer { margin-top: 80px; padding-top: 28px;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+    font-size: 11px; letter-spacing: 0.08em;
+    color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  footer a { color: inherit; border-bottom: 1px solid currentColor;
+    text-decoration: none; }
+
+  /* --- responsive ----------------------------------------------- */
+  @media (max-width: 900px) {
+    .wrap { padding: 40px 20px 64px; }
+    .head h1 { font-size: 32px; }
+    .hero-mark { grid-template-columns: 1fr; gap: 32px;
+      padding: 32px 28px 36px; }
+    .hero-mark .logo-stage svg { width: 180px; height: 180px; }
+    .hero-mark .body dl { grid-template-columns: 1fr; row-gap: 4px; }
+    .hero-mark .body dt { margin-top: 10px; }
+    .wordmark-grid { grid-template-columns: 1fr; }
+    .wordmark-grid > .wm-cell { border-right: none;
+      border-bottom: 1px solid var(--rule); min-height: 200px; }
+    .wordmark[data-size="hero"] { font-size: 40px; }
+    .tokens-grid { grid-template-columns: repeat(2, 1fr); }
+    .covers, .apps { grid-template-columns: 1fr; }
+    .scale-row { gap: 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- =========================================================== -->
+  <!-- Header                                                      -->
+  <!-- =========================================================== -->
+  <header class="head">
+    <div>
+      <span class="eyebrow">Sundarr · Brand System · v1.0</span>
+      <h1>The identity, assembled.<br/>
+        <em>Logo, wordmark, covers, application.</em></h1>
+      <p class="lede">
+        最终选定的 logo (<b>Punched Disc</b>) 、wordmark 的 <b>r·r 规则</b>、
+        文档封面模板、以及在产品与文档中的落位模式——整合在一页。
+        Tokens 与下列页面的决策同步至 <code>docs/16-design-system.md</code>。
+      </p>
+    </div>
+    <div class="control" role="tablist" aria-label="theme">
+      <button data-theme="light" aria-selected="true">Paper</button>
+      <button data-theme="dark"  aria-selected="false">Ink</button>
+    </div>
+  </header>
+
+  <!-- =========================================================== -->
+  <!-- Shared SVG symbols                                          -->
+  <!-- =========================================================== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <mask id="punches">
+        <rect width="100" height="100" fill="white"/>
+        <circle cx="40" cy="38" r="5" fill="black"/>
+        <circle cx="54" cy="42" r="3" fill="black"/>
+        <circle cx="38" cy="56" r="3" fill="black"/>
+        <circle cx="58" cy="60" r="4" fill="black"/>
+      </mask>
+    </defs>
+    <symbol id="logo" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <circle cx="50" cy="50" r="28" fill="var(--mark-fg)"
+              mask="url(#punches)"/>
+    </symbol>
+  </svg>
+
+  <!-- =========================================================== -->
+  <!-- §01 Primary Mark                                            -->
+  <!-- =========================================================== -->
+  <section>
+    <div class="section-head">
+      <h2>01 · Primary Mark</h2>
+      <span class="section-meta">Punched Disc · archetype ref 4221df1d</span>
+    </div>
+    <div class="hero-mark">
+      <div class="logo-stage">
+        <svg viewBox="0 0 100 100"><use href="#logo"/></svg>
+      </div>
+      <div class="body">
+        <dl>
+          <dt>Canvas</dt>
+          <dd><code>100 × 100</code>, badge <code>border-radius: 22</code></dd>
+          <dt>Disc</dt>
+          <dd>Cream circle <code>cx=50 cy=50 r=28</code></dd>
+          <dt>Punches</dt>
+          <dd>Four asymmetric holes. Upper-left heavy.<br/>
+            <code>(40,38) r=5 · (54,42) r=3 · (38,56) r=3 · (58,60) r=4</code></dd>
+          <dt>Colors</dt>
+          <dd><b>Badge</b> terracotta <code>--mark-bg</code> · <b>Disc</b> cream <code>--mark-fg</code></dd>
+          <dt>Principle</dt>
+          <dd><b>Subtract rather than add.</b> 负空间即设计。</dd>
+        </dl>
+        <p class="caption">
+          A Sunday sun-disc, perforated by four asymmetric holes —
+          a catalog of media punched into the day.
+          Sunday <b>and</b> *arr, figure <b>and</b> ground, in one mark.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================== -->
+  <!-- §02 Wordmark · r·r rule                                     -->
+  <!-- =========================================================== -->
+  <section>
+    <div class="section-head">
+      <h2>02 · Wordmark · <b style="color:var(--accent);font-weight:500">r · r</b> rule</h2>
+      <span class="section-meta">3 tiers · accent on middle dot</span>
+    </div>
+    <div class="wordmark-grid">
+
+      <div class="wm-cell">
+        <div class="wm-label">
+          <span>HERO · 64 px</span>
+          <b>r · r</b>
+        </div>
+        <div class="wm-stage">
+          <span class="wordmark" data-size="hero">
+            Sunda<span>r</span><span class="dot">·</span><span>r</span>
+          </span>
+        </div>
+        <p class="wm-desc">文档封面、splash、关于页。</p>
+      </div>
+
+      <div class="wm-cell">
+        <div class="wm-label">
+          <span>BRAND · 16 px</span>
+          <b>r · r</b>
+        </div>
+        <div class="wm-stage">
+          <span class="wordmark" data-size="brand">
+            Sunda<span>r</span><span class="dot">·</span><span>r</span>
+          </span>
+        </div>
+        <p class="wm-desc">顶栏、侧栏副标、导航品牌区。</p>
+      </div>
+
+      <div class="wm-cell">
+        <div class="wm-label">
+          <span>INLINE · 14 px</span>
+          <b>r · r</b>
+        </div>
+        <div class="wm-stage">
+          <span class="wordmark" data-size="inline">
+            Sunda<span>r</span><span class="dot">·</span><span>r</span>
+          </span>
+        </div>
+        <p class="wm-desc">正文行内引用；&lt; 13px 退化为 <code>Sundarr</code>。</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================== -->
+  <!-- §03 Scale test                                              -->
+  <!-- =========================================================== -->
+  <section>
+    <div class="section-head">
+      <h2>03 · Scale</h2>
+      <span class="section-meta">128 · 48 · 24 · 16 px</span>
+    </div>
+    <div class="scale-strip">
+      <div class="scale-row">
+        <figure>
+          <svg width="128" height="128" viewBox="0 0 100 100"><use href="#logo"/></svg>
+          <figcaption>128 · marketing</figcaption>
+        </figure>
+        <figure>
+          <svg width="64" height="64" viewBox="0 0 100 100"><use href="#logo"/></svg>
+          <figcaption>64 · sidebar</figcaption>
+        </figure>
+        <figure>
+          <svg width="48" height="48" viewBox="0 0 100 100"><use href="#logo"/></svg>
+          <figcaption>48 · header</figcaption>
+        </figure>
+        <figure>
+          <svg width="32" height="32" viewBox="0 0 100 100"><use href="#logo"/></svg>
+          <figcaption>32 · app icon</figcaption>
+        </figure>
+        <figure>
+          <svg width="24" height="24" viewBox="0 0 100 100"><use href="#logo"/></svg>
+          <figcaption>24 · inline</figcaption>
+        </figure>
+        <figure>
+          <svg width="16" height="16" viewBox="0 0 100 100"><use href="#logo"/></svg>
+          <figcaption>16 · favicon</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================== -->
+  <!-- §04 Color tokens                                            -->
+  <!-- =========================================================== -->
+  <section>
+    <div class="section-head">
+      <h2>04 · Color Tokens</h2>
+      <span class="section-meta">see 16-design-system.md §2</span>
+    </div>
+    <div class="tokens-grid">
+      <div class="tok">
+        <div class="chip" style="background:#d97642"></div>
+        <div>
+          <div class="tok-name">--mark-bg</div>
+          <div class="tok-role">Terracotta · badge</div>
+          <div class="tok-val">#d97642</div>
+        </div>
+      </div>
+      <div class="tok">
+        <div class="chip" style="background:#f2ead8"></div>
+        <div>
+          <div class="tok-name">--mark-fg</div>
+          <div class="tok-role">Cream · disc</div>
+          <div class="tok-val">#f2ead8</div>
+        </div>
+      </div>
+      <div class="tok">
+        <div class="chip" style="background:#11100e"></div>
+        <div>
+          <div class="tok-name">--bg (dark)</div>
+          <div class="tok-role">Ember · canvas</div>
+          <div class="tok-val">#11100e</div>
+        </div>
+      </div>
+      <div class="tok">
+        <div class="chip" style="background:#f6f1e7;border-color:var(--rule-strong)"></div>
+        <div>
+          <div class="tok-name">--bg (light)</div>
+          <div class="tok-role">Parchment · canvas</div>
+          <div class="tok-val">#f6f1e7</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================== -->
+  <!-- §05 Covers — embedded live previews                         -->
+  <!-- =========================================================== -->
+  <section>
+    <div class="section-head">
+      <h2>05 · Covers</h2>
+      <span class="section-meta">cover.html · 4 variants</span>
+    </div>
+    <div class="covers">
+      <div class="cover-card">
+        <div class="cover-label">
+          <span class="code">DOC · 文档封面</span>
+          <a href="cover.html?variant=doc&eyebrow=DOCS%20%2F%2007&title=%E4%BB%BB%E5%8A%A1%E7%8A%B6%E6%80%81%E6%9C%BA&subtitle=%E7%8A%B6%E6%80%81%E5%9B%BE%20%2B%20%E4%BA%8B%E4%BB%B6%E8%A1%A8" target="_blank">Open ↗</a>
+        </div>
+        <iframe loading="lazy"
+          src="cover.html?variant=doc&eyebrow=DOCS%20%2F%2007&title=%E4%BB%BB%E5%8A%A1%E7%8A%B6%E6%80%81%E6%9C%BA&subtitle=%E7%8A%B6%E6%80%81%E5%9B%BE%20%2B%20%E4%BA%8B%E4%BB%B6%E8%A1%A8"></iframe>
+        <p>用于 <code>docs/NN-*.md</code> 的章节封面。Query: <code>?variant=doc</code></p>
+      </div>
+
+      <div class="cover-card">
+        <div class="cover-label">
+          <span class="code">ABOUT · 关于页</span>
+          <a href="cover.html?variant=about" target="_blank">Open ↗</a>
+        </div>
+        <iframe loading="lazy" src="cover.html?variant=about"></iframe>
+        <p>居中 splash，wordmark 作为主元素。Query: <code>?variant=about</code></p>
+      </div>
+
+      <div class="cover-card">
+        <div class="cover-label">
+          <span class="code">PR · 评审模板</span>
+          <a href="cover.html?variant=pr&eyebrow=PR%20%23123&title=Brand%20identity%20final&subtitle=Review-ready%20%C2%B7%20see%20docs%2F16-design-system.md" target="_blank">Open ↗</a>
+        </div>
+        <iframe loading="lazy"
+          src="cover.html?variant=pr&eyebrow=PR%20%23123&title=Brand%20identity%20final&subtitle=Review-ready%20%C2%B7%20see%20docs%2F16-design-system.md"></iframe>
+        <p>PR 正文顶部横幅，短高度。Query: <code>?variant=pr</code></p>
+      </div>
+
+      <div class="cover-card">
+        <div class="cover-label">
+          <span class="code">HERO · README</span>
+          <a href="cover.html?variant=hero&title=Sundarr&subtitle=Sunday%20morning.%20Your%20cloud.%20Your%20NAS.%20Automated." target="_blank">Open ↗</a>
+        </div>
+        <iframe loading="lazy"
+          src="cover.html?variant=hero&title=Sundarr&subtitle=Sunday%20morning.%20Your%20cloud.%20Your%20NAS.%20Automated."></iframe>
+        <p>README 顶部 hero，居中标题 + 双 CTA。Query: <code>?variant=hero</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================== -->
+  <!-- §06 Application patterns                                    -->
+  <!-- =========================================================== -->
+  <section>
+    <div class="section-head">
+      <h2>06 · Application</h2>
+      <span class="section-meta">in-product + in-doc usage</span>
+    </div>
+
+    <div class="apps">
+
+      <div class="app-card">
+        <div class="app-label">A · TOP BAR · 移动端 / 折叠侧栏</div>
+        <div class="app-title">Mini brand lockup</div>
+        <div class="app-stage">
+          <div class="nav-brand">
+            <svg viewBox="0 0 100 100"><use href="#logo"/></svg>
+            <span class="wordmark" data-size="brand">
+              Sunda<span>r</span><span class="dot">·</span><span>r</span>
+            </span>
+          </div>
+        </div>
+        <p class="app-note">
+          徽章 28 px + wordmark 16 px。用于移动端顶栏、折叠后的侧栏头部。
+        </p>
+      </div>
+
+      <div class="app-card">
+        <div class="app-label">B · HERO WORDMARK · 文档首页</div>
+        <div class="app-title">Standalone wordmark</div>
+        <div class="app-stage">
+          <span class="wordmark" data-size="hero">
+            Sunda<span>r</span><span class="dot">·</span><span>r</span>
+          </span>
+        </div>
+        <p class="app-note">
+          不带徽章的 wordmark，用于 about / 文档封面正文区。
+        </p>
+      </div>
+
+      <div class="app-card">
+        <div class="app-label">C · WEB CONSOLE · 主侧栏</div>
+        <div class="app-title">Sidebar with nav</div>
+        <div class="app-stage" style="padding:0; min-height: 0">
+          <div class="sidebar-mock">
+            <div class="brand-row">
+              <svg viewBox="0 0 100 100"><use href="#logo"/></svg>
+              <div class="brand-text">
+                <span class="wordmark" data-size="inline">
+                  Sunda<span>r</span><span class="dot">·</span><span>r</span>
+                </span>
+                <span class="role">Web Console</span>
+              </div>
+            </div>
+            <div class="nav-item active"><span class="dot"></span>任务</div>
+            <div class="nav-item"><span class="dot"></span>媒体源</div>
+            <div class="nav-item"><span class="dot"></span>存储</div>
+            <div class="nav-item"><span class="dot"></span>媒体库</div>
+            <div class="nav-item"><span class="dot"></span>状态</div>
+          </div>
+        </div>
+        <p class="app-note">
+          徽章 32 px + wordmark 14 px + 「Web Console」副标。
+          Active 项用 <code>--accent-tint</code> 背景 + 3 px 左侧指示条。
+        </p>
+      </div>
+
+      <div class="app-card">
+        <div class="app-label">D · PR TEMPLATE · 评审横幅</div>
+        <div class="app-title">Inline PR banner</div>
+        <div class="app-stage">
+          <div class="pr-banner">
+            <svg viewBox="0 0 100 100"><use href="#logo"/></svg>
+            <div class="pr-meta">
+              <span class="line1">Brand identity final · docs/assets/brand/</span>
+              <span class="line2">brand/identity-final → master · +5 −N files</span>
+            </div>
+            <span class="pr-status">Ready</span>
+          </div>
+        </div>
+        <p class="app-note">
+          PR 描述顶部可选横幅。也可使用完整 <code>cover.html?variant=pr</code>。
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <span>docs/assets/brand · logo · wordmark · cover · application</span>
+    <span><a href="../../16-design-system.md">16-design-system.md</a></span>
+  </footer>
+
+</div>
+
+<script>
+  const root = document.documentElement;
+  const KEY = "sundarr-brand-theme";
+  const btns = document.querySelectorAll("[data-theme]");
+  function apply(v) {
+    root.setAttribute("data-theme", v);
+    btns.forEach(b => b.setAttribute("aria-selected",
+      b.dataset.theme === v ? "true" : "false"));
+    localStorage.setItem(KEY, v);
+  }
+  btns.forEach(b => b.addEventListener("click",
+    () => apply(b.dataset.theme)));
+  apply(localStorage.getItem(KEY) || "light");
+</script>
+
+</body>
+</html>
