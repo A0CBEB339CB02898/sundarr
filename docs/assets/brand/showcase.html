@@ -171,7 +171,7 @@
      Wordmark · r · r rule (core)
 
      The middle dot is a REAL CSS circle, not the U+00B7 character.
-     Two correctness requirements this implementation satisfies:
+     Three correctness requirements this implementation satisfies:
 
        1. The dot must sit on the visual horizontal line of the
           text — i.e. the x-height midline (baseline + ex / 2),
@@ -180,12 +180,15 @@
           that per the CSS spec, and works across fonts & sizes.
 
        2. Because `r`'s upper arm protrudes to its right, the right
-          `r` in "r · r" reads as visually farther than the left r.
-          Compensate by making --dot-mr SMALLER than --dot-ml (≈70%),
-          so the right r optically sits in the middle.
+          `r` in "r · r" reads as visually farther than the left r
+          — BUT only at small sizes where the arm dominates the
+          glyph's visual mass (~40% at 14px, ~20% at 96px).
+          So --dot-mr < --dot-ml with the ratio *tapering* toward
+          1:1 as font-size grows. See per-tier values below.
 
-     The "·" character is kept in the DOM for copy-paste and screen
-     readers, but visually hidden via text-indent+overflow.
+       3. The "·" character is kept in the DOM for copy-paste and
+          screen readers, but visually hidden via
+          text-indent+overflow.
      ============================================================ */
   .wordmark { display: inline-block;
     font-weight: 500; letter-spacing: -0.025em;
@@ -205,9 +208,13 @@
 
   /* Per-tier tuning. Small sizes get *relatively larger* dots so
      antialiasing doesn't eat them; all gaps in px (not em) so they
-     don't collapse at small font sizes. */
+     don't collapse at small font sizes. The asymmetric margin
+     correction (mr < ml) fights r's right-arm bias, but the bias
+     is size-sensitive: it dominates at 14–16px (~35-40% of the
+     glyph's visual mass) and fades at 64px+ (~25%). So the mr/ml
+     ratio tapers from ~67% at inline to ~85% at hero. */
   .wordmark[data-size="hero"]   { font-size: 64px; letter-spacing: -0.035em;
-    --dot-size: 12px;  --dot-ml: 8px;   --dot-mr: 5.5px; }
+    --dot-size: 12px;  --dot-ml: 7px;   --dot-mr: 6px; }
   .wordmark[data-size="brand"]  { font-size: 16px;
     --dot-size: 5px;   --dot-ml: 3.5px; --dot-mr: 2.5px; }
   .wordmark[data-size="inline"] { font-size: 14px;

@@ -129,9 +129,12 @@
     border-radius: 30px; display: block; }
   .cover[data-variant="about"] .wordmark {
     font-size: 96px;
-    /* dot @14px = 14.6% of font-size — tighter than 16px, reads
-       as a confident period rather than a big button */
-    --dot-size: 14px; --dot-ml: 10px; --dot-mr: 7px; }
+    /* At 96px the r's right-arm bias is proportionally small
+       enough that the dot reads as centered without correction.
+       Using symmetric margins here (and gently tapered for hero
+       sizes) — the asymmetric correction in brand/inline is
+       calibrated for 14–16px where the bias is dominant. */
+    --dot-size: 14px; --dot-ml: 10px; --dot-mr: 10px; }
   .cover[data-variant="about"] .subtitle {
     margin-top: 20px; font-size: 18px; text-align: center; }
   .cover[data-variant="about"] .meta-bar { display: none; }
@@ -175,7 +178,7 @@
     .cover { padding: 48px 24px; }
     .cover h1 { font-size: 44px !important; }
     .cover[data-variant="about"] .wordmark { font-size: 56px;
-      --dot-size: 9px; --dot-ml: 6.5px; --dot-mr: 4.5px; }
+      --dot-size: 9px; --dot-ml: 6px; --dot-mr: 5px; }
     .cover[data-variant="hero"] h1 { font-size: 36px !important; }
   }
 </style>
