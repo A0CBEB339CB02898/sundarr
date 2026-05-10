@@ -80,7 +80,7 @@ API 契约 -> docs/09-api-contract.md
 Web Console -> docs/13-web-console-spec.md
 AI Tool API -> docs/14-ai-tool-api-spec.md
 下载到本地 -> docs/15-download-to-local-spec.md
-网盘直链下载 -> docs/16-cloud-direct-download-spec.md
+前端设计系统 -> docs/16-design-system.md
 系统模块梳理 -> docs/17-system-module-review.md
 Agent 工作规则 -> AGENTS.md
 ```
@@ -133,6 +133,8 @@ Web Console 是核心控制台，不做完整媒体库 UI。
 本地媒体库绑定 SMB 连接下的本地 NAS 目录。
 同步绑定连接：远程媒体库（来源） -> 本地媒体库（目标）。
 Phase 9 模块重构：删除 Ingest 模块和旧 storage_config_service，新增远程媒体库模型，重构同步绑定。
+前端设计系统基线文档位于 docs/16-design-system.md，在 Phase 7.8 Web Console UI Polish 中落地。
+前端视觉基调：暖色操作台风格，强调色为 terracotta（暗色 #d97642 / 亮色 #b05623），字体 Inter + JetBrains Mono，支持亮色 / 暗色 / 跟随系统三种主题。
 ```
 
 ---
@@ -230,13 +232,15 @@ Phase 11: AI Friendly API
 
 ## 7. Git 规则
 
-1. Agent 可以在完成一个清晰、可验证的交付单元后，自主判断是否需要创建 commit。
-2. 创建 commit 前必须检查 `git status`、`git diff` 和近期提交信息。
+1. Agent 在完成一个清晰、可验证的交付单元后，应主动创建 commit，不必逐次请示。默认开启自动提交。
+2. 创建 commit 前必须检查 `git status`、`git diff` 和近期提交信息，确认范围清晰、无敏感内容。
 3. 不要提交 `.env`、凭据、token、cookie、SMB 密码等敏感信息。
 4. 不要修改或回滚用户未授权的变更。
-5. 不要使用破坏性 Git 命令，除非用户明确要求。
-6. commit 应保持小而聚焦，信息准确说明本次交付。
-7. 如果存在测试失败、范围不清或疑似敏感文件，必须先暂停并向用户说明，不得自动提交。
+5. 不要使用破坏性 Git 命令（push --force、reset --hard、clean -fd、branch -D 等），除非用户明确要求。
+6. commit 应保持小而聚焦，信息使用简体中文准确说明本次交付。
+7. 代码类改动默认创建新分支（形如 `feat/*` `fix/*` `chore/*` `docs/*`）提交，不直接提交到 master；纯文档 / 规范改动可直接提交到 master 或新分支，由 Agent 判断。
+8. 是否 push 到远程以及是否开 PR，默认等待用户明确指示，不自动 push。
+9. 如果存在测试失败、范围不清或疑似敏感文件，必须先暂停并向用户说明，不得自动提交。
 
 ---
 
