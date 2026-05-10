@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Sundarr · 品牌标识 v0.2</title>
+<title>Sundarr · 品牌标识 v0.3</title>
 <style>
   /* === design tokens === */
   :root {
@@ -17,8 +17,8 @@
     --hairline-strong: rgba(240, 225, 200, 0.20);
     --accent: #d97642;
     --accent-soft: rgba(217, 118, 66, 0.18);
-    --mark-fg: #f2ead8; /* cream */
-    --mark-bg: #d97642; /* terracotta */
+    --mark-fg: #f2ead8;
+    --mark-bg: #d97642;
   }
   :root[data-theme="light"] {
     --bg: #f6f1e7;
@@ -58,7 +58,7 @@
     letter-spacing: -0.2px; }
   section > p { margin: 0 0 16px; color: var(--text-muted); font-size: 13px; }
 
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px; }
   .card { background: var(--surface-1); border: 1px solid var(--hairline);
     border-radius: 12px; padding: 24px; display: flex; flex-direction: column;
@@ -68,17 +68,26 @@
   .card .title { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
   .card .desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; }
   .card .stage { display: flex; align-items: center; justify-content: center;
-    min-height: 120px; padding: 8px 0; }
-  .card .ctx { border-top: 1px dashed var(--hairline); padding-top: 14px;
-    display: flex; align-items: center; gap: 10px; }
+    min-height: 140px; padding: 12px 0 4px; }
+  .card .scale-test { display: flex; align-items: center; justify-content: center;
+    gap: 20px; padding: 10px 0; border-top: 1px dashed var(--hairline);
+    border-bottom: 1px dashed var(--hairline); }
+  .card .scale-test figure { margin: 0; display: flex; flex-direction: column;
+    align-items: center; gap: 4px; }
+  .card .scale-test figcaption { font-size: 10px; color: var(--text-subtle);
+    letter-spacing: 0.4px; font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  .card .ctx { padding-top: 4px; display: flex; align-items: center; gap: 10px; }
   .card .ctx .word { font-weight: 600; font-size: 15px; letter-spacing: -0.2px; }
   .card .ctx .word .tail { color: var(--accent); opacity: 0.85; }
   .card .ctx .role { font-size: 11px; color: var(--text-subtle);
     text-transform: uppercase; letter-spacing: 0.8px; margin-left: auto; }
 
-  /* === concept svg sizing === */
-  .mark-lg { width: 96px; height: 96px; display: block; }
-  .mark-sm { width: 40px; height: 40px; display: block; flex: 0 0 40px; }
+  .mark-lg { width: 120px; height: 120px; display: block; }
+  .mark-md { width: 40px; height: 40px; display: block; flex: 0 0 40px; }
+  .mark-sm { width: 28px; height: 28px; display: block; }
+  .mark-24 { width: 24px; height: 24px; display: block; }
+  .mark-16 { width: 16px; height: 16px; display: block; }
 
   /* === kept patterns === */
   .pattern-nav-brand { display: inline-flex; align-items: center; gap: 10px;
@@ -87,7 +96,6 @@
   .pattern-nav-brand .word { font-weight: 600; font-size: 15px;
     letter-spacing: -0.2px; }
   .pattern-nav-brand .word .tail { color: var(--accent); opacity: 0.85; }
-  .pattern-nav-brand svg { width: 28px; height: 28px; }
 
   .wordmark { font-size: 48px; font-weight: 600; letter-spacing: -1.2px;
     color: var(--text); }
@@ -99,7 +107,6 @@
   .sidebar-mock .row { display: flex; align-items: center; gap: 12px;
     width: 100%; padding-bottom: 12px;
     border-bottom: 1px solid var(--hairline); margin-bottom: 4px; }
-  .sidebar-mock .row svg { width: 40px; height: 40px; flex: 0 0 40px; }
   .sidebar-mock .brand-text .word { font-weight: 600; font-size: 16px;
     letter-spacing: -0.2px; }
   .sidebar-mock .brand-text .word .tail { color: var(--accent); opacity: 0.85; }
@@ -116,21 +123,24 @@
   .sidebar-mock .dot { width: 6px; height: 6px; border-radius: 50%;
     background: currentColor; opacity: 0.6; }
 
-  footer { padding: 24px 48px 48px; color: var(--text-subtle); font-size: 12px;
-    border-top: 1px solid var(--hairline); margin-top: 24px; }
-
   .note { background: var(--surface-2); border: 1px solid var(--hairline);
     border-radius: 10px; padding: 14px 18px; font-size: 13px;
-    color: var(--text-muted); line-height: 1.55; margin: 0 48px; }
+    color: var(--text-muted); line-height: 1.6; margin: 0 48px; }
   .note strong { color: var(--text); font-weight: 600; }
+  .note code { font-family: "JetBrains Mono", ui-monospace, monospace;
+    background: var(--surface-1); padding: 1px 6px; border-radius: 4px;
+    font-size: 12px; }
+
+  footer { padding: 24px 48px 48px; color: var(--text-subtle); font-size: 12px;
+    border-top: 1px solid var(--hairline); margin-top: 24px; }
 </style>
 </head>
 <body>
 
 <header>
   <div>
-    <h1>Sundarr · 品牌标识 v0.2</h1>
-    <p>4 个 logo 概念（整合 S + 播放器） · 3 个应用模式（原 04 / 05 / 08）</p>
+    <h1>Sundarr · 品牌标识 v0.3</h1>
+    <p>3 个概念（融合 S + Sunday + 播放）· 3 个应用模式（原 04 / 05 / 08）</p>
   </div>
   <div class="theme-switch" role="tablist" aria-label="主题切换">
     <button data-theme-btn="light" aria-selected="false">亮色</button>
@@ -140,134 +150,148 @@
 </header>
 
 <div class="note">
-  <strong>视觉家族</strong>：圆角正方形徽章（16px 半径）、粗体单字母、主色 +
-  奶油白 —— 与 Radarr / Sonarr 的 Servarr 家族同源。
-  <strong>Sundarr 独有</strong>：播放三角形以不同强度整合进 "S" 字形，
-  强度从左到右递增。下方应用模式暂用<strong>概念 03</strong>占位，
-  你选完后我会替换成最终 mark。
+  <strong>这一版做了什么</strong>：延续你认可的 02 / 03 方向，把"点"和"内嵌三角"都升级为
+  <strong>太阳</strong>（对应 <code>sun</code>day 词根），并把<strong>播放三角</strong>整合为
+  太阳的"光芒"之一 —— 三要素（S / Sunday / 播放）共存一体。每张卡底部有
+  <strong>24px / 16px 缩小预览</strong>，看看细节在 favicon 尺寸是否还撑得住。
 </div>
 
 <!-- =========================================================== -->
-<!--  SVG 图形符号（复用 <use>）                                  -->
+<!--  SVG 图形符号                                                 -->
 <!-- =========================================================== -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <!-- 概念 01：纯 S（零整合，对照基准，类 Sonarr） -->
-  <symbol id="mark-01" viewBox="0 0 64 64">
+
+  <!-- ===== A: 日点 S (evolved from 02) ======================= -->
+  <!-- S 主字 + 右上小太阳（圆心 + 3 条直线光芒 + 1 条三角光芒作为播放指针）-->
+  <symbol id="mark-A" viewBox="0 0 64 64">
+    <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
+    <text x="27" y="47" text-anchor="middle" fill="var(--mark-fg)"
+          font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
+          font-weight="900" font-size="44" letter-spacing="-2.4">S</text>
+    <g transform="translate(49,15)">
+      <!-- 日心 -->
+      <circle cx="0" cy="0" r="3.6" fill="var(--mark-fg)"/>
+      <!-- 3 条线型光芒（N / W / S） -->
+      <g stroke="var(--mark-fg)" stroke-width="1.6" stroke-linecap="round">
+        <line x1="0"    y1="-6.6" x2="0"    y2="-8.8"/>
+        <line x1="-6.6" y1="0"    x2="-8.8" y2="0"/>
+        <line x1="0"    y1="6.6"  x2="0"    y2="8.8"/>
+      </g>
+      <!-- E 光芒 = 播放三角 -->
+      <path d="M 5.4 -2.8 L 5.4 2.8 L 9.2 0 Z" fill="var(--mark-fg)"/>
+    </g>
+  </symbol>
+
+  <!-- ===== B: 晨光 S (evolved from 03) ======================= -->
+  <!-- S 主字 + 上腔内嵌太阳(日心 + 3 短光芒) + 播放三角作为第 4 条光芒 -->
+  <symbol id="mark-B" viewBox="0 0 64 64">
     <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
     <text x="32" y="47" text-anchor="middle" fill="var(--mark-fg)"
           font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
-          font-weight="900" font-size="46" letter-spacing="-2.5">S</text>
+          font-weight="900" font-size="44" letter-spacing="-2.4">S</text>
+    <!-- 上腔内的日+播放复合 -->
+    <g transform="translate(41.5,20)">
+      <!-- 日心：反白填 mark-bg、描 mark-fg -->
+      <circle cx="0" cy="0" r="3.1" fill="var(--mark-bg)"
+              stroke="var(--mark-fg)" stroke-width="1.2"/>
+      <!-- 3 条短光芒 N / NW / W -->
+      <g stroke="var(--mark-fg)" stroke-width="1.1" stroke-linecap="round">
+        <line x1="0"    y1="-4.6" x2="0"    y2="-6.4"/>
+        <line x1="-3.3" y1="-3.3" x2="-4.6" y2="-4.6"/>
+        <line x1="-4.6" y1="0"    x2="-6.4" y2="0"/>
+      </g>
+      <!-- E 光芒 = 播放三角 -->
+      <path d="M 4.4 -2.4 L 4.4 2.4 L 7.8 0 Z" fill="var(--mark-fg)"/>
+    </g>
   </symbol>
 
-  <!-- 概念 02：S + 播放指示灯点 -->
-  <symbol id="mark-02" viewBox="0 0 64 64">
+  <!-- ===== C: 朝阳 S (new: sun ascends above S) ============== -->
+  <!-- 小号 S 居下 + 上方完整太阳场景（日+四条光芒，东方光芒为播放）-->
+  <symbol id="mark-C" viewBox="0 0 64 64">
     <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
-    <text x="28" y="47" text-anchor="middle" fill="var(--mark-fg)"
+    <!-- 上方太阳 -->
+    <g transform="translate(32,20)">
+      <circle cx="0" cy="0" r="4.4" fill="var(--mark-fg)"/>
+      <g stroke="var(--mark-fg)" stroke-width="1.7" stroke-linecap="round">
+        <line x1="0"    y1="-7.6" x2="0"    y2="-10.6"/>
+        <line x1="-5.6" y1="-5.6" x2="-7.8" y2="-7.8"/>
+        <line x1="-7.6" y1="0"    x2="-10.6" y2="0"/>
+        <line x1="5.6"  y1="-5.6" x2="7.8"  y2="-7.8"/>
+      </g>
+      <!-- E 光芒 = 播放三角 -->
+      <path d="M 6.8 -3.4 L 6.8 3.4 L 11.2 0 Z" fill="var(--mark-fg)"/>
+    </g>
+    <!-- 下方 S -->
+    <text x="32" y="56" text-anchor="middle" fill="var(--mark-fg)"
           font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
-          font-weight="900" font-size="46" letter-spacing="-2.5">S</text>
-    <circle cx="48" cy="16" r="5" fill="var(--mark-fg)"/>
-  </symbol>
-
-  <!-- 概念 03：S + 内嵌播放三角（上腔） -->
-  <symbol id="mark-03" viewBox="0 0 64 64">
-    <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
-    <text x="32" y="47" text-anchor="middle" fill="var(--mark-fg)"
-          font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
-          font-weight="900" font-size="46" letter-spacing="-2.5">S</text>
-    <path d="M 38 17 L 38 27 L 46 22 Z" fill="var(--mark-bg)"/>
-    <path d="M 38 17 L 38 27 L 46 22 Z" fill="none"
-          stroke="var(--mark-fg)" stroke-width="1.2"
-          stroke-linejoin="round"/>
-  </symbol>
-
-  <!-- 概念 04：S + 出挑播放尾（类 Lidarr 整合） -->
-  <symbol id="mark-04" viewBox="0 0 64 64">
-    <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--mark-bg)"/>
-    <!-- 自定义 S 路径，右下收尾为三角 -->
-    <path d="
-      M 44 16
-      Q 44 10, 36 10
-      L 24 10
-      Q 16 10, 16 18
-      Q 16 26, 24 28
-      L 36 32
-      Q 44 34, 44 42
-      Q 44 50, 36 50
-      L 28 50
-      L 28 44
-      L 44 36
-      L 52 40
-      L 52 44
-      Z"
-      fill="var(--mark-fg)"/>
+          font-weight="900" font-size="30" letter-spacing="-1.6">S</text>
   </symbol>
 </svg>
 
 <!-- =========================================================== -->
-<!--  第一部分：概念卡                                            -->
+<!--  第一部分：概念卡                                             -->
 <!-- =========================================================== -->
 <section>
-  <h2>品牌标识候选</h2>
-  <p>从左到右，S 与播放器的整合强度依次递增。</p>
+  <h2>品牌标识候选 v0.3</h2>
+  <p>S + Sunday（太阳）+ 播放三角 —— 三要素共存，差异在"太阳"元素的位置与权重。</p>
   <div class="grid">
 
     <div class="card">
-      <span class="eyebrow">概念 01 · 纯 S</span>
-      <div class="title">对照基准</div>
+      <span class="eyebrow">A · 日点 S（演进自 02）</span>
+      <div class="title">角标太阳</div>
       <div class="stage">
-        <svg class="mark-lg"><use href="#mark-01"/></svg>
+        <svg class="mark-lg"><use href="#mark-A"/></svg>
       </div>
-      <div class="desc">零整合。类 Sonarr 范式，最简洁、工程成本最低。
-        不包含任何播放元素，靠家族视觉语言暗示。</div>
+      <div class="scale-test">
+        <figure><svg class="mark-24"><use href="#mark-A"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg class="mark-16"><use href="#mark-A"/></svg><figcaption>16px</figcaption></figure>
+      </div>
+      <div class="desc">保留 02 的"右上角点"构图，把圆点升级为<strong>小太阳</strong>：
+        日心 + 3 条线型光芒 + 1 条<strong>三角形光芒</strong>（即播放 ▶）。
+        S 本体几乎不动，辨识度与 02 持平，太阳 + 播放融入一个紧凑集合。</div>
       <div class="ctx">
-        <svg class="mark-sm"><use href="#mark-01"/></svg>
+        <svg class="mark-md"><use href="#mark-A"/></svg>
         <span class="word">Sunda<span class="tail">r·r</span></span>
         <span class="role">Console</span>
       </div>
     </div>
 
     <div class="card">
-      <span class="eyebrow">概念 02 · 指示灯</span>
-      <div class="title">轻度整合</div>
+      <span class="eyebrow">B · 晨光 S（演进自 03）</span>
+      <div class="title">内嵌晨光 · 默认推荐</div>
       <div class="stage">
-        <svg class="mark-lg"><use href="#mark-02"/></svg>
+        <svg class="mark-lg"><use href="#mark-B"/></svg>
       </div>
-      <div class="desc">S 右上角加一颗奶油色圆点，像播放 / 录制指示灯。
-        S 本体不变形，辨识度与概念 01 持平，符号学上多一层"在运行"的语义。</div>
+      <div class="scale-test">
+        <figure><svg class="mark-24"><use href="#mark-B"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg class="mark-16"><use href="#mark-B"/></svg><figcaption>16px</figcaption></figure>
+      </div>
+      <div class="desc">S 的右上腔里原本内嵌的播放三角，现在换成<strong>微型太阳</strong>：
+        空心日 + 3 短光芒 + 1 条三角光芒（播放）。S 仍主导阅读顺序，
+        上腔里是一颗正在"投光"的微型日。三元素融合程度最高。</div>
       <div class="ctx">
-        <svg class="mark-sm"><use href="#mark-02"/></svg>
+        <svg class="mark-md"><use href="#mark-B"/></svg>
         <span class="word">Sunda<span class="tail">r·r</span></span>
         <span class="role">Console</span>
       </div>
     </div>
 
     <div class="card">
-      <span class="eyebrow">概念 03 · 内嵌三角</span>
-      <div class="title">中度整合 · 默认推荐</div>
+      <span class="eyebrow">C · 朝阳 S（新增）</span>
+      <div class="title">双要素场景</div>
       <div class="stage">
-        <svg class="mark-lg"><use href="#mark-03"/></svg>
+        <svg class="mark-lg"><use href="#mark-C"/></svg>
       </div>
-      <div class="desc">S 的右上腔体内嵌一个播放三角 ▶，反白描线确保
-        小尺寸下仍可见。阅读顺序：先识 S、再识 ▶。
-        兼顾辨识度与叙事，也是下方应用模式占位使用的版本。</div>
+      <div class="scale-test">
+        <figure><svg class="mark-24"><use href="#mark-C"/></svg><figcaption>24px</figcaption></figure>
+        <figure><svg class="mark-16"><use href="#mark-C"/></svg><figcaption>16px</figcaption></figure>
+      </div>
+      <div class="desc">上半部：完整太阳（日心 + 4 光芒，东方为播放三角）。
+        下半部：小号 S。读作"朝阳投射 + S"。叙事最强但 16px 下
+        S 会变小，favicon 可能退化为"纯太阳+播放"（也可接受，因为 Sundarr
+        尾部 <code>rr</code> 可以挑大梁）。</div>
       <div class="ctx">
-        <svg class="mark-sm"><use href="#mark-03"/></svg>
-        <span class="word">Sunda<span class="tail">r·r</span></span>
-        <span class="role">Console</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <span class="eyebrow">概念 04 · 播放尾</span>
-      <div class="title">重度整合</div>
-      <div class="stage">
-        <svg class="mark-lg"><use href="#mark-04"/></svg>
-      </div>
-      <div class="desc">S 的右下终端变形为向右出挑的播放三角 ▶，
-        字母与符号融合成单一形体。类 Lidarr 的整合方式，
-        个性最强，但 16px 以下辨识度可能下降。</div>
-      <div class="ctx">
-        <svg class="mark-sm"><use href="#mark-04"/></svg>
+        <svg class="mark-md"><use href="#mark-C"/></svg>
         <span class="word">Sunda<span class="tail">r·r</span></span>
         <span class="role">Console</span>
       </div>
@@ -277,11 +301,11 @@
 </section>
 
 <!-- =========================================================== -->
-<!--  第二部分：保留的应用模式 (04 / 05 / 08)                     -->
+<!--  第二部分：应用模式（占位使用概念 B）                          -->
 <!-- =========================================================== -->
 <section>
-  <h2>应用模式（占位使用概念 03）</h2>
-  <p>下述三种模式的"设计"保留，只把当前 <code>S·</code> 字标换成你选定的新 mark。</p>
+  <h2>应用模式（占位使用概念 B）</h2>
+  <p>你选完概念后，这三处的徽章会统一替换成最终 mark。</p>
   <div class="grid">
 
     <div class="card">
@@ -289,12 +313,12 @@
       <div class="title">手机顶栏 / 折叠侧栏头部</div>
       <div class="stage">
         <div class="pattern-nav-brand">
-          <svg><use href="#mark-03"/></svg>
+          <svg class="mark-sm"><use href="#mark-B"/></svg>
           <span class="word">Sunda<span class="tail">r·r</span></span>
         </div>
       </div>
-      <div class="desc">紧凑横向布局，字标 28 px。
-        尾部 <code>r·r</code> 点染 terracotta，呼应 *arr 家族。</div>
+      <div class="desc">字标 28 px，紧凑横向布局。
+        尾部 <code>r·r</code> 点染 terracotta 呼应 *arr 家族。</div>
     </div>
 
     <div class="card">
@@ -303,8 +327,7 @@
       <div class="stage">
         <span class="wordmark">sunda<span class="tail">r·r</span></span>
       </div>
-      <div class="desc">无字标、全小写 wordmark。仅文本场合使用，
-        如 README、PR 描述、splash 文字层。</div>
+      <div class="desc">无字标、全小写 wordmark，仅文本场景使用。</div>
     </div>
 
     <div class="card">
@@ -313,7 +336,7 @@
       <div class="stage" style="padding:0;width:100%">
         <div class="sidebar-mock">
           <div class="row">
-            <svg><use href="#mark-03"/></svg>
+            <svg class="mark-md"><use href="#mark-B"/></svg>
             <span class="brand-text">
               <div class="word">Sunda<span class="tail">r·r</span></div>
               <div class="role">Web Console</div>
@@ -330,7 +353,7 @@
           </div>
         </div>
       </div>
-      <div class="desc">字标 40 px，副标"Web Console"eyebrow 格式。
+      <div class="desc">字标 40 px，副标"Web Console" eyebrow 格式。
         活动 nav 项使用 accent-soft 背景 + 3 px 左指示条。</div>
     </div>
 
@@ -338,8 +361,7 @@
 </section>
 
 <footer>
-  docs/16-design-system.md §5 · 你选定概念后，实际 SVG / PNG / ICO 导出会在
-  Phase 7.8 Brand 步骤一并交付。
+  docs/16-design-system.md §5 · 选定概念后导出 SVG / PNG / ICO 进入 Phase 7.8 brand 步骤
 </footer>
 
 <script>
