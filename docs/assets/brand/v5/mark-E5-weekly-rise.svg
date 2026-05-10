@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · E5 — Weekly Rise
+  7 bars rising in height from Monday to Saturday; Sunday is
+  a tall bar separately crowned with an independent sun disc
+  and 3 rays. A week accumulates, then Sunday crowns.
+  Concept: 7-day crescendo ending in Sunday's radiance.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · E5 Weekly Rise</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <!-- Mon to Sat: 6 bars rising in height, bottom y=44 -->
+  <g fill="var(--mark-fg, #f2ead8)">
+    <rect x="9"  y="39" width="4" height="5"  rx="1"/>
+    <rect x="16" y="37" width="4" height="7"  rx="1"/>
+    <rect x="23" y="35" width="4" height="9"  rx="1"/>
+    <rect x="30" y="33" width="4" height="11" rx="1"/>
+    <rect x="37" y="31" width="4" height="13" rx="1"/>
+    <rect x="44" y="29" width="4" height="15" rx="1"/>
+    <!-- Sunday body -->
+    <rect x="51" y="27" width="4" height="17" rx="1"/>
+  </g>
+  <!-- Sunday sun disc floating above its bar -->
+  <circle cx="53" cy="21" r="3.5" fill="var(--mark-fg, #f2ead8)"/>
+  <g stroke="var(--mark-fg, #f2ead8)" stroke-width="1.2" stroke-linecap="round">
+    <line x1="53" y1="15" x2="53" y2="13"/>
+    <line x1="48" y1="19" x2="46" y2="18"/>
+    <line x1="58" y1="19" x2="60" y2="18"/>
+  </g>
+</svg>

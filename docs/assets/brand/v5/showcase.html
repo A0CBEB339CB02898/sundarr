@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sundarr · v5 · E Family (Bars extended)</title>
+<style>
+  :root {
+    --bg:        #f3ede0;
+    --surface:   #fbf7ec;
+    --ink:       #1a1714;
+    --ink-soft:  rgba(26,23,20,0.58);
+    --ink-fade:  rgba(26,23,20,0.30);
+    --rule:      rgba(26,23,20,0.12);
+    --mark-bg:   #d97642;
+    --mark-fg:   #f2ead8;
+  }
+  :root[data-theme="dark"] {
+    --bg:        #0e0d0b;
+    --surface:   #1a1814;
+    --ink:       #f2ead8;
+    --ink-soft:  rgba(242,234,216,0.58);
+    --ink-fade:  rgba(242,234,216,0.28);
+    --rule:      rgba(242,234,216,0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .35s, color .35s; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 64px 56px 96px; }
+
+  .head-row { display: flex; align-items: flex-end;
+    justify-content: space-between; gap: 24px; flex-wrap: wrap;
+    margin-bottom: 56px; }
+  .eyebrow { font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 500; color: var(--ink-soft); }
+  h1 { margin: 12px 0 0; font-size: 44px; font-weight: 500;
+    letter-spacing: -0.02em; line-height: 1.1; }
+  h1 em { font-style: normal; color: var(--ink-soft); }
+  .lede { margin: 20px 0 0; font-size: 15px; line-height: 1.65;
+    color: var(--ink-soft); max-width: 660px; }
+  .lede b { color: var(--ink); font-weight: 500; }
+
+  .control { display: inline-flex; gap: 1px; padding: 1px;
+    background: var(--rule); border-radius: 999px; }
+  .control button { border: 0; background: transparent;
+    padding: 7px 16px; font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-soft); border-radius: 999px;
+    cursor: pointer; font-family: inherit;
+    transition: background-color .2s, color .2s; }
+  .control button[aria-selected="true"] {
+    background: var(--ink); color: var(--bg); }
+
+  /* Origin highlight (baseline) */
+  .origin-row {
+    display: flex; align-items: center; gap: 32px;
+    padding: 36px 40px; margin-bottom: 48px;
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 14px;
+  }
+  .origin-row svg { width: 96px; height: 96px;
+    border-radius: 20px; flex-shrink: 0; }
+  .origin-row .origin-meta { flex: 1; min-width: 0; }
+  .origin-row .origin-meta .code {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 0.12em; color: var(--mark-bg);
+    font-weight: 600; margin-bottom: 6px; }
+  .origin-row .origin-meta h2 { margin: 0;
+    font-size: 22px; font-weight: 500; letter-spacing: -0.01em; }
+  .origin-row .origin-meta p { margin: 6px 0 0;
+    font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+
+  /* Variant grid */
+  .eyebrow-section { display: block; margin-bottom: 18px; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 24px; }
+
+  .card { background: var(--surface);
+    border: 1px solid var(--rule); border-radius: 14px;
+    padding: 36px; display: flex; flex-direction: column; gap: 24px;
+    transition: transform .25s, box-shadow .25s; }
+  .card:hover { transform: translateY(-2px);
+    box-shadow: 0 16px 48px -22px rgba(0,0,0,0.28); }
+
+  .card .header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+  .card .code { font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 0.1em; color: var(--mark-bg);
+    font-weight: 600; }
+  .card .tags { font-size: 10.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-fade); }
+  .card .tags .chip { display: inline-block; padding: 2px 8px;
+    background: var(--mark-bg); color: var(--mark-fg);
+    border-radius: 3px; margin-left: 6px;
+    letter-spacing: 0.1em; font-size: 10px; }
+
+  .card .hero-mark {
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px 0; }
+  .card .hero-mark svg { width: 140px; height: 140px;
+    border-radius: 28px; }
+
+  .card .pair-row {
+    display: flex; align-items: center; gap: 18px;
+    padding-top: 16px; border-top: 1px dashed var(--rule); }
+  .card .pair-row svg { width: 40px; height: 40px;
+    border-radius: 9px; flex-shrink: 0; }
+  .card .pair-row .wm {
+    font-size: 20px; font-weight: 500; letter-spacing: -0.02em;
+    color: var(--ink); }
+  .card .pair-row .wm .dot {
+    color: var(--mark-bg); margin: 0 0.08em;
+    font-size: 0.7em; position: relative; top: -0.08em; }
+
+  .card .meta { display: flex; flex-direction: column; gap: 6px; }
+  .card .title { font-size: 17px; font-weight: 600;
+    letter-spacing: -0.01em; margin: 0; }
+  .card .rationale { font-size: 12.5px; line-height: 1.65;
+    color: var(--ink-soft); margin: 0; }
+  .card .rationale b { color: var(--ink); font-weight: 500; }
+
+  /* Scale strip */
+  .scale-strip { margin-top: 56px;
+    border: 1px solid var(--rule); border-radius: 14px;
+    padding: 36px 40px; }
+  .scale-row { display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 16px; margin-top: 20px; }
+  .scale-col { display: flex; flex-direction: column;
+    align-items: center; gap: 10px; }
+  .scale-col .code { font-family: "JetBrains Mono",
+    ui-monospace, monospace; font-size: 10px;
+    letter-spacing: 0.12em; color: var(--mark-bg); font-weight: 600; }
+  .scale-col .sizes { display: flex; align-items: flex-end; gap: 10px; }
+  .scale-col .sizes figure { margin: 0; display: flex;
+    flex-direction: column; align-items: center; gap: 4px; }
+  .scale-col .sizes figcaption { font-size: 9px;
+    color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .scale-col svg { border-radius: 3px; display: block; }
+
+  footer { margin-top: 64px; padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-size: 11px; letter-spacing: 0.06em;
+    color: var(--ink-fade);
+    display: flex; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; }
+
+  @media (max-width: 860px) {
+    .wrap { padding: 40px 24px 64px; }
+    h1 { font-size: 32px; }
+    .grid { grid-template-columns: 1fr; }
+    .scale-row { grid-template-columns: repeat(3, 1fr); }
+    .origin-row { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head-row">
+    <div>
+      <div class="eyebrow">Sundarr · Identity Exploration · v5 · E Family</div>
+      <h1>Bars + Sunday × Arr.<br/><em>从 E · Bars 出发的六款扩展。</em></h1>
+      <p class="lede">
+        原版 <b>E · Bars</b>（媒体脉动 / 调音器）作为基准保留。围绕它做六款扩展，
+        分别把 <b>Sunday</b>（太阳 / 日出 / 日晕）和 <b>Arr</b>（一周 7 天 / 累积）
+        融进来。徽章基础 DNA 不变：terracotta 14px 圆角 + 奶油前景。
+      </p>
+    </div>
+    <div class="control" role="tablist" aria-label="theme">
+      <button data-theme="light" aria-selected="true">Paper</button>
+      <button data-theme="dark"  aria-selected="false">Ink</button>
+    </div>
+  </div>
+
+  <!-- ============== Symbol defs ============== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+
+    <!-- E0: origin -->
+    <symbol id="E0" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <g fill="var(--mark-fg)">
+        <rect x="22" y="24" width="6" height="16" rx="3"/>
+        <rect x="30" y="18" width="6" height="28" rx="3"/>
+        <rect x="38" y="28" width="6" height="12" rx="3"/>
+      </g>
+    </symbol>
+
+    <!-- E1: sun-topped -->
+    <symbol id="E1" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <g fill="var(--mark-fg)">
+        <rect x="22" y="28" width="6" height="14" rx="3"/>
+        <rect x="30" y="22" width="6" height="20" rx="3"/>
+        <rect x="38" y="30" width="6" height="12" rx="3"/>
+      </g>
+      <circle cx="33" cy="14" r="3.8" fill="var(--mark-fg)"/>
+      <g stroke="var(--mark-fg)" stroke-width="1.3" stroke-linecap="round">
+        <line x1="33" y1="7"  x2="33" y2="5"/>
+        <line x1="27" y1="10" x2="25" y2="8"/>
+        <line x1="39" y1="10" x2="41" y2="8"/>
+      </g>
+    </symbol>
+
+    <!-- E2: seven pulse -->
+    <symbol id="E2" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <g fill="var(--mark-fg)" opacity="0.5">
+        <rect x="9"  y="33" width="4" height="7" rx="1.5"/>
+        <rect x="16" y="33" width="4" height="7" rx="1.5"/>
+        <rect x="23" y="33" width="4" height="7" rx="1.5"/>
+        <rect x="30" y="33" width="4" height="7" rx="1.5"/>
+        <rect x="37" y="33" width="4" height="7" rx="1.5"/>
+        <rect x="44" y="33" width="4" height="7" rx="1.5"/>
+      </g>
+      <rect x="51" y="22" width="4" height="18" rx="1.5" fill="var(--mark-fg)"/>
+      <circle cx="53" cy="16" r="3.5" fill="var(--mark-fg)"/>
+      <g stroke="var(--mark-fg)" stroke-width="1.2" stroke-linecap="round">
+        <line x1="53" y1="9"  x2="53" y2="7"/>
+        <line x1="48" y1="14" x2="46" y2="14"/>
+        <line x1="58" y1="14" x2="60" y2="14"/>
+      </g>
+    </symbol>
+
+    <!-- E3: reel bars -->
+    <symbol id="E3" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <g fill="var(--mark-fg)">
+        <rect x="10" y="11" width="3" height="3" rx="0.8"/>
+        <rect x="20" y="11" width="3" height="3" rx="0.8"/>
+        <rect x="30" y="11" width="3" height="3" rx="0.8"/>
+        <rect x="40" y="11" width="3" height="3" rx="0.8"/>
+        <rect x="50" y="11" width="3" height="3" rx="0.8"/>
+        <rect x="10" y="50" width="3" height="3" rx="0.8"/>
+        <rect x="20" y="50" width="3" height="3" rx="0.8"/>
+        <rect x="30" y="50" width="3" height="3" rx="0.8"/>
+        <rect x="40" y="50" width="3" height="3" rx="0.8"/>
+        <rect x="50" y="50" width="3" height="3" rx="0.8"/>
+      </g>
+      <g fill="var(--mark-fg)">
+        <rect x="22" y="26" width="6" height="14" rx="3"/>
+        <rect x="30" y="20" width="6" height="26" rx="3"/>
+        <rect x="38" y="28" width="6" height="12" rx="3"/>
+      </g>
+    </symbol>
+
+    <!-- E4: horizon bars -->
+    <symbol id="E4" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <path d="M 22 20 A 10 10 0 0 1 42 20 Z" fill="var(--mark-fg)"/>
+      <line x1="12" y1="42" x2="52" y2="42"
+            stroke="var(--mark-fg)" stroke-width="1.5"
+            stroke-linecap="round" opacity="0.5"/>
+      <g fill="var(--mark-fg)">
+        <rect x="22" y="30" width="5" height="12" rx="2.5"/>
+        <rect x="29.5" y="24" width="5" height="18" rx="2.5"/>
+        <rect x="37" y="32" width="5" height="10" rx="2.5"/>
+      </g>
+    </symbol>
+
+    <!-- E5: weekly rise -->
+    <symbol id="E5" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <g fill="var(--mark-fg)">
+        <rect x="9"  y="39" width="4" height="5"  rx="1"/>
+        <rect x="16" y="37" width="4" height="7"  rx="1"/>
+        <rect x="23" y="35" width="4" height="9"  rx="1"/>
+        <rect x="30" y="33" width="4" height="11" rx="1"/>
+        <rect x="37" y="31" width="4" height="13" rx="1"/>
+        <rect x="44" y="29" width="4" height="15" rx="1"/>
+        <rect x="51" y="27" width="4" height="17" rx="1"/>
+      </g>
+      <circle cx="53" cy="21" r="3.5" fill="var(--mark-fg)"/>
+      <g stroke="var(--mark-fg)" stroke-width="1.2" stroke-linecap="round">
+        <line x1="53" y1="15" x2="53" y2="13"/>
+        <line x1="48" y1="19" x2="46" y2="18"/>
+        <line x1="58" y1="19" x2="60" y2="18"/>
+      </g>
+    </symbol>
+
+    <!-- E6: halo pulse -->
+    <symbol id="E6" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <g fill="var(--mark-fg)">
+        <rect x="22" y="28" width="6" height="14" rx="3"/>
+        <rect x="30" y="24" width="6" height="18" rx="3"/>
+        <rect x="38" y="30" width="6" height="12" rx="3"/>
+      </g>
+      <circle cx="33" cy="18" r="7" fill="none"
+              stroke="var(--mark-fg)" stroke-width="2.2"/>
+    </symbol>
+  </svg>
+
+  <!-- ============== E0 origin (baseline) ============== -->
+  <span class="eyebrow eyebrow-section">Baseline · 原版保留</span>
+  <section class="origin-row">
+    <svg viewBox="0 0 64 64"><use href="#E0"/></svg>
+    <div class="origin-meta">
+      <div class="code">E0 · ORIGIN</div>
+      <h2>Bars · 媒体脉动（原版）</h2>
+      <p>3 根奶油色 bars, 中间最高。docs/assets/brand/v4/mark-E-bars.svg 原样保留。
+         下面六款扩展都以此为出发点。</p>
+    </div>
+  </section>
+
+  <!-- ============== Six extensions ============== -->
+  <span class="eyebrow eyebrow-section">Six extensions · Sunday × Arr × Media</span>
+  <div class="grid">
+
+    <!-- E1 -->
+    <article class="card">
+      <div class="header">
+        <span class="code">E1 · SUN-TOPPED</span>
+        <span class="tags"><span class="chip">Sunday</span></span>
+      </div>
+      <div class="hero-mark"><svg viewBox="0 0 64 64"><use href="#E1"/></svg></div>
+      <div class="pair-row">
+        <svg viewBox="0 0 64 64"><use href="#E1"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">E1 · Sun-Topped</h3>
+        <p class="rationale">
+          <b>中间 bar 收短，顶端冒出一颗带光芒的小太阳。</b>
+          调音器的中心峰值<b>就是 Sunday</b>——
+          媒体脉动到最高点正好是周日。改动最小，Sunday 感最直观。
+        </p>
+      </div>
+    </article>
+
+    <!-- E2 -->
+    <article class="card">
+      <div class="header">
+        <span class="code">E2 · SEVEN PULSE</span>
+        <span class="tags"><span class="chip">Sunday</span><span class="chip">Arr</span></span>
+      </div>
+      <div class="hero-mark"><svg viewBox="0 0 64 64"><use href="#E2"/></svg></div>
+      <div class="pair-row">
+        <svg viewBox="0 0 64 64"><use href="#E2"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">E2 · Seven Pulse</h3>
+        <p class="rationale">
+          <b>6 根等高浅色 bars = 周一到周六，最右侧 Sunday 高亮带太阳。</b>
+          把 v3 Weekday 的叙事思路带回 Bars 家族——
+          一周平淡的脉动，在 Sunday 绽放。<b>叙事最完整的一版</b>。
+        </p>
+      </div>
+    </article>
+
+    <!-- E3 -->
+    <article class="card">
+      <div class="header">
+        <span class="code">E3 · REEL BARS</span>
+        <span class="tags"><span class="chip">Media</span></span>
+      </div>
+      <div class="hero-mark"><svg viewBox="0 0 64 64"><use href="#E3"/></svg></div>
+      <div class="pair-row">
+        <svg viewBox="0 0 64 64"><use href="#E3"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">E3 · Reel Bars</h3>
+        <p class="rationale">
+          <b>3 根 bars 被上下两排胶片打孔框住。</b>
+          胶片帧 + 调音器 = 媒体播放器正在读你的文件。
+          Media 属性最重的一版，像一个运转中的小录音机。
+        </p>
+      </div>
+    </article>
+
+    <!-- E4 -->
+    <article class="card">
+      <div class="header">
+        <span class="code">E4 · HORIZON BARS</span>
+        <span class="tags"><span class="chip">Sunday</span><span class="chip">Media</span></span>
+      </div>
+      <div class="hero-mark"><svg viewBox="0 0 64 64"><use href="#E4"/></svg></div>
+      <div class="pair-row">
+        <svg viewBox="0 0 64 64"><use href="#E4"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">E4 · Horizon Bars</h3>
+        <p class="rationale">
+          <b>3 根 bars 立在地平线上，上方升起半个太阳。</b>
+          调音器变成<b>黎明的城市剪影</b>——
+          你的媒体是地平线，Sunday 是从它上面升起的太阳。
+          诗意感最强。
+        </p>
+      </div>
+    </article>
+
+    <!-- E5 -->
+    <article class="card">
+      <div class="header">
+        <span class="code">E5 · WEEKLY RISE</span>
+        <span class="tags"><span class="chip">Sunday</span><span class="chip">Arr</span></span>
+      </div>
+      <div class="hero-mark"><svg viewBox="0 0 64 64"><use href="#E5"/></svg></div>
+      <div class="pair-row">
+        <svg viewBox="0 0 64 64"><use href="#E5"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">E5 · Weekly Rise</h3>
+        <p class="rationale">
+          <b>7 根 bars 从周一到周日逐步升高，Sunday 顶端独立加冕一颗太阳。</b>
+          一周的渐强曲线。和 E2 的对比：E2 是"突然绽放"，
+          E5 是"稳步累积"。数据感最强。
+        </p>
+      </div>
+    </article>
+
+    <!-- E6 -->
+    <article class="card">
+      <div class="header">
+        <span class="code">E6 · HALO PULSE</span>
+        <span class="tags"><span class="chip">Sunday</span><span class="chip">Media</span></span>
+      </div>
+      <div class="hero-mark"><svg viewBox="0 0 64 64"><use href="#E6"/></svg></div>
+      <div class="pair-row">
+        <svg viewBox="0 0 64 64"><use href="#E6"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">E6 · Halo Pulse</h3>
+        <p class="rationale">
+          <b>3 根 bars，中间那根顶端有一个奶油日晕环。</b>
+          像一个 VU 表带着 status ring 到达峰值，
+          又像 Sunday 的日冕悬在脉动之上。克制但有焦点。
+        </p>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- ============== Scale test ============== -->
+  <section class="scale-strip">
+    <span class="eyebrow eyebrow-section">Scale test · 48 / 24 / 16 px</span>
+    <div class="scale-row">
+      <div class="scale-col">
+        <span class="code">E0</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#E0"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#E0"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#E0"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">E1</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#E1"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#E1"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#E1"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">E2</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#E2"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#E2"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#E2"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">E3</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#E3"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#E3"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#E3"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">E4</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#E4"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#E4"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#E4"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">E5</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#E5"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#E5"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#E5"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">E6</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#E6"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#E6"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#E6"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>docs/assets/brand/v5 · E Family · 1 baseline + 6 extensions</span>
+    <span>原版 mark-E-bars.svg 完整保留于 docs/assets/brand/v4/</span>
+  </footer>
+
+</div>
+
+<script>
+  const root = document.documentElement;
+  const KEY = "sundarr-v5-theme";
+  const btns = document.querySelectorAll("[data-theme]");
+  function apply(v) {
+    root.setAttribute("data-theme", v);
+    btns.forEach(b => b.setAttribute("aria-selected",
+      b.dataset.theme === v ? "true" : "false"));
+    localStorage.setItem(KEY, v);
+  }
+  btns.forEach(b => b.addEventListener("click",
+    () => apply(b.dataset.theme)));
+  apply(localStorage.getItem(KEY) || "light");
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · W3-E — Stack
+  Derived from: W3 Punched Disc
+  Extension: 3 horizontal rounded slots of varying widths —
+  a rackmount/storage stack. A small solid dot at the right of
+  the middle slot is the activity LED.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · W3-E Stack</title>
+  <defs>
+    <mask id="stack">
+      <rect width="100" height="100" fill="white"/>
+      <g fill="black">
+        <rect x="36" y="40" width="20" height="3.5" rx="1.5"/>
+        <rect x="36" y="48" width="24" height="3.5" rx="1.5"/>
+        <rect x="36" y="56" width="18" height="3.5" rx="1.5"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <circle cx="50" cy="50" r="28"
+          fill="var(--mark-fg, #f2ead8)"
+          mask="url(#stack)"/>
+  <!-- Activity LED, sits on the cream disc to the right of top slot -->
+  <circle cx="60" cy="41.75" r="1.3" fill="var(--mark-bg, #d97642)"/>
+</svg>

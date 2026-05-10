@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · Q — Lines in Circle Mask (media catalog)
+  Pattern family: Line System
+  Story: 圆内平行线 = 媒体目录的一行行条目. 中段挖一条最长
+  的"空行", 线宽从边缘向中心递增 (1.5 -> 3), 阅读焦点落在空行,
+  隐喻 Sunday 是一周里那道空出来的静谧行.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     role="img" aria-label="Sundarr">
+  <title>Sundarr · Lines in Circle</title>
+  <defs>
+    <clipPath id="c">
+      <circle cx="50" cy="50" r="32"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#c)" stroke="currentColor" stroke-linecap="round">
+    <line x1="15" y1="28" x2="85" y2="28" stroke-width="1.5"/>
+    <line x1="15" y1="34" x2="85" y2="34" stroke-width="2"/>
+    <line x1="15" y1="40" x2="85" y2="40" stroke-width="2.5"/>
+    <line x1="15" y1="46" x2="85" y2="46" stroke-width="3"/>
+    <!-- y=52 deliberately empty: Sunday's quiet row -->
+    <line x1="15" y1="58" x2="85" y2="58" stroke-width="3"/>
+    <line x1="15" y1="64" x2="85" y2="64" stroke-width="2.5"/>
+    <line x1="15" y1="70" x2="85" y2="70" stroke-width="2"/>
+    <line x1="15" y1="76" x2="85" y2="76" stroke-width="1.5"/>
+  </g>
+</svg>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · W3-0 — Origin (baseline)
+  Source: docs/assets/brand/v6/mark-W3-punched-disc.svg
+  Kept here for side-by-side comparison with extensions.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · W3-0 Origin</title>
+  <defs>
+    <mask id="punches-origin">
+      <rect width="100" height="100" fill="white"/>
+      <circle cx="40" cy="38" r="5" fill="black"/>
+      <circle cx="54" cy="42" r="3" fill="black"/>
+      <circle cx="38" cy="56" r="3" fill="black"/>
+      <circle cx="58" cy="60" r="4" fill="black"/>
+    </mask>
+  </defs>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <circle cx="50" cy="50" r="28"
+          fill="var(--mark-fg, #f2ead8)"
+          mask="url(#punches-origin)"/>
+</svg>

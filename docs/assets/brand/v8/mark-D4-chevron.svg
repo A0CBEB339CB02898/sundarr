@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · D4 — Chevron Fall
+  Scene: Cloud pours a cascade of chevrons down into NAS bays.
+  Motion rhythm: 3 V-shapes stacked, reading as live data stream.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · D4 Chevron Fall</title>
+  <defs>
+    <mask id="chevron">
+      <rect width="100" height="100" fill="white"/>
+      <!-- Cloud -->
+      <g fill="black">
+        <circle cx="42" cy="32" r="3.5"/>
+        <circle cx="50" cy="29" r="4.5"/>
+        <circle cx="58" cy="32" r="3.5"/>
+        <rect x="42" y="32" width="16" height="4" rx="2"/>
+      </g>
+      <!-- Three descending chevrons (data stream) -->
+      <g fill="none" stroke="black" stroke-width="2.2"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 45 41 L 50 44 L 55 41"/>
+        <path d="M 45 46 L 50 49 L 55 46"/>
+        <path d="M 45 51 L 50 54 L 55 51"/>
+      </g>
+      <!-- NAS bays -->
+      <g fill="black">
+        <rect x="39" y="59" width="3" height="10" rx="1.5"/>
+        <rect x="45.5" y="59" width="3" height="10" rx="1.5"/>
+        <rect x="52" y="59" width="3" height="10" rx="1.5"/>
+        <rect x="58.5" y="59" width="3" height="10" rx="1.5"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <circle cx="50" cy="50" r="28"
+          fill="var(--mark-fg, #f2ead8)"
+          mask="url(#chevron)"/>
+</svg>

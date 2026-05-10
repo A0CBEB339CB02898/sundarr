@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · Mark E — Bars
+  Wordmark: Sundar · r  (· = three short ticks)
+  Concept: Media equalizer / timeline. The · is a frequency pulse.
+  Badge: terracotta base + 3 cream bars of varied height, centered.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · Bars</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <g fill="var(--mark-fg, #f2ead8)">
+    <rect x="22" y="24" width="6" height="16" rx="3"/>
+    <rect x="30" y="18" width="6" height="28" rx="3"/>
+    <rect x="38" y="28" width="6" height="12" rx="3"/>
+  </g>
+</svg>

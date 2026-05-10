@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · V1 — Seven Rise
+  Concept: Sunday x Arr
+  Story: Sunday 是一周的第 7 天. 数字 7 的斜笔终点收为一颗太阳.
+  数字 7 本体即 Sunday, 终点的太阳即绽放.
+  Servarr family DNA: terracotta badge, cream foreground.
+  Canvas: 64x64, radius 14.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · Seven Rise</title>
+
+  <!-- Badge base -->
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+
+  <!-- Numeral 7: top bar + slanting stem, stroke 5, rounded caps -->
+  <g fill="none" stroke="var(--mark-fg, #f2ead8)" stroke-width="5"
+     stroke-linecap="round" stroke-linejoin="round">
+    <!-- Top bar -->
+    <path d="M 16 18 L 48 18"/>
+    <!-- Slanting stem, ending above the sun -->
+    <path d="M 48 18 L 34 42"/>
+  </g>
+
+  <!-- Sun disc at stem's terminal (Sunday emerges) -->
+  <circle cx="30" cy="48" r="6" fill="var(--mark-fg, #f2ead8)"/>
+</svg>

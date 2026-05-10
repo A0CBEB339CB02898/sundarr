@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sundarr · Logo Showcase v2</title>
+<style>
+  /* ===================================================================
+     Design system based on logo-generator-skill principles:
+     - Extreme simplicity, 40-50% negative space, stroke 2.5-4
+     - currentColor throughout, pattern family diversity
+     =================================================================== */
+  :root {
+    --bg:        #f3ede0;   /* editorial paper */
+    --ink:       #1a1714;   /* near-black, warm */
+    --ink-soft:  rgba(26,23,20,0.55);
+    --ink-fade:  rgba(26,23,20,0.30);
+    --rule:      rgba(26,23,20,0.12);
+    --surface:   #fbf7ec;
+  }
+  :root[data-theme="dark"] {
+    --bg:        #0e0d0b;
+    --ink:       #f2ead8;
+    --ink-soft:  rgba(242,234,216,0.55);
+    --ink-fade:  rgba(242,234,216,0.25);
+    --rule:      rgba(242,234,216,0.10);
+    --surface:   #1a1814;
+  }
+  :root[data-accent="terracotta"] {
+    --ink:       #b05623;
+  }
+  :root[data-theme="dark"][data-accent="terracotta"] {
+    --ink:       #d97642;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .35s ease, color .35s ease;
+  }
+
+  /* ============ Typography (editorial micro-typography) ============ */
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 64px 56px 96px; }
+
+  .eyebrow {
+    font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 500;
+    color: var(--ink-soft);
+  }
+  h1 {
+    margin: 12px 0 0; font-size: 44px; font-weight: 500;
+    letter-spacing: -0.02em; line-height: 1.05;
+  }
+  h1 em { font-style: normal; color: var(--ink-soft); }
+  .lede {
+    margin: 20px 0 0; font-size: 15px; line-height: 1.65;
+    color: var(--ink-soft); max-width: 620px;
+  }
+
+  /* ============ Header controls ============ */
+  .head-row {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 24px; flex-wrap: wrap; margin-bottom: 80px;
+  }
+  .controls { display: flex; gap: 24px; flex-wrap: wrap;
+    margin-top: 24px; }
+  .control {
+    display: flex; gap: 1px; padding: 1px;
+    background: var(--rule); border-radius: 999px;
+  }
+  .control button {
+    border: 0; background: transparent;
+    padding: 7px 16px; font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-soft); border-radius: 999px;
+    cursor: pointer; font-family: inherit;
+    transition: background-color .2s, color .2s;
+  }
+  .control button[aria-selected="true"] {
+    background: var(--ink); color: var(--bg);
+  }
+
+  /* ============ Principles strip ============ */
+  .principles {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 48px; padding: 36px 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 64px;
+  }
+  .principle { font-size: 12.5px; line-height: 1.6; color: var(--ink-soft); }
+  .principle b { display: block; color: var(--ink); font-weight: 500;
+    margin-bottom: 4px; letter-spacing: -0.005em; }
+
+  /* ============ Variant grid ============ */
+  .grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border-left: 1px solid var(--rule);
+    border-top: 1px solid var(--rule);
+  }
+  .card {
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 40px 40px 32px; display: flex; flex-direction: column;
+    gap: 28px; min-height: 380px;
+    transition: background-color .3s ease;
+    position: relative;
+  }
+  .card:hover { background: var(--surface); }
+
+  .card .stage {
+    aspect-ratio: 1 / 1; display: flex;
+    align-items: center; justify-content: center;
+  }
+  .card .mark {
+    width: 100%; height: 100%; max-width: 180px; max-height: 180px;
+    color: var(--ink);
+    transition: transform .4s cubic-bezier(.2,.8,.2,1);
+  }
+  .card:hover .mark { transform: scale(1.04); }
+
+  .card .meta { margin-top: auto; }
+  .card .tag {
+    display: inline-block; font-size: 10.5px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-fade); margin-bottom: 10px;
+  }
+  .card .name {
+    font-size: 15px; font-weight: 500; letter-spacing: -0.005em;
+    margin: 0 0 6px;
+  }
+  .card .rationale {
+    font-size: 12px; line-height: 1.55; color: var(--ink-soft);
+    margin: 0;
+  }
+
+  /* ============ Scale test strip ============ */
+  .scale-strip {
+    margin-top: 80px; padding: 48px 40px;
+    border: 1px solid var(--rule);
+  }
+  .scale-strip .eyebrow { margin-bottom: 28px; display: block; }
+  .scale-strip-row {
+    display: flex; align-items: flex-end; gap: 56px;
+    flex-wrap: wrap;
+  }
+  .scale-strip figure {
+    margin: 0; display: flex; flex-direction: column;
+    align-items: center; gap: 10px;
+  }
+  .scale-strip figcaption {
+    font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-fade);
+  }
+  .scale-strip svg { color: var(--ink); display: block; }
+
+  /* ============ Wordmark pairing ============ */
+  .wordmark-row {
+    margin-top: 80px; display: grid;
+    grid-template-columns: repeat(2, 1fr); gap: 40px;
+  }
+  .wm-card {
+    border: 1px solid var(--rule); padding: 40px;
+    display: flex; flex-direction: column; gap: 24px;
+  }
+  .wm-card .pair {
+    display: flex; align-items: center; gap: 18px;
+  }
+  .wm-card .pair svg { width: 48px; height: 48px; color: var(--ink); }
+  .wm-card .pair .wm {
+    font-size: 24px; font-weight: 500; letter-spacing: -0.02em;
+  }
+  .wm-card .pair .sun {
+    color: var(--ink); margin: 0 0.08em;
+    font-family: "DejaVu Sans", Arial, sans-serif;
+    font-variant-emoji: text; font-weight: 400;
+    font-size: 0.75em; position: relative; top: 0.04em;
+  }
+  .wm-card .note {
+    font-size: 12px; line-height: 1.55; color: var(--ink-soft);
+  }
+
+  /* ============ Footer ============ */
+  footer {
+    margin-top: 96px; padding-top: 28px;
+    border-top: 1px solid var(--rule);
+    font-size: 11px; letter-spacing: 0.06em;
+    color: var(--ink-fade);
+    display: flex; justify-content: space-between; flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  @media (max-width: 860px) {
+    .wrap { padding: 40px 24px 64px; }
+    h1 { font-size: 32px; }
+    .principles { grid-template-columns: 1fr; gap: 24px; }
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .wordmark-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .grid { grid-template-columns: 1fr; }
+    .card { min-height: auto; padding: 32px 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head-row">
+    <div>
+      <div class="eyebrow">Sundarr · Identity Exploration · v2</div>
+      <h1>Six variants.<br/><em>One pattern family each.</em></h1>
+      <p class="lede">
+        按 <a href="https://github.com/op7418/logo-generator-skill"
+              style="color:inherit">logo-generator-skill</a> 的设计法则重做——
+        极致简洁、慷慨留白、精确线宽、单一焦点。每一款来自不同的 pattern family，
+        而不是同一想法的参数变奏。
+      </p>
+    </div>
+    <div class="controls">
+      <div class="control" role="tablist" aria-label="theme">
+        <button data-theme="light" aria-selected="true">Paper</button>
+        <button data-theme="dark"  aria-selected="false">Ink</button>
+      </div>
+      <div class="control" role="tablist" aria-label="color">
+        <button data-accent="mono"       aria-selected="true">Mono</button>
+        <button data-accent="terracotta" aria-selected="false">Terracotta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Design principles ==================== -->
+  <section class="principles">
+    <div class="principle">
+      <b>Extreme simplicity</b>
+      每款只有 1–2 个核心元素。
+      不叠加装饰，不堆符号。
+    </div>
+    <div class="principle">
+      <b>Generous negative space</b>
+      至少 40% 画布留白。
+      留白是设计的一部分，不是漏洞。
+    </div>
+    <div class="principle">
+      <b>Structural DNA, not letters</b>
+      抽取字母的几何本质，
+      而不是画出完整的 S 或 r。
+    </div>
+  </section>
+
+  <!-- ==================== Symbol defs ==================== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <clipPath id="R-right"><circle cx="60" cy="50" r="22"/></clipPath>
+      <clipPath id="Q-c"><circle cx="50" cy="50" r="32"/></clipPath>
+    </defs>
+
+    <!-- R · Boolean Intersection -->
+    <symbol id="R" viewBox="0 0 100 100">
+      <circle cx="40" cy="50" r="22" fill="none"
+              stroke="currentColor" stroke-width="3"/>
+      <circle cx="60" cy="50" r="22" fill="none"
+              stroke="currentColor" stroke-width="3"/>
+      <circle cx="40" cy="50" r="22" clip-path="url(#R-right)"
+              fill="currentColor"/>
+    </symbol>
+
+    <!-- P · Concentric Dot Emanation -->
+    <symbol id="P" viewBox="0 0 100 100">
+      <g fill="currentColor">
+        <circle cx="50" cy="36" r="2.5"/>
+        <circle cx="62.12" cy="43" r="2.5"/>
+        <circle cx="62.12" cy="57" r="2.5"/>
+        <circle cx="50" cy="64" r="2.5"/>
+        <circle cx="37.88" cy="57" r="2.5"/>
+        <circle cx="37.88" cy="43" r="2.5"/>
+        <circle cx="50" cy="22" r="3"/>
+        <circle cx="64" cy="25.75" r="2"/>
+        <circle cx="74.25" cy="36" r="2"/>
+        <circle cx="78" cy="50" r="2"/>
+        <circle cx="74.25" cy="64" r="2"/>
+        <circle cx="64" cy="74.25" r="2"/>
+        <circle cx="50" cy="78" r="3"/>
+        <circle cx="36" cy="74.25" r="2"/>
+        <circle cx="25.75" cy="64" r="2"/>
+        <circle cx="22" cy="50" r="2"/>
+        <circle cx="25.75" cy="36" r="2"/>
+        <circle cx="36" cy="25.75" r="2"/>
+      </g>
+    </symbol>
+
+    <!-- S · Radial Burst -->
+    <symbol id="S" viewBox="0 0 100 100">
+      <g stroke="currentColor" stroke-width="3" stroke-linecap="round">
+        <line x1="50" y1="36" x2="50" y2="22"/>
+        <line x1="60" y1="40" x2="70.5" y2="29.5"/>
+        <line x1="64" y1="50" x2="78" y2="50"/>
+        <line x1="60" y1="60" x2="70.5" y2="70.5"/>
+        <line x1="50" y1="64" x2="50" y2="78"/>
+        <line x1="40" y1="60" x2="29.5" y2="70.5"/>
+        <line x1="36" y1="50" x2="22" y2="50"/>
+        <line x1="40" y1="40" x2="29.5" y2="29.5"/>
+      </g>
+      <circle cx="50" cy="50" r="7" fill="currentColor"/>
+    </symbol>
+
+    <!-- T · Arc Cycle -->
+    <symbol id="T" viewBox="0 0 100 100">
+      <g fill="none" stroke="currentColor" stroke-width="3"
+         stroke-linecap="round">
+        <path d="M 50 18 A 32 32 0 1 1 18 50"/>
+        <path d="M 32 50 A 18 18 0 0 1 68 50"/>
+      </g>
+      <circle cx="50" cy="50" r="3.5" fill="currentColor"/>
+    </symbol>
+
+    <!-- U · Node Network -->
+    <symbol id="U" viewBox="0 0 100 100">
+      <g fill="none" stroke="currentColor" stroke-width="2.5"
+         stroke-linecap="round">
+        <path d="M 28 72 Q 50 72, 50 50"/>
+        <path d="M 50 50 Q 50 28, 72 28"/>
+        <path d="M 28 72 Q 22 48, 38 38" opacity="0.4"/>
+        <path d="M 38 38 Q 50 40, 50 50" opacity="0.4"/>
+      </g>
+      <g fill="currentColor">
+        <circle cx="28" cy="72" r="5"/>
+        <circle cx="50" cy="50" r="6"/>
+        <circle cx="72" cy="28" r="5"/>
+        <circle cx="38" cy="38" r="2.5" opacity="0.5"/>
+        <circle cx="65" cy="55" r="2" opacity="0.35"/>
+      </g>
+    </symbol>
+
+    <!-- Q · Lines in Circle -->
+    <symbol id="Q" viewBox="0 0 100 100">
+      <g clip-path="url(#Q-c)" stroke="currentColor" stroke-linecap="round">
+        <line x1="15" y1="28" x2="85" y2="28" stroke-width="1.5"/>
+        <line x1="15" y1="34" x2="85" y2="34" stroke-width="2"/>
+        <line x1="15" y1="40" x2="85" y2="40" stroke-width="2.5"/>
+        <line x1="15" y1="46" x2="85" y2="46" stroke-width="3"/>
+        <line x1="15" y1="58" x2="85" y2="58" stroke-width="3"/>
+        <line x1="15" y1="64" x2="85" y2="64" stroke-width="2.5"/>
+        <line x1="15" y1="70" x2="85" y2="70" stroke-width="2"/>
+        <line x1="15" y1="76" x2="85" y2="76" stroke-width="1.5"/>
+      </g>
+    </symbol>
+  </svg>
+
+  <!-- ==================== Variant grid ==================== -->
+  <div class="grid">
+
+    <article class="card">
+      <div class="stage">
+        <svg class="mark" viewBox="0 0 100 100"><use href="#R"/></svg>
+      </div>
+      <div class="meta">
+        <div class="tag">R · Geometry · Boolean</div>
+        <h3 class="name">Intersection</h3>
+        <p class="rationale">
+          两圆相交，交集区域填实。左圆 Sunday，右圆 *arr，
+          重叠即 Sundarr 本身。名字构造的几何直译。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg class="mark" viewBox="0 0 100 100"><use href="#P"/></svg>
+      </div>
+      <div class="meta">
+        <div class="tag">P · Dot Matrix · Concentric</div>
+        <h3 class="name">Emanation</h3>
+        <p class="rationale">
+          12 外环点 + 6 内环点，中心留空。
+          太阳的缺席即其在场。12/6 点位略放大作 r·r 书挡。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg class="mark" viewBox="0 0 100 100"><use href="#S"/></svg>
+      </div>
+      <div class="meta">
+        <div class="tag">S · Radial · Burst</div>
+        <h3 class="name">Sunrise</h3>
+        <p class="rationale">
+          8 道射线交替长短 + 实心核。
+          最直接的日出符号，不绕弯子。
+          stroke 3，圆角收尾。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg class="mark" viewBox="0 0 100 100"><use href="#T"/></svg>
+      </div>
+      <div class="meta">
+        <div class="tag">T · Arc · Broken Circle</div>
+        <h3 class="name">Cycle</h3>
+        <p class="rationale">
+          外弧 270° + 内弧 180° + 实心核。
+          两段弧旋向相反制造张力，
+          隐喻抓取-处理-同步的循环。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg class="mark" viewBox="0 0 100 100"><use href="#U"/></svg>
+      </div>
+      <div class="meta">
+        <div class="tag">U · Node Network</div>
+        <h3 class="name">Topology</h3>
+        <p class="rationale">
+          三主节点沿对角线分布，两次级节点补张力。
+          最强不对称构图，隐喻分布式架构：
+          媒体源 / 存储 / 同步端。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="stage">
+        <svg class="mark" viewBox="0 0 100 100"><use href="#Q"/></svg>
+      </div>
+      <div class="meta">
+        <div class="tag">Q · Line System · Masked</div>
+        <h3 class="name">Quiet Row</h3>
+        <p class="rationale">
+          圆内平行线，线宽边缘向中心递增。
+          y=52 那行刻意空出——Sunday 是一周里
+          那道静谧的空行。
+        </p>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- ==================== Scale strip (全款 × 所有尺寸) ==================== -->
+  <section class="scale-strip">
+    <span class="eyebrow">Scale test · 128 / 48 / 24 / 16 px</span>
+    <div class="scale-strip-row">
+      <figure>
+        <svg width="128" height="128" viewBox="0 0 100 100"><use href="#R"/></svg>
+        <figcaption>R · 128</figcaption>
+      </figure>
+      <figure>
+        <svg width="48"  height="48"  viewBox="0 0 100 100"><use href="#R"/></svg>
+        <svg width="24"  height="24"  viewBox="0 0 100 100"><use href="#R"/></svg>
+        <svg width="16"  height="16"  viewBox="0 0 100 100"><use href="#R"/></svg>
+        <figcaption>R · small</figcaption>
+      </figure>
+      <figure>
+        <svg width="48"  height="48"  viewBox="0 0 100 100"><use href="#S"/></svg>
+        <svg width="24"  height="24"  viewBox="0 0 100 100"><use href="#S"/></svg>
+        <svg width="16"  height="16"  viewBox="0 0 100 100"><use href="#S"/></svg>
+        <figcaption>S · small</figcaption>
+      </figure>
+      <figure>
+        <svg width="48"  height="48"  viewBox="0 0 100 100"><use href="#T"/></svg>
+        <svg width="24"  height="24"  viewBox="0 0 100 100"><use href="#T"/></svg>
+        <svg width="16"  height="16"  viewBox="0 0 100 100"><use href="#T"/></svg>
+        <figcaption>T · small</figcaption>
+      </figure>
+      <figure>
+        <svg width="48"  height="48"  viewBox="0 0 100 100"><use href="#U"/></svg>
+        <svg width="24"  height="24"  viewBox="0 0 100 100"><use href="#U"/></svg>
+        <svg width="16"  height="16"  viewBox="0 0 100 100"><use href="#U"/></svg>
+        <figcaption>U · small</figcaption>
+      </figure>
+      <figure>
+        <svg width="48"  height="48"  viewBox="0 0 100 100"><use href="#P"/></svg>
+        <svg width="24"  height="24"  viewBox="0 0 100 100"><use href="#P"/></svg>
+        <svg width="16"  height="16"  viewBox="0 0 100 100"><use href="#P"/></svg>
+        <figcaption>P · small</figcaption>
+      </figure>
+      <figure>
+        <svg width="48"  height="48"  viewBox="0 0 100 100"><use href="#Q"/></svg>
+        <svg width="24"  height="24"  viewBox="0 0 100 100"><use href="#Q"/></svg>
+        <svg width="16"  height="16"  viewBox="0 0 100 100"><use href="#Q"/></svg>
+        <figcaption>Q · small</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ==================== Wordmark pairings ==================== -->
+  <section class="wordmark-row">
+    <div class="wm-card">
+      <span class="eyebrow">Wordmark pairing · R (推荐)</span>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#R"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="sun">&#x2600;&#xFE0E;</span><span>r</span></span>
+      </div>
+      <p class="note">
+        Intersection 徽章 + 词根接缝 r·☀·r wordmark。
+        两者都讲"合流"：前者是几何相交，后者是词根相遇。
+      </p>
+    </div>
+
+    <div class="wm-card">
+      <span class="eyebrow">Wordmark pairing · Q</span>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#Q"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="sun">&#x2600;&#xFE0E;</span><span>r</span></span>
+      </div>
+      <p class="note">
+        Quiet Row 徽章 + wordmark。徽章的空行就是 wordmark 的 ☀——
+        名字里那颗太阳就是目录里那道静谧的空行。
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <span>docs/assets/brand/v2 · 6 variants · 6 pattern families</span>
+    <span>all marks use <code>currentColor</code> · viewBox 0 0 100 100</span>
+  </footer>
+
+</div>
+
+<script>
+  const root = document.documentElement;
+  const KEY_T = "sundarr-v2-theme";
+  const KEY_A = "sundarr-v2-accent";
+
+  function bind(attr, key, defaultValue) {
+    const btns = document.querySelectorAll(`[data-${attr}]`);
+    function apply(v) {
+      root.setAttribute(`data-${attr}`, v);
+      btns.forEach(b => b.setAttribute("aria-selected",
+        b.dataset[attr] === v ? "true" : "false"));
+      localStorage.setItem(key, v);
+    }
+    btns.forEach(b => b.addEventListener("click",
+      () => apply(b.dataset[attr])));
+    apply(localStorage.getItem(key) || defaultValue);
+  }
+  bind("theme",  KEY_T, "light");
+  bind("accent", KEY_A, "mono");
+</script>
+</body>
+</html>

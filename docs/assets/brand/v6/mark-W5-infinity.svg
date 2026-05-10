@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · W5 — Infinity Loop
+  Archetype: logo-generator-skill / Infinity Loop (09b239bb..)
+  Principle: Single smooth closed path. One perfect element
+  beats five mediocre ones.
+  Execution: Figure-8 path with strokeWidth 5, crossing at
+  center; no fill, pure outline.
+  Concept: *arr automation runs forever. Arr IS loop.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · W5 Infinity Loop</title>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <path d="M 50 50
+           C 40 30, 20 30, 20 50
+           C 20 70, 40 70, 50 50
+           C 60 30, 80 30, 80 50
+           C 80 70, 60 70, 50 50 Z"
+        fill="none"
+        stroke="var(--mark-fg, #f2ead8)" stroke-width="5"
+        stroke-linejoin="round"/>
+</svg>

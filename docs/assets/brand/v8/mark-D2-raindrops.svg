@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · D2 — Raindrops
+  Scene: Cloud rains data drops into NAS bays.
+  3 drops at staggered heights suggest continuous mid-fall motion.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · D2 Raindrops</title>
+  <defs>
+    <mask id="raindrops">
+      <rect width="100" height="100" fill="white"/>
+      <!-- Cloud -->
+      <g fill="black">
+        <circle cx="42" cy="32" r="3.5"/>
+        <circle cx="50" cy="29" r="4.5"/>
+        <circle cx="58" cy="32" r="3.5"/>
+        <rect x="42" y="32" width="16" height="4" rx="2"/>
+      </g>
+      <!-- Three raindrops, staggered to imply motion -->
+      <g fill="black">
+        <rect x="41" y="42" width="2" height="6" rx="1"/>
+        <rect x="49" y="45" width="2" height="6" rx="1"/>
+        <rect x="57" y="43" width="2" height="6" rx="1"/>
+      </g>
+      <!-- NAS bays catching the drops -->
+      <g fill="black">
+        <rect x="39" y="58" width="2.5" height="8" rx="1.25"/>
+        <rect x="45" y="58" width="2.5" height="8" rx="1.25"/>
+        <rect x="51" y="58" width="2.5" height="8" rx="1.25"/>
+        <rect x="57" y="58" width="2.5" height="8" rx="1.25"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <circle cx="50" cy="50" r="28"
+          fill="var(--mark-fg, #f2ead8)"
+          mask="url(#raindrops)"/>
+</svg>

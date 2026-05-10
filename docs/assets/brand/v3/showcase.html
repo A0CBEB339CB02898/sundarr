@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sundarr · v3 · Sunday × Media × Arr</title>
+<style>
+  /* ===================================================================
+     Design baseline returns to Servarr family DNA:
+     - 14px rounded square badge
+     - terracotta background, cream foreground
+     - Concept-driven: Sunday / Media / Arr
+     =================================================================== */
+  :root {
+    --bg:        #f3ede0;
+    --surface:   #fbf7ec;
+    --ink:       #1a1714;
+    --ink-soft:  rgba(26,23,20,0.58);
+    --ink-fade:  rgba(26,23,20,0.30);
+    --rule:      rgba(26,23,20,0.12);
+    --mark-bg:   #d97642;   /* terracotta */
+    --mark-fg:   #f2ead8;   /* cream */
+  }
+  :root[data-theme="dark"] {
+    --bg:        #0e0d0b;
+    --surface:   #1a1814;
+    --ink:       #f2ead8;
+    --ink-soft:  rgba(242,234,216,0.58);
+    --ink-fade:  rgba(242,234,216,0.28);
+    --rule:      rgba(242,234,216,0.12);
+    --mark-bg:   #d97642;
+    --mark-fg:   #f2ead8;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .35s, color .35s; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 64px 56px 96px; }
+
+  .eyebrow { font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 500;
+    color: var(--ink-soft); }
+  h1 { margin: 12px 0 0; font-size: 44px; font-weight: 500;
+    letter-spacing: -0.02em; line-height: 1.1; }
+  h1 em { font-style: normal; color: var(--ink-soft); }
+  .lede { margin: 20px 0 0; font-size: 15px; line-height: 1.65;
+    color: var(--ink-soft); max-width: 640px; }
+
+  .head-row { display: flex; align-items: flex-end;
+    justify-content: space-between; gap: 24px; flex-wrap: wrap;
+    margin-bottom: 72px; }
+
+  .control { display: inline-flex; gap: 1px; padding: 1px;
+    background: var(--rule); border-radius: 999px; }
+  .control button { border: 0; background: transparent;
+    padding: 7px 16px; font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-soft); border-radius: 999px;
+    cursor: pointer; font-family: inherit;
+    transition: background-color .2s, color .2s; }
+  .control button[aria-selected="true"] {
+    background: var(--ink); color: var(--bg); }
+
+  /* Concept legend */
+  .concepts { display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 40px; padding: 32px 0; margin-bottom: 56px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule); }
+  .concept { font-size: 12.5px; line-height: 1.6; color: var(--ink-soft); }
+  .concept b { display: block; color: var(--mark-bg); font-weight: 600;
+    font-size: 13px; letter-spacing: 0.04em;
+    text-transform: uppercase; margin-bottom: 6px; }
+
+  /* Grid of 4 variants */
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 28px; }
+  .card { background: var(--surface);
+    border: 1px solid var(--rule); border-radius: 12px;
+    padding: 40px; display: flex; gap: 36px;
+    min-height: 260px; transition: transform .25s, box-shadow .25s; }
+  .card:hover { transform: translateY(-2px);
+    box-shadow: 0 12px 40px -20px rgba(0,0,0,0.25); }
+
+  .card .mark-slot { flex: 0 0 auto; display: flex;
+    align-items: center; justify-content: center; }
+  .card .mark-lg { width: 140px; height: 140px; display: block;
+    border-radius: 14px; }
+
+  .card .meta { display: flex; flex-direction: column; gap: 12px;
+    flex: 1; min-width: 0; }
+  .card .tags { font-size: 10.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--ink-fade); }
+  .card .tags .chip { display: inline-block; padding: 2px 8px;
+    background: var(--mark-bg); color: var(--mark-fg);
+    border-radius: 3px; margin-right: 6px;
+    letter-spacing: 0.1em; font-size: 10px; }
+  .card .title { font-size: 20px; font-weight: 600;
+    letter-spacing: -0.015em; margin: 0; }
+  .card .rationale { font-size: 13px; line-height: 1.6;
+    color: var(--ink-soft); margin: 0; }
+  .card .rationale b { color: var(--ink); font-weight: 500; }
+
+  /* Scale test */
+  .scale-strip { margin-top: 72px;
+    border: 1px solid var(--rule); border-radius: 12px;
+    padding: 40px; }
+  .scale-strip .eyebrow { display: block; margin-bottom: 24px; }
+  .scale-row { display: grid;
+    grid-template-columns: repeat(4, 1fr); gap: 32px; }
+  .scale-col { display: flex; flex-direction: column;
+    align-items: center; gap: 18px; padding-top: 12px; }
+  .scale-col .label { font-size: 11px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-soft); }
+  .scale-col .sizes { display: flex; align-items: flex-end;
+    gap: 18px; }
+  .scale-col .sizes figure { margin: 0; display: flex;
+    flex-direction: column; align-items: center; gap: 6px; }
+  .scale-col .sizes figcaption { font-size: 9.5px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-fade); font-family: "JetBrains Mono",
+      ui-monospace, monospace; }
+  .scale-col .sizes svg { border-radius: 4px; }
+
+  /* Wordmark pairings */
+  .wordmark-section { margin-top: 72px; }
+  .wm-grid { display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 28px; margin-top: 20px; }
+  .wm-card { background: var(--surface);
+    border: 1px solid var(--rule); border-radius: 12px;
+    padding: 36px; display: flex; flex-direction: column; gap: 20px; }
+  .wm-card .pair { display: flex; align-items: center; gap: 16px; }
+  .wm-card .pair svg { width: 44px; height: 44px;
+    border-radius: 10px; flex-shrink: 0; }
+  .wm-card .pair .wm { font-size: 22px; font-weight: 500;
+    letter-spacing: -0.02em; color: var(--ink); }
+  .wm-card .pair .sun-ch { color: var(--mark-bg);
+    margin: 0 0.06em;
+    font-family: "DejaVu Sans", Arial, sans-serif;
+    font-variant-emoji: text; font-weight: 400;
+    font-size: 0.78em; position: relative; top: 0.04em; }
+  .wm-card .note { font-size: 12px; line-height: 1.55;
+    color: var(--ink-soft); margin: 0; }
+
+  footer { margin-top: 88px; padding-top: 28px;
+    border-top: 1px solid var(--rule);
+    font-size: 11px; letter-spacing: 0.06em;
+    color: var(--ink-fade);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+  @media (max-width: 900px) {
+    .wrap { padding: 40px 24px 64px; }
+    h1 { font-size: 32px; }
+    .concepts { grid-template-columns: 1fr; gap: 20px; }
+    .grid { grid-template-columns: 1fr; }
+    .card { flex-direction: column; gap: 24px; padding: 32px; }
+    .scale-row { grid-template-columns: repeat(2, 1fr); }
+    .wm-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head-row">
+    <div>
+      <div class="eyebrow">Sundarr · Identity Exploration · v3</div>
+      <h1>Sunday × Media × Arr.<br/><em>回到主题色的四款。</em></h1>
+      <p class="lede">
+        回到 Servarr 家族 DNA：14px 圆角徽章、terracotta 底、奶油前景。
+        四款都以 <b style="color:var(--ink)">Sunday / Media / Arr</b>
+        三个核心概念的组合作为叙事入口，不再脱离品牌基因。
+      </p>
+    </div>
+    <div class="control" role="tablist" aria-label="theme">
+      <button data-theme="light" aria-selected="true">Paper</button>
+      <button data-theme="dark"  aria-selected="false">Ink</button>
+    </div>
+  </div>
+
+  <!-- ============== Concept legend ============== -->
+  <section class="concepts">
+    <div class="concept">
+      <b>Sunday</b>
+      一周的第 7 天 / 太阳 / 绽放的休憩时间 /
+      Servarr 家族里那颗独特的日。
+    </div>
+    <div class="concept">
+      <b>Media</b>
+      胶片帧 / 媒体目录 / 可滚动的内容行 /
+      承载一切的圆角容器本身。
+    </div>
+    <div class="concept">
+      <b>Arr</b>
+      *arr 家族后缀 / 自动抓取与整理 /
+      从 6 天平淡到第 7 天产出的流程。
+    </div>
+  </section>
+
+  <!-- ============== Symbol definitions ============== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <!-- V1 Seven Rise -->
+    <symbol id="V1" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <g fill="none" stroke="var(--mark-fg)" stroke-width="5"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 16 18 L 48 18"/>
+        <path d="M 48 18 L 34 42"/>
+      </g>
+      <circle cx="30" cy="48" r="6" fill="var(--mark-fg)"/>
+    </symbol>
+
+    <!-- V2 Reel Sun -->
+    <symbol id="V2" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <g fill="var(--mark-fg)">
+        <rect x="12" y="13" width="4" height="4" rx="1"/>
+        <rect x="22" y="13" width="4" height="4" rx="1"/>
+        <rect x="30" y="13" width="4" height="4" rx="1"/>
+        <rect x="38" y="13" width="4" height="4" rx="1"/>
+        <rect x="48" y="13" width="4" height="4" rx="1"/>
+        <rect x="12" y="47" width="4" height="4" rx="1"/>
+        <rect x="22" y="47" width="4" height="4" rx="1"/>
+        <rect x="30" y="47" width="4" height="4" rx="1"/>
+        <rect x="38" y="47" width="4" height="4" rx="1"/>
+        <rect x="48" y="47" width="4" height="4" rx="1"/>
+      </g>
+      <line x1="10" y1="38" x2="54" y2="38"
+            stroke="var(--mark-fg)" stroke-width="1.5"
+            stroke-linecap="round" opacity="0.45"/>
+      <path d="M 22 38 A 10 10 0 0 1 42 38 Z" fill="var(--mark-fg)"/>
+    </symbol>
+
+    <!-- V3 Weekday -->
+    <symbol id="V3" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <g stroke="var(--mark-fg)" stroke-width="2.5"
+         stroke-linecap="round" opacity="0.55">
+        <line x1="12" y1="28" x2="12" y2="36"/>
+        <line x1="18" y1="28" x2="18" y2="36"/>
+        <line x1="24" y1="28" x2="24" y2="36"/>
+        <line x1="30" y1="28" x2="30" y2="36"/>
+        <line x1="36" y1="28" x2="36" y2="36"/>
+        <line x1="42" y1="28" x2="42" y2="36"/>
+      </g>
+      <circle cx="52" cy="32" r="5" fill="var(--mark-fg)"/>
+      <g stroke="var(--mark-fg)" stroke-width="1.6" stroke-linecap="round">
+        <line x1="52" y1="23" x2="52" y2="20"/>
+        <line x1="52" y1="41" x2="52" y2="44"/>
+        <line x1="58.5" y1="25.5" x2="60.5" y2="23.5"/>
+        <line x1="45.5" y1="25.5" x2="43.5" y2="23.5"/>
+        <line x1="58.5" y1="38.5" x2="60.5" y2="40.5"/>
+        <line x1="45.5" y1="38.5" x2="43.5" y2="40.5"/>
+      </g>
+    </symbol>
+
+    <!-- V4 Horizon -->
+    <symbol id="V4" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg)"/>
+      <line x1="12" y1="42" x2="52" y2="42"
+            stroke="var(--mark-fg)" stroke-width="1.8"
+            stroke-linecap="round" opacity="0.55"/>
+      <path d="M 21 42 A 11 11 0 0 1 43 42 Z" fill="var(--mark-fg)"/>
+      <g stroke="var(--mark-fg)" stroke-width="2" stroke-linecap="round">
+        <line x1="32" y1="22" x2="32" y2="17"/>
+        <line x1="22" y1="26" x2="19" y2="23"/>
+        <line x1="42" y1="26" x2="45" y2="23"/>
+      </g>
+    </symbol>
+  </svg>
+
+  <!-- ============== Four variants ============== -->
+  <div class="grid">
+
+    <article class="card">
+      <div class="mark-slot">
+        <svg class="mark-lg" viewBox="0 0 64 64"><use href="#V1"/></svg>
+      </div>
+      <div class="meta">
+        <div class="tags">
+          <span class="chip">Sunday</span>
+          <span class="chip">Arr</span>
+        </div>
+        <h3 class="title">V1 · Seven Rise</h3>
+        <p class="rationale">
+          <b>数字 7 的斜笔终点收为一颗太阳。</b>
+          Sunday 是一周的第 7 天——7 本体即周日，
+          斜笔终点绽放的圆盘即 Sunday 的到来。
+          数字「7」自然对接 Servarr 家族里的<b> 第 7 位 *arr </b>成员身份。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="mark-slot">
+        <svg class="mark-lg" viewBox="0 0 64 64"><use href="#V2"/></svg>
+      </div>
+      <div class="meta">
+        <div class="tags">
+          <span class="chip">Media</span>
+          <span class="chip">Sunday</span>
+        </div>
+        <h3 class="title">V2 · Reel Sun</h3>
+        <p class="rationale">
+          <b>胶片帧上下两排打孔，中间升起一颗半日。</b>
+          Media 原语（film reel）托起 Sunday 的光——
+          把「看一场电影」和「周日早晨的第一道光」
+          叠合在同一个画面。徽章即胶片，即容器。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="mark-slot">
+        <svg class="mark-lg" viewBox="0 0 64 64"><use href="#V3"/></svg>
+      </div>
+      <div class="meta">
+        <div class="tags">
+          <span class="chip">Sunday</span>
+          <span class="chip">Media</span>
+          <span class="chip">Arr</span>
+        </div>
+        <h3 class="title">V3 · Weekday</h3>
+        <p class="rationale">
+          <b>6 根刻度 = 周一到周六，第 7 位 = 带光芒的太阳。</b>
+          三合一叙事：一周里的节奏（Sunday）、目录里的一行行条目
+          （Media）、*arr 自动化周末产出的那一刻（Arr）。
+          左侧克制右侧绽放，不对称张力最强。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="mark-slot">
+        <svg class="mark-lg" viewBox="0 0 64 64"><use href="#V4"/></svg>
+      </div>
+      <div class="meta">
+        <div class="tags">
+          <span class="chip">Media</span>
+          <span class="chip">Sunday</span>
+        </div>
+        <h3 class="title">V4 · Horizon</h3>
+        <p class="rationale">
+          <b>容器里的日出，只剩一个动作。</b>
+          圆角徽章本体即媒体容器（Servarr 家族 DNA）；
+          容器内一条地平线 + 半个升起的太阳 + 三道光芒。
+          figure-ground 统一叙事：媒体容器里藏着周日的光。
+        </p>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- ============== Scale test ============== -->
+  <section class="scale-strip">
+    <span class="eyebrow">Scale test · 48 / 24 / 16 px</span>
+    <div class="scale-row">
+      <div class="scale-col">
+        <div class="label">V1 · Seven</div>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#V1"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#V1"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#V1"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <div class="label">V2 · Reel</div>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#V2"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#V2"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#V2"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <div class="label">V3 · Weekday</div>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#V3"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#V3"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#V3"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <div class="label">V4 · Horizon</div>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 64 64"><use href="#V4"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 64 64"><use href="#V4"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 64 64"><use href="#V4"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== Wordmark pairings ============== -->
+  <section class="wordmark-section">
+    <span class="eyebrow">Wordmark pairing</span>
+    <div class="wm-grid">
+      <div class="wm-card">
+        <div class="pair">
+          <svg viewBox="0 0 64 64"><use href="#V3"/></svg>
+          <span class="wm">Sunda<span>r</span><span class="sun-ch">&#x2600;&#xFE0E;</span><span>r</span></span>
+        </div>
+        <p class="note">
+          <b>V3 + wordmark</b>：徽章的第 7 位太阳
+          与 wordmark 中间那颗 ☀ 是同一颗——
+          名字和徽章都在讲「一周尽头的绽放」。
+        </p>
+      </div>
+      <div class="wm-card">
+        <div class="pair">
+          <svg viewBox="0 0 64 64"><use href="#V4"/></svg>
+          <span class="wm">Sunda<span>r</span><span class="sun-ch">&#x2600;&#xFE0E;</span><span>r</span></span>
+        </div>
+        <p class="note">
+          <b>V4 + wordmark</b>：极简容器 + 日出 ，
+          与 wordmark 的 r·☀·r 形成呼应——
+          媒体容器托起 Sunday 的光。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>docs/assets/brand/v3 · 4 variants · Sunday × Media × Arr</span>
+    <span>terracotta badge restored · Servarr family DNA</span>
+  </footer>
+
+</div>
+
+<script>
+  const root = document.documentElement;
+  const KEY = "sundarr-v3-theme";
+  const btns = document.querySelectorAll("[data-theme]");
+  function apply(v) {
+    root.setAttribute("data-theme", v);
+    btns.forEach(b => b.setAttribute("aria-selected",
+      b.dataset.theme === v ? "true" : "false"));
+    localStorage.setItem(KEY, v);
+  }
+  btns.forEach(b => b.addEventListener("click",
+    () => apply(b.dataset.theme)));
+  apply(localStorage.getItem(KEY) || "light");
+</script>
+</body>
+</html>

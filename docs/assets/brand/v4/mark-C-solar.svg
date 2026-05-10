@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · Mark C — Solar
+  Wordmark: Sundar · r  (· = sun with 8 rays)
+  Concept: Full sun. The · blooms into radiance.
+  Badge: terracotta base + cream disc + 8 alternating rays.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr · Solar</title>
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+  <circle cx="32" cy="32" r="7" fill="var(--mark-fg, #f2ead8)"/>
+  <g stroke="var(--mark-fg, #f2ead8)" stroke-width="2.2" stroke-linecap="round">
+    <line x1="32" y1="18" x2="32" y2="13"/>
+    <line x1="32" y1="46" x2="32" y2="51"/>
+    <line x1="18" y1="32" x2="13" y2="32"/>
+    <line x1="46" y1="32" x2="51" y2="32"/>
+    <line x1="22" y1="22" x2="18.5" y2="18.5"/>
+    <line x1="42" y1="22" x2="45.5" y2="18.5"/>
+    <line x1="22" y1="42" x2="18.5" y2="45.5"/>
+    <line x1="42" y1="42" x2="45.5" y2="45.5"/>
+  </g>
+</svg>

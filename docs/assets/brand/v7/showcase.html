@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sundarr · v7 · Punched Disc Family (NAS × Cloud)</title>
+<style>
+  :root {
+    --bg:        #f3ede0;
+    --surface:   #fbf7ec;
+    --ink:       #1a1714;
+    --ink-soft:  rgba(26,23,20,0.58);
+    --ink-fade:  rgba(26,23,20,0.30);
+    --rule:      rgba(26,23,20,0.12);
+    --mark-bg:   #d97642;
+    --mark-fg:   #f2ead8;
+  }
+  :root[data-theme="dark"] {
+    --bg:        #0e0d0b;
+    --surface:   #1a1814;
+    --ink:       #f2ead8;
+    --ink-soft:  rgba(242,234,216,0.58);
+    --ink-fade:  rgba(242,234,216,0.28);
+    --rule:      rgba(242,234,216,0.12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .35s, color .35s; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 64px 56px 96px; }
+
+  .eyebrow { font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 500; color: var(--ink-soft); }
+  h1 { margin: 12px 0 0; font-size: 44px; font-weight: 500;
+    letter-spacing: -0.02em; line-height: 1.08; }
+  h1 em { font-style: normal; color: var(--ink-soft); }
+  .lede { margin: 20px 0 0; font-size: 15px; line-height: 1.65;
+    color: var(--ink-soft); max-width: 680px; }
+  .lede b { color: var(--ink); font-weight: 500; }
+  .lede code { font-family: "JetBrains Mono", ui-monospace, monospace;
+    background: var(--surface); padding: 1px 6px; border-radius: 3px;
+    font-size: 12px; border: 1px solid var(--rule); }
+
+  .head-row { display: flex; align-items: flex-end;
+    justify-content: space-between; gap: 24px; flex-wrap: wrap;
+    margin-bottom: 64px; }
+
+  .control { display: inline-flex; gap: 1px; padding: 1px;
+    background: var(--rule); border-radius: 999px; }
+  .control button { border: 0; background: transparent;
+    padding: 7px 16px; font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-soft); border-radius: 999px;
+    cursor: pointer; font-family: inherit;
+    transition: background-color .2s, color .2s; }
+  .control button[aria-selected="true"] {
+    background: var(--ink); color: var(--bg); }
+
+  /* Origin baseline row */
+  .origin {
+    display: flex; align-items: center; gap: 32px;
+    padding: 36px 40px; margin-bottom: 48px;
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 14px;
+  }
+  .origin svg { width: 108px; height: 108px;
+    border-radius: 24px; flex-shrink: 0; }
+  .origin .meta { flex: 1; min-width: 0; }
+  .origin .meta .code {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 0.12em; color: var(--mark-bg);
+    font-weight: 600; margin-bottom: 6px; }
+  .origin .meta h2 { margin: 0;
+    font-size: 22px; font-weight: 500; letter-spacing: -0.01em; }
+  .origin .meta p { margin: 8px 0 0;
+    font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+  .origin .meta p b { color: var(--ink); font-weight: 500; }
+
+  .section-title { display: block; margin: 0 0 24px;
+    font-size: 18px; font-weight: 500; letter-spacing: -0.01em; }
+
+  /* Variant grid */
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+
+  .card { background: var(--surface);
+    border: 1px solid var(--rule); border-radius: 14px;
+    padding: 36px; display: flex; flex-direction: column; gap: 24px;
+    transition: transform .25s, box-shadow .25s; }
+  .card:hover { transform: translateY(-2px);
+    box-shadow: 0 16px 48px -22px rgba(0,0,0,0.28); }
+
+  .card .header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+  .card .code { font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 0.1em; color: var(--mark-bg);
+    font-weight: 600; }
+  .card .chips .chip { display: inline-block; padding: 2px 8px;
+    background: var(--mark-bg); color: var(--mark-fg);
+    border-radius: 3px; margin-left: 4px;
+    letter-spacing: 0.1em; font-size: 10px; font-weight: 500; }
+
+  .card .hero-mark {
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px 0; }
+  .card .hero-mark svg { width: 150px; height: 150px;
+    border-radius: 33px; }
+
+  .card .pair {
+    display: flex; align-items: center; gap: 16px;
+    padding-top: 16px; border-top: 1px dashed var(--rule); }
+  .card .pair svg { width: 40px; height: 40px;
+    border-radius: 9px; flex-shrink: 0; }
+  .card .pair .wm { font-size: 20px; font-weight: 500;
+    letter-spacing: -0.02em; color: var(--ink); }
+  .card .pair .wm .dot { color: var(--mark-bg); margin: 0 0.08em;
+    font-size: 0.7em; position: relative; top: -0.08em; }
+
+  .card .meta { display: flex; flex-direction: column; gap: 6px; }
+  .card .title { font-size: 17px; font-weight: 600;
+    letter-spacing: -0.01em; margin: 0; }
+  .card .rationale { font-size: 12.5px; line-height: 1.65;
+    color: var(--ink-soft); margin: 0; }
+  .card .rationale b { color: var(--ink); font-weight: 500; }
+
+  /* Scale strip */
+  .scale-strip { margin-top: 56px;
+    border: 1px solid var(--rule); border-radius: 14px;
+    padding: 36px 40px; }
+  .scale-row { display: grid; grid-template-columns: repeat(6, 1fr);
+    gap: 16px; margin-top: 20px; }
+  .scale-col { display: flex; flex-direction: column;
+    align-items: center; gap: 10px; }
+  .scale-col .code { font-family: "JetBrains Mono",
+    ui-monospace, monospace; font-size: 10px;
+    letter-spacing: 0.12em; color: var(--mark-bg); font-weight: 600; }
+  .scale-col .sizes { display: flex; align-items: flex-end; gap: 10px; }
+  .scale-col .sizes figure { margin: 0; display: flex;
+    flex-direction: column; align-items: center; gap: 4px; }
+  .scale-col .sizes figcaption { font-size: 9px;
+    color: var(--ink-fade);
+    font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .scale-col svg { border-radius: 3px; display: block; }
+
+  footer { margin-top: 64px; padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-size: 11px; letter-spacing: 0.06em;
+    color: var(--ink-fade);
+    display: flex; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; }
+
+  @media (max-width: 860px) {
+    .wrap { padding: 40px 24px 64px; }
+    h1 { font-size: 32px; }
+    .grid { grid-template-columns: 1fr; }
+    .scale-row { grid-template-columns: repeat(3, 1fr); }
+    .origin { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head-row">
+    <div>
+      <div class="eyebrow">Sundarr · Identity Exploration · v7 · Punched Disc Family</div>
+      <h1>Subtract, don't add.<br/><em>5 ways the disc gets perforated.</em></h1>
+      <p class="lede">
+        保留 W3 <b>Punched Disc</b> 作为基准。严守 skill 的
+        <code>subtract rather than add</code> 原则：<b>不加任何新元素</b>，
+        只改变打孔的形状和排列——让<b>负空间</b>讲 NAS、Cloud、RAID、
+        混合存储、机架堆叠的故事。Sunday 日轮 + 存储形态的负空间，
+        figure + ground 讲两件事。
+      </p>
+    </div>
+    <div class="control" role="tablist" aria-label="theme">
+      <button data-theme="light" aria-selected="true">Paper</button>
+      <button data-theme="dark"  aria-selected="false">Ink</button>
+    </div>
+  </div>
+
+  <!-- ============== Symbol defs ============== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <mask id="m-origin">
+        <rect width="100" height="100" fill="white"/>
+        <circle cx="40" cy="38" r="5" fill="black"/>
+        <circle cx="54" cy="42" r="3" fill="black"/>
+        <circle cx="38" cy="56" r="3" fill="black"/>
+        <circle cx="58" cy="60" r="4" fill="black"/>
+      </mask>
+      <mask id="m-bays">
+        <rect width="100" height="100" fill="white"/>
+        <rect x="37" y="42" width="4" height="14" rx="1.5" fill="black"/>
+        <rect x="44" y="42" width="4" height="14" rx="1.5" fill="black"/>
+        <rect x="51" y="42" width="4" height="14" rx="1.5" fill="black"/>
+        <rect x="58" y="39" width="4" height="20" rx="1.5" fill="black"/>
+      </mask>
+      <mask id="m-cloud">
+        <rect width="100" height="100" fill="white"/>
+        <g fill="black">
+          <circle cx="41" cy="53" r="5"/>
+          <circle cx="49" cy="47" r="7"/>
+          <circle cx="59" cy="52" r="5.5"/>
+          <rect x="41" y="53" width="18" height="6" rx="3"/>
+        </g>
+      </mask>
+      <mask id="m-array">
+        <rect width="100" height="100" fill="white"/>
+        <g fill="black">
+          <rect x="39" y="41" width="5" height="5" rx="1"/>
+          <rect x="47.5" y="41" width="5" height="5" rx="1"/>
+          <rect x="56" y="41" width="5" height="5" rx="1"/>
+          <rect x="39" y="50" width="5" height="5" rx="1"/>
+          <rect x="47.5" y="50" width="5" height="5" rx="1"/>
+          <rect x="56" y="50" width="5" height="5" rx="1"/>
+        </g>
+      </mask>
+      <mask id="m-orbit">
+        <rect width="100" height="100" fill="white"/>
+        <circle cx="61" cy="41" r="7" fill="black"/>
+        <circle cx="40" cy="58" r="3.5" fill="black"/>
+      </mask>
+      <mask id="m-stack">
+        <rect width="100" height="100" fill="white"/>
+        <g fill="black">
+          <rect x="36" y="40" width="20" height="3.5" rx="1.5"/>
+          <rect x="36" y="48" width="24" height="3.5" rx="1.5"/>
+          <rect x="36" y="56" width="18" height="3.5" rx="1.5"/>
+        </g>
+      </mask>
+    </defs>
+
+    <symbol id="W3-0" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <circle cx="50" cy="50" r="28" fill="var(--mark-fg)"
+              mask="url(#m-origin)"/>
+    </symbol>
+
+    <symbol id="W3-A" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <circle cx="50" cy="50" r="28" fill="var(--mark-fg)"
+              mask="url(#m-bays)"/>
+    </symbol>
+
+    <symbol id="W3-B" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <circle cx="50" cy="50" r="28" fill="var(--mark-fg)"
+              mask="url(#m-cloud)"/>
+    </symbol>
+
+    <symbol id="W3-C" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <circle cx="50" cy="50" r="28" fill="var(--mark-fg)"
+              mask="url(#m-array)"/>
+    </symbol>
+
+    <symbol id="W3-D" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <circle cx="50" cy="50" r="28" fill="var(--mark-fg)"
+              mask="url(#m-orbit)"/>
+      <path d="M 42.5 55 Q 52 48, 57 45"
+            fill="none" stroke="var(--mark-bg)"
+            stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+
+    <symbol id="W3-E" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <circle cx="50" cy="50" r="28" fill="var(--mark-fg)"
+              mask="url(#m-stack)"/>
+      <circle cx="60" cy="41.75" r="1.3" fill="var(--mark-bg)"/>
+    </symbol>
+  </svg>
+
+  <!-- ============== Origin baseline ============== -->
+  <span class="eyebrow section-title">Baseline · 保留原版</span>
+  <section class="origin">
+    <svg viewBox="0 0 100 100"><use href="#W3-0"/></svg>
+    <div class="meta">
+      <div class="code">W3-0 · ORIGIN · PUNCHED DISC</div>
+      <h2>Sunday 日轮，被 4 个不对称圆孔穿透</h2>
+      <p>
+        docs/assets/brand/v6/mark-W3-punched-disc.svg 原样保留。
+        skill 的 <b>Punched Circle</b> 原型（ref 4221df1d）。
+        下面 5 款扩展严守<b>只改打孔形状、不加新元素</b>的约束。
+      </p>
+    </div>
+  </section>
+
+  <!-- ============== Five extensions ============== -->
+  <span class="eyebrow section-title">Five extensions · NAS × Cloud × Storage</span>
+  <div class="grid">
+
+    <article class="card">
+      <div class="header">
+        <span class="code">W3-A · NAS BAYS</span>
+        <span class="chips"><span class="chip">NAS</span></span>
+      </div>
+      <div class="hero-mark"><svg viewBox="0 0 100 100"><use href="#W3-A"/></svg></div>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#W3-A"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">NAS Bays · 硬盘托架</h3>
+        <p class="rationale">
+          <b>4 根竖向圆角长孔，最右一根更高。</b>
+          Sunday 日轮里挖出 NAS 前面板的硬盘盘位，
+          最右一根略高 = "一块盘正在工作"。
+          产品属性最直白。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="header">
+        <span class="code">W3-B · CLOUD</span>
+        <span class="chips"><span class="chip">Cloud</span></span>
+      </div>
+      <div class="hero-mark"><svg viewBox="0 0 100 100"><use href="#W3-B"/></svg></div>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#W3-B"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">Cloud Cutout · 云形切口</h3>
+        <p class="rationale">
+          <b>一朵云形轮廓从日轮中被挖出。</b>
+          Sunday 里嵌着一朵云——
+          云存储作为 Sunday 媒体的载体。
+          Cloud 概念最强，但云 icon 比较通用。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="header">
+        <span class="code">W3-C · RAID ARRAY</span>
+        <span class="chips"><span class="chip">RAID</span><span class="chip">Storage</span></span>
+      </div>
+      <div class="hero-mark"><svg viewBox="0 0 100 100"><use href="#W3-C"/></svg></div>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#W3-C"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">RAID Array · 存储阵列</h3>
+        <p class="rationale">
+          <b>3×2 规整小方孔网格。</b>
+          最冷静、最数据感——存储阵列、数据块、
+          bitmap 都能读出来。Sunday 背后是一套
+          有秩序的存储系统。工程师友好。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="header">
+        <span class="code">W3-D · HYBRID ORBIT</span>
+        <span class="chips"><span class="chip">NAS</span><span class="chip">Cloud</span></span>
+      </div>
+      <div class="hero-mark"><svg viewBox="0 0 100 100"><use href="#W3-D"/></svg></div>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#W3-D"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">Hybrid Orbit · 混合云</h3>
+        <p class="rationale">
+          <b>一大孔（云）+ 一小孔（本地）+ 连接弧。</b>
+          大小两个负空间 + 一条 terracotta 反向弧
+          讲同步：本地 NAS 向云端同步。
+          叙事最完整，Sundarr 场景最贴合。
+        </p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="header">
+        <span class="code">W3-E · STACK</span>
+        <span class="chips"><span class="chip">Rack</span><span class="chip">Storage</span></span>
+      </div>
+      <div class="hero-mark"><svg viewBox="0 0 100 100"><use href="#W3-E"/></svg></div>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#W3-E"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+      <div class="meta">
+        <h3 class="title">Stack · 机架堆叠</h3>
+        <p class="rationale">
+          <b>3 条横向长孔 + 一个活动指示点。</b>
+          机架里的一层一层存储设备，
+          中间层最宽，右上角一颗小 terracotta LED
+          = activity indicator。最工业感。
+        </p>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- ============== Scale test ============== -->
+  <section class="scale-strip">
+    <span class="eyebrow section-title">Scale test · 48 / 24 / 16 px</span>
+    <div class="scale-row">
+      <div class="scale-col">
+        <span class="code">W3-0</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W3-0"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W3-0"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W3-0"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">W3-A</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W3-A"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W3-A"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W3-A"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">W3-B</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W3-B"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W3-B"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W3-B"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">W3-C</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W3-C"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W3-C"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W3-C"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">W3-D</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W3-D"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W3-D"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W3-D"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">W3-E</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W3-E"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W3-E"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W3-E"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>docs/assets/brand/v7 · Punched Disc Family · 1 baseline + 5 extensions</span>
+    <span>all punches are cream-out of the Sunday disc · subtract only, never add</span>
+  </footer>
+
+</div>
+
+<script>
+  const root = document.documentElement;
+  const KEY = "sundarr-v7-theme";
+  const btns = document.querySelectorAll("[data-theme]");
+  function apply(v) {
+    root.setAttribute("data-theme", v);
+    btns.forEach(b => b.setAttribute("aria-selected",
+      b.dataset.theme === v ? "true" : "false"));
+    localStorage.setItem(KEY, v);
+  }
+  btns.forEach(b => b.addEventListener("click",
+    () => apply(b.dataset.theme)));
+  apply(localStorage.getItem(KEY) || "light");
+</script>
+</body>
+</html>

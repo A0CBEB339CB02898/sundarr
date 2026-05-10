@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · W2 — Star Burst
+  Archetype: logo-generator-skill / Star Burst (009244dc..)
+  Principle: Negative space creates the symbol. What you don't
+  draw is as important as what you do.
+  Execution: 8 radial strokes leaving a star-shaped gap in the
+  middle formed by the absence of ink.
+  Concept: Sunday emerges from where we stopped drawing.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · W2 Star Burst</title>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <g stroke="var(--mark-fg, #f2ead8)" stroke-width="3"
+     stroke-linecap="round">
+    <line x1="50" y1="28" x2="50" y2="12"/>
+    <line x1="64" y1="31.5" x2="76" y2="20"/>
+    <line x1="72" y1="50" x2="88" y2="50"/>
+    <line x1="64" y1="68.5" x2="76" y2="80"/>
+    <line x1="50" y1="72" x2="50" y2="88"/>
+    <line x1="36" y1="68.5" x2="24" y2="80"/>
+    <line x1="28" y1="50" x2="12" y2="50"/>
+    <line x1="36" y1="31.5" x2="24" y2="20"/>
+  </g>
+</svg>
