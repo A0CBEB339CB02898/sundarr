@@ -1840,77 +1840,73 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
 
 function SourcesPanel() {
   const [sources, setSources] = useState<SourceResponse[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [form, setForm] = useState<SourceFormState>(emptySourceForm())
-  const [mode, setMode] = useState<'create' | 'edit'>('create')
-  const [testResult, setTestResult] = useState<SourceTestResponse | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const [drawerMode, setDrawerMode] = useState<'create' | 'edit' | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<SourceFormState>(emptySourceForm())
+  const [drawerError, setDrawerError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [isTesting, setIsTesting] = useState(false)
-  const [isToggling, setIsToggling] = useState(false)
+
+  const [testState, setTestState] = useState<Record<string, 'running' | 'ok' | 'error'>>({})
+  const [togglingIds, setTogglingIds] = useState<Record<string, true>>({})
+
+  // 最近一次测试的结果 detail（可展示条目 / 错误详情），key = source.id
+  const [testResults, setTestResults] = useState<Record<string, SourceTestResponse>>({})
+  const [expandedTestId, setExpandedTestId] = useState<string | null>(null)
 
   useEffect(() => {
     void loadSources()
   }, [])
 
-  const selectedSource = sources.find((source) => source.id === selectedId) || null
-  const isCodeSource = selectedSource?.type === 'code'
-  const isEditable = mode === 'create' || !isCodeSource
+  const editingSource =
+    drawerMode === 'edit' && editingId
+      ? sources.find((source) => source.id === editingId) || null
+      : null
 
-  async function loadSources(nextSelectedId = selectedId) {
+  async function loadSources() {
     setIsLoading(true)
-    setError(null)
+    setLoadError(null)
     try {
       const response = await api.get<SourceListResponse>('/sources')
       setSources(response.results)
-      const nextSource = response.results.find((source) => source.id === nextSelectedId) || response.results[0] || null
-      if (nextSource) {
-        selectSource(nextSource, false)
-      } else {
-        startCreate()
-      }
     } catch (exc) {
       setSources([])
-      setError(exc instanceof Error ? exc.message : '无法读取媒体源。')
+      setLoadError(exc instanceof Error ? exc.message : '无法读取媒体源。')
     } finally {
       setIsLoading(false)
     }
   }
 
-  function selectSource(source: SourceResponse, clearFeedback = true) {
-    setMode('edit')
-    setSelectedId(source.id)
-    setForm(sourceFormFromResponse(source))
-    setTestResult(null)
-    if (clearFeedback) {
-      setMessage(null)
-      setError(null)
-    }
+  function openCreate() {
+    setDrawerMode('create')
+    setEditingId(null)
+    setForm(emptySourceForm())
+    setDrawerError(null)
   }
 
-  function startCreate() {
-    setMode('create')
-    setSelectedId(null)
-    setForm(emptySourceForm())
-    setTestResult(null)
-    setMessage(null)
-    setError(null)
+  function openEdit(source: SourceResponse) {
+    setDrawerMode('edit')
+    setEditingId(source.id)
+    setForm(sourceFormFromResponse(source))
+    setDrawerError(null)
+  }
+
+  function closeDrawer() {
+    setDrawerMode(null)
+    setEditingId(null)
+    setDrawerError(null)
   }
 
   async function saveSource() {
-    if (!isEditable) {
-      setError('代码型 Source Adapter 只能只读展示，不能在线编辑。')
-      return
-    }
-    const actionText = mode === 'create' ? '创建媒体源' : '保存媒体源配置'
-    if (!window.confirm(`确认${actionText}？`)) {
+    const editable = drawerMode === 'create' || editingSource?.type !== 'code'
+    if (!editable) {
+      setDrawerError('代码型 Source Adapter 只能只读展示，不能在线编辑。')
       return
     }
     setIsSaving(true)
-    setError(null)
-    setMessage(null)
+    setDrawerError(null)
     try {
       const config = parseSourceConfig(form.config_json)
       const payload = {
@@ -1920,62 +1916,72 @@ function SourcesPanel() {
         trust_level: Number(form.trust_level) || 1,
         config_json: config,
       }
-      const saved = mode === 'create'
-        ? await api.post<SourceResponse>('/sources/create', { ...payload, id: form.id.trim(), type: form.type })
-        : await api.post<SourceResponse>(`/sources/${encodeURIComponent(form.id)}/update`, payload)
-      setMessage(mode === 'create' ? '媒体源已创建。' : '媒体源已保存。')
-      await loadSources(saved.id)
+      if (drawerMode === 'create') {
+        await api.post<SourceResponse>('/sources/create', {
+          ...payload,
+          id: form.id.trim(),
+          type: form.type,
+        })
+      } else if (editingId) {
+        await api.post<SourceResponse>(
+          `/sources/${encodeURIComponent(editingId)}/update`,
+          payload,
+        )
+      }
+      closeDrawer()
+      await loadSources()
     } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '保存媒体源失败。')
+      setDrawerError(exc instanceof Error ? exc.message : '保存媒体源失败。')
     } finally {
       setIsSaving(false)
     }
   }
 
-  async function toggleSource(enabled: boolean) {
-    if (!selectedSource || isCodeSource) {
-      setError('代码型 Source Adapter 只能只读展示，不能在线启用或禁用。')
-      return
-    }
-    if (!window.confirm(`确认${enabled ? '启用' : '禁用'}媒体源 ${selectedSource.name}？`)) {
-      return
-    }
-    setIsToggling(true)
-    setError(null)
-    setMessage(null)
+  async function toggleSource(source: SourceResponse) {
+    if (source.type === 'code') return
+    const next = !source.enabled
+    if (!window.confirm(`确认${next ? '启用' : '禁用'}媒体源 ${source.name}？`)) return
+    setTogglingIds((prev) => ({ ...prev, [source.id]: true }))
     try {
-      const action = enabled ? 'enable' : 'disable'
-      const updated = await api.post<SourceResponse>(`/sources/${encodeURIComponent(selectedSource.id)}/${action}`)
-      setMessage(enabled ? '媒体源已启用。' : '媒体源已禁用。')
-      await loadSources(updated.id)
+      const action = next ? 'enable' : 'disable'
+      await api.post<SourceResponse>(
+        `/sources/${encodeURIComponent(source.id)}/${action}`,
+      )
+      await loadSources()
     } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '切换媒体源状态失败。')
+      window.alert(exc instanceof Error ? exc.message : '切换媒体源状态失败。')
     } finally {
-      setIsToggling(false)
+      setTogglingIds((prev) => {
+        const { [source.id]: _dropped, ...rest } = prev
+        return rest
+      })
     }
   }
 
-  async function testSource() {
-    if (!selectedSource) {
-      setError('请先选择一个已保存的媒体源。')
-      return
-    }
-    setIsTesting(true)
-    setError(null)
-    setMessage(null)
-    setTestResult(null)
+  async function testSource(source: SourceResponse) {
+    setTestState((prev) => ({ ...prev, [source.id]: 'running' }))
     try {
-      const result = await api.post<SourceTestResponse>(`/sources/${encodeURIComponent(selectedSource.id)}/test`)
-      setTestResult(result)
-      if (result.ok) {
-        setMessage('媒体源测试通过。')
-      } else {
-        setError(`${result.error_code || 'SOURCE_TEST_FAILED'}：${result.error_message || '媒体源测试失败。'}`)
-      }
+      const result = await api.post<SourceTestResponse>(
+        `/sources/${encodeURIComponent(source.id)}/test`,
+      )
+      setTestResults((prev) => ({ ...prev, [source.id]: result }))
+      setTestState((prev) => ({ ...prev, [source.id]: result.ok ? 'ok' : 'error' }))
+      setExpandedTestId(source.id)
     } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '测试媒体源失败。')
-    } finally {
-      setIsTesting(false)
+      const msg = exc instanceof Error ? exc.message : '测试媒体源失败。'
+      setTestResults((prev) => ({
+        ...prev,
+        [source.id]: {
+          ok: false,
+          source_id: source.id,
+          items: [],
+          error_code: 'REQUEST_FAILED',
+          error_message: msg,
+          tested_at: new Date().toISOString(),
+        },
+      }))
+      setTestState((prev) => ({ ...prev, [source.id]: 'error' }))
+      setExpandedTestId(source.id)
     }
   }
 
@@ -1983,122 +1989,443 @@ function SourcesPanel() {
     setForm((current) => ({ ...current, [key]: value }))
   }
 
+  const showEmpty = !isLoading && !loadError && sources.length === 0
+  const drawerOpen = drawerMode !== null
+
   return (
-    <section className="panel" aria-labelledby="sources-title">
-      <div className="panel-header-row">
-        <div>
-          <p className="panel-kicker">媒体源</p>
-          <h2 id="sources-title">媒体源管理</h2>
-          <p>管理配置型和文档/表格型 source；代码型 Source Adapter 只读展示。</p>
+    <section className="sc-page" aria-labelledby="sources-title">
+      <Card className="sc-overview">
+        <div className="sc-overview-head">
+          <div>
+            <p className="ui-eyebrow">媒体源</p>
+            <h2 id="sources-title">媒体源管理</h2>
+            <p className="sc-overview-lead">
+              管理配置型和文档/表格型 Source；代码型 Source Adapter 由后端代码提供，只读展示。
+              每一个卡片提供独立的测试、启用/禁用、编辑入口。
+            </p>
+          </div>
+          <div className="sc-overview-actions">
+            <Button variant="ghost" disabled={isLoading} onClick={() => void loadSources()}>
+              {isLoading ? '读取中' : '重新读取'}
+            </Button>
+            <Button variant="primary" onClick={openCreate}>
+              新增媒体源
+            </Button>
+          </div>
         </div>
-        <button className="ghost-button" disabled={isLoading} onClick={() => void loadSources()} type="button">
-          {isLoading ? '读取中' : '重新读取'}
-        </button>
-      </div>
+      </Card>
 
-      {message ? <div className="notice-card"><strong>操作完成</strong><p>{message}</p></div> : null}
-      {error ? <ErrorState message={error} /> : null}
-      {isLoading && sources.length === 0 ? <LoadingState message="正在读取媒体源列表。" /> : null}
+      {loadError ? (
+        <Card>
+          <UIErrorState
+            message="无法读取媒体源"
+            sub={loadError}
+            action={
+              <Button variant="secondary" onClick={() => void loadSources()}>
+                重试
+              </Button>
+            }
+          />
+        </Card>
+      ) : null}
 
-      <div className="sources-layout">
-        <aside className="source-list" aria-label="媒体源列表">
-          <div className="section-heading"><h3>Source 列表</h3><span>{sources.length} 个</span></div>
-          <button className="source-row create-row" data-selected={mode === 'create'} onClick={startCreate} type="button">
-            <span>新建</span>
-            <strong>创建配置型或文档型 Source</strong>
-            <small>Web Console 可编辑</small>
-          </button>
-          {sources.length === 0 ? <EmptyState message="暂无媒体源，可先创建配置型或文档型 source。" /> : null}
+      {isLoading && sources.length === 0 ? (
+        <Card>
+          <UILoadingState message="正在读取媒体源列表。" />
+        </Card>
+      ) : null}
+
+      {showEmpty ? (
+        <Card>
+          <UIEmptyState
+            message="暂无媒体源"
+            sub="点击 新增媒体源 配置第一个配置型或文档型 Source。"
+            action={
+              <Button variant="primary" onClick={openCreate}>
+                新增媒体源
+              </Button>
+            }
+          />
+        </Card>
+      ) : null}
+
+      {sources.length > 0 ? (
+        <div className="sc-grid" role="list" aria-label="媒体源列表">
           {sources.map((source) => (
-            <button className="source-row" data-selected={selectedId === source.id} key={source.id} onClick={() => selectSource(source)} type="button">
-              <span>{sourceTypeLabel(source.type)}</span>
-              <strong>{source.name}</strong>
-              <small>{source.enabled ? '已启用' : '已禁用'} · trust {source.trust_level}</small>
-            </button>
+            <SourceCard
+              key={source.id}
+              source={source}
+              testStatus={testState[source.id]}
+              testResult={testResults[source.id] || null}
+              isExpanded={expandedTestId === source.id}
+              toggling={Boolean(togglingIds[source.id])}
+              onTest={() => void testSource(source)}
+              onEdit={() => openEdit(source)}
+              onToggle={() => void toggleSource(source)}
+              onToggleTestDetail={() =>
+                setExpandedTestId((prev) => (prev === source.id ? null : source.id))
+              }
+            />
           ))}
-        </aside>
-
-        <div className="source-editor">
-          <form
-            className="source-form"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void saveSource()
-            }}
-          >
-            <TextField disabled={mode === 'edit'} helper="创建后不可修改。仅允许字母、数字、下划线和短横线。" label="Source ID" onChange={(value) => updateField('id', value)} required value={form.id} />
-            <TextField disabled={!isEditable} helper="在搜索结果和来源列表中展示的人类可读名称。" label="名称" onChange={(value) => updateField('name', value)} required value={form.name} />
-            <label className="field">
-              <span>类型</span>
-              <select disabled={mode === 'edit'} onChange={(event) => updateField('type', event.target.value as EditableSourceType)} value={form.type}>
-                <option value="configurable">配置型</option>
-                <option value="document">文档/表格型</option>
-                {form.type === 'code' ? <option value="code">代码型</option> : null}
-              </select>
-              <small>配置型用于规则化网页源；文档/表格型用于维护静态条目；代码型只能只读展示。</small>
-            </label>
-            <TextField disabled={!isEditable} helper="1 到 5，数字越大表示该 source 可信度越高。" label="Trust Level" onChange={(value) => updateField('trust_level', value)} required type="number" value={form.trust_level} />
-            <label className="field checkbox-field">
-              <span>启用状态</span>
-              <label><input checked={form.enabled} disabled={!isEditable} onChange={(event) => updateField('enabled', event.target.checked)} type="checkbox" /> 启用</label>
-              <small>禁用后不会参与搜索，但配置会保留。</small>
-            </label>
-            <label className="field source-note-field">
-              <span>合规说明</span>
-              <textarea disabled={!isEditable} onChange={(event) => updateField('legal_note', event.target.value)} value={form.legal_note} />
-              <small>记录该 source 的来源范围、使用限制或合法性说明。</small>
-            </label>
-            <label className="field source-config-field">
-              <span>Config JSON</span>
-              <textarea disabled={!isEditable} onChange={(event) => updateField('config_json', event.target.value)} spellCheck="false" value={form.config_json} />
-              <small>{sourceConfigHint(form.type)}</small>
-            </label>
-
-            {isCodeSource ? <div className="notice-card source-form-wide"><strong>只读 Source Adapter</strong><p>代码型 source 不允许通过 Web Console 在线编辑、启用或禁用。</p></div> : null}
-
-            <div className="form-actions">
-              <button className="primary-button" disabled={!isEditable || isSaving} type="submit">{isSaving ? '保存中' : mode === 'create' ? '创建 Source' : '保存 Source'}</button>
-              <button className="secondary-button" disabled={!selectedSource || isTesting} onClick={() => void testSource()} type="button">{isTesting ? '测试中' : '测试 Source'}</button>
-              <button className="ghost-button" disabled={!selectedSource || isCodeSource || isToggling || selectedSource.enabled} onClick={() => void toggleSource(true)} type="button">启用</button>
-              <button className="ghost-button" disabled={!selectedSource || isCodeSource || isToggling || !selectedSource.enabled} onClick={() => void toggleSource(false)} type="button">禁用</button>
-            </div>
-          </form>
-
-          {selectedSource ? <SourceSummary source={selectedSource} /> : <EmptyState message="填写表单后创建新的媒体源。" />}
-          {testResult ? <SourceTestResult result={testResult} /> : null}
         </div>
-      </div>
+      ) : null}
 
-      <ApiClientPreview />
+      <SourceDrawer
+        open={drawerOpen}
+        mode={drawerMode || 'create'}
+        form={form}
+        error={drawerError}
+        isSaving={isSaving}
+        editingSource={editingSource}
+        onFieldChange={updateField}
+        onClose={closeDrawer}
+        onSubmit={() => void saveSource()}
+      />
     </section>
   )
 }
 
-function SourceSummary({ source }: { source: SourceResponse }) {
+function SourceCard({
+  source,
+  testStatus,
+  testResult,
+  isExpanded,
+  toggling,
+  onTest,
+  onEdit,
+  onToggle,
+  onToggleTestDetail,
+}: {
+  source: SourceResponse
+  testStatus: 'running' | 'ok' | 'error' | undefined
+  testResult: SourceTestResponse | null
+  isExpanded: boolean
+  toggling: boolean
+  onTest: () => void
+  onEdit: () => void
+  onToggle: () => void
+  onToggleTestDetail: () => void
+}) {
+  const isCode = source.type === 'code'
+  const enabledTone: StatusTone = source.enabled ? 'success' : 'paused'
+  const codeTone: StatusTone = 'info'
+
   return (
-    <div className="source-summary">
-      <div className="section-heading"><h3>{source.name}</h3><span>{source.enabled ? '已启用' : '已禁用'}</span></div>
-      <div className="detail-grid">
-        <DetailItem label="ID" value={source.id} />
-        <DetailItem label="类型" value={sourceTypeLabel(source.type)} />
-        <DetailItem label="用户创建" value={source.created_by_user ? '是' : '否'} />
-        <DetailItem label="Trust Level" value={String(source.trust_level)} />
-        <DetailItem label="最后错误" value={source.last_error_code || '无'} />
-        <DetailItem label="错误说明" value={source.last_error_message || '无'} />
+    <Card className="sc-card" role="listitem">
+      <div className="sc-card-head">
+        <div className="sc-card-title">
+          <p className="ui-eyebrow">{sourceTypeLabel(source.type)}</p>
+          <h3>{source.name}</h3>
+          <code className="sc-card-id">{source.id}</code>
+        </div>
+        <div className="sc-card-badges">
+          <StatusBadge tone={enabledTone}>
+            {source.enabled ? '已启用' : '已禁用'}
+          </StatusBadge>
+          {isCode ? <StatusBadge tone={codeTone}>只读</StatusBadge> : null}
+        </div>
       </div>
-      {source.legal_note ? <p>{source.legal_note}</p> : null}
-    </div>
+
+      {source.legal_note ? (
+        <p className="sc-card-note">{source.legal_note}</p>
+      ) : (
+        <p className="sc-card-note sc-card-note-muted">未提供合规说明。</p>
+      )}
+
+      <dl className="sc-card-meta">
+        <div>
+          <dt>Trust</dt>
+          <dd className="sc-mono">{source.trust_level}</dd>
+        </div>
+        <div>
+          <dt>来源</dt>
+          <dd>{source.created_by_user ? '用户创建' : '内置'}</dd>
+        </div>
+        <div>
+          <dt>最后错误</dt>
+          <dd className={source.last_error_code ? 'sc-danger' : undefined}>
+            {source.last_error_code || '无'}
+          </dd>
+        </div>
+      </dl>
+
+      {source.last_error_message ? (
+        <p className="sc-card-last-error">{source.last_error_message}</p>
+      ) : null}
+
+      {testResult ? (
+        <div className="sc-card-test" data-tone={testStatus || 'idle'}>
+          <button
+            className="sc-card-test-summary"
+            type="button"
+            onClick={onToggleTestDetail}
+            aria-expanded={isExpanded}
+          >
+            <span className="sc-card-test-dot" aria-hidden="true" />
+            <span className="sc-card-test-text">
+              {testResult.ok ? '测试通过' : '测试失败'}
+            </span>
+            <time className="sc-mono">{formatDateTime(testResult.tested_at)}</time>
+            <span className="sc-card-test-chevron" aria-hidden="true" data-expanded={isExpanded || undefined}>
+              <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 4.5l3 3 3-3" />
+              </svg>
+            </span>
+          </button>
+          {isExpanded ? (
+            <div className="sc-card-test-body">
+              {testResult.error_code ? (
+                <div className="sc-card-test-error">
+                  <strong>{testResult.error_code}</strong>
+                  <p>{testResult.error_message || '无错误详情。'}</p>
+                </div>
+              ) : null}
+              {testResult.items.length === 0 && !testResult.error_code ? (
+                <p className="sc-card-test-hint">测试未返回预览条目。</p>
+              ) : null}
+              {testResult.items.slice(0, 3).map((item, index) => (
+                <code className="sc-card-test-item" key={index}>
+                  {JSON.stringify(item)}
+                </code>
+              ))}
+              {testResult.items.length > 3 ? (
+                <p className="sc-card-test-hint">
+                  共 {testResult.items.length} 条，已展示前 3 条。
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="sc-card-actions">
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={testStatus === 'running'}
+          onClick={onTest}
+        >
+          {testStatus === 'running' ? '测试中…' : '测试'}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onEdit}>
+          {isCode ? '查看' : '编辑'}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={isCode || toggling}
+          onClick={onToggle}
+        >
+          {source.enabled ? '禁用' : '启用'}
+        </Button>
+      </div>
+    </Card>
   )
 }
 
-function SourceTestResult({ result }: { result: SourceTestResponse }) {
+function SourceDrawer({
+  open,
+  mode,
+  form,
+  error,
+  isSaving,
+  editingSource,
+  onFieldChange,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean
+  mode: 'create' | 'edit'
+  form: SourceFormState
+  error: string | null
+  isSaving: boolean
+  editingSource: SourceResponse | null
+  onFieldChange: (key: keyof SourceFormState, value: string | boolean) => void
+  onClose: () => void
+  onSubmit: () => void
+}) {
+  useEffect(() => {
+    if (!open) return
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [open, onClose])
+
+  const isCodeSource = editingSource?.type === 'code'
+  const isEditable = mode === 'create' || !isCodeSource
+
   return (
-    <div className="source-summary">
-      <div className="section-heading"><h3>测试结果</h3><span>{result.ok ? '通过' : '失败'}</span></div>
-      <DetailItem label="测试时间" value={formatDateTime(result.tested_at)} />
-      {result.error_code ? <div className="error-detail"><strong>{result.error_code}</strong><p>{result.error_message || '无错误详情。'}</p></div> : null}
-      {result.items.length === 0 ? <EmptyState message="测试未返回预览条目。" /> : null}
-      {result.items.map((item, index) => <code className="json-preview" key={index}>{JSON.stringify(item, null, 2)}</code>)}
+    <div
+      className="sc-drawer-overlay"
+      data-open={open || undefined}
+      aria-hidden={!open}
+      onClick={onClose}
+    >
+      <aside
+        className="sc-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sc-drawer-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="sc-drawer-head">
+          <div>
+            <p className="ui-eyebrow">{mode === 'create' ? '新增' : isCodeSource ? '查看' : '编辑'}</p>
+            <h3 id="sc-drawer-title">
+              {mode === 'create'
+                ? '创建媒体源'
+                : isCodeSource
+                  ? `${form.name || form.id} · 只读`
+                  : `编辑 ${form.name || form.id}`}
+            </h3>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="关闭">
+            ×
+          </Button>
+        </header>
+        <form
+          className="sc-drawer-body"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (isEditable) onSubmit()
+          }}
+        >
+          <Field
+            label="Source ID"
+            htmlFor="sc-f-id"
+            helper="创建后不可修改。仅允许字母、数字、下划线和短横线。"
+          >
+            <input
+              id="sc-f-id"
+              type="text"
+              disabled={mode === 'edit'}
+              required
+              value={form.id}
+              onChange={(event) => onFieldChange('id', event.target.value)}
+            />
+          </Field>
+          <Field
+            label="名称"
+            htmlFor="sc-f-name"
+            helper="在搜索结果和来源列表中展示的人类可读名称。"
+          >
+            <input
+              id="sc-f-name"
+              type="text"
+              disabled={!isEditable}
+              required
+              value={form.name}
+              onChange={(event) => onFieldChange('name', event.target.value)}
+            />
+          </Field>
+          <Field
+            label="类型"
+            htmlFor="sc-f-type"
+            helper="配置型用于规则化网页源；文档/表格型用于维护静态条目；代码型只能只读展示。"
+          >
+            <select
+              id="sc-f-type"
+              disabled={mode === 'edit'}
+              value={form.type}
+              onChange={(event) =>
+                onFieldChange('type', event.target.value as EditableSourceType)
+              }
+            >
+              <option value="configurable">配置型</option>
+              <option value="document">文档/表格型</option>
+              {form.type === 'code' ? <option value="code">代码型</option> : null}
+            </select>
+          </Field>
+          <Field
+            label="Trust Level"
+            htmlFor="sc-f-trust"
+            helper="1 到 5，数字越大表示该 source 可信度越高。"
+          >
+            <input
+              id="sc-f-trust"
+              type="number"
+              disabled={!isEditable}
+              required
+              value={form.trust_level}
+              onChange={(event) => onFieldChange('trust_level', event.target.value)}
+            />
+          </Field>
+          <div className="sc-drawer-toggle">
+            <label>
+              <input
+                type="checkbox"
+                disabled={!isEditable}
+                checked={form.enabled}
+                onChange={(event) => onFieldChange('enabled', event.target.checked)}
+              />
+              <span>启用</span>
+            </label>
+            <small>禁用后不会参与搜索，但配置会保留。</small>
+          </div>
+          <Field
+            label="合规说明"
+            htmlFor="sc-f-legal"
+            helper="记录该 source 的来源范围、使用限制或合法性说明。"
+          >
+            <textarea
+              id="sc-f-legal"
+              rows={3}
+              disabled={!isEditable}
+              value={form.legal_note}
+              onChange={(event) => onFieldChange('legal_note', event.target.value)}
+            />
+          </Field>
+          <Field
+            label="Config JSON"
+            htmlFor="sc-f-config"
+            helper={sourceConfigHint(form.type)}
+          >
+            <textarea
+              id="sc-f-config"
+              className="sc-drawer-json"
+              rows={12}
+              disabled={!isEditable}
+              spellCheck={false}
+              value={form.config_json}
+              onChange={(event) => onFieldChange('config_json', event.target.value)}
+            />
+          </Field>
+
+          {isCodeSource ? (
+            <div className="sc-drawer-notice">
+              <strong>只读 Source Adapter</strong>
+              <p>代码型 source 不允许通过 Web Console 在线编辑、启用或禁用。</p>
+            </div>
+          ) : null}
+
+          {error ? (
+            <div className="sc-drawer-error" role="alert">
+              <strong>保存失败</strong>
+              <p>{error}</p>
+            </div>
+          ) : null}
+        </form>
+        <footer className="sc-drawer-actions">
+          <Button variant="ghost" onClick={onClose} type="button">
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            disabled={!isEditable || isSaving}
+            onClick={onSubmit}
+            type="button"
+          >
+            {isSaving ? '保存中…' : mode === 'create' ? '创建' : '保存'}
+          </Button>
+        </footer>
+      </aside>
     </div>
   )
 }

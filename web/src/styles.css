@@ -2754,3 +2754,447 @@ h2 {
     transition: none;
   }
 }
+
+
+
+/* ================================================================ */
+/* Phase 7.8 Step 5 (d) · Sources page                              */
+/* docs/16-design-system.md §6.4 / §6.5 / §6.6 / §6.8 / §7.1         */
+/* ================================================================ */
+
+/* Sources · 页面布局 ----------------------------------------------- */
+.sc-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.sc-overview {
+  display: grid;
+  gap: var(--space-3);
+}
+.sc-overview-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+.sc-overview-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+.sc-overview-lead {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  max-width: 720px;
+}
+.sc-overview-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .sc-overview-head {
+    flex-direction: column;
+  }
+  .sc-overview-head h2 {
+    font-size: 20px;
+  }
+}
+
+/* Sources · 卡片栅格 (§7.1: 3-col desktop / 2-col tablet / 1-col) - */
+.sc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+@media (max-width: 1023px) {
+  .sc-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .sc-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Sources · SourceCard ------------------------------------------- */
+.sc-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  align-content: start;
+}
+
+.sc-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.sc-card-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sc-card-title h3 {
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.sc-card-id {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-subtle);
+  overflow-wrap: anywhere;
+}
+.sc-card-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.sc-card-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sc-card-note-muted {
+  color: var(--text-subtle);
+  font-style: italic;
+}
+
+.sc-card-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+}
+.sc-card-meta > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sc-card-meta dt {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+.sc-card-meta dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.sc-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.sc-danger {
+  color: var(--danger-text);
+}
+
+.sc-card-last-error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* Sources · 卡片内测试结果（可折叠）------------------------------- */
+.sc-card-test {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+.sc-card-test[data-tone="running"] { border-color: color-mix(in srgb, var(--info) 30%, transparent); }
+.sc-card-test[data-tone="ok"]      { border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+.sc-card-test[data-tone="error"]   { border-color: color-mix(in srgb, var(--danger-text) 30%, transparent); }
+
+.sc-card-test-summary {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  width: 100%;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.sc-card-test-summary:focus-visible {
+  outline: 2px solid var(--accent-pressed);
+  outline-offset: -2px;
+}
+.sc-card-test-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-subtle);
+  flex: none;
+}
+.sc-card-test[data-tone="running"] .sc-card-test-dot { background: var(--info); animation: ui-badge-pulse 1.4s ease-in-out infinite; }
+.sc-card-test[data-tone="ok"] .sc-card-test-dot      { background: var(--success); }
+.sc-card-test[data-tone="error"] .sc-card-test-dot   { background: var(--danger-text); }
+
+.sc-card-test-text {
+  font-weight: 500;
+  color: var(--text);
+}
+.sc-card-test[data-tone="ok"]    .sc-card-test-text { color: var(--success); }
+.sc-card-test[data-tone="error"] .sc-card-test-text { color: var(--danger-text); }
+.sc-card-test-summary time {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-subtle);
+}
+.sc-card-test-chevron {
+  display: inline-flex;
+  color: var(--text-subtle);
+  transition: transform var(--motion-base) var(--ease-out);
+}
+.sc-card-test-chevron[data-expanded] {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sc-card-test-chevron {
+    transition: none;
+  }
+}
+
+.sc-card-test-body {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-1);
+}
+.sc-card-test-error {
+  padding: var(--space-2) var(--space-3);
+  background: var(--danger-bg);
+  border-radius: var(--radius-sm);
+  color: var(--danger-text);
+}
+.sc-card-test-error strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+.sc-card-test-error p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+.sc-card-test-hint {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+.sc-card-test-item {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  padding: var(--space-2);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  word-break: break-all;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow: auto;
+}
+
+.sc-card-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+/* Sources · 抽屉 (§7.1: right drawer, 480px) ---------------------- */
+.sc-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-base) var(--ease-out);
+}
+:root[data-theme="light"] .sc-drawer-overlay {
+  background: rgba(43, 31, 18, 0.35);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .sc-drawer-overlay {
+    background: rgba(43, 31, 18, 0.35);
+  }
+}
+.sc-drawer-overlay[data-open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sc-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(480px, 100vw);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: var(--surface-3);
+  border-left: 1px solid var(--hairline);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(100%);
+  transition: transform var(--motion-slow) var(--ease-out);
+}
+.sc-drawer-overlay[data-open] .sc-drawer {
+  transform: translateX(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sc-drawer-overlay,
+  .sc-drawer {
+    transition: none;
+  }
+}
+
+.sc-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--hairline);
+}
+.sc-drawer-head h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.sc-drawer-head .ui-eyebrow {
+  margin: 0 0 4px;
+}
+
+.sc-drawer-body {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  overflow-y: auto;
+}
+.sc-drawer-body textarea {
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.sc-drawer-json {
+  font-family: var(--font-mono) !important;
+  font-size: 12.5px;
+  line-height: 1.5;
+  min-height: 200px;
+}
+
+.sc-drawer-toggle {
+  display: grid;
+  gap: 6px;
+}
+.sc-drawer-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+}
+.sc-drawer-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.sc-drawer-toggle small {
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.sc-drawer-notice {
+  padding: var(--space-3) var(--space-4);
+  background: var(--info-tint);
+  border: 1px solid color-mix(in srgb, var(--info) 25%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--text);
+}
+.sc-drawer-notice strong {
+  display: block;
+  color: var(--info);
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.sc-drawer-notice p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.sc-drawer-error {
+  padding: var(--space-3) var(--space-4);
+  background: var(--danger-bg);
+  border: 1px solid color-mix(in srgb, var(--danger-text) 30%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--danger-text);
+}
+.sc-drawer-error strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+.sc-drawer-error p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.sc-drawer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-2);
+}
+
+@media (max-width: 640px) {
+  .sc-drawer {
+    width: 100vw;
+    border-left: none;
+  }
+}
