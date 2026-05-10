@@ -67,6 +67,7 @@ class WorkerRuntime:
     def __init__(self, poll_interval_seconds: float = 5.0) -> None:
         self.poll_interval_seconds = poll_interval_seconds
         self._running = True
+        self._last_scan_times: dict[str, float] = {}
 
     def stop(self, signum: int | None = None, frame: object | None = None) -> None:
         self._running = False
@@ -85,6 +86,7 @@ class WorkerRuntime:
             local_runtime: LocalRuntimeConfig | None = None
             with session_factory() as session:
                 settings = load_worker_settings(session)
+                self._auto_scan_and_create_tasks(session)
                 claimed = claim_pending_tasks(session, settings)
                 claimed_ids = [task.id for task in claimed]
                 local_runtime = load_local_runtime_config(session)
@@ -97,6 +99,32 @@ class WorkerRuntime:
                 asyncio.run(process_claimed_tasks(session_factory, claimed_ids, local_runtime))
             time.sleep(self.poll_interval_seconds)
         print("Sundarr Worker 已停止。", flush=True)
+
+    def _auto_scan_and_create_tasks(self, session: Session) -> None:
+        import asyncio
+
+        libs = (
+            session.query(RemoteMediaLibrary)
+            .filter(RemoteMediaLibrary.enabled.is_(True), RemoteMediaLibrary.target_library_id.isnot(None))
+            .all()
+        )
+        now = time.time()
+        for lib in libs:
+            interval = lib.scan_interval_seconds or 60
+            last = self._last_scan_times.get(lib.id, 0)
+            if now - last < interval:
+                continue
+            self._last_scan_times[lib.id] = now
+            try:
+                from sundarr.app.services.sync_service import sync_service
+                from sundarr.app.schemas.sync import SyncScanRequest, SyncTaskCreateRequest
+
+                asyncio.run(sync_service.scan(session, SyncScanRequest(binding_id=lib.id)))
+                asyncio.run(sync_service.create_tasks(session, SyncTaskCreateRequest(binding_id=lib.id)))
+                pending_count = session.query(TransferTask).filter(TransferTask.status == "pending").count()
+                print(f"Worker 自动扫描 [{lib.name}] 完成，待处理任务: {pending_count}", flush=True)
+            except Exception as exc:
+                print(f"Worker 自动扫描 [{lib.name}] 失败: {exc}", flush=True)
 
 
 def load_worker_settings(session: Session) -> WorkerSettings:

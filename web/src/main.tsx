@@ -784,7 +784,7 @@ function PagePanel({
     return <StatusPanel />
   }
   if (activePage === 'transfers') {
-    return <TransfersPanel onTransfersChanged={onTransfersChanged} transfers={transfers} />
+    return <TransfersPanel onTransfersChanged={onTransfersChanged} transfers={transfers} showToast={showToast} />
   }
   if (activePage === 'storage') {
     return <StoragePanel showToast={showToast} />
@@ -2471,7 +2471,7 @@ function StorageBrowser({ result, onOpen }: { result: StorageBrowseResponse; onO
   )
 }
 
-function TransfersPanel({ onTransfersChanged, transfers }: { onTransfersChanged: () => Promise<void>; transfers: TransferResponse[] }) {
+function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransfersChanged: () => Promise<void>; transfers: TransferResponse[]; showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [taskId, setTaskId] = useState('')
   const [transfer, setTransfer] = useState<TransferResponse | null>(null)
   const [logs, setLogs] = useState<TransferLogResponse[]>([])
@@ -2538,6 +2538,26 @@ function TransfersPanel({ onTransfersChanged, transfers }: { onTransfersChanged:
     }
   }
 
+  async function deleteTask(taskId: string) {
+    if (!window.confirm(`确认删除任务 ${taskId}？`)) return
+    try {
+      await api.post(`/transfers/${encodeURIComponent(taskId)}/delete`)
+      showToast('success', '任务已删除。')
+      if (transfer?.id === taskId) { setTransfer(null); setLogs([]) }
+      await onTransfersChanged()
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '删除失败。') }
+  }
+
+  async function clearCompleted() {
+    if (!window.confirm('确认清空所有已完成的任务？')) return
+    try {
+      const result = await api.post<{ ok: boolean; deleted_count: number }>('/transfers/clear-completed')
+      showToast('success', `已清空 ${result.deleted_count} 个已完成任务。`)
+      setTransfer(null); setLogs([])
+      await onTransfersChanged()
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '清空失败。') }
+  }
+
   const canCancel = transfer ? canCancelTransfer(transfer.status) : false
   const canRetry = transfer?.status === 'failed' && transfer.retryable === true
 
@@ -2549,9 +2569,12 @@ function TransfersPanel({ onTransfersChanged, transfers }: { onTransfersChanged:
           <h2 id="transfers-title">任务列表与控制</h2>
           <p>查看最近任务，选择任务后读取详情、关键日志，并按当前状态执行取消或重试。</p>
         </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="ghost-button" onClick={() => void clearCompleted()} type="button">清空已完成</button>
+        </div>
       </div>
 
-      <TransferList transfers={transfers} selectedId={transfer?.id || null} onSelect={(id) => void loadTransfer(id)} />
+      <TransferList transfers={transfers} selectedId={transfer?.id || null} onSelect={(id) => void loadTransfer(id)} onDelete={(id) => void deleteTask(id)} />
 
       <form
         className="lookup-form"
@@ -2598,7 +2621,7 @@ function TransfersPanel({ onTransfersChanged, transfers }: { onTransfersChanged:
   )
 }
 
-function TransferList({ onSelect, selectedId, transfers }: { onSelect: (id: string) => void; selectedId: string | null; transfers: TransferResponse[] }) {
+function TransferList({ onSelect, selectedId, transfers, onDelete }: { onSelect: (id: string) => void; selectedId: string | null; transfers: TransferResponse[]; onDelete: (id: string) => void }) {
   if (transfers.length === 0) {
     return <EmptyState message="暂无任务。创建任务或导入任务后会显示在这里。" />
   }
@@ -2611,15 +2634,22 @@ function TransferList({ onSelect, selectedId, transfers }: { onSelect: (id: stri
       </div>
       <div className="transfer-list">
         {transfers.map((item) => (
-          <button className="transfer-row" data-selected={selectedId === item.id} key={item.id} onClick={() => onSelect(item.id)} type="button">
-            <span className={`status-pill ${transferStatusTone(item.status)}`}>{transferStatusLabel(item.status)}</span>
-            <strong>{item.target_path}</strong>
-            <small>{item.current_file || item.id}</small>
-            <div className="mini-progress" aria-label={`任务进度 ${item.progress.toFixed(0)}%`}>
-              <span style={{ width: `${Math.min(100, Math.max(0, item.progress))}%` }} />
+          <div className="transfer-row" key={item.id} data-selected={selectedId === item.id}>
+            <button className="transfer-row-main" onClick={() => onSelect(item.id)} type="button" style={{ all: 'unset', cursor: 'pointer', flex: 1 }}>
+              <span className={`status-pill ${transferStatusTone(item.status)}`}>{transferStatusLabel(item.status)}</span>
+              <strong>{item.target_path}</strong>
+              <small>{item.current_file || item.id}</small>
+              <div className="mini-progress" aria-label={`任务进度 ${item.progress.toFixed(0)}%`}>
+                <span style={{ width: `${Math.min(100, Math.max(0, item.progress))}%` }} />
+              </div>
+              <em>{item.progress.toFixed(0)}%</em>
+            </button>
+            <div className="transfer-row-actions">
+              {(item.status === 'completed' || item.status === 'failed' || item.status === 'cancelled') && (
+                <button className="ghost-button danger" onClick={() => onDelete(item.id)} type="button">删除</button>
+              )}
             </div>
-            <em>{item.progress.toFixed(0)}%</em>
-          </button>
+          </div>
         ))}
       </div>
     </section>

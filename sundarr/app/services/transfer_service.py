@@ -126,6 +126,28 @@ class TransferService:
             for log in logs
         ]
 
+    def delete_transfer(self, db: Session, task_id: str) -> None:
+        task = db.get(TransferTask, task_id)
+        if task is None:
+            raise ValueError("TRANSFER_TASK_NOT_FOUND")
+        if task.status in ("downloading", "verifying", "renaming", "cleaning_source", "cleaning_cloud"):
+            raise ValueError("TRANSFER_TASK_NOT_CANCELLABLE")
+        db.query(TransferLog).filter(TransferLog.task_id == task_id).delete()
+        db.query(TransferFile).filter(TransferFile.task_id == task_id).delete()
+        db.delete(task)
+        db.commit()
+
+    def clear_completed(self, db: Session) -> int:
+        completed_tasks = db.query(TransferTask).filter(TransferTask.status == "completed").all()
+        count = 0
+        for task in completed_tasks:
+            db.query(TransferLog).filter(TransferLog.task_id == task.id).delete()
+            db.query(TransferFile).filter(TransferFile.task_id == task.id).delete()
+            db.delete(task)
+            count += 1
+        db.commit()
+        return count
+
     def _to_response(self, task: TransferTask) -> TransferResponse:
         return TransferResponse(
             id=task.id,

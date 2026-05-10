@@ -53,6 +53,21 @@ async def list_transfer_logs(task_id: str, db: Session = Depends(get_db)) -> lis
         raise _transfer_error(exc) from exc
 
 
+@router.post("/transfers/{task_id}/delete")
+async def delete_transfer(task_id: str, db: Session = Depends(get_db)) -> dict:
+    try:
+        transfer_service.delete_transfer(db, task_id)
+        return {"ok": True}
+    except ValueError as exc:
+        raise _transfer_error(exc) from exc
+
+
+@router.post("/transfers/clear-completed")
+async def clear_completed_transfers(db: Session = Depends(get_db)) -> dict:
+    count = transfer_service.clear_completed(db)
+    return {"ok": True, "deleted_count": count}
+
+
 def _transfer_error(exc: ValueError) -> HTTPException:
     messages = {
         "RESOURCE_LINK_NOT_FOUND": "资源链接不存在。",
