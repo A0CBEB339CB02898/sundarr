@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · W3-D — Hybrid Orbit
+  Derived from: W3 Punched Disc
+  Extension: two asymmetric punches of different sizes —
+  a large one (cloud, upper-right) and a small one (edge/local,
+  lower-left), connected by a thin arc showing sync direction.
+  Concept: Local NAS syncing to cloud.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · W3-D Hybrid Orbit</title>
+  <defs>
+    <mask id="orbit">
+      <rect width="100" height="100" fill="white"/>
+      <circle cx="61" cy="41" r="7" fill="black"/>
+      <circle cx="40" cy="58" r="3.5" fill="black"/>
+    </mask>
+  </defs>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <circle cx="50" cy="50" r="28"
+          fill="var(--mark-fg, #f2ead8)"
+          mask="url(#orbit)"/>
+  <!-- Connecting arc, drawn on top of disc in badge color (reads as negative) -->
+  <path d="M 42.5 55 Q 52 48, 57 45"
+        fill="none" stroke="var(--mark-bg, #d97642)"
+        stroke-width="2" stroke-linecap="round"/>
+</svg>

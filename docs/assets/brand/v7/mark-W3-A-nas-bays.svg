@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · W3-A — NAS Bays
+  Derived from: W3 Punched Disc
+  Extension: punches become 4 vertical slots, asymmetric heights,
+  evoking NAS drive bays. The rightmost slot is taller — one drive
+  is "active" / highlighted.
+  Principle kept: subtract rather than add.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · W3-A NAS Bays</title>
+  <defs>
+    <mask id="bays">
+      <rect width="100" height="100" fill="white"/>
+      <rect x="37" y="42" width="4" height="14" rx="1.5" fill="black"/>
+      <rect x="44" y="42" width="4" height="14" rx="1.5" fill="black"/>
+      <rect x="51" y="42" width="4" height="14" rx="1.5" fill="black"/>
+      <rect x="58" y="39" width="4" height="20" rx="1.5" fill="black"/>
+    </mask>
+  </defs>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <circle cx="50" cy="50" r="28"
+          fill="var(--mark-fg, #f2ead8)"
+          mask="url(#bays)"/>
+</svg>
