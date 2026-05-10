@@ -590,53 +590,6 @@ h2 {
   padding: 8px 12px;
 }
 
-.status-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.status-card {
-  min-height: 150px;
-  border: 1px solid rgba(23, 32, 38, 0.1);
-  border-radius: 22px;
-  padding: 20px;
-}
-
-.status-card span {
-  display: block;
-  margin-bottom: 18px;
-  color: #52616b;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.status-card strong {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 28px;
-  letter-spacing: -0.04em;
-}
-
-.status-card p {
-  margin-bottom: 0;
-  font-size: 14px;
-}
-
-.status-card.ok {
-  background: #edf5f2;
-}
-
-.status-card.unknown {
-  background: #fffaf1;
-}
-
-.status-card.error {
-  background: #fff1ef;
-}
-
 .transfer-summary {
   display: grid;
   gap: 22px;
@@ -1315,10 +1268,6 @@ h2 {
     grid-template-columns: 1fr;
   }
 
-  .status-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .panel-header-row {
     display: grid;
   }
@@ -1386,10 +1335,6 @@ h2 {
   .content-shell,
   .panel {
     padding: 20px;
-  }
-
-  .status-grid {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -2578,5 +2523,234 @@ h2 {
   .tx-dock-tab {
     width: max-content;
     align-self: flex-end;
+  }
+}
+
+
+/* ================================================================ */
+/* Phase 7.8 Step 5 (b) · Status page                               */
+/* docs/16-design-system.md §7.7                                    */
+/* ================================================================ */
+
+/* Status · 页面布局 ------------------------------------------------ */
+.st-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.st-overview {
+  padding: var(--space-5) var(--space-6);
+}
+.st-overview-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+.st-overview-head h2 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.st-overview-lead {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.st-overview-lead code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  padding: 1px 6px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-xs);
+  color: var(--text);
+}
+.st-overview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .st-overview-head {
+    grid-template-columns: 1fr;
+  }
+  .st-overview-head h2 {
+    font-size: 20px;
+  }
+}
+
+/* Status · 2x2 卡片栅格 (§7.7) ------------------------------------ */
+.st-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .st-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Status · StatusCard --------------------------------------------- */
+.st-card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  position: relative;
+  border-top: 2px solid transparent;
+}
+.st-card[data-tone="success"] { border-top-color: var(--success); }
+.st-card[data-tone="paused"]  { border-top-color: var(--warning); }
+.st-card[data-tone="danger"]  { border-top-color: var(--danger-text); }
+
+.st-card-value {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  color: var(--text);
+}
+.st-card-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.st-card-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-subtle);
+  flex: none;
+}
+.st-card[data-tone="success"] .st-card-dot { background: var(--success); }
+.st-card[data-tone="paused"]  .st-card-dot { background: var(--warning); }
+.st-card[data-tone="danger"]  .st-card-dot { background: var(--danger-text); }
+
+.st-card[data-tone="success"] .st-card-desc { color: var(--success); }
+.st-card[data-tone="paused"]  .st-card-desc { color: var(--warning); }
+.st-card[data-tone="danger"]  .st-card-desc { color: var(--danger-text); }
+
+.st-card-meta {
+  margin: var(--space-2) 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+.st-card-meta time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* Status · Worker 控制卡 ------------------------------------------ */
+.st-worker-card {
+  padding: var(--space-5);
+}
+.st-worker-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-4);
+  align-items: center;
+}
+.st-worker-title {
+  display: block;
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+}
+.st-worker-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.st-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.st-worker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .st-worker-head {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Status · Diagnostics 折叠块 (§7.7) ------------------------------ */
+.st-diag {
+  padding: 0;
+  overflow: hidden;
+}
+.st-diag-details {
+  display: block;
+}
+.st-diag-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.st-diag-summary::-webkit-details-marker {
+  display: none;
+}
+.st-diag-summary:focus-visible {
+  outline: 2px solid var(--accent-pressed);
+  outline-offset: -2px;
+}
+.st-diag-summary strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+.st-diag-summary .ui-eyebrow {
+  margin: 0;
+}
+.st-diag-chevron {
+  display: inline-flex;
+  color: var(--text-subtle);
+  transition: transform var(--motion-base) var(--ease-out);
+}
+.st-diag-details[open] .st-diag-chevron {
+  transform: rotate(180deg);
+}
+.st-diag-body {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-sunken);
+  border-top: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 420px;
+  overflow: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-diag-chevron {
+    transition: none;
   }
 }
