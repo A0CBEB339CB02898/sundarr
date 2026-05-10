@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import './styles.css'
+import {
+  Card,
+  Button,
+  Field,
+  StatusBadge,
+  ProgressBar,
+  LoadingState as UILoadingState,
+  EmptyState as UIEmptyState,
+  ErrorState as UIErrorState,
+  Kbd,
+} from './ui'
+import type { StatusTone } from './ui'
 
 type PageKey = 'search' | 'transfers' | 'storage' | 'sources' | 'libraries' | 'remote-libraries' | 'status'
 type ThemeMode = 'light' | 'dark' | 'system'
@@ -2675,116 +2687,242 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
   const canResume = transfer ? canResumeTransfer(transfer.status) : false
 
   return (
-    <section className="panel" aria-labelledby="transfers-title">
-      <div className="panel-header-row">
-        <div>
-          <p className="panel-kicker">任务</p>
-          <h2 id="transfers-title">任务列表与控制</h2>
-          <p>查看最近任务，选择任务后读取详情、关键日志，并按当前状态执行取消或重试。</p>
+    <section className="tx-page" aria-labelledby="transfers-title">
+      <Card className="tx-overview">
+        <div className="tx-overview-head">
+          <div>
+            <p className="ui-eyebrow">任务</p>
+            <h2 id="transfers-title">任务列表与控制</h2>
+            <p className="tx-overview-lead">
+              查看最近任务，选择后读取详情与关键日志，并按当前状态执行取消、暂停或重试。
+            </p>
+          </div>
+          <div className="tx-overview-actions">
+            <Button variant="ghost" onClick={() => void clearCompleted()}>
+              清空已完成
+            </Button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="ghost-button" onClick={() => void clearCompleted()} type="button">清空已完成</button>
-        </div>
-      </div>
+      </Card>
 
-      <TransferList transfers={transfers} selectedId={transfer?.id || null} onSelect={(id) => void loadTransfer(id)} onDelete={(id) => void deleteTask(id)} onPause={(id) => void pauseTaskById(id)} onResume={(id) => void resumeTaskById(id)} />
+      <TransferTable
+        transfers={transfers}
+        selectedId={transfer?.id || null}
+        onSelect={(id) => void loadTransfer(id)}
+        onDelete={(id) => void deleteTask(id)}
+        onPause={(id) => void pauseTaskById(id)}
+        onResume={(id) => void resumeTaskById(id)}
+      />
 
-      <form
-        className="lookup-form"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void loadTransfer()
-        }}
-      >
-        <label>
-          <span>任务 ID</span>
-          <input onChange={(event) => setTaskId(event.target.value)} placeholder="例如 task_001" type="text" value={taskId} />
-          <small>也可以从上方列表或全局任务面板选择任务。</small>
-        </label>
-        <button className="primary-button" disabled={isLoading} type="submit">
-          {isLoading ? '查询中' : '查询任务'}
-        </button>
-      </form>
+      <Card>
+        <form
+          className="tx-lookup"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void loadTransfer()
+          }}
+        >
+          <Field
+            label="任务 ID"
+            htmlFor="tx-lookup-id"
+            helper={
+              <>
+                也可以从上方列表或右侧浮动面板选择任务。按 <Kbd>Enter</Kbd> 查询。
+              </>
+            }
+          >
+            <input
+              id="tx-lookup-id"
+              onChange={(event) => setTaskId(event.target.value)}
+              placeholder="例如 task_001"
+              type="text"
+              value={taskId}
+            />
+          </Field>
+          <Button variant="primary" disabled={isLoading} type="submit">
+            {isLoading ? '查询中' : '查询任务'}
+          </Button>
+        </form>
+      </Card>
 
-      {isLoading && !transfer ? <LoadingState message="正在读取任务详情和日志。" /> : null}
-      {error ? <ErrorState message={error} /> : null}
-      {!isLoading && !error && !transfer ? <EmptyState message="输入任务 ID 后查看任务详情。" /> : null}
+      {isLoading && !transfer ? (
+        <Card>
+          <UILoadingState message="正在读取任务详情和日志。" />
+        </Card>
+      ) : null}
+      {error ? (
+        <Card>
+          <UIErrorState message="请求失败" sub={error} />
+        </Card>
+      ) : null}
+      {!isLoading && !error && !transfer ? (
+        <Card>
+          <UIEmptyState
+            message="选择一个任务查看详情"
+            sub="在上方任务表格点选，或在下方输入任务 ID。"
+          />
+        </Card>
+      ) : null}
 
       {transfer ? (
         <>
           <TransferSummary transfer={transfer} />
-          <div className="action-row">
-            <button className="primary-button" disabled={!canCancel || isMutating} onClick={() => void runTaskAction('cancel')} type="button">
-              {isMutating ? '处理中' : '取消任务'}
-            </button>
-            {canPause && (
-              <button className="secondary-button" disabled={isMutating} onClick={() => void runTaskAction('pause')} type="button">
-                {isMutating ? '处理中' : '暂停任务'}
-              </button>
-            )}
-            {canResume && (
-              <button className="secondary-button" disabled={isMutating} onClick={() => void runTaskAction('resume')} type="button">
-                {isMutating ? '处理中' : '继续任务'}
-              </button>
-            )}
-            <button className="secondary-button" disabled={!canRetry || isMutating} onClick={() => void runTaskAction('retry')} type="button">
-              {isMutating ? '处理中' : '重试任务'}
-            </button>
-            <button className="ghost-button" disabled={isLoading || isMutating} onClick={() => void loadTransfer(transfer.id)} type="button">
-              刷新详情
-            </button>
-          </div>
+          <Card>
+            <div className="tx-action-row">
+              <Button
+                variant="primary"
+                disabled={!canCancel || isMutating}
+                onClick={() => void runTaskAction('cancel')}
+              >
+                {isMutating ? '处理中' : '取消任务'}
+              </Button>
+              {canPause && (
+                <Button
+                  variant="secondary"
+                  disabled={isMutating}
+                  onClick={() => void runTaskAction('pause')}
+                >
+                  {isMutating ? '处理中' : '暂停任务'}
+                </Button>
+              )}
+              {canResume && (
+                <Button
+                  variant="secondary"
+                  disabled={isMutating}
+                  onClick={() => void runTaskAction('resume')}
+                >
+                  {isMutating ? '处理中' : '继续任务'}
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                disabled={!canRetry || isMutating}
+                onClick={() => void runTaskAction('retry')}
+              >
+                {isMutating ? '处理中' : '重试任务'}
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={isLoading || isMutating}
+                onClick={() => void loadTransfer(transfer.id)}
+              >
+                刷新详情
+              </Button>
+            </div>
+          </Card>
           <TransferNotice transfer={transfer} />
           <TransferLogs logs={logs} />
         </>
       ) : null}
-
-      <ApiClientPreview />
     </section>
   )
 }
 
-function TransferList({ onSelect, selectedId, transfers, onDelete, onPause, onResume }: { onSelect: (id: string) => void; selectedId: string | null; transfers: TransferResponse[]; onDelete: (id: string) => void; onPause: (id: string) => void; onResume: (id: string) => void }) {
+function TransferTable({
+  onSelect,
+  selectedId,
+  transfers,
+  onDelete,
+  onPause,
+  onResume,
+}: {
+  onSelect: (id: string) => void
+  selectedId: string | null
+  transfers: TransferResponse[]
+  onDelete: (id: string) => void
+  onPause: (id: string) => void
+  onResume: (id: string) => void
+}) {
   if (transfers.length === 0) {
-    return <EmptyState message="暂无任务。创建任务或导入任务后会显示在这里。" />
+    return (
+      <Card emphasis="sunken">
+        <UIEmptyState
+          message="还没有任务"
+          sub="创建搜索任务或下载到本地任务后，会显示在这里。"
+        />
+      </Card>
+    )
   }
 
   return (
-    <section className="transfer-list-section" aria-labelledby="transfer-list-title">
-      <div className="section-heading">
-        <h3 id="transfer-list-title">最近任务</h3>
-        <span>{transfers.length} 个</span>
+    <Card emphasis="sunken" className="tx-table-card">
+      <div className="tx-table-head">
+        <p className="ui-eyebrow">最近任务</p>
+        <span className="tx-table-count">{transfers.length}</span>
       </div>
-      <div className="transfer-list">
-        {transfers.map((item) => (
-          <div className="transfer-row" key={item.id} data-selected={selectedId === item.id}>
-            <button className="transfer-row-main" onClick={() => onSelect(item.id)} type="button" style={{ all: 'unset', cursor: 'pointer', flex: 1 }}>
-              <span className={`status-pill ${transferStatusTone(item.status)}`}>{transferStatusLabel(item.status)}</span>
-              <strong>{item.target_path}</strong>
-              <small>{item.current_file || item.id}</small>
-              <div className="mini-progress" aria-label={`任务进度 ${item.progress.toFixed(0)}%`}>
-                <span style={{ width: `${Math.min(100, Math.max(0, item.progress))}%` }} />
+      <div className="tx-table" role="table" aria-label="任务列表">
+        <div className="tx-table-header" role="row">
+          <span role="columnheader">状态</span>
+          <span role="columnheader">目标 / 文件</span>
+          <span role="columnheader">进度</span>
+          <span role="columnheader">速度</span>
+          <span role="columnheader">更新</span>
+          <span role="columnheader" aria-label="操作" />
+        </div>
+        {transfers.map((item) => {
+          const running = isTransferRunning(item.status)
+          const progress = Math.max(0, Math.min(100, item.progress))
+          return (
+            <div
+              className="tx-row"
+              key={item.id}
+              role="row"
+              data-selected={selectedId === item.id || undefined}
+            >
+              <button
+                className="tx-row-main"
+                onClick={() => onSelect(item.id)}
+                type="button"
+                aria-label={`查看任务 ${item.target_path}`}
+              >
+                <span className="tx-col-status" role="cell">
+                  <StatusBadge tone={transferStatusToneUI(item.status)} pulse={running}>
+                    {transferStatusLabel(item.status)}
+                  </StatusBadge>
+                </span>
+                <span className="tx-col-title" role="cell">
+                  <strong title={item.target_path}>{item.target_path}</strong>
+                  <small title={item.current_file || item.id}>
+                    {item.current_file || item.id}
+                  </small>
+                </span>
+                <span className="tx-col-progress" role="cell">
+                  <ProgressBar value={progress / 100} />
+                  <em>{progress.toFixed(0)}%</em>
+                </span>
+                <span className="tx-col-num" role="cell">
+                  {item.status === 'downloading' && item.speed_bytes_per_sec > 0
+                    ? `${formatBytes(item.speed_bytes_per_sec)}/s`
+                    : '--'}
+                </span>
+                <span className="tx-col-num" role="cell">
+                  {formatRelative(item.updated_at)}
+                </span>
+              </button>
+              <div className="tx-row-actions" role="cell">
+                {canPauseTransfer(item.status) && (
+                  <Button variant="ghost" size="sm" onClick={() => onPause(item.id)}>
+                    暂停
+                  </Button>
+                )}
+                {canResumeTransfer(item.status) && (
+                  <Button variant="ghost" size="sm" onClick={() => onResume(item.id)}>
+                    继续
+                  </Button>
+                )}
+                {(item.status === 'completed' ||
+                  item.status === 'failed' ||
+                  item.status === 'cancelled') && (
+                  <Button variant="danger" size="sm" onClick={() => onDelete(item.id)}>
+                    删除
+                  </Button>
+                )}
               </div>
-              <em>
-                {item.progress.toFixed(0)}%
-                {item.status === 'downloading' && item.speed_bytes_per_sec > 0 ? ` · ${formatBytes(item.speed_bytes_per_sec)}/s` : ''}
-              </em>
-            </button>
-            <div className="transfer-row-actions">
-              {canPauseTransfer(item.status) && (
-                <button className="ghost-button" onClick={() => onPause(item.id)} type="button">暂停</button>
-              )}
-              {canResumeTransfer(item.status) && (
-                <button className="ghost-button" onClick={() => onResume(item.id)} type="button">继续</button>
-              )}
-              {(item.status === 'completed' || item.status === 'failed' || item.status === 'cancelled') && (
-                <button className="ghost-button danger" onClick={() => onDelete(item.id)} type="button">删除</button>
-              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
-    </section>
+    </Card>
   )
 }
 
@@ -2807,83 +2945,139 @@ function GlobalTransferPanel({
   onSelect: (taskId?: string) => void
   transfers: TransferResponse[]
 }) {
-  const activeTransfers = transfers.filter((transfer) => !['completed', 'failed', 'cancelled'].includes(transfer.status))
+  const activeTransfers = transfers.filter(
+    (transfer) => !['completed', 'failed', 'cancelled'].includes(transfer.status),
+  )
   const visibleTransfers = (activeTransfers.length > 0 ? activeTransfers : transfers).slice(0, 5)
 
   return (
-    <aside className="global-transfer-panel" data-open={isOpen} aria-label="全局任务面板">
-      <button className="global-transfer-tab" onClick={isOpen ? onClose : onOpen} type="button">
+    <aside className="tx-dock" data-open={isOpen || undefined} aria-label="全局任务面板">
+      <button
+        className="tx-dock-tab"
+        onClick={isOpen ? onClose : onOpen}
+        type="button"
+        aria-expanded={isOpen}
+      >
         <span>任务</span>
         <strong>{activeTransfers.length || transfers.length}</strong>
       </button>
-      <div className="global-transfer-card">
-        <div className="section-heading">
-          <h3>当前任务</h3>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button className="ghost-button compact-button" onClick={onRefresh} type="button">刷新</button>
-            <button className="ghost-button compact-button" onClick={onClear} type="button">清空</button>
+      <div className="tx-dock-card" role="region" aria-label="当前任务">
+        <div className="tx-dock-head">
+          <p className="ui-eyebrow">当前任务</p>
+          <div className="tx-dock-head-actions">
+            <Button variant="ghost" size="sm" onClick={onRefresh}>
+              刷新
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClear}>
+              清空
+            </Button>
           </div>
         </div>
-        {error ? <ErrorState message={error} /> : null}
-        {!error && visibleTransfers.length === 0 ? <EmptyState message="暂无任务。" /> : null}
-        <div className="global-transfer-list">
-          {visibleTransfers.map((transfer) => (
-            <button className="global-transfer-row" key={transfer.id} onClick={() => onSelect(transfer.id)} type="button">
-              <span className={`status-pill ${transferStatusTone(transfer.status)}`}>{transferStatusLabel(transfer.status)}</span>
-              <strong>{transfer.target_path}</strong>
-              <small>
-                {transfer.progress.toFixed(0)}%
-                {transfer.status === 'downloading' && transfer.speed_bytes_per_sec > 0
-                  ? ` · ${formatBytes(transfer.speed_bytes_per_sec)}/s`
-                  : ''}
-                {' · '}
-                {transfer.current_file || transfer.id}
-              </small>
-            </button>
-          ))}
+        {error ? <UIErrorState message="无法读取任务列表" sub={error} /> : null}
+        {!error && visibleTransfers.length === 0 ? (
+          <UIEmptyState message="暂无任务" sub="创建任务后会出现在这里。" />
+        ) : null}
+        <div className="tx-dock-list">
+          {visibleTransfers.map((transfer) => {
+            const running = isTransferRunning(transfer.status)
+            const progress = Math.max(0, Math.min(100, transfer.progress))
+            return (
+              <button
+                className="tx-dock-row"
+                key={transfer.id}
+                onClick={() => onSelect(transfer.id)}
+                type="button"
+              >
+                <div className="tx-dock-row-head">
+                  <StatusBadge tone={transferStatusToneUI(transfer.status)} pulse={running}>
+                    {transferStatusLabel(transfer.status)}
+                  </StatusBadge>
+                  <strong title={transfer.target_path}>{transfer.target_path}</strong>
+                </div>
+                <ProgressBar
+                  value={progress / 100}
+                  valueLabel={
+                    <>
+                      {progress.toFixed(0)}%
+                      {transfer.status === 'downloading' && transfer.speed_bytes_per_sec > 0
+                        ? ` · ${formatBytes(transfer.speed_bytes_per_sec)}/s`
+                        : ''}
+                    </>
+                  }
+                />
+                <small title={transfer.current_file || transfer.id}>
+                  {transfer.current_file || transfer.id}
+                </small>
+              </button>
+            )
+          })}
         </div>
-        <button className="primary-button full-button" onClick={() => onSelect()} type="button">打开任务页</button>
+        <Button
+          variant="primary"
+          className="tx-dock-cta"
+          onClick={() => onSelect()}
+        >
+          打开任务页
+        </Button>
       </div>
     </aside>
   )
 }
 
 function TransferSummary({ transfer }: { transfer: TransferResponse }) {
+  const running = isTransferRunning(transfer.status)
+  const progress = Math.max(0, Math.min(100, transfer.progress))
   return (
-    <div className="transfer-summary">
-      <div className="summary-main">
-        <span className={`status-pill ${transferStatusTone(transfer.status)}`}>{transferStatusLabel(transfer.status)}</span>
-        <h3>{transfer.id}</h3>
-        <p>{transfer.target_path}</p>
-      </div>
-      <div className="progress-block">
-        <div className="progress-meta">
-          <span>进度</span>
-          <strong>{transfer.progress.toFixed(2)}%</strong>
-        </div>
-        <div className="progress-track" aria-label={`任务进度 ${transfer.progress.toFixed(2)}%`}>
-          <span style={{ width: `${Math.min(100, Math.max(0, transfer.progress))}%` }} />
+    <Card emphasis="featured" className="tx-summary">
+      <div className="tx-summary-head">
+        <StatusBadge tone={transferStatusToneUI(transfer.status)} pulse={running}>
+          {transferStatusLabel(transfer.status)}
+        </StatusBadge>
+        <div>
+          <p className="tx-summary-id">{transfer.id}</p>
+          <p className="tx-summary-path">{transfer.target_path}</p>
         </div>
       </div>
-      <div className="detail-grid">
-        <DetailItem label="当前文件" value={transfer.current_file || '无'} />
-        <DetailItem label="目标类型" value={transfer.target_type} />
-        <DetailItem label="已完成" value={formatBytes(transfer.done_bytes)} />
-        <DetailItem label="总大小" value={formatBytes(transfer.total_bytes)} />
-        <DetailItem label="速度" value={transfer.speed_bytes_per_sec > 0 ? `${formatBytes(transfer.speed_bytes_per_sec)}/s` : '--'} />
-        <DetailItem label="重试次数" value={String(transfer.retry_count)} />
-        <DetailItem label="可重试" value={transfer.retryable === true ? '是' : '否'} />
-      </div>
+      <ProgressBar
+        value={progress / 100}
+        label="进度"
+        valueLabel={`${progress.toFixed(2)}%`}
+      />
+      <dl className="tx-detail-grid">
+        <TransferDetail label="当前文件" value={transfer.current_file || '无'} />
+        <TransferDetail label="目标类型" value={transfer.target_type} />
+        <TransferDetail label="已完成" value={formatBytes(transfer.done_bytes)} mono />
+        <TransferDetail label="总大小" value={formatBytes(transfer.total_bytes)} mono />
+        <TransferDetail
+          label="速度"
+          value={
+            transfer.speed_bytes_per_sec > 0 ? `${formatBytes(transfer.speed_bytes_per_sec)}/s` : '--'
+          }
+          mono
+        />
+        <TransferDetail label="重试次数" value={String(transfer.retry_count)} mono />
+        <TransferDetail label="可重试" value={transfer.retryable === true ? '是' : '否'} />
+      </dl>
       {transfer.error_code || transfer.error_message ? (
-        <div className="error-detail">
+        <div className="tx-error-card" role="alert">
           <strong>{transfer.error_code || '任务错误'}</strong>
           <p>{transfer.error_message || '无错误详情。'}</p>
         </div>
       ) : null}
+    </Card>
+  )
+}
+
+function TransferDetail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="tx-detail-item">
+      <dt>{label}</dt>
+      <dd data-mono={mono ? 'true' : undefined}>{value}</dd>
     </div>
   )
 }
 
+// Legacy 详情项（Sources / Ingest 扫描结果等仍在用，Step 5 迁移到对应页面时替换）
 function DetailItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="detail-item">
@@ -2897,36 +3091,44 @@ function TransferNotice({ transfer }: { transfer: TransferResponse }) {
   const message = noticeForTransfer(transfer)
   if (!message) return null
   return (
-    <div className="notice-card">
+    <Card className="tx-notice">
       <strong>{message.title}</strong>
       <p>{message.body}</p>
-    </div>
+    </Card>
   )
 }
 
 function TransferLogs({ logs }: { logs: TransferLogResponse[] }) {
   if (logs.length === 0) {
-    return <EmptyState message="该任务暂无日志。" />
+    return (
+      <Card>
+        <UIEmptyState message="该任务暂无日志" />
+      </Card>
+    )
   }
 
   return (
-    <div className="log-list">
-      <div className="section-heading">
-        <h3>任务日志</h3>
-        <span>{logs.length} 条</span>
+    <Card emphasis="sunken" className="tx-logs">
+      <div className="tx-logs-head">
+        <p className="ui-eyebrow">任务日志</p>
+        <span className="tx-logs-count">{logs.length} 条</span>
       </div>
-      {logs.map((log) => (
-        <article className="log-item" key={log.id}>
-          <div>
-            <span className={`log-level ${log.level}`}>{log.level}</span>
-            <strong>{log.event}</strong>
-          </div>
-          <time>{formatDateTime(log.created_at)}</time>
-          <p>{log.message || '无日志说明。'}</p>
-          {log.data ? <code>{JSON.stringify(log.data)}</code> : null}
-        </article>
-      ))}
-    </div>
+      <ol className="tx-log-list">
+        {logs.map((log) => (
+          <li className="tx-log-item" key={log.id}>
+            <div className="tx-log-head">
+              <span className="tx-log-level" data-level={log.level}>
+                {log.level}
+              </span>
+              <strong>{log.event}</strong>
+              <time>{formatDateTime(log.created_at)}</time>
+            </div>
+            <p>{log.message || '无日志说明。'}</p>
+            {log.data ? <code>{JSON.stringify(log.data)}</code> : null}
+          </li>
+        ))}
+      </ol>
+    </Card>
   )
 }
 
@@ -3517,6 +3719,41 @@ function transferStatusTone(status: TransferStatus) {
   if (status === 'cancelled') return 'unknown'
   if (status === 'paused') return 'unknown'
   return 'running'
+}
+
+function transferStatusToneUI(status: TransferStatus): StatusTone {
+  // docs/16-design-system.md §6.6 · Transfer 状态到 5 tone 映射。
+  if (status === 'completed') return 'success'
+  if (status === 'failed' || status === 'cancelled') return 'danger'
+  if (status === 'paused') return 'paused'
+  if (status === 'pending') return 'info'
+  return 'running' // staging_to_cloud / cloud_ready / downloading / verifying / renaming / cleaning_*
+}
+
+function isTransferRunning(status: TransferStatus) {
+  return [
+    'staging_to_cloud',
+    'cloud_ready',
+    'downloading',
+    'verifying',
+    'renaming',
+    'cleaning_cloud',
+    'cleaning_source',
+  ].includes(status)
+}
+
+function formatRelative(value: string | null) {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const diff = (Date.now() - date.getTime()) / 1000
+  if (diff < 30) return '刚刚'
+  if (diff < 60) return `${Math.floor(diff)} 秒前`
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`
+  const days = Math.floor(diff / 86400)
+  if (days < 30) return `${days} 天前`
+  return date.toLocaleDateString('zh-CN')
 }
 
 function noticeForTransfer(transfer: TransferResponse) {
