@@ -14,6 +14,7 @@ TransferStatus = Literal[
     "completed",
     "failed",
     "cancelled",
+    "paused",
 ]
 
 
@@ -40,6 +41,7 @@ class TransferResponse(BaseModel):
     sync_seen_file_id: str | None = None
     total_bytes: int
     done_bytes: int
+    speed_bytes_per_sec: int = 0
     progress: float = 0
     current_file: str | None = None
     error_code: str | None = None

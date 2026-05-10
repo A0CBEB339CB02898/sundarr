@@ -68,6 +68,7 @@ type TransferStatus =
   | 'completed'
   | 'failed'
   | 'cancelled'
+  | 'paused'
 
 type StorageConfigResponse = {
   type: 'smb'
@@ -571,11 +572,11 @@ type IngestConfigFormState = {
 }
 
 const navItems: NavItem[] = [
+  { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
+  { key: 'search', path: '/app/search', label: '搜索', description: '搜索资源并创建搬运任务' },
   { key: 'storage', path: '/app/storage', label: '存储', description: '管理 SMB 配置和目录浏览' },
   { key: 'libraries', path: '/app/libraries', label: '本地媒体库', description: '管理本地媒体库目录绑定' },
   { key: 'remote-libraries', path: '/app/remote-libraries', label: '远程媒体库', description: '管理远程媒体库目录绑定' },
-  { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
-  { key: 'search', path: '/app/search', label: '搜索', description: '搜索资源并创建搬运任务' },
   { key: 'transfers', path: '/app/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
   { key: 'status', path: '/app/status', label: '状态', description: '查看 API、Worker、数据库和 Redis' },
 ]
@@ -633,12 +634,13 @@ function App() {
   const [transfers, setTransfers] = useState<TransferResponse[]>([])
   const [transferError, setTransferError] = useState<string | null>(null)
   const [isTransferPanelOpen, setIsTransferPanelOpen] = useState(true)
-  const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error' | 'info'; message: string }[]>([])
+  const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error' | 'info'; message: string; duration: number }[]>([])
+  const TOAST_DURATION_MS = 4500
 
   function showToast(type: 'success' | 'error' | 'info', message: string) {
-    const id = Date.now()
-    setToasts((prev) => [...prev, { id, type, message }])
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000)
+    const id = Date.now() + Math.random()
+    setToasts((prev) => [...prev, { id, type, message, duration: TOAST_DURATION_MS }])
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), TOAST_DURATION_MS)
   }
 
   function removeToast(id: number) {
@@ -744,12 +746,27 @@ function App() {
         onSelect={navigateToTransfers}
         transfers={transfers}
       />
-      <div className="toast-container">
+      <div className="toast-container" aria-live="polite" aria-atomic="false">
         {toasts.map((toast) => (
-          <div className={`toast ${toast.type}`} key={toast.id}>
-            <div className="toast-icon">{toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'i'}</div>
+          <div className={`toast toast-${toast.type}`} key={toast.id} role="status">
+            <span className="toast-icon" aria-hidden="true">
+              {toast.type === 'success' ? (
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10.5l4 4 8-9" /></svg>
+              ) : toast.type === 'error' ? (
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 5l10 10M15 5L5 15" /></svg>
+              ) : (
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 14V9M10 6.5v.01" /></svg>
+              )}
+            </span>
             <span className="toast-message">{toast.message}</span>
-            <button className="toast-close" onClick={() => removeToast(toast.id)} type="button">×</button>
+            <button className="toast-close" onClick={() => removeToast(toast.id)} type="button" aria-label="关闭">
+              <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 3l6 6M9 3l-6 6" /></svg>
+            </button>
+            <span
+              className="toast-progress"
+              style={{ animationDuration: `${toast.duration}ms` }}
+              aria-hidden="true"
+            />
           </div>
         ))}
       </div>
@@ -1289,14 +1306,18 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
   function openBrowse(lib: MediaLibraryResponse) {
     const conn = connections.find((c) => c.id === lib.connection_id)
     if (!conn) { showToast('error', '未找到关联的 SMB 连接。'); return }
-    setBrowseConnectionId(conn.id); setBrowsePath(lib.base_path || ''); setBrowseResult(null); setShowBrowse(true)
-    void doBrowse(lib.base_path || '')
+    setBrowseConnectionId(conn.id)
+    setBrowsePath(lib.base_path || '')
+    setBrowseResult(null)
+    setShowBrowse(true)
+    void doBrowse(lib.base_path || '', conn.id)
   }
 
-  async function doBrowse(nextPath = browsePath) {
+  async function doBrowse(nextPath = browsePath, connectionId: string | null = browseConnectionId) {
+    if (!connectionId) { showToast('error', '未选择 SMB 连接。'); return }
     setIsBrowsing(true)
     try {
-      const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(browseConnectionId!)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
+      const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(connectionId)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
       setBrowseResult(result); setBrowsePath(result.path)
     } catch (exc) { setBrowseResult(null); showToast('error', exc instanceof Error ? exc.message : '浏览失败。') }
     finally { setIsBrowsing(false) }
@@ -1416,10 +1437,10 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
               <label>
                 <span>路径</span>
                 <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
-                <small>相对于 Base Path 的目录。</small>
               </label>
               <button className="primary-button" disabled={isBrowsing} type="submit">{isBrowsing ? '浏览中' : '浏览'}</button>
             </form>
+            <p className="lookup-form-hint">相对于 Base Path 的目录。</p>
             {isBrowsing && !browseResult ? <LoadingState message="正在读取目录。" /> : null}
             {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void doBrowse(path)} /> : <EmptyState message="输入路径后浏览目录。" />}
           </div>
@@ -1572,14 +1593,18 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
   function openBrowse(lib: RemoteMediaLibraryResponse) {
     const conn = connections.find((c) => c.id === lib.connection_id)
     if (!conn) { showToast('error', '未找到关联的 SMB 连接。'); return }
-    setBrowseConnectionId(conn.id); setBrowsePath(lib.base_path || ''); setBrowseResult(null); setShowBrowse(true)
-    void doBrowse(lib.base_path || '')
+    setBrowseConnectionId(conn.id)
+    setBrowsePath(lib.base_path || '')
+    setBrowseResult(null)
+    setShowBrowse(true)
+    void doBrowse(lib.base_path || '', conn.id)
   }
 
-  async function doBrowse(nextPath = browsePath) {
+  async function doBrowse(nextPath = browsePath, connectionId: string | null = browseConnectionId) {
+    if (!connectionId) { showToast('error', '未选择 SMB 连接。'); return }
     setIsBrowsing(true)
     try {
-      const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(browseConnectionId!)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
+      const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(connectionId)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
       setBrowseResult(result); setBrowsePath(result.path)
     } catch (exc) { setBrowseResult(null); showToast('error', exc instanceof Error ? exc.message : '浏览失败。') }
     finally { setIsBrowsing(false) }
@@ -1722,10 +1747,10 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
               <label>
                 <span>路径</span>
                 <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
-                <small>相对于 Base Path 的目录。</small>
               </label>
               <button className="primary-button" disabled={isBrowsing} type="submit">{isBrowsing ? '浏览中' : '浏览'}</button>
             </form>
+            <p className="lookup-form-hint">相对于 Base Path 的目录。</p>
             {isBrowsing && !browseResult ? <LoadingState message="正在读取目录。" /> : null}
             {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void doBrowse(path)} /> : <EmptyState message="输入路径后浏览目录。" />}
           </div>
@@ -2296,14 +2321,18 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
   }
 
   function openBrowse(conn: SmbConnectionResponse) {
-    setBrowseId(conn.id); setBrowsePath(conn.base_path || ''); setBrowseResult(null); setShowBrowse(true)
-    void doBrowse(conn.base_path || '')
+    setBrowseId(conn.id)
+    setBrowsePath(conn.base_path || '')
+    setBrowseResult(null)
+    setShowBrowse(true)
+    void doBrowse(conn.base_path || '', conn.id)
   }
 
-  async function doBrowse(nextPath = browsePath) {
+  async function doBrowse(nextPath = browsePath, connectionId: string | null = browseId) {
+    if (!connectionId) { showToast('error', '未选择 SMB 连接。'); return }
     setIsBrowsing(true)
     try {
-      const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(browseId!)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
+      const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(connectionId)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
       setBrowseResult(result); setBrowsePath(result.path)
     } catch (exc) { setBrowseResult(null); showToast('error', exc instanceof Error ? exc.message : '浏览失败。') }
     finally { setIsBrowsing(false) }
@@ -2424,10 +2453,10 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
               <label>
                 <span>路径</span>
                 <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
-                <small>相对于 Base Path 的目录。</small>
               </label>
               <button className="primary-button" disabled={isBrowsing} type="submit">{isBrowsing ? '浏览中' : '浏览'}</button>
             </form>
+            <p className="lookup-form-hint">相对于 Base Path 的目录。</p>
             {isBrowsing && !browseResult ? <LoadingState message="正在读取目录。" /> : null}
             {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void doBrowse(path)} /> : <EmptyState message="输入路径后浏览 SMB 目录。" />}
           </div>
@@ -2532,10 +2561,11 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
     }
   }
 
-  async function runTaskAction(action: 'cancel' | 'retry') {
+  async function runTaskAction(action: 'cancel' | 'retry' | 'pause' | 'resume') {
     if (!transfer) return
-    const actionText = action === 'cancel' ? '取消' : '重试'
-    if (!window.confirm(`确认${actionText}任务 ${transfer.id}？`)) {
+    const actionText =
+      action === 'cancel' ? '取消' : action === 'retry' ? '重试' : action === 'pause' ? '暂停' : '继续'
+    if (action !== 'resume' && !window.confirm(`确认${actionText}任务 ${transfer.id}？`)) {
       return
     }
     setIsMutating(true)
@@ -2551,6 +2581,24 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
     } finally {
       setIsMutating(false)
     }
+  }
+
+  async function pauseTaskById(id: string) {
+    try {
+      await api.post(`/transfers/${encodeURIComponent(id)}/pause`)
+      showToast('success', '任务已暂停。')
+      if (transfer?.id === id) await loadTransfer(id)
+      await onTransfersChanged()
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '暂停失败。') }
+  }
+
+  async function resumeTaskById(id: string) {
+    try {
+      await api.post(`/transfers/${encodeURIComponent(id)}/resume`)
+      showToast('success', '任务已恢复。')
+      if (transfer?.id === id) await loadTransfer(id)
+      await onTransfersChanged()
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '恢复失败。') }
   }
 
   async function deleteTask(taskId: string) {
@@ -2575,6 +2623,8 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
 
   const canCancel = transfer ? canCancelTransfer(transfer.status) : false
   const canRetry = transfer?.status === 'failed' && transfer.retryable === true
+  const canPause = transfer ? canPauseTransfer(transfer.status) : false
+  const canResume = transfer ? canResumeTransfer(transfer.status) : false
 
   return (
     <section className="panel" aria-labelledby="transfers-title">
@@ -2589,7 +2639,7 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
         </div>
       </div>
 
-      <TransferList transfers={transfers} selectedId={transfer?.id || null} onSelect={(id) => void loadTransfer(id)} onDelete={(id) => void deleteTask(id)} />
+      <TransferList transfers={transfers} selectedId={transfer?.id || null} onSelect={(id) => void loadTransfer(id)} onDelete={(id) => void deleteTask(id)} onPause={(id) => void pauseTaskById(id)} onResume={(id) => void resumeTaskById(id)} />
 
       <form
         className="lookup-form"
@@ -2619,6 +2669,16 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
             <button className="primary-button" disabled={!canCancel || isMutating} onClick={() => void runTaskAction('cancel')} type="button">
               {isMutating ? '处理中' : '取消任务'}
             </button>
+            {canPause && (
+              <button className="secondary-button" disabled={isMutating} onClick={() => void runTaskAction('pause')} type="button">
+                {isMutating ? '处理中' : '暂停任务'}
+              </button>
+            )}
+            {canResume && (
+              <button className="secondary-button" disabled={isMutating} onClick={() => void runTaskAction('resume')} type="button">
+                {isMutating ? '处理中' : '继续任务'}
+              </button>
+            )}
             <button className="secondary-button" disabled={!canRetry || isMutating} onClick={() => void runTaskAction('retry')} type="button">
               {isMutating ? '处理中' : '重试任务'}
             </button>
@@ -2636,7 +2696,7 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
   )
 }
 
-function TransferList({ onSelect, selectedId, transfers, onDelete }: { onSelect: (id: string) => void; selectedId: string | null; transfers: TransferResponse[]; onDelete: (id: string) => void }) {
+function TransferList({ onSelect, selectedId, transfers, onDelete, onPause, onResume }: { onSelect: (id: string) => void; selectedId: string | null; transfers: TransferResponse[]; onDelete: (id: string) => void; onPause: (id: string) => void; onResume: (id: string) => void }) {
   if (transfers.length === 0) {
     return <EmptyState message="暂无任务。创建任务或导入任务后会显示在这里。" />
   }
@@ -2657,9 +2717,18 @@ function TransferList({ onSelect, selectedId, transfers, onDelete }: { onSelect:
               <div className="mini-progress" aria-label={`任务进度 ${item.progress.toFixed(0)}%`}>
                 <span style={{ width: `${Math.min(100, Math.max(0, item.progress))}%` }} />
               </div>
-              <em>{item.progress.toFixed(0)}%</em>
+              <em>
+                {item.progress.toFixed(0)}%
+                {item.status === 'downloading' && item.speed_bytes_per_sec > 0 ? ` · ${formatBytes(item.speed_bytes_per_sec)}/s` : ''}
+              </em>
             </button>
             <div className="transfer-row-actions">
+              {canPauseTransfer(item.status) && (
+                <button className="ghost-button" onClick={() => onPause(item.id)} type="button">暂停</button>
+              )}
+              {canResumeTransfer(item.status) && (
+                <button className="ghost-button" onClick={() => onResume(item.id)} type="button">继续</button>
+              )}
               {(item.status === 'completed' || item.status === 'failed' || item.status === 'cancelled') && (
                 <button className="ghost-button danger" onClick={() => onDelete(item.id)} type="button">删除</button>
               )}
@@ -2714,7 +2783,14 @@ function GlobalTransferPanel({
             <button className="global-transfer-row" key={transfer.id} onClick={() => onSelect(transfer.id)} type="button">
               <span className={`status-pill ${transferStatusTone(transfer.status)}`}>{transferStatusLabel(transfer.status)}</span>
               <strong>{transfer.target_path}</strong>
-              <small>{transfer.progress.toFixed(0)}% · {transfer.current_file || transfer.id}</small>
+              <small>
+                {transfer.progress.toFixed(0)}%
+                {transfer.status === 'downloading' && transfer.speed_bytes_per_sec > 0
+                  ? ` · ${formatBytes(transfer.speed_bytes_per_sec)}/s`
+                  : ''}
+                {' · '}
+                {transfer.current_file || transfer.id}
+              </small>
             </button>
           ))}
         </div>
@@ -3358,7 +3434,15 @@ function detailToMessage(detail: unknown) {
 }
 
 function canCancelTransfer(status: TransferStatus) {
+  return ['pending', 'staging_to_cloud', 'cloud_ready', 'downloading', 'verifying', 'paused'].includes(status)
+}
+
+function canPauseTransfer(status: TransferStatus) {
   return ['pending', 'staging_to_cloud', 'cloud_ready', 'downloading', 'verifying'].includes(status)
+}
+
+function canResumeTransfer(status: TransferStatus) {
+  return status === 'paused'
 }
 
 function transferStatusLabel(status: TransferStatus) {
@@ -3374,6 +3458,7 @@ function transferStatusLabel(status: TransferStatus) {
     completed: '已完成',
     failed: '失败',
     cancelled: '已取消',
+    paused: '已暂停',
   }
   return labels[status]
 }
@@ -3382,6 +3467,7 @@ function transferStatusTone(status: TransferStatus) {
   if (status === 'completed') return 'ok'
   if (status === 'failed') return 'error'
   if (status === 'cancelled') return 'unknown'
+  if (status === 'paused') return 'unknown'
   return 'running'
 }
 

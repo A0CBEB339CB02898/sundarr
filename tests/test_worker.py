@@ -685,3 +685,170 @@ class FailingWriteWriter(StorageWriter):
 
     async def remove_empty_dir(self, path: str) -> None:
         return None
+
+
+
+@pytest.mark.anyio
+async def test_process_transfer_task_honors_pause(db_session, tmp_path: Path) -> None:
+    share_root = tmp_path / "shares"
+    staging_root = tmp_path / "staging"
+    storage_root = tmp_path / "storage"
+    source_dir = share_root / "movie_share"
+    source_dir.mkdir(parents=True)
+    payload = b"0123456789"
+    (source_dir / "Movie.mkv").write_bytes(payload)
+
+    resource = Resource(id="res_pause", title="暂停测试", score=1)
+    link = ResourceLink(id="link_pause", resource_id=resource.id, provider="local", url="local://movie_share")
+    task = TransferTask(
+        id="task_pause",
+        resource_id=resource.id,
+        link_id=link.id,
+        status="downloading",
+        mode="copy",
+        target_type="local",
+        target_path="Movies/Movie.mkv",
+    )
+    db_session.add_all([resource, link, task])
+    db_session.commit()
+
+    cloud = _PauseMidStreamCloudProvider(db_session, task, pause_after_chunks=2)
+
+    await process_transfer_task(
+        db_session, task, link, cloud, LocalWriter(storage_root),
+    )
+
+    db_session.refresh(task)
+    assert task.status == "paused"
+    assert task.speed_bytes_per_sec == 0
+    assert (storage_root / "Movies" / "Movie.mkv.sundarr.downloading").exists()
+    assert not (storage_root / "Movies" / "Movie.mkv").exists()
+    paused_logs = {log.event for log in db_session.query(TransferLog).all()}
+    assert "task_paused_by_worker" in paused_logs
+
+
+@pytest.mark.anyio
+async def test_process_transfer_task_resumes_from_temp(db_session, tmp_path: Path) -> None:
+    share_root = tmp_path / "shares"
+    staging_root = tmp_path / "staging"
+    storage_root = tmp_path / "storage"
+    source_dir = share_root / "movie_share"
+    source_dir.mkdir(parents=True)
+    payload = b"0123456789"
+    (source_dir / "Movie.mkv").write_bytes(payload)
+
+    # Simulate partially downloaded temp file from a previous session.
+    target_dir = storage_root / "Movies"
+    target_dir.mkdir(parents=True)
+    (target_dir / "Movie.mkv.sundarr.downloading").write_bytes(payload[:4])
+
+    resource = Resource(id="res_resume", title="续传测试", score=1)
+    link = ResourceLink(id="link_resume", resource_id=resource.id, provider="local", url="local://movie_share")
+    task = TransferTask(
+        id="task_resume",
+        resource_id=resource.id,
+        link_id=link.id,
+        status="staging_to_cloud",
+        mode="copy",
+        target_type="local",
+        target_path="Movies/Movie.mkv",
+        cloud_staging_path="/Sundarr/_staging/task_resume",
+    )
+    db_session.add_all([resource, link, task])
+    # Seed the cloud staging dir so save_share does not re-run.
+    (staging_root / "task_resume").mkdir(parents=True)
+    (staging_root / "task_resume" / "Movie.mkv").write_bytes(payload)
+
+    transfer_file = TransferFile(
+        id="file_resume",
+        task_id=task.id,
+        cloud_file_id="task_resume/Movie.mkv",
+        cloud_path="/Sundarr/_staging/task_resume/Movie.mkv",
+        target_path="Movies/Movie.mkv",
+        temp_path="Movies/Movie.mkv.sundarr.downloading",
+        filename="Movie.mkv",
+        size_bytes=len(payload),
+        done_bytes=4,
+        status="downloading",
+    )
+    db_session.add(transfer_file)
+    db_session.commit()
+
+    cloud = LocalCloudProvider(staging_root=staging_root, share_root=share_root, chunk_size=4)
+
+    await process_transfer_task(db_session, task, link, cloud, LocalWriter(storage_root))
+
+    db_session.refresh(task)
+    assert task.status == "completed"
+    assert task.done_bytes == len(payload)
+    assert (storage_root / "Movies" / "Movie.mkv").read_bytes() == payload
+
+
+@pytest.mark.anyio
+async def test_process_dtl_task_resumes_from_temp(db_session, tmp_path: Path) -> None:
+    source_root = tmp_path / "source"
+    target_root = tmp_path / "target"
+    source_file = source_root / "CloudMovie" / "Movie.mkv"
+    payload = b"0123456789"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_bytes(payload)
+    target_dir = target_root / "Movies" / "CloudMovie"
+    target_dir.mkdir(parents=True)
+    (target_dir / "Movie.mkv.sundarr.downloading").write_bytes(payload[:4])
+
+    task = _seed_dtl_task(db_session, size=len(payload))
+    transfer_file = db_session.query(TransferFile).filter(TransferFile.task_id == task.id).one()
+    transfer_file.done_bytes = 4
+    task.done_bytes = 4
+    db_session.commit()
+
+    await process_dtl_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
+
+    db_session.refresh(task)
+    assert task.status == "completed"
+    assert task.done_bytes == len(payload)
+    assert (target_root / "Movies" / "CloudMovie" / "Movie.mkv").read_bytes() == payload
+    events = {log.event for log in db_session.query(TransferLog).all()}
+    assert "dtl_copy_resumed" in events
+
+
+@pytest.mark.anyio
+async def test_process_dtl_task_truncates_oversized_temp(db_session, tmp_path: Path) -> None:
+    source_root = tmp_path / "source"
+    target_root = tmp_path / "target"
+    source_file = source_root / "CloudMovie" / "Movie.mkv"
+    payload = b"0123456789"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_bytes(payload)
+    # Seed an oversized corrupt temp file.
+    target_dir = target_root / "Movies" / "CloudMovie"
+    target_dir.mkdir(parents=True)
+    (target_dir / "Movie.mkv.sundarr.downloading").write_bytes(b"XXXX" * 10)
+
+    task = _seed_dtl_task(db_session, size=len(payload))
+
+    await process_dtl_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
+
+    db_session.refresh(task)
+    assert task.status == "completed"
+    assert (target_root / "Movies" / "CloudMovie" / "Movie.mkv").read_bytes() == payload
+
+
+class _PauseMidStreamCloudProvider(SingleFileCloudProvider):
+    def __init__(self, session, task, pause_after_chunks: int = 2) -> None:
+        self._session = session
+        self._task = task
+        self._pause_after = pause_after_chunks
+
+    async def list_files(self, path: str) -> list[CloudFile]:
+        return [CloudFile(id="file_pause", path=f"{path}/Movie.mkv", name="Movie.mkv", size=10)]
+
+    async def open_file_stream(self, file_id: str, offset: int = 0) -> AsyncIterator[bytes]:
+        emitted = 0
+        for chunk in (b"12", b"34", b"56", b"78", b"90"):
+            yield chunk
+            emitted += 1
+            if emitted == self._pause_after:
+                # Flip the task to paused to trigger the worker guard on the next check.
+                self._task.status = "paused"
+                self._session.commit()

@@ -51,6 +51,31 @@ class TaskCancelled(Exception):
     pass
 
 
+class TaskPaused(Exception):
+    pass
+
+
+class _SpeedTracker:
+    """1-second sliding window byte-rate tracker."""
+
+    def __init__(self, window_seconds: float = 1.0) -> None:
+        self._window = window_seconds
+        self._bytes = 0
+        self._started = time.monotonic()
+
+    def add(self, nbytes: int) -> None:
+        self._bytes += max(0, int(nbytes))
+
+    def sample(self) -> int | None:
+        elapsed = time.monotonic() - self._started
+        if elapsed < self._window:
+            return None
+        rate = int(self._bytes / elapsed) if elapsed > 0 else 0
+        self._bytes = 0
+        self._started = time.monotonic()
+        return rate
+
+
 @dataclass(frozen=True)
 class WorkerSettings:
     enabled: bool = DEFAULT_WORKER_ENABLED
@@ -279,6 +304,11 @@ async def process_transfer_task(
         return await _process_transfer_task(session, task, link, cloud_provider, storage_writer)
     except TaskCancelled:
         return task
+    except TaskPaused:
+        task.speed_bytes_per_sec = 0
+        _add_log(session, task.id, "info", "task_paused_by_worker", "Worker 检测到暂停状态，已停止写入并保留临时文件。")
+        session.commit()
+        return task
     except Exception as exc:
         _mark_task_failed(session, task, exc)
         return task
@@ -291,56 +321,101 @@ async def _process_transfer_task(
     cloud_provider: CloudProvider,
     storage_writer: StorageWriter,
 ) -> TransferTask:
-    _raise_if_cancelled(session, task)
-    _add_log(session, task.id, "info", "cloud_staging_started", "开始转存到 cloud staging。")
-    task.status = "staging_to_cloud"
-    task.cloud_staging_path = await cloud_provider.save_share(link.url, link.code, task.id)
-    _add_log(session, task.id, "info", "cloud_staging_completed", "cloud staging 已准备完成。")
-    session.commit()
-    _raise_if_cancelled(session, task)
+    _check_task_state(session, task)
+    # Only run cloud staging once; resume skips it if staging is already prepared.
+    if not task.cloud_staging_path:
+        _add_log(session, task.id, "info", "cloud_staging_started", "开始转存到 cloud staging。")
+        task.status = "staging_to_cloud"
+        task.cloud_staging_path = await cloud_provider.save_share(link.url, link.code, task.id)
+        _add_log(session, task.id, "info", "cloud_staging_completed", "cloud staging 已准备完成。")
+        session.commit()
+    _check_task_state(session, task)
 
     files = await cloud_provider.list_files(task.cloud_staging_path)
     task.total_bytes = sum(file.size for file in files)
-    task.done_bytes = 0
+    existing_files = {
+        file.cloud_file_id: file
+        for file in session.query(TransferFile).filter(TransferFile.task_id == task.id).all()
+        if file.cloud_file_id
+    }
+    # Recompute done_bytes from existing per-file progress so resume reflects actual temp sizes.
+    task.done_bytes = sum(f.done_bytes for f in existing_files.values())
+    task.speed_bytes_per_sec = 0
     task.status = "downloading"
     session.commit()
 
     for file in files:
         target_path = task.target_path if len(files) == 1 else f"{task.target_path.rstrip('/')}/{file.name}"
         temp_path = f"{target_path}.sundarr.downloading"
-        transfer_file = TransferFile(
-            id=uuid4().hex,
-            task_id=task.id,
-            cloud_file_id=file.id,
-            cloud_path=file.path,
-            target_path=target_path,
-            temp_path=temp_path,
-            filename=file.name,
-            size_bytes=file.size,
-            done_bytes=0,
-            status="downloading",
-        )
-        session.add(transfer_file)
+        transfer_file = existing_files.get(file.id)
+        if transfer_file is None:
+            transfer_file = TransferFile(
+                id=uuid4().hex,
+                task_id=task.id,
+                cloud_file_id=file.id,
+                cloud_path=file.path,
+                target_path=target_path,
+                temp_path=temp_path,
+                filename=file.name,
+                size_bytes=file.size,
+                done_bytes=0,
+                status="downloading",
+            )
+            session.add(transfer_file)
+            session.commit()
+
+        if transfer_file.status == "completed":
+            continue
+        transfer_file.status = "downloading"
         session.commit()
-        _raise_if_cancelled(session, task)
+        _check_task_state(session, task)
 
-        handle = await storage_writer.open_append(temp_path)
-        with handle:
-            async for chunk in cloud_provider.open_file_stream(file.id):
-                _raise_if_cancelled(session, task)
-                handle.write(chunk)
-                transfer_file.done_bytes += len(chunk)
-                task.done_bytes += len(chunk)
-                session.commit()
+        # Resume: align temp file and cloud offset based on current temp size.
+        existing_temp_size = 0
+        if await storage_writer.exists(temp_path):
+            try:
+                existing_temp_size = int(await storage_writer.size(temp_path))
+            except Exception:
+                existing_temp_size = 0
+        if existing_temp_size > file.size:
+            # Corrupt / leftover temp — reset to zero and restart this file.
+            await storage_writer.truncate(temp_path, 0)
+            existing_temp_size = 0
+        if existing_temp_size != transfer_file.done_bytes:
+            # Keep DB counters consistent with reality on disk.
+            delta = existing_temp_size - transfer_file.done_bytes
+            transfer_file.done_bytes = existing_temp_size
+            task.done_bytes = max(0, task.done_bytes + delta)
+            session.commit()
 
-        _raise_if_cancelled(session, task)
+        if existing_temp_size >= file.size and file.size > 0:
+            transfer_file.status = "verified"
+            session.commit()
+        else:
+            handle = await storage_writer.open_append(temp_path)
+            speed_tracker = _SpeedTracker()
+            with handle:
+                async for chunk in cloud_provider.open_file_stream(file.id, offset=existing_temp_size):
+                    _check_task_state(session, task)
+                    handle.write(chunk)
+                    transfer_file.done_bytes += len(chunk)
+                    task.done_bytes += len(chunk)
+                    speed_tracker.add(len(chunk))
+                    new_speed = speed_tracker.sample()
+                    if new_speed is not None:
+                        task.speed_bytes_per_sec = new_speed
+                    session.commit()
+            task.speed_bytes_per_sec = 0
+            session.commit()
+
+        _check_task_state(session, task)
         task.status = "verifying"
         transfer_file.status = "verified"
         session.commit()
         if await storage_writer.size(temp_path) != file.size:
             raise ValueError("SIZE_MISMATCH")
 
-        _raise_if_cancelled(session, task)
+        _check_task_state(session, task)
         task.status = "renaming"
         session.commit()
         await storage_writer.rename(temp_path, target_path)
@@ -348,6 +423,7 @@ async def _process_transfer_task(
         session.commit()
 
     task.status = "completed"
+    task.speed_bytes_per_sec = 0
     task.completed_at = datetime.now(UTC)
     _add_log(session, task.id, "info", "transfer_completed", "任务已完成。")
     session.commit()
@@ -369,6 +445,11 @@ async def process_dtl_task(
         tw = target_writer or SmbWriter(SmbConfig.from_dict(task.storage_config_snapshot or {}))
         await _cleanup_downloading_files(session, task, tw)
         return task
+    except TaskPaused:
+        task.speed_bytes_per_sec = 0
+        _add_log(session, task.id, "info", "task_paused_by_worker", "Worker 检测到暂停状态，已停止写入并保留临时文件。")
+        session.commit()
+        return task
     except Exception as exc:
         _mark_task_failed(session, task, exc)
         return task
@@ -388,44 +469,61 @@ async def _process_dtl_task(
     source_writer = source_writer or SmbWriter(SmbConfig.from_dict(task.source_config_snapshot or {}))
     target_writer = target_writer or SmbWriter(SmbConfig.from_dict(task.storage_config_snapshot or {}))
     transfer_file = _get_or_create_dtl_file(session, task)
-    _raise_if_cancelled(session, task)
+    _check_task_state(session, task)
+
+    # Resume: reconcile temp file size with DB counters.
+    expected_size = transfer_file.size_bytes
+    existing_temp_size = 0
+    if await target_writer.exists(transfer_file.temp_path):
+        try:
+            existing_temp_size = int(await target_writer.size(transfer_file.temp_path))
+        except Exception:
+            existing_temp_size = 0
+    if expected_size and existing_temp_size > expected_size:
+        await target_writer.truncate(transfer_file.temp_path, 0)
+        existing_temp_size = 0
+    if existing_temp_size != transfer_file.done_bytes:
+        transfer_file.done_bytes = existing_temp_size
+        task.done_bytes = existing_temp_size
 
     task.status = "downloading"
+    task.speed_bytes_per_sec = 0
     transfer_file.status = "downloading"
-    _add_log(session, task.id, "info", "dtl_copy_started", "开始从 SMB 来源下载到本地媒体库。")
+    resume_log_event = "dtl_copy_resumed" if existing_temp_size > 0 else "dtl_copy_started"
+    resume_log_message = (
+        f"从断点 {existing_temp_size} 字节继续下载。" if existing_temp_size > 0 else "开始从 SMB 来源下载到本地媒体库。"
+    )
+    _add_log(session, task.id, "info", resume_log_event, resume_log_message)
     session.commit()
 
-    import time as time_mod
-    speed_start = time_mod.monotonic()
-    speed_bytes = 0
+    speed_tracker = _SpeedTracker()
 
-    with await source_writer.open_read(task.source_path) as input_file:
+    with await source_writer.open_read(task.source_path, offset=existing_temp_size) as input_file:
         with await target_writer.open_append(transfer_file.temp_path) as output_file:
             while True:
-                _raise_if_cancelled(session, task)
+                _check_task_state(session, task)
                 chunk = input_file.read(DTL_CHUNK_SIZE)
                 if not chunk:
                     break
                 output_file.write(chunk)
                 transfer_file.done_bytes += len(chunk)
                 task.done_bytes += len(chunk)
-                speed_bytes += len(chunk)
-                elapsed = time_mod.monotonic() - speed_start
-                if elapsed >= 1.0:
-                    task.speed_bytes_per_sec = int(speed_bytes / elapsed)
-                    speed_start = time_mod.monotonic()
-                    speed_bytes = 0
+                speed_tracker.add(len(chunk))
+                new_speed = speed_tracker.sample()
+                if new_speed is not None:
+                    task.speed_bytes_per_sec = new_speed
                 session.commit()
 
-    _raise_if_cancelled(session, task)
+    task.speed_bytes_per_sec = 0
+    session.commit()
+    _check_task_state(session, task)
     task.status = "verifying"
     transfer_file.status = "verified"
     session.commit()
-    expected_size = transfer_file.size_bytes
     if await target_writer.size(transfer_file.temp_path) != expected_size:
         raise ValueError("SIZE_MISMATCH")
 
-    _raise_if_cancelled(session, task)
+    _check_task_state(session, task)
     task.status = "renaming"
     session.commit()
     await target_writer.rename(transfer_file.temp_path, transfer_file.target_path)
@@ -589,10 +687,17 @@ async def _remove_empty_source_dirs(source_writer: StorageWriter, source_path: s
         parts.pop()
 
 
-def _raise_if_cancelled(session: Session, task: TransferTask) -> None:
+def _check_task_state(session: Session, task: TransferTask) -> None:
+    """Raise if the task has been cancelled or paused from another thread."""
     session.refresh(task)
     if task.status == "cancelled":
         raise TaskCancelled()
+    if task.status == "paused":
+        raise TaskPaused()
+
+
+def _raise_if_cancelled(session: Session, task: TransferTask) -> None:
+    _check_task_state(session, task)
 
 
 def _mark_task_failed(session: Session, task: TransferTask, exc: Exception) -> None:
