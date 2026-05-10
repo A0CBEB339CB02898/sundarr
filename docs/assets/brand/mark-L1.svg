@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · L1 — S with sun peeking through the waist
+
+  Concept: 完整粗体 S 覆盖在一颗太阳之上, 在 S 腰部 (几何中心) 挖一个
+  圆洞, 让太阳从那个洞里透出来. "太阳藏在 S 两弧之间" 的字面诠释.
+  Canvas: 64×64, radius 14
+  Colors driven by CSS custom properties; override fill via CSS vars:
+    mark-bg: terracotta badge
+    mark-fg: cream foreground
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     width="64" height="64" role="img" aria-label="Sundarr">
+  <title>Sundarr</title>
+  <defs>
+    <mask id="hole" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="white"/>
+      <circle cx="32" cy="32" r="5.5" fill="black"/>
+    </mask>
+  </defs>
+
+  <!-- Badge 底色 -->
+  <rect width="64" height="64" rx="14" ry="14" fill="var(--mark-bg, #d97642)"/>
+
+  <!-- 底层太阳圆盘 -->
+  <circle cx="32" cy="32" r="5.5" fill="var(--mark-fg, #f2ead8)"/>
+
+  <!-- S 字母 (中心被 mask 挖空, 露出底层太阳) -->
+  <text x="32" y="50" text-anchor="middle"
+        fill="var(--mark-fg, #f2ead8)"
+        font-family="Inter, -apple-system, 'Segoe UI', sans-serif"
+        font-weight="900" font-size="54" letter-spacing="-3"
+        mask="url(#hole)">S</text>
+</svg>
