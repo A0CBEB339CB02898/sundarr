@@ -253,6 +253,11 @@ Sonarr / Lidarr 等），沿用**圆角正方形徽章 + 单一主色底**的家
 品牌全称写作 **Sundar·r**——核心规则是两个 `r` 之间有一个中点，**用 accent
 terracotta 上色**。这是 Servarr 家族 `*arr` 后缀的视觉签名。
 
+**实现注意**：中间的 `·` 在小字号下会被字体 hinting 吃掉，并与右侧 `r`
+粘连。所以我们**不使用字符画点**，而是用真实 CSS 圆渲染，尺寸和间距按档
+以 px 驱动，小尺寸下的圆还会相对放大以保持可见度。`·` 字符仍保留在 DOM 中
+供屏幕阅读器朗读与复制粘贴，但视觉上被 `font-size: 0` 抑制。
+
 ```html
 <span class="wordmark">
   Sunda<span>r</span><span class="dot">·</span><span>r</span>
@@ -261,26 +266,39 @@ terracotta 上色**。这是 Servarr 家族 `*arr` 后缀的视觉签名。
 
 ```css
 .wordmark {
-  font-weight: 500;                  /* Inter 500 */
+  display: inline-flex;
+  align-items: center;                 /* 关键: 点精确落在 x-height 中线 */
+  font-weight: 500;                    /* Inter 500 */
   letter-spacing: -0.025em;
   color: var(--text);
+  /* 每档通过 --dot-size / --dot-gap 调整 */
 }
 .wordmark .dot {
-  color: var(--accent);              /* terracotta */
-  margin: 0 0.02em;
-  font-size: 0.62em;
-  position: relative; top: -0.14em;  /* 视觉上移至大写 x-height 上方 */
-  font-weight: 400;
+  display: inline-flex;
+  font-size: 0 !important;             /* 隐藏字符, 保留 a11y */
+  color: transparent;
+  width:  var(--dot-size);
+  height: var(--dot-size);
+  margin: 0 var(--dot-gap);
+}
+.wordmark .dot::before {
+  content: ""; display: block;
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background: var(--accent);           /* terracotta */
 }
 ```
 
-三档尺寸：
+三档尺寸（尺寸 / 点直径 / 两侧 gap）：
 
-| 档位 | 尺寸 | 用途 |
-|---|---|---|
-| `hero`   | 64 px | 文档封面、splash、关于页独立展示 |
-| `brand`  | 16 px | 顶栏、侧栏副标、导航品牌区 |
-| `inline` | 14 px | 正文引用；< 13 px 退化为不带点的 `Sundarr` |
+| 档位 | 字号 | 点直径 | 两侧间距 | 用途 |
+|---|---|---|---|---|
+| `hero`   | 64 px | 12 px | 8 px   | 文档封面、splash、关于页独立展示 |
+| `brand`  | 16 px | 5 px  | 3.5 px | 顶栏、侧栏副标、导航品牌区 |
+| `inline` | 14 px | 4.5 px| 3 px   | 正文引用；< 13 px 退化为不带点的 `Sundarr` |
+
+注意**小尺寸下点相对更大、间距相对更宽**（反直觉但正确）——抗锯齿会吞小圆，
+必须用 px 粒度校准、不能用 em 比例。
 
 组合规则："徽章 + 横向间距 10~14px + wordmark"。禁止全大写、禁止斜体、
 禁止移除中间的 `·`。

@@ -55,7 +55,10 @@ cover.html?variant=hero&subtitle=Sunday%20morning.%20Your%20cloud.%20Your%20NAS.
 ## Wordmark 规则（r · r rule）
 
 wordmark 的核心规则：`Sundarr` 渲染为 `Sunda r · r`，**中间的点用 `--accent`
-上色**，小号、上移、略细。这是 Servarr 家族 `*arr` 后缀的视觉签名。
+上色**，小号、垂直 x-height 居中。这是 Servarr 家族 `*arr` 后缀的视觉签名。
+
+**不要用字符画点**：`·`（U+00B7）在小字号下会被字体 hinting 吃掉，并与右侧
+`r` 粘连。用真实 CSS 圆渲染，保留字符在 DOM 中只做 a11y：
 
 ```html
 <span class="wordmark">
@@ -64,21 +67,40 @@ wordmark 的核心规则：`Sundarr` 渲染为 `Sunda r · r`，**中间的点�
 ```
 
 ```css
-.wordmark { font-weight: 500; letter-spacing: -0.025em; }
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  /* 档位默认 = brand */
+  --dot-size: 5px;
+  --dot-gap:  3.5px;
+}
 .wordmark .dot {
-  color: var(--accent);
-  margin: 0 0.02em;
-  font-size: 0.62em;
-  position: relative; top: -0.14em;
-  font-weight: 400;
+  display: inline-flex;
+  font-size: 0 !important;      /* 字符不可见 */
+  color: transparent;
+  width:  var(--dot-size);
+  height: var(--dot-size);
+  margin: 0 var(--dot-gap);
+}
+.wordmark .dot::before {
+  content: ""; display: block;
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background: var(--accent);
 }
 ```
 
-三档尺寸：
+三档尺寸（字号 / 点直径 / gap）：
 
-- **hero** 64 px — 文档封面 / splash / 关于页
-- **brand** 16 px — 顶栏 / 侧栏副标 / 导航品牌区
-- **inline** 14 px — 正文引用；&lt; 13 px 退化为 `Sundarr`
+| 档位 | 字号 | 点直径 | 两侧间距 | 用途 |
+|---|---|---|---|---|
+| **hero**   | 64 px | 12 px  | 8 px   | 文档封面、splash、关于页 |
+| **brand**  | 16 px | 5 px   | 3.5 px | 顶栏、侧栏副标、导航品牌区 |
+| **inline** | 14 px | 4.5 px | 3 px   | 正文引用；< 13 px 退化为 `Sundarr` |
+
+反直觉要点：**越小的字号，点要相对越大**——抗锯齿会吞掉小圆。
 
 ## 颜色锚点
 

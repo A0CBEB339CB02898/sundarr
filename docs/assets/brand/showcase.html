@@ -167,17 +167,45 @@
   .wordmark-grid .wm-cell .wm-desc {
     font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; }
 
-  /* Wordmark r·r rule (core) */
-  .wordmark { display: inline-flex; align-items: baseline;
+  /* ============================================================
+     Wordmark · r · r rule (core)
+     The middle dot is rendered as a REAL CSS circle, not the
+     U+00B7 character. This keeps it crisp at every size and
+     gives us pixel-accurate control over diameter and gap.
+     The original "·" is still in the markup for copy-paste /
+     screen readers, but is visually suppressed.
+     ============================================================ */
+  .wordmark { display: inline-flex; align-items: center;
     font-weight: 500; letter-spacing: -0.025em;
     color: var(--ink); white-space: nowrap; line-height: 1; }
   .wordmark .dot {
-    color: var(--accent); margin: 0 0.02em;
-    font-size: 0.62em; position: relative; top: -0.14em;
-    font-weight: 400; }
-  .wordmark[data-size="hero"]   { font-size: 64px; letter-spacing: -0.035em; }
-  .wordmark[data-size="brand"]  { font-size: 16px; }
-  .wordmark[data-size="inline"] { font-size: 14px; }
+    /* Hide the "·" character. Its text still reads aloud. */
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0 !important;
+    color: transparent;
+    /* Per-size dot diameter + gap driven by CSS vars, set below. */
+    width:  var(--dot-size, 6px);
+    height: var(--dot-size, 6px);
+    margin: 0 var(--dot-gap, 4px);
+    position: relative;
+  }
+  .wordmark .dot::before {
+    content: "";
+    display: block;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  /* Per-tier tuning. Small sizes get *relatively larger* dots +
+     wider gaps — the only way to keep the ring crisp and the
+     right-hand "r" from touching. */
+  .wordmark[data-size="hero"]   { font-size: 64px; letter-spacing: -0.035em;
+    --dot-size: 12px; --dot-gap: 8px; }
+  .wordmark[data-size="brand"]  { font-size: 16px;
+    --dot-size: 5px;  --dot-gap: 3.5px; }
+  .wordmark[data-size="inline"] { font-size: 14px;
+    --dot-size: 4.5px; --dot-gap: 3px; }
 
   /* --- scale test (§03) ---------------------------------------- */
   .scale-strip { padding: 36px 40px;
