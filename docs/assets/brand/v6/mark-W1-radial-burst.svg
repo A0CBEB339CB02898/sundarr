@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sundarr · W1 — Radial Burst
+  Archetype: logo-generator-skill / Radial Burst (282b7bd3..)
+  Principle: 8 rays from center, alternating lengths, precise
+  geometry, strong focal point.
+  Execution: solid core (r=8) + 8 rays at alternating short/long
+  lengths, stroke 3.5 round caps.
+  Concept: Sunday at its purest.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     width="100" height="100" role="img" aria-label="Sundarr">
+  <title>Sundarr · W1 Radial Burst</title>
+  <rect width="100" height="100" rx="22" ry="22"
+        fill="var(--mark-bg, #d97642)"/>
+  <g stroke="var(--mark-fg, #f2ead8)" stroke-width="3.5"
+     stroke-linecap="round">
+    <line x1="50" y1="36" x2="50" y2="22"/>
+    <line x1="64" y1="50" x2="78" y2="50"/>
+    <line x1="50" y1="64" x2="50" y2="78"/>
+    <line x1="36" y1="50" x2="22" y2="50"/>
+    <line x1="60" y1="40" x2="74" y2="26"/>
+    <line x1="60" y1="60" x2="74" y2="74"/>
+    <line x1="40" y1="60" x2="26" y2="74"/>
+    <line x1="40" y1="40" x2="26" y2="26"/>
+  </g>
+  <circle cx="50" cy="50" r="8" fill="var(--mark-fg, #f2ead8)"/>
+</svg>

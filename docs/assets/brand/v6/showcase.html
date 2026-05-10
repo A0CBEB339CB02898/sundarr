@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sundarr · v6 · Skill Archetypes</title>
+<style>
+  /* ===================================================================
+     v6 — Six canonical logo archetypes from op7418/logo-generator-skill.
+     Each variant is a faithful rendering of ONE named reference pattern,
+     with Sundarr's terracotta badge as the color anchor only.
+     Editorial paper presentation, per skill's "editorial" background style.
+     =================================================================== */
+  :root {
+    --bg:        #f3ede0;
+    --surface:   #fbf7ec;
+    --ink:       #1a1714;
+    --ink-soft:  rgba(26,23,20,0.58);
+    --ink-fade:  rgba(26,23,20,0.30);
+    --rule:      rgba(26,23,20,0.12);
+    --mark-bg:   #d97642;
+    --mark-fg:   #f2ead8;
+  }
+  :root[data-theme="dark"] {
+    --bg:        #0e0d0b;
+    --surface:   #1a1814;
+    --ink:       #f2ead8;
+    --ink-soft:  rgba(242,234,216,0.58);
+    --ink-fade:  rgba(242,234,216,0.28);
+    --rule:      rgba(242,234,216,0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .35s, color .35s; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 64px 56px 96px; }
+
+  .eyebrow { font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 500; color: var(--ink-soft); }
+  h1 { margin: 12px 0 0; font-size: 44px; font-weight: 500;
+    letter-spacing: -0.02em; line-height: 1.08; }
+  h1 em { font-style: normal; color: var(--ink-soft); }
+  .lede { margin: 20px 0 0; font-size: 15px; line-height: 1.65;
+    color: var(--ink-soft); max-width: 680px; }
+  .lede b { color: var(--ink); font-weight: 500; }
+  .lede a { color: var(--mark-bg); text-decoration: none;
+    border-bottom: 1px solid var(--mark-bg); }
+  .lede code { font-family: "JetBrains Mono", ui-monospace, monospace;
+    background: var(--surface); padding: 1px 6px; border-radius: 3px;
+    font-size: 12px; border: 1px solid var(--rule); }
+
+  .head-row { display: flex; align-items: flex-end;
+    justify-content: space-between; gap: 24px; flex-wrap: wrap;
+    margin-bottom: 64px; }
+
+  .control { display: inline-flex; gap: 1px; padding: 1px;
+    background: var(--rule); border-radius: 999px; }
+  .control button { border: 0; background: transparent;
+    padding: 7px 16px; font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-soft); border-radius: 999px;
+    cursor: pointer; font-family: inherit;
+    transition: background-color .2s, color .2s; }
+  .control button[aria-selected="true"] {
+    background: var(--ink); color: var(--bg); }
+
+  /* Principles belt */
+  .principles {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 32px; padding: 32px 0; margin-bottom: 56px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .principle {
+    font-size: 12px; line-height: 1.55; color: var(--ink-soft); }
+  .principle b { display: block; color: var(--ink); font-weight: 500;
+    font-size: 13px; margin-bottom: 4px;
+    letter-spacing: -0.005em; }
+  .principle .num { display: inline-block; width: 20px; height: 20px;
+    line-height: 20px; text-align: center;
+    font-size: 10px; font-family: "JetBrains Mono", ui-monospace, monospace;
+    color: var(--mark-bg); margin-right: 6px;
+    border: 1px solid var(--mark-bg); border-radius: 50%; font-weight: 600; }
+
+  .section-title { display: block; margin: 0 0 24px;
+    font-size: 18px; font-weight: 500; letter-spacing: -0.01em; }
+
+  /* Variant grid — editorial rule-based layout */
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    border-left: 1px solid var(--rule); }
+
+  .card {
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 48px 44px 40px;
+    display: flex; flex-direction: column; gap: 28px;
+    background: transparent;
+    transition: background-color .3s; }
+  .card:hover { background: var(--surface); }
+
+  .card .meta-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 18px;
+    border-bottom: 1px dotted var(--rule); }
+  .card .meta-head .code {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10.5px; letter-spacing: 0.14em;
+    color: var(--mark-bg); font-weight: 600; }
+  .card .meta-head .archetype {
+    font-size: 10.5px; letter-spacing: 0.12em;
+    color: var(--ink-fade); text-transform: uppercase; }
+
+  .card .stage {
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px 0 8px; }
+  .card .stage svg { width: 160px; height: 160px;
+    border-radius: 36px;
+    box-shadow: 0 1px 0 var(--rule); }
+
+  .card .meta-body { display: flex; flex-direction: column; gap: 8px; }
+  .card .title { margin: 0; font-size: 20px; font-weight: 600;
+    letter-spacing: -0.015em; }
+  .card .concept {
+    font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-fade); }
+  .card .concept .chip {
+    display: inline-block; padding: 2px 8px;
+    background: var(--mark-bg); color: var(--mark-fg);
+    border-radius: 3px; margin-right: 4px;
+    letter-spacing: 0.1em; font-size: 9.5px; font-weight: 500; }
+  .card .rationale {
+    font-size: 13px; line-height: 1.65;
+    color: var(--ink-soft); margin: 6px 0 0; }
+  .card .rationale b { color: var(--ink); font-weight: 500; }
+
+  .card .lesson {
+    margin-top: 4px; padding: 14px 16px;
+    background: var(--surface); border-left: 2px solid var(--mark-bg);
+    font-size: 11.5px; line-height: 1.55; color: var(--ink-soft);
+    font-style: italic; }
+  .card .lesson b { color: var(--ink); font-style: normal;
+    font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase;
+    font-size: 10.5px; margin-right: 6px; }
+
+  .card .pair {
+    display: flex; align-items: center; gap: 16px;
+    padding-top: 16px; border-top: 1px dotted var(--rule); }
+  .card .pair svg { width: 36px; height: 36px;
+    border-radius: 8px; flex-shrink: 0; }
+  .card .pair .wm { font-size: 18px; font-weight: 500;
+    letter-spacing: -0.02em; color: var(--ink); }
+  .card .pair .wm .dot { color: var(--mark-bg); margin: 0 0.08em;
+    font-size: 0.7em; position: relative; top: -0.08em; }
+
+  /* Scale test */
+  .scale-strip { margin-top: 72px;
+    border: 1px solid var(--rule); border-radius: 12px;
+    padding: 36px 40px; }
+  .scale-row { display: grid; grid-template-columns: repeat(6, 1fr);
+    gap: 20px; margin-top: 20px; }
+  .scale-col { display: flex; flex-direction: column;
+    align-items: center; gap: 10px; }
+  .scale-col .code { font-family: "JetBrains Mono",
+    ui-monospace, monospace; font-size: 10px;
+    letter-spacing: 0.12em; color: var(--mark-bg); font-weight: 600; }
+  .scale-col .sizes { display: flex; align-items: flex-end; gap: 10px; }
+  .scale-col .sizes figure { margin: 0; display: flex;
+    flex-direction: column; align-items: center; gap: 4px; }
+  .scale-col .sizes figcaption { font-size: 9px;
+    color: var(--ink-fade); font-family: "JetBrains Mono",
+    ui-monospace, monospace; }
+  .scale-col svg { border-radius: 4px; display: block; }
+
+  footer { margin-top: 72px; padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-size: 11px; letter-spacing: 0.06em;
+    color: var(--ink-fade);
+    display: flex; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; }
+  footer a { color: inherit; border-bottom: 1px solid currentColor;
+    text-decoration: none; }
+
+  @media (max-width: 860px) {
+    .wrap { padding: 40px 24px 64px; }
+    h1 { font-size: 32px; }
+    .principles { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .grid { grid-template-columns: 1fr; }
+    .scale-row { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head-row">
+    <div>
+      <div class="eyebrow">Sundarr · Identity Exploration · v6</div>
+      <h1>Six archetypes.<br/><em>Each a faithful rendering.</em></h1>
+      <p class="lede">
+        严格按 <a href="https://github.com/op7418/logo-generator-skill">op7418/logo-generator-skill</a>
+        文档里点名分析的五个经典参考作品来做。每款徽章精确复刻一个有名字的原型
+        —— <b>Radial Burst / Star Burst / Punched Circle / Gooey Nodes /
+        Infinity Loop / Arc Segments</b>。
+        Sundarr 的 terracotta 主题色作为<b>色彩锚点</b>保留；前景完全让给
+        skill 法则统治——<code>stroke 3–5</code>、<code>40%+ 留白</code>、
+        单一焦点、不对称张力、圆润负空间切口。
+      </p>
+    </div>
+    <div class="control" role="tablist" aria-label="theme">
+      <button data-theme="light" aria-selected="true">Paper</button>
+      <button data-theme="dark"  aria-selected="false">Ink</button>
+    </div>
+  </div>
+
+  <!-- ============== Skill's eight principles (abridged) ============== -->
+  <section class="principles">
+    <div class="principle">
+      <b><span class="num">1</span>Extreme simplicity</b>
+      Max 1–2 核心元素。
+    </div>
+    <div class="principle">
+      <b><span class="num">2</span>40%+ negative space</b>
+      留白是设计的一部分。
+    </div>
+    <div class="principle">
+      <b><span class="num">3</span>Stroke 2.5–4</b>
+      主元素线宽 3 / 副元素 2。
+    </div>
+    <div class="principle">
+      <b><span class="num">4</span>Asymmetric tension</b>
+      完美对称 = 无趣。
+    </div>
+    <div class="principle">
+      <b><span class="num">5</span>Single focal point</b>
+      眼睛立刻知道看哪。
+    </div>
+    <div class="principle">
+      <b><span class="num">6</span>Subtract, don't add</b>
+      不画的部分和画的同等重要。
+    </div>
+    <div class="principle">
+      <b><span class="num">7</span>Structural stability</b>
+      密集线群或实心块，不要纤弱。
+    </div>
+    <div class="principle">
+      <b><span class="num">8</span>Rounded cutouts</b>
+      挖洞必须是圆角，不是尖角。
+    </div>
+  </section>
+
+  <!-- ============== Symbol defs ============== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="goo-def">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="3"/>
+        <feColorMatrix mode="matrix"
+          values="1 0 0 0 0
+                  0 1 0 0 0
+                  0 0 1 0 0
+                  0 0 0 24 -10"/>
+      </filter>
+      <mask id="punches-def">
+        <rect width="100" height="100" fill="white"/>
+        <circle cx="40" cy="38" r="5" fill="black"/>
+        <circle cx="54" cy="42" r="3" fill="black"/>
+        <circle cx="38" cy="56" r="3" fill="black"/>
+        <circle cx="58" cy="60" r="4" fill="black"/>
+      </mask>
+    </defs>
+
+    <symbol id="W1" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <g stroke="var(--mark-fg)" stroke-width="3.5" stroke-linecap="round">
+        <line x1="50" y1="36" x2="50" y2="22"/>
+        <line x1="64" y1="50" x2="78" y2="50"/>
+        <line x1="50" y1="64" x2="50" y2="78"/>
+        <line x1="36" y1="50" x2="22" y2="50"/>
+        <line x1="60" y1="40" x2="74" y2="26"/>
+        <line x1="60" y1="60" x2="74" y2="74"/>
+        <line x1="40" y1="60" x2="26" y2="74"/>
+        <line x1="40" y1="40" x2="26" y2="26"/>
+      </g>
+      <circle cx="50" cy="50" r="8" fill="var(--mark-fg)"/>
+    </symbol>
+
+    <symbol id="W2" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <g stroke="var(--mark-fg)" stroke-width="3" stroke-linecap="round">
+        <line x1="50" y1="28" x2="50" y2="12"/>
+        <line x1="64" y1="31.5" x2="76" y2="20"/>
+        <line x1="72" y1="50" x2="88" y2="50"/>
+        <line x1="64" y1="68.5" x2="76" y2="80"/>
+        <line x1="50" y1="72" x2="50" y2="88"/>
+        <line x1="36" y1="68.5" x2="24" y2="80"/>
+        <line x1="28" y1="50" x2="12" y2="50"/>
+        <line x1="36" y1="31.5" x2="24" y2="20"/>
+      </g>
+    </symbol>
+
+    <symbol id="W3" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <circle cx="50" cy="50" r="28" fill="var(--mark-fg)"
+              mask="url(#punches-def)"/>
+    </symbol>
+
+    <symbol id="W4" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <g fill="var(--mark-fg)" filter="url(#goo-def)">
+        <circle cx="38" cy="58" r="16"/>
+        <circle cx="64" cy="42" r="12"/>
+        <circle cx="26" cy="38" r="5"/>
+        <circle cx="76" cy="62" r="4"/>
+      </g>
+    </symbol>
+
+    <symbol id="W5" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <path d="M 50 50
+               C 40 30, 20 30, 20 50
+               C 20 70, 40 70, 50 50
+               C 60 30, 80 30, 80 50
+               C 80 70, 60 70, 50 50 Z"
+            fill="none" stroke="var(--mark-fg)" stroke-width="5"
+            stroke-linejoin="round"/>
+    </symbol>
+
+    <symbol id="W6" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" ry="22" fill="var(--mark-bg)"/>
+      <path d="M 28.4 30.7 A 28 28 0 1 1 71.6 30.7"
+            fill="none" stroke="var(--mark-fg)" stroke-width="5"
+            stroke-linecap="round"/>
+      <circle cx="50" cy="22" r="5" fill="var(--mark-fg)"/>
+    </symbol>
+  </svg>
+
+  <!-- ============== Variants grid ============== -->
+  <span class="section-title">Six canonical archetypes</span>
+  <div class="grid">
+
+    <!-- W1 — Radial Burst -->
+    <article class="card">
+      <div class="meta-head">
+        <span class="code">W1 · RADIAL BURST</span>
+        <span class="archetype">ref · 282b7bd3</span>
+      </div>
+      <div class="stage"><svg viewBox="0 0 100 100"><use href="#W1"/></svg></div>
+      <div class="meta-body">
+        <h3 class="title">Radial Burst</h3>
+        <div class="concept">
+          <span class="chip">Sunday</span>
+          8 rays · alternating lengths · solid core
+        </div>
+        <p class="rationale">
+          skill 点名的 <b>Radial Burst</b> 原型的精确复刻：8 道射线从中心辐射，
+          交替短/长（14 / 22 单位），实心核 r=8。最直接的「Sunday」，
+          不绕弯子。
+        </p>
+        <div class="lesson">
+          <b>skill 说</b>Rhythm through repetition with variation。
+          重复中加一点变化，比规则重复更有生命力。
+        </div>
+      </div>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#W1"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+    </article>
+
+    <!-- W2 — Star Burst -->
+    <article class="card">
+      <div class="meta-head">
+        <span class="code">W2 · STAR BURST</span>
+        <span class="archetype">ref · 009244dc</span>
+      </div>
+      <div class="stage"><svg viewBox="0 0 100 100"><use href="#W2"/></svg></div>
+      <div class="meta-body">
+        <h3 class="title">Star Burst</h3>
+        <div class="concept">
+          <span class="chip">Sunday</span>
+          rays only · no core · star through absence
+        </div>
+        <p class="rationale">
+          同样 8 道射线，但<b>移除中心核</b>。
+          射线之间留出的星形空白就是 Sunday——
+          不画的部分创造了符号。和 W1 是对照实验。
+        </p>
+        <div class="lesson">
+          <b>skill 说</b>What you don't draw is as important as what you do.
+          不画的部分和画的同等重要。
+        </div>
+      </div>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#W2"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+    </article>
+
+    <!-- W3 — Punched Disc -->
+    <article class="card">
+      <div class="meta-head">
+        <span class="code">W3 · PUNCHED DISC</span>
+        <span class="archetype">ref · 4221df1d</span>
+      </div>
+      <div class="stage"><svg viewBox="0 0 100 100"><use href="#W3"/></svg></div>
+      <div class="meta-body">
+        <h3 class="title">Punched Disc</h3>
+        <div class="concept">
+          <span class="chip">Sunday</span>
+          <span class="chip">Arr</span>
+          solid disc · 4 asymmetric holes
+        </div>
+        <p class="rationale">
+          skill 的 <b>Punched Circle</b> 原型：实心大日轮 r=28，
+          被 4 个不对称圆孔穿透（左上重、右下轻）。
+          Sunday 和 *arr 目录的 figure-ground 统一——
+          日轮和打孔是同一个东西。
+        </p>
+        <div class="lesson">
+          <b>skill 说</b>Subtract rather than add.
+          减法比加法高级。
+        </div>
+      </div>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#W3"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+    </article>
+
+    <!-- W4 — Gooey Nodes -->
+    <article class="card">
+      <div class="meta-head">
+        <span class="code">W4 · GOOEY NODES</span>
+        <span class="archetype">ref · b541c30c</span>
+      </div>
+      <div class="stage"><svg viewBox="0 0 100 100"><use href="#W4"/></svg></div>
+      <div class="meta-body">
+        <h3 class="title">Gooey Nodes</h3>
+        <div class="concept">
+          <span class="chip">Media</span>
+          <span class="chip">Arr</span>
+          2 main · 2 satellite · SVG goo filter
+        </div>
+        <p class="rationale">
+          skill 的 <b>Gooey Nodes</b> 原型：两个主节点（r=16 / r=12）
+          + 两颗卫星（r=5 / r=4），用 SVG <code>&lt;filter&gt;</code>
+          的 goo effect 让它们有机融合。
+          媒体源流入 *arr 管道的液滴合流状态。
+        </p>
+        <div class="lesson">
+          <b>skill 说</b>Use SVG filters (goo effect) for sophistication.
+          合适的滤镜能把简单形状升格。
+        </div>
+      </div>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#W4"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+    </article>
+
+    <!-- W5 — Infinity Loop -->
+    <article class="card">
+      <div class="meta-head">
+        <span class="code">W5 · INFINITY</span>
+        <span class="archetype">ref · 09b239bb</span>
+      </div>
+      <div class="stage"><svg viewBox="0 0 100 100"><use href="#W5"/></svg></div>
+      <div class="meta-body">
+        <h3 class="title">Infinity Loop</h3>
+        <div class="concept">
+          <span class="chip">Arr</span>
+          single closed path · stroke 5 · no fill
+        </div>
+        <p class="rationale">
+          skill 的 <b>Infinity Loop</b> 原型：单一平滑闭合 bezier 路径，
+          stroke 5，纯轮廓。<b>*arr</b> 自动化的永续循环——
+          抓取、同步、入库，无穷无尽。
+        </p>
+        <div class="lesson">
+          <b>skill 说</b>One perfect element beats five mediocre ones.
+          一个完美元素胜过五个平庸元素。
+        </div>
+      </div>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#W5"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+    </article>
+
+    <!-- W6 — Punched Ring -->
+    <article class="card">
+      <div class="meta-head">
+        <span class="code">W6 · PUNCHED RING</span>
+        <span class="archetype">skill §1.2 arc + §punched</span>
+      </div>
+      <div class="stage"><svg viewBox="0 0 100 100"><use href="#W6"/></svg></div>
+      <div class="meta-body">
+        <h3 class="title">Punched Ring</h3>
+        <div class="concept">
+          <span class="chip">Sunday</span>
+          <span class="chip">Media</span>
+          open ring · Sunday dot at the breach
+        </div>
+        <p class="rationale">
+          skill §1.2 Arc Segments + §1.3 Punched 原则的复合：
+          厚描边环在 12 点方向开一个圆润切口，
+          一颗实心日轮 r=5 停在那个缺口上——
+          媒体容器的环在 Sunday 打开。
+        </p>
+        <div class="lesson">
+          <b>skill 说</b>Rounded negative space cuts.
+          挖的洞必须圆润。
+        </div>
+      </div>
+      <div class="pair">
+        <svg viewBox="0 0 100 100"><use href="#W6"/></svg>
+        <span class="wm">Sunda<span>r</span><span class="dot">·</span><span>r</span></span>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- ============== Scale test ============== -->
+  <section class="scale-strip">
+    <span class="section-title">Scale test · 48 / 24 / 16 px</span>
+    <div class="scale-row">
+      <div class="scale-col">
+        <span class="code">W1</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W1"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W1"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W1"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">W2</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W2"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W2"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W2"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">W3</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W3"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W3"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W3"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">W4</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W4"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W4"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W4"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">W5</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W5"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W5"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W5"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="scale-col">
+        <span class="code">W6</span>
+        <div class="sizes">
+          <figure><svg width="48" height="48" viewBox="0 0 100 100"><use href="#W6"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="24" height="24" viewBox="0 0 100 100"><use href="#W6"/></svg><figcaption>24</figcaption></figure>
+          <figure><svg width="16" height="16" viewBox="0 0 100 100"><use href="#W6"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>docs/assets/brand/v6 · 6 canonical archetypes</span>
+    <span>strict adherence to <a href="https://github.com/op7418/logo-generator-skill">op7418/logo-generator-skill</a></span>
+  </footer>
+
+</div>
+
+<script>
+  const root = document.documentElement;
+  const KEY = "sundarr-v6-theme";
+  const btns = document.querySelectorAll("[data-theme]");
+  function apply(v) {
+    root.setAttribute("data-theme", v);
+    btns.forEach(b => b.setAttribute("aria-selected",
+      b.dataset.theme === v ? "true" : "false"));
+    localStorage.setItem(KEY, v);
+  }
+  btns.forEach(b => b.addEventListener("click",
+    () => apply(b.dataset.theme)));
+  apply(localStorage.getItem(KEY) || "light");
+</script>
+</body>
+</html>
