@@ -2754,3 +2754,365 @@ h2 {
     transition: none;
   }
 }
+
+
+
+/* ================================================================ */
+/* Phase 7.8 Step 5 (c) · Storage page                              */
+/* docs/16-design-system.md §6.4 / §6.5 / §6.7 / §6.8 / §6.11 / §7.3 */
+/* ================================================================ */
+
+/* Storage · 页面布局 ----------------------------------------------- */
+.sg-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.sg-overview {
+  display: grid;
+  gap: var(--space-3);
+}
+.sg-overview-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+.sg-overview-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+.sg-overview-lead {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  max-width: 720px;
+  font-size: 14px;
+}
+.sg-overview-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .sg-overview-head {
+    flex-direction: column;
+  }
+  .sg-overview-head h2 {
+    font-size: 20px;
+  }
+}
+
+/* Storage · 连接列表（§6.7 Table） -------------------------------- */
+.sg-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+.sg-table-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--hairline);
+}
+.sg-table-count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-subtle);
+}
+.sg-table {
+  display: grid;
+}
+.sg-table-header {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.9fr) 260px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-5);
+  height: 32px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--hairline);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+.sg-row {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.9fr) 260px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-5);
+  min-height: 56px;
+  border-bottom: 1px solid var(--hairline);
+  transition: background-color var(--motion-fast) var(--ease-out);
+  font-size: 14px;
+}
+.sg-row:last-child {
+  border-bottom: none;
+}
+.sg-row:hover {
+  background: var(--surface-2);
+}
+.sg-col-status {
+  display: inline-flex;
+}
+.sg-col-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sg-col-title strong {
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sg-col-title small {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sg-col-account {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.sg-col-account small {
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+.sg-col-bindings {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sg-row-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* 响应式：平板折叠账号列；手机折成卡片 */
+@media (max-width: 1023px) {
+  .sg-table-header,
+  .sg-row {
+    grid-template-columns: 96px minmax(0, 1.4fr) minmax(0, 0.9fr) 220px;
+  }
+  .sg-table-header > :nth-child(3),
+  .sg-row > .sg-col-account {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .sg-table-header {
+    display: none;
+  }
+  .sg-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    padding: var(--space-4) var(--space-5);
+    gap: var(--space-2);
+  }
+  .sg-row > .sg-col-bindings {
+    color: var(--text-subtle);
+  }
+  .sg-row-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}
+
+/* Storage · 分页 -------------------------------------------------- */
+.sg-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--hairline);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.sg-pagination strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Storage · Modal (§6.11) ----------------------------------------- */
+.sg-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  z-index: 1000;
+  animation: sg-fade-in 140ms var(--ease-out);
+}
+:root[data-theme="light"] .sg-modal-overlay {
+  background: rgba(43, 31, 18, 0.35);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .sg-modal-overlay {
+    background: rgba(43, 31, 18, 0.35);
+  }
+}
+
+.sg-modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: var(--surface-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: sg-pop-in 180ms var(--ease-out);
+}
+.sg-modal-sm { max-width: 520px; }
+.sg-modal-lg { max-width: 760px; }
+
+.sg-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--hairline);
+}
+.sg-modal-head h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+.sg-modal-head .ui-eyebrow {
+  margin: 0 0 4px;
+}
+.sg-browse-subtitle {
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-subtle);
+}
+
+.sg-modal-body {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  overflow: auto;
+}
+
+.sg-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-2);
+}
+
+/* Storage · 表单栅格 ---------------------------------------------- */
+.sg-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+@media (max-width: 640px) {
+  .sg-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Storage · 删除确认 ---------------------------------------------- */
+.sg-danger-lede {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+.sg-danger-lede strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.sg-danger-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.sg-danger-hint em {
+  font-style: normal;
+  color: var(--text);
+  font-weight: 500;
+}
+.sg-bindings {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-sunken);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+}
+.sg-binding-row {
+  display: grid;
+  gap: 2px;
+}
+.sg-binding-row .ui-eyebrow {
+  margin: 0;
+}
+.sg-binding-row p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13.5px;
+  word-break: break-all;
+}
+
+/* Storage · Browse modal ------------------------------------------ */
+.sg-browse-body {
+  display: grid;
+  gap: var(--space-4);
+  min-height: 280px;
+}
+.sg-browse-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-3);
+  align-items: end;
+}
+@media (max-width: 640px) {
+  .sg-browse-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
+@keyframes sg-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes sg-pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sg-modal-overlay,
+  .sg-modal {
+    animation: none;
+  }
+}
