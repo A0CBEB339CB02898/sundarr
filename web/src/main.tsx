@@ -3138,6 +3138,7 @@ function StatusPanel() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isMutating, setIsMutating] = useState(false)
+  const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
 
   useEffect(() => { void loadHealth() }, [])
 
@@ -3149,6 +3150,7 @@ function StatusPanel() {
         api.get<{ enabled: boolean; running: boolean; pid: number | null }>('/worker/status'),
       ])
       setHealth(h); setWorkerState(w)
+      setLastCheckedAt(new Date())
     } catch (exc) {
       setHealth(null); setWorkerState(null)
       setError(exc instanceof Error ? exc.message : '无法读取系统状态。')
@@ -3164,56 +3166,127 @@ function StatusPanel() {
     finally { setIsMutating(false) }
   }
 
-  const items = health ? [
+  const items: { label: string; value: string }[] = health ? [
     { label: 'API', value: health.status },
-    { label: 'PostgreSQL', value: health.database },
+    { label: 'Database', value: health.database },
     { label: 'Redis', value: health.redis },
     { label: 'Worker', value: health.worker },
   ] : []
 
-  return (
-    <section className="panel" aria-labelledby="status-title">
-      <div className="panel-header-row">
-        <div>
-          <p className="panel-kicker">状态</p>
-          <h2 id="status-title">系统状态</h2>
-          <p>调用 GET /health，展示 API、PostgreSQL、Redis 和 Worker 的当前状态。</p>
-        </div>
-        <button className="primary-button" disabled={isLoading} onClick={() => void loadHealth()} type="button">{isLoading ? '刷新中' : '刷新状态'}</button>
-      </div>
+  const lastCheckedLabel = lastCheckedAt ? formatClock(lastCheckedAt) : '--:--:--'
 
-      {isLoading && !health ? <LoadingState message="正在读取系统状态。" /> : null}
-      {error ? <div className="inline-message error">{error}</div> : null}
+  return (
+    <section className="st-page" aria-labelledby="status-title">
+      <Card className="st-overview">
+        <div className="st-overview-head">
+          <div>
+            <p className="ui-eyebrow">状态</p>
+            <h2 id="status-title">系统状态概览</h2>
+            <p className="st-overview-lead">
+              调用 <code>GET /health</code> 与 <code>GET /worker/status</code>，展示 API、Database、Redis 与 Worker 的当前状态。
+            </p>
+          </div>
+          <div className="st-overview-actions">
+            <Button variant="primary" disabled={isLoading} onClick={() => void loadHealth()}>
+              {isLoading ? '刷新中' : '刷新状态'}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {isLoading && !health ? (
+        <Card>
+          <UILoadingState message="正在读取系统状态。" />
+        </Card>
+      ) : null}
+      {error ? (
+        <Card>
+          <UIErrorState message="请求失败" sub={error} />
+        </Card>
+      ) : null}
 
       {health ? (
         <>
-          <div className="status-grid">
+          <div className="st-grid" role="list" aria-label="系统状态卡片">
             {items.map((item) => (
-              <StatusCard key={item.label} label={item.label} value={item.value} />
+              <StatusCard key={item.label} label={item.label} value={item.value} lastChecked={lastCheckedLabel} />
             ))}
           </div>
-          {workerState && (
-            <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-              <button className="ghost-button" disabled={isMutating || !workerState.enabled} onClick={() => void toggleWorker(false)} type="button">暂停 Worker</button>
-              <button className="ghost-button" disabled={isMutating || workerState.enabled} onClick={() => void toggleWorker(true)} type="button">恢复 Worker</button>
-            </div>
-          )}
+
+          {workerState ? (
+            <Card className="st-worker-card">
+              <div className="st-worker-head">
+                <div>
+                  <p className="ui-eyebrow">Worker 控制</p>
+                  <strong className="st-worker-title">
+                    {workerState.enabled ? '已启用' : '已暂停'}
+                  </strong>
+                  <p className="st-worker-sub">
+                    PID <span className="st-mono">{workerState.pid ?? '--'}</span>
+                    {' · '}
+                    进程{workerState.running ? '运行中' : '未运行'}
+                  </p>
+                </div>
+                <div className="st-worker-actions">
+                  <Button
+                    variant="secondary"
+                    disabled={isMutating || !workerState.enabled}
+                    onClick={() => void toggleWorker(false)}
+                  >
+                    暂停 Worker
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={isMutating || workerState.enabled}
+                    onClick={() => void toggleWorker(true)}
+                  >
+                    恢复 Worker
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ) : null}
+
+          <Card emphasis="sunken" className="st-diag">
+            <details className="st-diag-details">
+              <summary className="st-diag-summary">
+                <span>
+                  <p className="ui-eyebrow">Diagnostics</p>
+                  <strong>原始 /health 返回</strong>
+                </span>
+                <span className="st-diag-chevron" aria-hidden="true">
+                  <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 4.5l3 3 3-3" />
+                  </svg>
+                </span>
+              </summary>
+              <pre className="st-diag-body">
+                {JSON.stringify({ health, worker: workerState }, null, 2)}
+              </pre>
+            </details>
+          </Card>
         </>
       ) : null}
-
-      <ApiClientPreview />
     </section>
   )
 }
 
-function StatusCard({ label, value }: { label: string; value: string }) {
-  const tone = value === 'ok' ? 'ok' : value === 'unknown' ? 'unknown' : 'error'
+function StatusCard({ label, value, lastChecked }: { label: string; value: string; lastChecked: string }) {
+  const tone: StatusTone =
+    value === 'ok' ? 'success' : value === 'unknown' ? 'paused' : 'danger'
   return (
-    <article className={`status-card ${tone}`}>
-      <span>{label}</span>
-      <strong>{statusLabel(value)}</strong>
-      <p>{statusDescription(label, value)}</p>
-    </article>
+    <Card className="st-card" data-tone={tone} role="listitem">
+      <p className="ui-eyebrow">{label}</p>
+      <h3 className="st-card-value">{statusLabel(value)}</h3>
+      <p className="st-card-line">
+        <span className="st-card-dot" aria-hidden="true" />
+        <span className="st-card-desc">{statusDescription(label, value)}</span>
+      </p>
+      <p className="st-card-meta">
+        <span>last checked</span>
+        <time>{lastChecked}</time>
+      </p>
+    </Card>
   )
 }
 
@@ -3789,6 +3862,14 @@ function formatDateTime(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('zh-CN')
+}
+
+function formatClock(date: Date) {
+  if (Number.isNaN(date.getTime())) return '--:--:--'
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  const ss = String(date.getSeconds()).padStart(2, '0')
+  return `${hh}:${mm}:${ss}`
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
