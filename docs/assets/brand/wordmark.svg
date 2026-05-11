@@ -21,9 +21,9 @@
   Font:       Inter / Medium
 
   Geometry of "r · r" cluster (absolute coords):
-    Sundar textLength = 213 (ends at x = 221)
-    dot: cx = 238, cy = 54, r = 7
-    final r: x = 252
+    Sundar textLength = 213 (ends at x = 249)
+    dot: cx = 266, cy = 54, r = 7
+    final r: x = 280
     ml gap = 10, mr gap = 7, mr/ml = 70%
 
   Coloring:
@@ -52,16 +52,16 @@
       fill: currentColor;
     }
     .wm-dot {
-      fill: var(--accent, currentColor);
+      fill: #d97642;
     }
   </style>
 
   <!-- Main cluster "Sundar" -->
-  <text class="wm-text" x="8" y="72" textLength="213" lengthAdjust="spacing">Sundar</text>
+  <text class="wm-text" x="36" y="72" textLength="213" lengthAdjust="spacing">Sundar</text>
 
   <!-- Middle dot: x-height midline, sized ~20% of font size -->
-  <circle class="wm-dot" cx="238" cy="54" r="7"/>
+  <circle class="wm-dot" cx="266" cy="54" r="7"/>
 
   <!-- Trailing "r" with optical compensation (mr ~70% of ml) -->
-  <text class="wm-text" x="252" y="72">r</text>
+  <text class="wm-text" x="280" y="72">r</text>
 </svg>
