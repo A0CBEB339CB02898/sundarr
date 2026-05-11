@@ -18,7 +18,7 @@
   ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
   ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?logo=postgresql&logoColor=white)
   ![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
-  ![License](https://img.shields.io/badge/License-Private-blue)
+  ![License](https://img.shields.io/badge/License-GPL--3.0-blue)
 </div>
 
 ---
@@ -214,7 +214,9 @@ Sundarr 采用暖色操作台风格设计：
 
 ## 许可证
 
-私人项目，仅供个人使用。
+本项目基于 [GNU General Public License v3.0](LICENSE) 开源。
+
+详见 [LICENSE](LICENSE) 文件。
 
 ---
 
