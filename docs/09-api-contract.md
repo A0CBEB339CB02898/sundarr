@@ -183,7 +183,7 @@ POST /transfers
   "target_path": "Movies/Interstellar.mkv",
   "source_type": null,
   "source_path": null,
-  "ingest_seen_file_id": null,
+  "sync_seen_file_id": null,
   "total_bytes": 0,
   "done_bytes": 0,
   "progress": 0,
@@ -323,13 +323,13 @@ POST /storage/config/test 会验证配置结构、路径合法性，并尝试真
 
 ---
 
-## 8. Download To Local
+## 8. Remote Media Library Sync
 
-下载到本地 API 用于管理“已挂载网盘 SMB 目录 -> 本地媒体库”的下载规则，并触发扫描和任务创建。
+远程媒体库同步 API 用于管理“远程媒体库 -> 本地媒体库”的同步规则，并触发扫描和任务创建。`download-to-local` API 属于历史实现命名，Phase 9 需要继续清理。
 
 媒体库 API 用于创建 movie / series / unclassified 等本地 NAS 逻辑媒体库，并将媒体库绑定到 Storage 模块中已配置的 SMB connection 和目录。
 
-下载到本地模块不得重复填写 SMB host/share/username/password。来源必须选择 Storage 模块中已配置的 SMB connection 和目录，目标必须选择已配置媒体库。
+远程媒体库和同步模块不得重复填写 SMB host/share/username/password。来源必须选择已配置远程媒体库，目标必须选择已配置本地媒体库。
 
 建议接口：
 
@@ -341,18 +341,25 @@ POST /media-libraries/{library_id}/update
 POST /media-libraries/{library_id}/enable
 POST /media-libraries/{library_id}/disable
 POST /media-libraries/{library_id}/test
-GET  /download-to-local/config
-POST /download-to-local/config/save
-GET  /download-to-local/bindings
-POST /download-to-local/bindings/create
-GET  /download-to-local/bindings/{binding_id}
-POST /download-to-local/bindings/{binding_id}/update
-POST /download-to-local/bindings/{binding_id}/enable
-POST /download-to-local/bindings/{binding_id}/disable
-POST /download-to-local/bindings/{binding_id}/test
-POST /download-to-local/scan
-GET  /download-to-local/discovered
-POST /download-to-local/tasks/create
+GET  /remote-media-libraries
+POST /remote-media-libraries/create
+GET  /remote-media-libraries/{library_id}
+POST /remote-media-libraries/{library_id}/update
+POST /remote-media-libraries/{library_id}/enable
+POST /remote-media-libraries/{library_id}/disable
+POST /remote-media-libraries/{library_id}/test
+GET  /sync/config
+POST /sync/config/save
+GET  /sync/bindings
+POST /sync/bindings/create
+GET  /sync/bindings/{binding_id}
+POST /sync/bindings/{binding_id}/update
+POST /sync/bindings/{binding_id}/enable
+POST /sync/bindings/{binding_id}/disable
+POST /sync/bindings/{binding_id}/test
+POST /sync/scan
+GET  /sync/discovered
+POST /sync/tasks/create
 ```
 
 全局配置响应示例：
@@ -385,11 +392,10 @@ Binding 响应示例：
 ```json
 {
   "id": "binding_movie",
-  "name": "电影下载",
+  "name": "电影同步",
   "enabled": true,
   "media_type": "movie",
-  "source_connection_id": "cloud_mount",
-  "source_path": "movie",
+  "remote_library_id": "remote_movie",
   "target_library_id": "library_movie",
   "delete_source_after_success": null,
   "delete_empty_source_dirs": null
@@ -401,11 +407,11 @@ Binding 响应示例：
 ```text
 API 不返回 SMB password 明文。
 media-libraries/test 接口由后端执行，验证媒体库目录可写。
-download-to-local/bindings/test 接口由后端执行，验证来源目录可读和目标媒体库目录可写。
+sync/bindings/test 接口由后端执行，验证远程媒体库目录可读和本地媒体库目录可写。
 scan 接口只触发扫描或返回扫描结果，不绕过网盘限制。
 tasks/create 接口只为 stable 且未绑定 task 的 discovered file 创建下载任务。
-下载任务复用 transfer_tasks，mode 为 download_to_local，link_id 为空，source_type 为 smb。
-binding 不明确时创建指向 unclassified 媒体库的下载任务。
+同步任务复用 transfer_tasks，目标 mode 为 sync，link_id 为空，source_type 为 smb。
+binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 ```
 
 创建下载任务响应示例：
@@ -420,14 +426,14 @@ binding 不明确时创建指向 unclassified 媒体库的下载任务。
       "resource_id": null,
       "link_id": null,
       "status": "pending",
-      "mode": "download_to_local",
+      "mode": "sync",
       "cloud_staging_path": null,
       "target_type": "smb",
       "target_library": "movie",
       "target_path": "Movie/Movie.mkv",
       "source_type": "smb",
       "source_path": "Movie/Movie.mkv",
-      "ingest_seen_file_id": "seen_001",
+      "sync_seen_file_id": "seen_001",
       "total_bytes": 0,
       "done_bytes": 0,
       "progress": 0,
@@ -472,15 +478,11 @@ RENAME_FAILED
 CLOUD_CLEANUP_FAILED
 TASK_CANCELLED
 WORKER_RECOVERY_REQUIRED
-INGEST_BINDING_NOT_FOUND
-INGEST_SOURCE_NOT_STABLE
-INGEST_SOURCE_PATH_INVALID
-INGEST_SOURCE_DELETE_FAILED
-INGEST_UNCLASSIFIED_REQUIRED
-DOWNLOAD_TO_LOCAL_BINDING_NOT_FOUND
-DOWNLOAD_TO_LOCAL_SOURCE_NOT_STABLE
-DOWNLOAD_TO_LOCAL_SOURCE_PATH_INVALID
-DOWNLOAD_TO_LOCAL_SOURCE_DELETE_FAILED
+SYNC_BINDING_NOT_FOUND
+SYNC_SOURCE_NOT_STABLE
+SYNC_SOURCE_PATH_INVALID
+SYNC_SOURCE_DELETE_FAILED
+SYNC_UNCLASSIFIED_REQUIRED
 SMB_CONNECTION_NOT_FOUND
 MEDIA_LIBRARY_NOT_FOUND
 MEDIA_LIBRARY_UNCLASSIFIED_REQUIRED
@@ -501,5 +503,5 @@ Storage settings API 不泄露 password。
 SMB 配置修改返回 STORAGE_CONFIG_CHANGED 相关任务影响。
 Storage API 可管理多个 SMB connection，且不泄露 SMB password。
 Media library API 可管理媒体库、测试本地目录并不泄露 SMB password。
-Download to local API 可管理来源目录到媒体库的 binding、测试来源/目标目录并触发扫描。
+Sync API 可管理远程媒体库到本地媒体库的 binding、测试来源/目标目录并触发扫描。
 ```

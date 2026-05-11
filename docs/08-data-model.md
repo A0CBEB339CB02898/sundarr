@@ -132,7 +132,7 @@ target_path TEXT NOT NULL
 source_type TEXT
 source_path TEXT
 source_config_snapshot JSONB
-ingest_seen_file_id TEXT
+sync_seen_file_id TEXT
 storage_config_snapshot JSONB
 total_bytes BIGINT NOT NULL DEFAULT 0
 done_bytes BIGINT NOT NULL DEFAULT 0
@@ -149,9 +149,9 @@ completed_at TIMESTAMP
 
 状态见 `docs/07-transfer-state-machine.md`。
 
-`link_id` 对搜索资源搬运任务必填；对下载到本地任务可为空。
+`link_id` 对搜索资源搬运任务必填；对同步任务可为空。
 
-`source_type`、`source_path`、`source_config_snapshot` 和 `ingest_seen_file_id`（也用于 download_to_local）用于记录搬运来源。`storage_config_snapshot` 用于判断任务是否使用旧 SMB 配置。
+`source_type`、`source_path`、`source_config_snapshot` 和 `sync_seen_file_id` 用于记录同步来源。`storage_config_snapshot` 用于判断任务是否使用旧 SMB 配置。历史 `ingest_seen_file_id` 字段已由 Phase 9 迁移为 `sync_seen_file_id`。
 
 ---
 
@@ -226,7 +226,7 @@ worker.concurrency
 source configuration
 media_libraries
 transfer 参数
-download_to_local 全局配置
+sync 全局配置
 ```
 
 规则：
@@ -244,7 +244,7 @@ password 空值更新表示保留旧值。
 
 状态：已实现。
 
-用途：保存可复用的 SMB 连接。下载到本地、媒体库目录和其他 SMB 相关模块只能引用 SMB connection，不重复保存 SMB 凭据。
+用途：保存可复用的 SMB 连接。远程媒体库、本地媒体库和其他 SMB 相关模块只能引用 SMB connection，不重复保存 SMB 凭据。
 
 字段建议：
 
@@ -304,11 +304,11 @@ API 不在媒体库中保存 SMB host/share/username/password。
 
 ---
 
-## 11. download_to_local_bindings
+## 11. sync_bindings
 
-状态：已实现。
+状态：已实现（由历史 download_to_local 结构重构而来，Phase 9 继续清理旧命名残留）。
 
-用途：保存已挂载网盘 SMB 目录到本地媒体库的下载规则。
+用途：保存远程媒体库到本地媒体库的同步规则。
 
 字段建议：
 
@@ -317,8 +317,7 @@ id TEXT PRIMARY KEY
 name TEXT NOT NULL
 enabled BOOLEAN NOT NULL DEFAULT TRUE
 media_type TEXT NOT NULL
-source_connection_id TEXT NOT NULL
-source_path TEXT NOT NULL
+remote_library_id TEXT NOT NULL
 target_library_id TEXT NOT NULL
 delete_source_after_success BOOLEAN
 delete_empty_source_dirs BOOLEAN
@@ -330,9 +329,9 @@ updated_at TIMESTAMP NOT NULL
 
 ```text
 media_type 允许 movie / series / unclassified，并应与目标媒体库类型一致。
-source_connection_id 必须引用已配置 SMB connection。
+remote_library_id 必须引用已配置 remote_media_libraries。
 target_library_id 必须引用已配置 media_libraries。
-source_path 是来源 SMB connection 的 base_path 内目录，通常是已挂载的网盘目录。
+来源目录来自 remote_library_id 对应远程媒体库的 connection_id 和 base_path，通常是已挂载的网盘目录。
 目标写入目录来自 target_library_id 对应媒体库的 connection_id 和 base_path。
 delete_source_after_success 为空时使用全局默认。
 delete_empty_source_dirs 为空时使用全局默认。
@@ -340,11 +339,11 @@ delete_empty_source_dirs 为空时使用全局默认。
 
 ---
 
-## 12. download_to_local_seen_files
+## 12. sync_seen_files
 
-状态：已实现。
+状态：已实现（由历史 download_to_local_seen_files 重构而来，Phase 9 继续清理旧命名残留）。
 
-用途：记录已扫描或已处理的来源文件，避免重复下载到本地。
+用途：记录已扫描或已处理的远程媒体库来源文件，避免重复同步到本地媒体库。
 
 字段建议：
 
@@ -364,7 +363,7 @@ updated_at TIMESTAMP NOT NULL
 规则：
 
 ```text
-source_fingerprint 由来源 SMB connection、来源目录和来源文件路径组成，用于避免重复发现同一路径。
+source_fingerprint 由远程媒体库、来源目录和来源文件路径组成，用于避免重复发现同一路径。
 status 至少包含 discovered / stable / queued / downloading / completed / failed / ignored。
 目录型资源可用目录路径和聚合 size/mtime 生成 fingerprint。
 ```
@@ -379,7 +378,7 @@ Source / Resource / ResourceLink 可读写。
 TransferTask / TransferFile 状态可持久化。
 SMB connection 可保存多个 SMB 连接配置。
 Media library 可引用 SMB connection 和本地目录。
-Download to local binding 可引用来源 SMB connection、来源目录和目标媒体库。
+Sync binding 可引用远程媒体库和本地媒体库。
 transfer_logs 可记录状态变化。
 敏感字段不会通过 API 明文返回。
 ```

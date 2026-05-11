@@ -1374,7 +1374,7 @@ async def aggregate_search(keyword: str, filters: SearchFilters) -> list[Resourc
 
 ### 14.2 搬运任务
 
-以下 cloud staging 流程已降级为可选扩展和本地测试抽象。近期主链路改为 Phase 8 的下载到本地：用户手动保存资源到网盘，NAS 或挂载服务将网盘远程挂载并通过 SMB 暴露，Sundarr 将来源目录正向绑定到本地媒体库，由 Worker 定时下载到媒体库绑定的 SMB 目录。
+以下 cloud staging 流程已降级为可选扩展和本地测试抽象。MVP 主链路统一命名为“远程媒体库同步到本地媒体库”：用户手动保存资源到网盘，NAS 或挂载服务将网盘远程挂载并通过 SMB 暴露，Sundarr 通过同步绑定连接远程媒体库和本地媒体库，由 Worker 定时同步到本地媒体库绑定的 SMB 目录。
 
 ```python
 async def run_transfer_task(task_id: str) -> None:
@@ -1591,15 +1591,15 @@ GET /transfers 任务列表 API
 download_to_local 全局配置                                        已实现
 ```
 
-#### Phase 8.2: 下载到本地绑定和扫描
+#### Phase 8.2: 同步绑定和扫描
 
 交付：
 
 ```text
-来源目录到媒体库 binding                                           已实现
+远程媒体库到本地媒体库 sync binding                                已实现
 SMB source scanner                                                已实现
 稳定文件/目录判断                                                   已实现
-download_to_local task 创建                                        已实现
+sync task 创建                                                     已实现
 ```
 
 #### Phase 8.3: Worker 下载执行
@@ -1618,7 +1618,7 @@ SMB source -> SMB target 下载 Worker                               已实现
 交付：
 
 ```text
-/app/download-to-local Web Console 页面                           已实现
+/app/remote-libraries Web Console 页面                            已实现
 /app/libraries Web Console 页面或等价媒体库管理入口                 已实现
 ```
 

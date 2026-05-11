@@ -46,7 +46,7 @@ SUNDARR_REDIS_URL=redis://:change_me@redis:6379/0
 ```text
 SUNDARR_DATABASE_URL 和 SUNDARR_REDIS_URL 属于 bootstrap 启动配置。
 修改启动配置通常需要重启。
-cloud staging root、download_to_local 配置、worker concurrency、SMB connections、source、media_libraries 等业务配置保存到数据库。
+cloud staging root、sync 配置、worker concurrency、SMB connections、source、media_libraries、remote_media_libraries 等业务配置保存到数据库。
 ```
 
 密码位置：
@@ -130,12 +130,12 @@ Sundarr 本地启动会自动检查数据库状态，在目标数据库不存在
 包括：
 
 ```text
-storage.smb（旧默认连接兼容入口）
 storage.smb_connections
 cloud.local.staging_root
-download_to_local 全局配置
-download_to_local bindings
-media_libraries
+sync 全局配置
+sync bindings
+media_libraries（本地媒体库）
+remote_media_libraries（远程媒体库）
 worker.enabled
 worker.concurrency，默认 2
 transfer 参数
@@ -156,7 +156,7 @@ POST /storage/config/save
 
 ## 4. SMB 配置
 
-SMB 配置支持多个连接。新功能应优先使用 SMB connection 表或等价 API；旧 `storage.smb` 只作为默认连接兼容入口保留。
+SMB 配置支持多个连接。新功能必须使用 SMB connection 表或等价 API；旧 `storage.smb` 属于 Phase 9 待清理兼容入口。
 
 SMB connection 配置结构：
 
@@ -184,7 +184,7 @@ password 留空表示保留旧值。
 保存某个 SMB connection 会中断使用该连接旧配置的运行中任务。
 真实 SMB 可用于本地手动开发测试。
 自动化测试仍不得依赖真实 SMB 服务器。
-媒体库和下载到本地模块只能引用 SMB connection 和目录，不重复填写 SMB 凭据。
+远程媒体库和本地媒体库只能引用 SMB connection 和目录，不重复填写 SMB 凭据。
 ```
 
 本地手动测试时，推荐先准备以下信息：
@@ -235,9 +235,9 @@ MVP 不开放 worker process 数量配置。后续如需多个 Worker 进程，�
 
 ---
 
-## 6. 下载到本地配置
+## 6. 远程媒体库同步配置
 
-下载到本地配置保存到数据库 settings 表、media_libraries 表和 download_to_local bindings 表。
+远程媒体库同步配置保存到数据库 settings 表、media_libraries 表、remote_media_libraries 表和 sync_bindings 表。`download_to_local` 相关配置名属于历史实现，Phase 9 需继续清理。
 
 全局配置建议：
 
@@ -267,11 +267,10 @@ Binding 配置建议：
 
 ```json
 {
-  "name": "电影下载",
+  "name": "电影同步",
   "enabled": true,
   "media_type": "movie",
-  "source_connection_id": "cloud_mount",
-  "source_path": "movie",
+  "remote_library_id": "remote_movie",
   "target_library_id": "library_movie",
   "delete_source_after_success": null,
   "delete_empty_source_dirs": null
@@ -281,10 +280,11 @@ Binding 配置建议：
 规则：
 
 ```text
-媒体库 connection_id 必须引用已配置 SMB connection。
-媒体库 base_path 是对应 SMB connection base_path 内的本地 NAS 目录。
-source_connection_id 必须引用已配置 SMB connection。
-source_path 是来源 SMB connection base_path 内的相对路径。
+本地媒体库 connection_id 必须引用已配置 SMB connection。
+本地媒体库 base_path 是对应 SMB connection base_path 内的本地 NAS 目录。
+远程媒体库 connection_id 必须引用已配置 SMB connection。
+远程媒体库 base_path 是来源 SMB connection base_path 内的相对路径。
+remote_library_id 必须引用已配置远程媒体库。
 target_library_id 必须引用已配置媒体库。
 media_type 支持 movie / series / unclassified。
 binding 不明确时进入 unclassified 媒体库。
@@ -338,6 +338,6 @@ SMB connection 修改无需重启。
 SMB connection 修改中断旧配置运行中任务。
 媒体库配置可持久化，并绑定到 SMB connection 下的目录。
 Source 配置可持久化。
-下载到本地配置可持久化。
+远程媒体库同步配置可持久化。
 敏感字段不会明文返回。
 ```

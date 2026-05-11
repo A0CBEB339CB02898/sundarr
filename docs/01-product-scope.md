@@ -45,7 +45,7 @@ Sundarr 从多个已配置来源聚合搜索结果。
 用户选择候选资源和目标媒体库。
 用户手动将资源保存到网盘。
 NAS 或挂载服务将网盘远程挂载为目录，并通过 SMB 暴露给 Sundarr。
-Sundarr 根据下载到本地绑定，将已挂载网盘 SMB 目录中的文件下载到对应本地媒体库目录。
+Sundarr 根据同步绑定，将远程媒体库中的文件同步到对应本地媒体库目录。
 下载期间写入 .downloading 临时文件。
 校验成功后 rename 为正式文件。
 最后按配置删除来源文件和空目录。
@@ -68,10 +68,11 @@ Redis 缓存和实时进度辅助
 Cloud Link Extractor
 Resource Library
 Mock/Local Cloud Provider
-下载到本地规范
-媒体库管理，支持创建 movie / series / unclassified 等本地媒体库
-媒体库绑定到某个 SMB 连接下的本地 NAS 目录
-挂载网盘来源目录正向绑定到某个媒体库
+远程媒体库同步到本地媒体库规范
+本地媒体库管理，支持创建 movie / series / unclassified 等本地媒体库
+本地媒体库绑定到某个 SMB 连接下的本地 NAS 目录
+远程媒体库绑定到某个 SMB 连接下的远程目录（如网盘挂载目录）
+同步绑定连接远程媒体库（来源）和本地媒体库（目标）
 应用内 SmbWriter
 LocalWriter 测试实现
 Transfer Worker
@@ -106,7 +107,7 @@ MVP 包含轻量 Web Console。
 查看任务状态和进度
 取消 / 重试任务
 显示 STORAGE_CONFIG_CHANGED 中断提示
-配置网盘目录到媒体库的下载到本地绑定
+配置远程媒体库到本地媒体库的同步绑定
 配置未分类目录
 ```
 
@@ -241,7 +242,7 @@ retryable = true
 
 媒体库在 Sundarr 中指本地 NAS 上的逻辑媒体目录，例如 movie、series、unclassified。MVP 需要提供媒体库管理模块，用于创建媒体库并绑定到某个 SMB 连接下的本地目录。
 
-“下载到本地”模块不直接重复配置目标 SMB 目录，而是将某个已挂载网盘 SMB 来源目录正向绑定到某个媒体库。Worker 定时扫描这些绑定，并将稳定文件下载到绑定媒体库的本地目录。
+同步模块不直接重复配置目标 SMB 目录，而是通过同步绑定连接远程媒体库（来源）和本地媒体库（目标）。Worker 定时扫描这些绑定，并将稳定文件同步到绑定的本地媒体库目录。
 
 媒体库管理是目录绑定管理能力，不等于完整媒体库 UI、海报墙、播放器或媒体刮削。
 
@@ -265,7 +266,8 @@ Playwright 重型抓取
 OpenList 核心搬运层
 rclone 核心传输层
 多 provider 一次性全量接入
-国内封闭网盘直接下载作为核心搬运层
+国内封闭网盘直接下载作为 MVP 核心搬运层
+将网盘直链下载（Cloud Direct Download）纳入 MVP 或近期主线
 绕过网盘 App、验证码、会员或风控限制
 真实媒体源通用爬虫框架
 通过 Web Console 配置复杂网站爬虫
@@ -288,6 +290,7 @@ NFO 生成
 多云盘 provider
 Sundarr 内配置挂载网盘
 保存到网盘
+网盘直链下载（Cloud Direct Download，高级功能）
 AI / 外部数据辅助自动分类
 rclone driver
 OpenList 可选后端

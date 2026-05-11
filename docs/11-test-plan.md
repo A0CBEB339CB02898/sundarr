@@ -197,30 +197,30 @@ cleanup refuses staging root and outside path
 cancel / retry / cleanup / recovery writes transfer_logs
 ```
 
-Phase 8 下载到本地必须覆盖：
+Phase 8 远程媒体库同步到本地媒体库必须覆盖：
 
 ```text
 多 SMB connection 配置校验                                          已覆盖 (test_smb_connections.py)
 SMB connection password 不回显                                     已覆盖 (test_smb_connections.py)
 媒体库只能引用 SMB connection 和本地目录                              已覆盖 (test_media_libraries.py)
 媒体库至少覆盖 movie / series / unclassified                        已覆盖 (test_media_libraries.py)
-下载到本地 binding 只能引用来源 SMB connection、来源目录和目标媒体库    已覆盖 (test_download_to_local.py)
+同步 binding 只能引用远程媒体库和本地媒体库                          已覆盖 (test_sync.py)
 来源路径 traversal 防护                                              已覆盖 (test_download_to_local.py)
 媒体库目标路径 traversal 防护                                        已覆盖 (test_media_libraries.py)
-文件稳定性判断                                                       已覆盖 (test_download_to_local.py)
+文件稳定性判断                                                       已覆盖 (test_sync.py)
 目录型资源稳定性判断                                                  待覆盖
 binding 匹配 movie / series                                         已覆盖 (test_download_to_local.py)
-binding 不明确时进入 unclassified 媒体库                              待覆盖（Worker 实现后）
+binding 不明确时进入 unclassified 本地媒体库                          待覆盖
 SMB source -> SMB target 的 Worker 任务领取规则                    已覆盖 (test_worker.py)
 LocalWriter 替身覆盖 source -> target 的下载成功路径                 已覆盖 (test_worker.py)
 .downloading 写入、size 校验、rename                                已覆盖 (test_worker.py)
 成功后删除源文件                                                     已覆盖 (test_worker.py)
 成功后删除空目录                                                     已覆盖 (test_worker.py)
 失败时保留源文件和 .downloading                                     已覆盖 (test_worker.py)
-重复扫描不重复创建任务                                                已覆盖 (test_download_to_local.py)
+重复扫描不重复创建任务                                                已覆盖 (test_sync.py)
 ```
 
-真实挂载目录下载到本地属于手动集成验收，不纳入默认 pytest。手动验收必须使用测试目录和测试文件，避免误删正式媒体库。
+真实挂载目录同步到本地媒体库属于手动集成验收，不纳入默认 pytest。手动验收必须使用测试目录和测试文件，避免误删正式媒体库。
 
 ---
 
@@ -243,11 +243,11 @@ GET /storage/smb-connections
 POST /storage/smb-connections/create
 GET /media-libraries
 POST /media-libraries/create
-GET /download-to-local/config
-POST /download-to-local/config/save
-GET /download-to-local/bindings
-POST /download-to-local/bindings/create
-POST /download-to-local/scan
+GET /remote-media-libraries
+POST /remote-media-libraries/create
+GET /sync/bindings
+POST /sync/bindings/create
+POST /sync/scan
 统一错误响应
 ```
 
@@ -270,9 +270,9 @@ SMB 配置表单不显示 password 明文
 STORAGE_CONFIG_CHANGED 提示可显示
 配置类页面先展示列表，通过新增按钮弹出表单，不默认展开空新增表单
 媒体库页面可创建本地媒体库目录绑定
-下载到本地页面不显示 SMB password 明文
-下载到本地页面绑定目标为媒体库，不重复配置目标 SMB 凭据
-下载到本地页面可手动触发扫描
+远程媒体库页面不显示 SMB password 明文
+同步页面绑定目标为本地媒体库，不重复配置目标 SMB 凭据
+远程媒体库页面可手动触发扫描
 亮色 / 暗色 / 跟随系统主题可切换
 移动端布局可读可操作
 ```

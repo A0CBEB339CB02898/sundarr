@@ -328,16 +328,17 @@ retryable = true
 
 ---
 
-## ADR-009: 真实网盘直接下载不作为近期主链路
+## ADR-009: 真实网盘直接下载不包含在 MVP 中
 
 状态：已确认。
 
 决策：
 
 ```text
-国内封闭网盘不作为 Sundarr 近期直接下载主链路。
+国内封闭网盘直接下载不包含在 Sundarr MVP 中。
+网盘直链下载（Cloud Direct Download）仅作为后续高级功能保留规格，不进入 MVP 主线。
 CloudProvider 保留为可选扩展和测试抽象，但不承诺 MVP 接入真实网盘直接下载。
-近期主链路改为下载到本地：NAS 或挂载服务挂载网盘后通过 SMB 暴露来源目录，Sundarr 将网盘来源目录正向绑定到本地媒体库，并由 Worker 定时下载到媒体库绑定的 SMB 目录。
+MVP 主链路统一命名为“远程媒体库同步到本地媒体库”：NAS 或挂载服务挂载网盘后通过 SMB 暴露远程媒体库目录，Sundarr 将远程媒体库绑定到本地媒体库，并由 Worker 定时同步到本地媒体库绑定的 SMB 目录。
 ```
 
 理由：
@@ -352,13 +353,14 @@ NAS 或挂载服务已能将网盘远程挂载为目录，Sundarr 通过 SMB 处
 配套决策：
 
 ```text
-新增 Download To Local 作为 Phase 8。
+Phase 8 “下载到本地”是历史阶段命名；当前规范命名统一为“远程媒体库同步到本地媒体库”。
 
-SMB 连接由 Storage 模块统一管理并支持多个连接；媒体库和下载到本地模块只引用 SMB connection 和目录，不重复保存 SMB 凭据。
-媒体库指本地 NAS 逻辑目录类型，例如 movie / series / unclassified。
-媒体库管理模块负责创建媒体库，并绑定到某个 SMB connection 下的本地目录。
-下载到本地模块负责将网盘来源 SMB connection 和目录正向绑定到某个媒体库。
-绑定不明确时进入 unclassified 媒体库。
+SMB 连接由 Storage 模块统一管理并支持多个连接；远程媒体库和本地媒体库只引用 SMB connection 和目录，不重复保存 SMB 凭据。
+本地媒体库指本地 NAS 逻辑目录类型，例如 movie / series / unclassified。
+本地媒体库管理模块负责创建本地媒体库，并绑定到某个 SMB connection 下的本地目录。
+远程媒体库负责绑定网盘来源 SMB connection 和远程目录。
+同步绑定负责连接远程媒体库（来源）和本地媒体库（目标）。
+绑定不明确时进入 unclassified 本地媒体库。
 成功后按全局或 binding 配置删除源文件和空目录。
 AI Friendly API 后移到后续阶段。
 后续大阶段再考虑在 Sundarr 内挂载网盘和保存分享链接到网盘。

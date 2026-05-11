@@ -9,13 +9,18 @@
               holes — a catalog of media punched into the day.
               Sunday AND *arr, figure AND ground, in one mark.
 
-  Geometry:
+  UI Geometry:
     Canvas  100x100 · Badge radius 22 · Disc radius 28
     Holes (asymmetric, upper-left heavy):
-      (40, 38) r=5   largest, anchors the weight
-      (54, 42) r=3   small satellite upper-right
-      (38, 56) r=3   small satellite lower-left
-      (58, 60) r=4   medium lower-right
+      (40, 38) r=7    largest, anchors the weight
+      (54, 42) r=4.5  small satellite upper-right
+      (38, 56) r=4.5  small satellite lower-left
+      (58, 60) r=5.5  medium lower-right
+
+  Web Console renders the punches as terracotta circles on top of
+  the cream disc instead of using an SVG mask. This is visually the
+  same punched-disc idea, but survives 34/46px UI sizes where tiny
+  mask holes can disappear due to anti-aliasing.
 
   Colors are driven by CSS custom properties; fall-back values
   keep the file self-contained in plain <img> contexts:
@@ -28,20 +33,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
      width="100" height="100" role="img" aria-label="Sundarr">
   <title>Sundarr</title>
-  <defs>
-    <mask id="sundarr-punches" maskUnits="userSpaceOnUse"
-          x="0" y="0" width="100" height="100">
-      <rect width="100" height="100" fill="white"/>
-      <circle cx="40" cy="38" r="5" fill="black"/>
-      <circle cx="54" cy="42" r="3" fill="black"/>
-      <circle cx="38" cy="56" r="3" fill="black"/>
-      <circle cx="58" cy="60" r="4" fill="black"/>
-    </mask>
-  </defs>
-
   <rect width="100" height="100" rx="22" ry="22"
         fill="var(--mark-bg, #d97642)"/>
   <circle cx="50" cy="50" r="28"
-          fill="var(--mark-fg, #f2ead8)"
-          mask="url(#sundarr-punches)"/>
+          fill="var(--mark-fg, #f2ead8)"/>
+  <circle cx="40" cy="38" r="7"
+          fill="var(--mark-bg, #d97642)"/>
+  <circle cx="54" cy="42" r="4.5"
+          fill="var(--mark-bg, #d97642)"/>
+  <circle cx="38" cy="56" r="4.5"
+          fill="var(--mark-bg, #d97642)"/>
+  <circle cx="58" cy="60" r="5.5"
+          fill="var(--mark-bg, #d97642)"/>
 </svg>

@@ -82,6 +82,7 @@ AI Tool API -> docs/14-ai-tool-api-spec.md
 下载到本地 -> docs/15-download-to-local-spec.md
 前端设计系统 -> docs/16-design-system.md
 系统模块梳理 -> docs/17-system-module-review.md
+网盘直链下载 -> docs/18-cloud-direct-download-spec.md
 Agent 工作规则 -> AGENTS.md
 ```
 
@@ -110,16 +111,17 @@ SMB 配置可在 Web Console 修改并热加载。
 SMB 配置修改会中断使用旧 SMB 配置的运行中任务。
 被中断任务进入 failed，错误码 STORAGE_CONFIG_CHANGED，retryable=true。
 被中断任务保留 .downloading 文件和 cloud staging。
-真实网盘直接下载不作为近期主链路，CloudProvider 保留为可选扩展。
-Phase 8 模块命名为“下载到本地”：从已挂载的网盘 SMB 目录下载到本地 SMB 媒体库目录。
+真实网盘直接下载不包含在 MVP 中，仅作为后续高级功能实现，CloudProvider 保留为可选扩展和测试抽象。
+Phase 8 “下载到本地”是历史阶段命名；当前规范命名统一为“远程媒体库同步到本地媒体库”。
 未来“分享链接保存到网盘”模块命名为“保存到网盘”。
-SMB 存储模块必须支持多个 SMB 连接，媒体库和下载到本地模块只能引用已配置 SMB 连接和目录，不重复填写 SMB 凭据。
-媒体库指本地 NAS 媒体目录类型，例如 movie / series / unclassified。
-媒体库管理模块负责创建媒体库，并绑定到某个 SMB 连接下的本地目录。
-下载到本地模块负责将某个已挂载网盘 SMB 目录正向绑定到某个媒体库。
-Worker 定时扫描下载到本地绑定，将来源目录内容下载到绑定的本地媒体库目录。
-下载到本地支持 movie / series / unclassified，绑定不明确时进入 unclassified 媒体库。
-下载到本地成功后按配置删除来源文件和空目录。
+SMB 存储模块必须支持多个 SMB 连接，远程媒体库和本地媒体库只能引用已配置 SMB 连接和目录，不重复填写 SMB 凭据。
+本地媒体库指本地 NAS 媒体目录类型，例如 movie / series / unclassified。
+本地媒体库管理模块负责创建本地媒体库，并绑定到某个 SMB 连接下的本地目录。
+远程媒体库负责绑定 SMB 连接下的远程目录（如网盘挂载目录）。
+同步绑定负责连接远程媒体库（来源）和本地媒体库（目标）。
+Worker 定时扫描同步绑定，将远程媒体库内容同步到绑定的本地媒体库目录。
+同步支持 movie / series / unclassified，绑定不明确时进入 unclassified 本地媒体库。
+同步成功后按配置删除来源文件和空目录。
 Web Console 中配置类页面默认先展示列表，通过新增按钮打开弹出表单，不默认展开空新增表单。
 媒体库管理是 MVP 的目录绑定管理能力，不等于完整媒体库 UI、海报墙或播放器。
 当前已实现的是媒体源框架和示例源，不是真实网站 Adapter。
@@ -133,6 +135,7 @@ Web Console 是核心控制台，不做完整媒体库 UI。
 本地媒体库绑定 SMB 连接下的本地 NAS 目录。
 同步绑定连接：远程媒体库（来源） -> 本地媒体库（目标）。
 Phase 9 模块重构：删除 Ingest 模块和旧 storage_config_service，新增远程媒体库模型，重构同步绑定。
+Phase 9 是下一步优先任务，用于统一术语、代码路径和维护边界。
 前端设计系统基线文档位于 docs/16-design-system.md，在 Phase 7.8 Web Console UI Polish 中落地。
 前端视觉基调：暖色操作台风格，强调色为 terracotta（暗色 #d97642 / 亮色 #b05623），字体 Inter + JetBrains Mono，支持亮色 / 暗色 / 跟随系统三种主题。
 ```
@@ -196,6 +199,7 @@ Playwright 重型抓取
 OpenList 作为核心搬运层
 rclone 作为 MVP 核心传输层
 国内封闭网盘直接下载作为 MVP 核心搬运层
+将网盘直链下载（Cloud Direct Download）纳入 MVP 或近期主线
 真实媒体源通用爬虫框架
 通过 Web Console 配置复杂网站爬虫
 在配置或数据库中保存可执行 Python 代码
@@ -225,6 +229,8 @@ Phase 9: Module Refactoring
 Phase 10: Real Site Source Adapters
 Phase 11: AI Friendly API
 ```
+
+Phase 12 Cloud Direct Download 不包含在 MVP 中，仅作为后续高级功能保留规格文档。
 
 不得提前实现后续阶段的大型功能，除非当前阶段验收需要或用户明确要求。
 

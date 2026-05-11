@@ -20,6 +20,8 @@
   --text-disabled: #b8ad97;
 
   /* Accent (terracotta) ------------------------------------------- */
+  --mark-bg: #b05623;
+  --mark-fg: #fdfaf2;
   --accent: #b05623;
   --accent-hover: #c6663a;
   --accent-pressed: #8f4219;
@@ -106,6 +108,8 @@
     --text-disabled: #585143;
 
     --accent: #d97642;
+    --mark-bg: #d97642;
+    --mark-fg: #f2ead8;
     --accent-hover: #e68a58;
     --accent-pressed: #b85d2d;
     --accent-tint: rgba(217, 118, 66, 0.14);
@@ -142,6 +146,8 @@
   --text-disabled: #585143;
 
   --accent: #d97642;
+  --mark-bg: #d97642;
+  --mark-fg: #f2ead8;
   --accent-hover: #e68a58;
   --accent-pressed: #b85d2d;
   --accent-tint: rgba(217, 118, 66, 0.14);
@@ -219,32 +225,61 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 14px;
+  color: var(--text);
 }
 
 .brand-mark {
-  display: grid;
   width: 46px;
   height: 46px;
-  place-items: center;
-  border-radius: var(--radius-xl);
-  background: var(--accent);
-  color: var(--bg);
-  font-size: 24px;
-  font-weight: 900;
+  flex: 0 0 auto;
+  color: var(--accent);
+  filter: drop-shadow(0 2px 5px rgba(43, 31, 18, 0.10));
 }
 
-.brand p,
+.brand-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.brand-wordmark {
+  display: block;
+  width: 112px;
+  height: auto;
+  color: var(--text);
+}
+
+.brand-wordmark-text {
+  fill: currentColor;
+  font-family: var(--font-sans);
+  font-size: 70px;
+  font-weight: 500;
+  letter-spacing: -1.2px;
+}
+
+.brand-wordmark-dot {
+  fill: var(--accent);
+}
+
 .brand small {
   margin: 0;
-}
-
-.brand p {
-  font-size: 19px;
-  font-weight: 850;
-}
-
-.brand small {
   color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.brand[data-compact="true"] .brand-mark {
+  width: 34px;
+  height: 34px;
+}
+
+.brand[data-compact="true"] .brand-wordmark {
+  width: 92px;
+}
+
+.brand[data-compact="true"] small {
+  display: none;
 }
 
 .nav-list {
@@ -306,7 +341,6 @@ button:disabled {
 .theme-switcher {
   display: grid;
   gap: 10px;
-  margin-top: auto;
 }
 
 .theme-switcher > span {
@@ -319,7 +353,7 @@ button:disabled {
 
 .theme-switcher > div {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, 32px);
   gap: 4px;
   padding: 3px;
   background: var(--surface-sunken);
@@ -328,16 +362,28 @@ button:disabled {
 }
 
 .theme-button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 10px;
+  padding: 0;
   transition: background-color var(--motion-fast) var(--ease-out),
               color var(--motion-fast) var(--ease-out);
+}
+
+.theme-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .theme-button:hover {
@@ -350,12 +396,35 @@ button:disabled {
   box-shadow: var(--shadow-sm);
 }
 
+.utility-bar {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-5);
+  z-index: 35;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.utility-bar .theme-switcher {
+  padding: var(--space-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  box-shadow: var(--shadow-sm);
+  pointer-events: auto;
+}
+
+.utility-bar .theme-switcher > span {
+  display: none;
+}
+
 .content-shell {
   display: grid;
   align-content: start;
   gap: 28px;
   padding: 42px;
-  padding-right: 112px;
+  padding-right: 312px;
 }
 
 .page-header {
@@ -1067,56 +1136,6 @@ h2 {
   outline: 3px solid rgba(166, 95, 32, 0.14);
 }
 
-.ingest-section {
-  display: grid;
-  gap: 18px;
-  border: 1px solid rgba(23, 32, 38, 0.1);
-  border-radius: 26px;
-  background: #fffaf1;
-  padding: 24px;
-}
-
-.endpoint-fieldset {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  border: 1px solid rgba(23, 32, 38, 0.1);
-  border-radius: 22px;
-  padding: 18px;
-}
-
-.endpoint-fieldset legend {
-  color: var(--accent-strong);
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.discovered-row {
-  display: grid;
-  grid-template-columns: minmax(90px, auto) minmax(0, 1fr) minmax(160px, 0.55fr) minmax(160px, 0.45fr);
-  align-items: center;
-  gap: 12px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.64);
-  color: var(--text);
-  padding: 14px;
-}
-
-.discovered-row strong,
-.discovered-row small {
-  overflow-wrap: anywhere;
-}
-
-.discovered-row small {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 800;
-}
-
 .source-note-field,
 .source-config-field,
 .source-form-wide {
@@ -1332,6 +1351,20 @@ h2 {
     grid-template-columns: 1fr;
   }
 
+  .utility-bar {
+    top: 58px;
+    right: 12px;
+  }
+
+  .utility-bar .theme-switcher {
+    padding: 2px;
+  }
+
+  .utility-bar .theme-button {
+    width: 30px;
+    height: 30px;
+  }
+
   .content-shell,
   .panel {
     padding: 20px;
@@ -1471,8 +1504,8 @@ h2 {
 
 .toast-container {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: 78px;
+  right: var(--space-5);
   z-index: 2000;
   display: flex;
   flex-direction: column;
@@ -1584,7 +1617,7 @@ h2 {
 
 @media (max-width: 560px) {
   .toast-container {
-    top: 12px;
+    top: 112px;
     right: 12px;
     left: 12px;
     width: auto;
@@ -1632,16 +1665,11 @@ h2 {
     gap: var(--space-3);
   }
   .top-bar .brand-mark {
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-md);
-    font-size: 18px;
+    width: 34px;
+    height: 34px;
   }
-  .top-bar .brand p {
-    font-size: 15px;
-  }
-  .top-bar .brand small {
-    display: none;
+  .top-bar .brand-wordmark {
+    width: 92px;
   }
   .top-bar-actions {
     display: inline-flex;
@@ -1699,6 +1727,24 @@ h2 {
   .content-shell {
     padding: var(--space-4);
     padding-right: var(--space-4);
+    padding-top: var(--space-5);
+  }
+
+  .utility-bar {
+    top: 9px;
+    right: 64px;
+    z-index: 36;
+  }
+
+  .utility-bar .theme-switcher {
+    padding: 2px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-sunken);
+  }
+
+  .utility-bar .theme-button {
+    width: 30px;
+    height: 30px;
   }
 }
 

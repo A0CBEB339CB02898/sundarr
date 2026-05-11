@@ -11,6 +11,7 @@ import {
   EmptyState as UIEmptyState,
   ErrorState as UIErrorState,
   Kbd,
+  BrandLockup,
 } from './ui'
 import type { StatusTone } from './ui'
 
@@ -55,7 +56,6 @@ type TransferResponse = {
   target_path: string
   source_type: string | null
   source_path: string | null
-  ingest_seen_file_id: string | null
   sync_seen_file_id: string | null
   total_bytes: number
   done_bytes: number
@@ -245,83 +245,6 @@ type SourceFormState = {
   legal_note: string
   trust_level: string
   config_json: string
-}
-
-type IngestMediaType = 'movie' | 'series' | 'unclassified'
-
-type IngestConfigResponse = {
-  delete_source_after_success: boolean
-  delete_empty_source_dirs: boolean
-  scan_interval_seconds: number
-  stable_seconds: number
-  unclassified_target_path: string
-}
-
-type IngestSmbEndpointResponse = {
-  host: string
-  port: number
-  share: string
-  username: string
-  password_set: boolean
-  domain: string
-  base_path: string
-}
-
-type IngestBindingResponse = {
-  id: string
-  name: string
-  enabled: boolean
-  media_type: IngestMediaType
-  source_smb: IngestSmbEndpointResponse
-  target_smb: IngestSmbEndpointResponse
-  delete_source_after_success: boolean | null
-  delete_empty_source_dirs: boolean | null
-  created_at: string | null
-  updated_at: string | null
-}
-
-type IngestBindingListResponse = {
-  count: number
-  results: IngestBindingResponse[]
-}
-
-type IngestDiscoveredFileResponse = {
-  id: string
-  binding_id: string | null
-  source_fingerprint: string
-  source_path: string
-  source_size: number | null
-  source_mtime: string | null
-  status: string
-  task_id: string | null
-  created_at: string | null
-  updated_at: string | null
-}
-
-type IngestDiscoveredListResponse = {
-  count: number
-  results: IngestDiscoveredFileResponse[]
-}
-
-type IngestScanResponse = {
-  scanned_bindings: number
-  discovered_count: number
-  stable_count: number
-  results: IngestDiscoveredFileResponse[]
-}
-
-type IngestTaskCreateResponse = {
-  created_count: number
-  skipped_count: number
-  tasks: TransferResponse[]
-}
-
-type IngestBindingTestResponse = {
-  ok: boolean
-  source_ok: boolean
-  target_ok: boolean
-  error_code: string | null
-  error_message: string | null
 }
 
 type MediaLibraryResponse = {
@@ -564,37 +487,6 @@ type MediaLibraryFormState = {
   base_path: string
 }
 
-type IngestFormState = {
-  id: string
-  name: string
-  enabled: boolean
-  media_type: IngestMediaType
-  source_host: string
-  source_port: string
-  source_share: string
-  source_username: string
-  source_password: string
-  source_domain: string
-  source_base_path: string
-  target_host: string
-  target_port: string
-  target_share: string
-  target_username: string
-  target_password: string
-  target_domain: string
-  target_base_path: string
-  delete_source_after_success: '' | 'true' | 'false'
-  delete_empty_source_dirs: '' | 'true' | 'false'
-}
-
-type IngestConfigFormState = {
-  delete_source_after_success: boolean
-  delete_empty_source_dirs: boolean
-  scan_interval_seconds: string
-  stable_seconds: string
-  unclassified_target_path: string
-}
-
 const navItems: NavItem[] = [
   { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
   { key: 'search', path: '/app/search', label: '搜索', description: '搜索资源并创建搬运任务' },
@@ -750,13 +642,7 @@ function App() {
   return (
     <div className="app-shell">
       <header className="top-bar" role="banner">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">S</span>
-          <div>
-            <p>Sundarr</p>
-            <small>Web Console</small>
-          </div>
-        </div>
+        <BrandLockup compact />
         <div className="top-bar-actions">
           <button
             className="icon-button"
@@ -780,13 +666,7 @@ function App() {
         aria-hidden="true"
       />
       <aside className="sidebar" aria-label="主导航" data-open={isDrawerOpen || undefined}>
-        <div className="brand">
-          <span className="brand-mark">S</span>
-          <div>
-            <p>Sundarr</p>
-            <small>Web Console</small>
-          </div>
-        </div>
+        <BrandLockup />
         <nav className="nav-list">
           {navItems.map((item) => (
             <button
@@ -801,8 +681,10 @@ function App() {
             </button>
           ))}
         </nav>
-        <ThemeSwitcher mode={themeMode} onChange={setThemeMode} />
       </aside>
+      <div className="utility-bar">
+        <ThemeSwitcher mode={themeMode} onChange={setThemeMode} />
+      </div>
 
       <main className="content-shell">
         <PageHeader activePage={activePage} />
@@ -852,12 +734,45 @@ function ThemeSwitcher({ mode, onChange }: { mode: ThemeMode; onChange: (mode: T
       <span>主题</span>
       <div>
         {(['light', 'dark', 'system'] as ThemeMode[]).map((item) => (
-          <button className="theme-button" data-active={mode === item} key={item} onClick={() => onChange(item)} type="button">
-            {themeModeLabel(item)}
+          <button
+            aria-label={`切换到${themeModeLabel(item)}`}
+            aria-pressed={mode === item}
+            className="theme-button"
+            data-active={mode === item}
+            key={item}
+            onClick={() => onChange(item)}
+            title={themeModeLabel(item)}
+            type="button"
+          >
+            <ThemeModeIcon mode={item} />
           </button>
         ))}
       </div>
     </div>
+  )
+}
+
+function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
+  if (mode === 'light') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
+      </svg>
+    )
+  }
+  if (mode === 'dark') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20.3 14.4A7.8 7.8 0 0 1 9.6 3.7 8.7 8.7 0 1 0 20.3 14.4Z" />
+      </svg>
+    )
+  }
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="5" width="16" height="11" rx="2" />
+      <path d="M9 20h6M12 16v4" />
+    </svg>
   )
 }
 
@@ -920,372 +835,6 @@ function PagePanel({
       </div>
       <ApiClientPreview />
     </section>
-  )
-}
-
-function IngestPanel({ onTransfersChanged }: { onTransfersChanged: () => Promise<void> }) {
-  const [configForm, setConfigForm] = useState<IngestConfigFormState>(emptyIngestConfigForm())
-  const [bindings, setBindings] = useState<IngestBindingResponse[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [form, setForm] = useState<IngestFormState>(emptyIngestForm())
-  const [mode, setMode] = useState<'create' | 'edit'>('create')
-  const [discovered, setDiscovered] = useState<IngestDiscoveredFileResponse[]>([])
-  const [scanResult, setScanResult] = useState<IngestScanResponse | null>(null)
-  const [createdTasks, setCreatedTasks] = useState<IngestTaskCreateResponse | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isScanning, setIsScanning] = useState(false)
-  const [isCreatingTasks, setIsCreatingTasks] = useState(false)
-
-  useEffect(() => {
-    void loadIngest()
-  }, [])
-
-  const selectedBinding = bindings.find((binding) => binding.id === selectedId) || null
-
-  async function loadIngest(nextSelectedId = selectedId) {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const [config, bindingList, discoveredList] = await Promise.all([
-        api.get<IngestConfigResponse>('/ingest/config'),
-        api.get<IngestBindingListResponse>('/ingest/bindings'),
-        api.get<IngestDiscoveredListResponse>('/ingest/discovered'),
-      ])
-      setConfigForm(ingestConfigFormFromResponse(config))
-      setBindings(bindingList.results)
-      setDiscovered(discoveredList.results)
-      const nextBinding = bindingList.results.find((binding) => binding.id === nextSelectedId) || bindingList.results[0] || null
-      if (nextBinding) {
-        selectBinding(nextBinding, false)
-      } else {
-        startCreate()
-      }
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '无法读取挂载网盘导入配置。')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  function selectBinding(binding: IngestBindingResponse, clearFeedback = true) {
-    setMode('edit')
-    setSelectedId(binding.id)
-    setForm(ingestFormFromResponse(binding))
-    if (clearFeedback) {
-      setMessage(null)
-      setError(null)
-      setScanResult(null)
-      setCreatedTasks(null)
-    }
-  }
-
-  function startCreate() {
-    setMode('create')
-    setSelectedId(null)
-    setForm(emptyIngestForm())
-    setMessage(null)
-    setError(null)
-    setScanResult(null)
-    setCreatedTasks(null)
-  }
-
-  async function saveConfig() {
-    setIsSaving(true)
-    setError(null)
-    setMessage(null)
-    try {
-      const saved = await api.post<IngestConfigResponse>('/ingest/config/save', ingestConfigRequestFromForm(configForm))
-      setConfigForm(ingestConfigFormFromResponse(saved))
-      setMessage('导入全局配置已保存。')
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '保存导入全局配置失败。')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  async function saveBinding() {
-    const actionText = mode === 'create' ? '创建导入绑定' : '保存导入绑定'
-    if (!window.confirm(`确认${actionText}？`)) return
-    setIsSaving(true)
-    setError(null)
-    setMessage(null)
-    try {
-      const payload = ingestBindingRequestFromForm(form)
-      const saved = mode === 'create'
-        ? await api.post<IngestBindingResponse>('/ingest/bindings/create', payload)
-        : await api.post<IngestBindingResponse>(`/ingest/bindings/${encodeURIComponent(form.id)}/update`, omitId(payload))
-      setMessage(mode === 'create' ? '导入绑定已创建。' : '导入绑定已保存。')
-      await loadIngest(saved.id)
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '保存导入绑定失败。')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  async function toggleBinding(enabled: boolean) {
-    if (!selectedBinding) return
-    if (!window.confirm(`确认${enabled ? '启用' : '禁用'}导入绑定 ${selectedBinding.name}？`)) return
-    setIsSaving(true)
-    setError(null)
-    setMessage(null)
-    try {
-      const action = enabled ? 'enable' : 'disable'
-      const updated = await api.post<IngestBindingResponse>(`/ingest/bindings/${encodeURIComponent(selectedBinding.id)}/${action}`)
-      setMessage(enabled ? '导入绑定已启用。' : '导入绑定已禁用。')
-      await loadIngest(updated.id)
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '切换导入绑定状态失败。')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  async function testBinding() {
-    if (!selectedBinding) {
-      setError('请先选择已保存的导入绑定。')
-      return
-    }
-    setIsSaving(true)
-    setError(null)
-    setMessage(null)
-    try {
-      const result = await api.post<IngestBindingTestResponse>(`/ingest/bindings/${encodeURIComponent(selectedBinding.id)}/test`)
-      setMessage(result.ok ? '导入绑定配置结构测试通过。' : `${result.error_code || 'INGEST_TEST_FAILED'}：${result.error_message || '导入绑定测试失败。'}`)
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '测试导入绑定失败。')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  async function scanSources(bindingId?: string) {
-    setIsScanning(true)
-    setError(null)
-    setMessage(null)
-    setScanResult(null)
-    try {
-      const result = await api.post<IngestScanResponse>('/ingest/scan', bindingId ? { binding_id: bindingId } : {})
-      setScanResult(result)
-      setMessage(`扫描完成：发现 ${result.discovered_count} 个新文件，稳定 ${result.stable_count} 个文件。`)
-      const discoveredList = await api.get<IngestDiscoveredListResponse>('/ingest/discovered')
-      setDiscovered(discoveredList.results)
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '扫描来源目录失败。')
-    } finally {
-      setIsScanning(false)
-    }
-  }
-
-  async function createTasks(bindingId?: string) {
-    setIsCreatingTasks(true)
-    setError(null)
-    setMessage(null)
-    setCreatedTasks(null)
-    try {
-      const result = await api.post<IngestTaskCreateResponse>('/ingest/tasks/create', bindingId ? { binding_id: bindingId } : {})
-      setCreatedTasks(result)
-      setMessage(`已创建 ${result.created_count} 个导入任务，跳过 ${result.skipped_count} 个文件。`)
-      const discoveredList = await api.get<IngestDiscoveredListResponse>('/ingest/discovered')
-      setDiscovered(discoveredList.results)
-      window.dispatchEvent(new Event('sundarr:transfers-changed'))
-      await onTransfersChanged()
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '创建导入任务失败。')
-    } finally {
-      setIsCreatingTasks(false)
-    }
-  }
-
-  function updateField(key: keyof IngestFormState, value: string | boolean) {
-    setForm((current) => ({ ...current, [key]: value }))
-  }
-
-  function updateConfigField(key: keyof IngestConfigFormState, value: string | boolean) {
-    setConfigForm((current) => ({ ...current, [key]: value }))
-  }
-
-  return (
-    <section className="panel" aria-labelledby="ingest-title">
-      <div className="panel-header-row">
-        <div>
-          <p className="panel-kicker">导入</p>
-          <h2 id="ingest-title">挂载网盘导入</h2>
-          <p>从 SMB 来源目录扫描稳定文件，创建 ingest 任务后由 Worker 写入目标 SMB 媒体库。</p>
-        </div>
-        <button className="ghost-button" disabled={isLoading} onClick={() => void loadIngest()} type="button">
-          {isLoading ? '读取中' : '重新读取'}
-        </button>
-      </div>
-
-      {message ? <div className="notice-card"><strong>操作完成</strong><p>{message}</p></div> : null}
-      {error ? <ErrorState message={error} /> : null}
-      {isLoading ? <LoadingState message="正在读取导入配置、绑定和发现文件。" /> : null}
-
-      <section className="ingest-section" aria-labelledby="ingest-config-title">
-        <div className="section-heading"><h3 id="ingest-config-title">全局配置</h3><span>影响默认清理和稳定性判断</span></div>
-        <form className="storage-form" onSubmit={(event) => { event.preventDefault(); void saveConfig() }}>
-          <div className="checkbox-field source-form-wide">
-            <label><input checked={configForm.delete_source_after_success} onChange={(event) => updateConfigField('delete_source_after_success', event.target.checked)} type="checkbox" />导入成功后删除源文件</label>
-          </div>
-          <div className="checkbox-field source-form-wide">
-            <label><input checked={configForm.delete_empty_source_dirs} onChange={(event) => updateConfigField('delete_empty_source_dirs', event.target.checked)} type="checkbox" />删除变为空的来源目录</label>
-          </div>
-          <TextField helper="两次扫描之间文件 size/mtime 不变超过该秒数后才创建任务。" label="Stable Seconds" onChange={(value) => updateConfigField('stable_seconds', value)} type="number" value={configForm.stable_seconds} />
-          <TextField helper="后续自动扫描使用；当前页面可手动触发扫描。" label="Scan Interval Seconds" onChange={(value) => updateConfigField('scan_interval_seconds', value)} type="number" value={configForm.scan_interval_seconds} />
-          <TextField helper="绑定不明确时进入的目标目录，相对目标 SMB base path。" label="Unclassified Target Path" onChange={(value) => updateConfigField('unclassified_target_path', value)} value={configForm.unclassified_target_path} />
-          <div className="form-actions"><button className="primary-button" disabled={isSaving} type="submit">{isSaving ? '保存中' : '保存全局配置'}</button></div>
-        </form>
-      </section>
-
-      <div className="sources-layout">
-        <section className="source-list" aria-labelledby="ingest-binding-list-title">
-          <div className="section-heading"><h3 id="ingest-binding-list-title">导入绑定</h3><span>{bindings.length} 个</span></div>
-          <button className="source-row create-row" onClick={startCreate} type="button"><strong>新建导入绑定</strong><small>配置 SMB 来源和 SMB 目标目录</small></button>
-          {bindings.length === 0 ? <EmptyState message="暂无导入绑定。" /> : null}
-          {bindings.map((binding) => (
-            <button className="source-row" data-selected={selectedId === binding.id} key={binding.id} onClick={() => selectBinding(binding)} type="button">
-              <span>{ingestMediaTypeLabel(binding.media_type)} · {binding.enabled ? '已启用' : '已禁用'}</span>
-              <strong>{binding.name}</strong>
-              <small>{binding.source_smb.share}:{binding.source_smb.base_path} → {binding.target_smb.share}:{binding.target_smb.base_path}</small>
-            </button>
-          ))}
-        </section>
-
-        <section className="source-editor" aria-labelledby="ingest-binding-editor-title">
-          <div className="section-heading"><h3 id="ingest-binding-editor-title">{mode === 'create' ? '创建绑定' : '编辑绑定'}</h3><span>{selectedBinding ? selectedBinding.id : 'new'}</span></div>
-          <form className="source-form" onSubmit={(event) => { event.preventDefault(); void saveBinding() }}>
-            <TextField disabled={mode === 'edit'} helper="唯一 ID，保存后不可改。" label="Binding ID" onChange={(value) => updateField('id', value)} required value={form.id} />
-            <TextField helper="页面展示名称。" label="名称" onChange={(value) => updateField('name', value)} required value={form.name} />
-            <label className="field">
-              <span>媒体类型</span>
-              <select onChange={(event) => updateField('media_type', event.target.value as IngestMediaType)} value={form.media_type}>
-                <option value="movie">电影</option>
-                <option value="series">剧集</option>
-                <option value="unclassified">未分类</option>
-              </select>
-              <small>用于写入目标 library 和后续分类。</small>
-            </label>
-            <div className="checkbox-field"><label><input checked={form.enabled} onChange={(event) => updateField('enabled', event.target.checked)} type="checkbox" />启用绑定</label></div>
-            <EndpointFields form={form} kind="source" onChange={updateField} passwordSet={selectedBinding?.source_smb.password_set || false} title="来源 SMB" />
-            <EndpointFields form={form} kind="target" onChange={updateField} passwordSet={selectedBinding?.target_smb.password_set || false} title="目标 SMB" />
-            <TriStateField helper="为空时使用全局配置。" label="成功后删除源文件" onChange={(value) => updateField('delete_source_after_success', value)} value={form.delete_source_after_success} />
-            <TriStateField helper="为空时使用全局配置。" label="删除空来源目录" onChange={(value) => updateField('delete_empty_source_dirs', value)} value={form.delete_empty_source_dirs} />
-            <div className="form-actions">
-              <button className="primary-button" disabled={isSaving} type="submit">{isSaving ? '保存中' : mode === 'create' ? '创建绑定' : '保存绑定'}</button>
-              <button className="ghost-button" disabled={!selectedBinding || isSaving} onClick={() => void testBinding()} type="button">测试绑定</button>
-              <button className="secondary-button" disabled={!selectedBinding || isSaving || selectedBinding?.enabled === false} onClick={() => void toggleBinding(false)} type="button">禁用</button>
-              <button className="secondary-button" disabled={!selectedBinding || isSaving || selectedBinding?.enabled === true} onClick={() => void toggleBinding(true)} type="button">启用</button>
-            </div>
-          </form>
-        </section>
-      </div>
-
-      <section className="ingest-section" aria-labelledby="ingest-actions-title">
-        <div className="section-heading"><h3 id="ingest-actions-title">扫描与任务</h3><span>{discovered.length} 个发现文件</span></div>
-        <div className="action-row">
-          <button className="primary-button" disabled={isScanning} onClick={() => void scanSources()} type="button">{isScanning ? '扫描中' : '扫描全部启用绑定'}</button>
-          <button className="ghost-button" disabled={!selectedBinding || isScanning} onClick={() => void scanSources(selectedBinding?.id)} type="button">扫描当前绑定</button>
-          <button className="secondary-button" disabled={isCreatingTasks} onClick={() => void createTasks()} type="button">{isCreatingTasks ? '创建中' : '为稳定文件创建任务'}</button>
-          <button className="ghost-button" disabled={!selectedBinding || isCreatingTasks} onClick={() => void createTasks(selectedBinding?.id)} type="button">仅当前绑定创建任务</button>
-        </div>
-        {scanResult ? <IngestScanSummary result={scanResult} /> : null}
-        {createdTasks ? <IngestTaskSummary result={createdTasks} /> : null}
-        <DiscoveredFiles files={discovered} />
-      </section>
-
-      <ApiClientPreview />
-    </section>
-  )
-}
-
-function EndpointFields({
-  form,
-  kind,
-  onChange,
-  passwordSet,
-  title,
-}: {
-  form: IngestFormState
-  kind: 'source' | 'target'
-  onChange: (key: keyof IngestFormState, value: string | boolean) => void
-  passwordSet: boolean
-  title: string
-}) {
-  const prefix = kind === 'source' ? 'source' : 'target'
-  return (
-    <fieldset className="endpoint-fieldset">
-      <legend>{title}</legend>
-      <TextField helper="SMB 主机名或 IP，不要带共享名。" label="Host" onChange={(value) => onChange(`${prefix}_host` as keyof IngestFormState, value)} required value={String(form[`${prefix}_host` as keyof IngestFormState])} />
-      <TextField helper="SMB 端口，通常为 445。" label="Port" onChange={(value) => onChange(`${prefix}_port` as keyof IngestFormState, value)} required type="number" value={String(form[`${prefix}_port` as keyof IngestFormState])} />
-      <TextField helper="共享名，即 \\host\share 中的 share。" label="Share" onChange={(value) => onChange(`${prefix}_share` as keyof IngestFormState, value)} required value={String(form[`${prefix}_share` as keyof IngestFormState])} />
-      <TextField helper="SMB 登录账号。" label="Username" onChange={(value) => onChange(`${prefix}_username` as keyof IngestFormState, value)} required value={String(form[`${prefix}_username` as keyof IngestFormState])} />
-      <TextField helper="域或工作组；个人 NAS 通常留空。" label="Domain" onChange={(value) => onChange(`${prefix}_domain` as keyof IngestFormState, value)} value={String(form[`${prefix}_domain` as keyof IngestFormState])} />
-      <TextField helper="共享内根目录；来源填挂载网盘目录，目标填媒体库目录。" label="Base Path" onChange={(value) => onChange(`${prefix}_base_path` as keyof IngestFormState, value)} value={String(form[`${prefix}_base_path` as keyof IngestFormState])} />
-      <TextField
-        helper={passwordSet ? '已保存密码且不会回显。留空保存表示保留旧密码。' : 'SMB 密码；保存后不会回显。'}
-        label="Password"
-        onChange={(value) => onChange(`${prefix}_password` as keyof IngestFormState, value)}
-        type="password"
-        value={String(form[`${prefix}_password` as keyof IngestFormState])}
-      />
-    </fieldset>
-  )
-}
-
-function TriStateField({ helper, label, onChange, value }: { helper: string; label: string; onChange: (value: '' | 'true' | 'false') => void; value: '' | 'true' | 'false' }) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <select onChange={(event) => onChange(event.target.value as '' | 'true' | 'false')} value={value}>
-        <option value="">使用全局配置</option>
-        <option value="true">是</option>
-        <option value="false">否</option>
-      </select>
-      <small>{helper}</small>
-    </label>
-  )
-}
-
-function IngestScanSummary({ result }: { result: IngestScanResponse }) {
-  return (
-    <div className="detail-grid">
-      <DetailItem label="扫描绑定" value={String(result.scanned_bindings)} />
-      <DetailItem label="新发现" value={String(result.discovered_count)} />
-      <DetailItem label="已稳定" value={String(result.stable_count)} />
-    </div>
-  )
-}
-
-function IngestTaskSummary({ result }: { result: IngestTaskCreateResponse }) {
-  return (
-    <div className="notice-card">
-      <strong>导入任务创建结果</strong>
-      <p>创建 {result.created_count} 个任务，跳过 {result.skipped_count} 个文件。</p>
-      {result.tasks.length > 0 ? <p>最新任务：{result.tasks.map((task) => task.id).join('、')}</p> : null}
-    </div>
-  )
-}
-
-function DiscoveredFiles({ files }: { files: IngestDiscoveredFileResponse[] }) {
-  if (files.length === 0) {
-    return <EmptyState message="暂无发现文件。先扫描启用的导入绑定。" />
-  }
-  return (
-    <div className="transfer-list">
-      {files.map((file) => (
-        <article className="discovered-row" key={file.id}>
-          <span className={`status-pill ${ingestSeenTone(file.status)}`}>{ingestSeenStatusLabel(file.status)}</span>
-          <strong>{file.source_path}</strong>
-          <small>{file.binding_id || '无绑定'} · {formatBytes(file.source_size || 0)}</small>
-          <small>{file.task_id ? `任务 ${file.task_id}` : '未创建任务'}</small>
-        </article>
-      ))}
-    </div>
   )
 }
 
@@ -4275,7 +3824,7 @@ function TransferDetail({ label, value, mono }: { label: string; value: string; 
   )
 }
 
-// Legacy 详情项（Sources / Ingest 扫描结果等仍在用，Step 5 迁移到对应页面时替换）
+// Legacy 详情项（部分未迁移页面仍在用，Step 5 后续页面迁移时替换）
 function DetailItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="detail-item">
@@ -4578,7 +4127,7 @@ function createApiClient() {
       if (!response.ok) {
         throw new Error(await responseErrorMessage(response))
       }
-      return response.json() as Promise<T>
+      return responseJson<T>(response)
     },
     async post<T>(path: string, body?: unknown): Promise<T> {
       const response = await fetch(`${baseUrl}${path}`, {
@@ -4589,7 +4138,7 @@ function createApiClient() {
       if (!response.ok) {
         throw new Error(await responseErrorMessage(response))
       }
-      return response.json() as Promise<T>
+      return responseJson<T>(response)
     },
     example(path: string) {
       return `GET ${baseUrl || '<same-origin>'}/${path.replace(/^\//, '')}`
@@ -4597,115 +4146,12 @@ function createApiClient() {
   }
 }
 
-function emptyIngestConfigForm(): IngestConfigFormState {
-  return {
-    delete_source_after_success: true,
-    delete_empty_source_dirs: true,
-    scan_interval_seconds: '60',
-    stable_seconds: '120',
-    unclassified_target_path: '/unclassified',
+async function responseJson<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) {
+    throw new Error(`请求返回了非 JSON 内容：${response.url || 'unknown'}`)
   }
-}
-
-function ingestConfigFormFromResponse(config: IngestConfigResponse): IngestConfigFormState {
-  return {
-    delete_source_after_success: config.delete_source_after_success,
-    delete_empty_source_dirs: config.delete_empty_source_dirs,
-    scan_interval_seconds: String(config.scan_interval_seconds),
-    stable_seconds: String(config.stable_seconds),
-    unclassified_target_path: config.unclassified_target_path,
-  }
-}
-
-function ingestConfigRequestFromForm(form: IngestConfigFormState) {
-  return {
-    delete_source_after_success: form.delete_source_after_success,
-    delete_empty_source_dirs: form.delete_empty_source_dirs,
-    scan_interval_seconds: Number(form.scan_interval_seconds) || 60,
-    stable_seconds: Number(form.stable_seconds) || 120,
-    unclassified_target_path: form.unclassified_target_path.trim() || '/unclassified',
-  }
-}
-
-function emptyIngestForm(): IngestFormState {
-  return {
-    id: '',
-    name: '',
-    enabled: true,
-    media_type: 'movie',
-    source_host: '',
-    source_port: '445',
-    source_share: '',
-    source_username: '',
-    source_password: '',
-    source_domain: '',
-    source_base_path: '/',
-    target_host: '',
-    target_port: '445',
-    target_share: '',
-    target_username: '',
-    target_password: '',
-    target_domain: '',
-    target_base_path: '/',
-    delete_source_after_success: '',
-    delete_empty_source_dirs: '',
-  }
-}
-
-function ingestFormFromResponse(binding: IngestBindingResponse): IngestFormState {
-  return {
-    id: binding.id,
-    name: binding.name,
-    enabled: binding.enabled,
-    media_type: binding.media_type,
-    source_host: binding.source_smb.host,
-    source_port: String(binding.source_smb.port || 445),
-    source_share: binding.source_smb.share,
-    source_username: binding.source_smb.username,
-    source_password: '',
-    source_domain: binding.source_smb.domain || '',
-    source_base_path: binding.source_smb.base_path || '/',
-    target_host: binding.target_smb.host,
-    target_port: String(binding.target_smb.port || 445),
-    target_share: binding.target_smb.share,
-    target_username: binding.target_smb.username,
-    target_password: '',
-    target_domain: binding.target_smb.domain || '',
-    target_base_path: binding.target_smb.base_path || '/',
-    delete_source_after_success: triStateFromBoolean(binding.delete_source_after_success),
-    delete_empty_source_dirs: triStateFromBoolean(binding.delete_empty_source_dirs),
-  }
-}
-
-function ingestBindingRequestFromForm(form: IngestFormState) {
-  return {
-    id: form.id.trim(),
-    name: form.name.trim(),
-    enabled: form.enabled,
-    media_type: form.media_type,
-    source_smb: ingestEndpointRequestFromForm(form, 'source'),
-    target_smb: ingestEndpointRequestFromForm(form, 'target'),
-    delete_source_after_success: triStateToBoolean(form.delete_source_after_success),
-    delete_empty_source_dirs: triStateToBoolean(form.delete_empty_source_dirs),
-  }
-}
-
-function ingestEndpointRequestFromForm(form: IngestFormState, kind: 'source' | 'target') {
-  const prefix = kind === 'source' ? 'source' : 'target'
-  return {
-    host: String(form[`${prefix}_host` as keyof IngestFormState]).trim(),
-    port: Number(form[`${prefix}_port` as keyof IngestFormState]) || 445,
-    share: String(form[`${prefix}_share` as keyof IngestFormState]).trim(),
-    username: String(form[`${prefix}_username` as keyof IngestFormState]).trim(),
-    password: String(form[`${prefix}_password` as keyof IngestFormState]) || null,
-    domain: String(form[`${prefix}_domain` as keyof IngestFormState]).trim(),
-    base_path: String(form[`${prefix}_base_path` as keyof IngestFormState]).trim() || '/',
-  }
-}
-
-function omitId<T extends { id: string }>(value: T): Omit<T, 'id'> {
-  const { id: _id, ...rest } = value
-  return rest
+  return response.json() as Promise<T>
 }
 
 function triStateFromBoolean(value: boolean | null): '' | 'true' | 'false' {
@@ -4718,35 +4164,6 @@ function triStateToBoolean(value: '' | 'true' | 'false') {
   if (value === 'true') return true
   if (value === 'false') return false
   return null
-}
-
-function ingestMediaTypeLabel(type: IngestMediaType) {
-  const labels: Record<IngestMediaType, string> = {
-    movie: '电影',
-    series: '剧集',
-    unclassified: '未分类',
-  }
-  return labels[type]
-}
-
-function ingestSeenStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    discovered: '已发现',
-    stable: '已稳定',
-    queued: '已排队',
-    importing: '导入中',
-    completed: '已完成',
-    failed: '失败',
-    ignored: '已忽略',
-  }
-  return labels[status] || status
-}
-
-function ingestSeenTone(status: string) {
-  if (status === 'completed') return 'ok'
-  if (status === 'failed') return 'error'
-  if (status === 'discovered' || status === 'ignored') return 'unknown'
-  return 'running'
 }
 
 function emptyLibraryForm(): MediaLibraryFormState {

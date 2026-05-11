@@ -25,7 +25,7 @@ MVP 的目标是先跑通端到端闭环：
 ```text
 先后端闭环，后前端完善。
 CloudProvider 保留为可选扩展，近期不做真实网盘直接下载。
-下一阶段主线是 Download To Local。
+下一阶段主线是 Phase 9 模块重构，统一远程媒体库同步到本地媒体库的命名和实现路径。
 真实挂载目录下载到本地通过手动集成验收验证。
 先规则和用户确认，后模型辅助。
 先核心控制台，后完整媒体库 UI。
@@ -51,11 +51,12 @@ Phase 4 Storage Writer: 已收口，已完成 LocalWriter、Storage 配置 API�
 Phase 5 Transfer Worker: 已完成当前 MVP 本地 Worker 主链路，Phase 5.1 到 Phase 5.5 均已完成；真实网盘和 SMB 搬运主链路尚未实现。
 Phase 6 Cleanup And Recovery: 已完成，Phase 6.1 到 Phase 6.5 均已完成。
 Phase 7 Web Console: 已完成。
-Phase 7.8 Web Console UI Polish: 未开始，来自 Phase 0-7 手动验收反馈；应在 Phase 8 前优先处理前端体验问题。
-Phase 8 Download To Local: 进行中；需要从“导入”重构为“下载到本地”，并改为选择已配置 SMB 连接和目录。
-Phase 9 Real Site Source Adapters: 未开始，目标是实现真实网站代码型 Adapter 框架和至少一个真实源。
-Phase 10 AI Friendly API: 未开始，原 Phase 8 后移。
-Phase 11 Cloud Direct Download: 未开始，实现网盘直链下载能力，跳过保存到网盘和 SMB 挂载步骤。
+Phase 7.8 Web Console UI Polish: 已完成，来自 Phase 0-7 手动验收反馈；应在 Phase 8 前优先处理前端体验问题。
+Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需手动集成验收。
+Phase 9 Module Refactoring: 进行中；已新增远程媒体库和同步绑定，仍需清理旧 Download To Local / Ingest 残留并统一 Worker 处理路径。
+Phase 10 Real Site Source Adapters: 未开始，目标是实现真实网站代码型 Adapter 框架和至少一个真实源。
+Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
+Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档，后续单独实现。
 ```
 
 Phase 4 已满足停止条件，后续可以正式进入 Phase 5。Phase 5 实现 Worker 时，必须同步将 Worker 纳入 `sundarr start / restart / stop / status`。
@@ -979,7 +980,7 @@ Phase 7 文档状态更新为已完成。
 
 ### Phase 7.8: Web Console UI Polish
 
-状态：未开始。
+状态：已完成。
 
 目标：根据 Phase 0-7 手动验收反馈，修复 Web Console 布局和任务展示体验问题。
 
@@ -1021,11 +1022,11 @@ npm run build 通过。
 
 ---
 
-## Phase 8: Download To Local
+## Phase 8: Download To Local（历史命名）
 
-目标：从已挂载的网盘 SMB 目录下载到本地 SMB 媒体库目录。
+目标：实现“远程媒体库同步到本地媒体库”的基础能力，从已挂载的网盘 SMB 目录读取文件并写入本地 SMB 媒体库目录。
 
-背景：国内封闭网盘直接下载不作为 Sundarr 近期主链路。当前阶段依赖用户手动保存资源到网盘，由 NAS 或挂载服务负责将网盘远程挂载为目录并通过 SMB 暴露。
+背景：国内封闭网盘直接下载不包含在 MVP 中。当前阶段依赖用户手动保存资源到网盘，由 NAS 或挂载服务负责将网盘远程挂载为目录并通过 SMB 暴露。Phase 8 的“下载到本地”是历史阶段命名，当前规范统一为“远程媒体库同步到本地媒体库”。
 
 ### Phase 8.1: SMB 连接和媒体库管理
 
@@ -1048,23 +1049,23 @@ download_to_local 全局配置                                   已实现
 SMB 连接密码不回显。
 ```
 
-### Phase 8.2: 下载到本地绑定和扫描
+### Phase 8.2: 同步绑定和扫描
 
 交付物：
 
 ```text
-来源 SMB 连接和目录到媒体库的正向 binding                     已实现
+远程媒体库到本地媒体库的同步 binding                           已实现
 SMB source scanner，来源只能选择已配置 SMB 连接                已实现
 稳定文件/目录判断                                              已实现
-download_to_local task 创建                                   已实现
-数据模型：download_to_local_bindings、download_to_local_seen_files  已实现
+sync task 创建                                                已实现
+数据模型：sync_bindings、sync_seen_files                        已实现
 迁移：0005_download_to_local_bindings                          已实现
 ```
 
 验收标准：
 
 ```text
-下载到本地绑定只能选择来源 SMB 连接、来源目录和目标媒体库。
+同步绑定只能选择远程媒体库（来源）和本地媒体库（目标）。
 可以扫描 SMB 来源目录。
 文件或目录稳定后才开始下载。
 重复扫描不重复创建任务。
@@ -1086,7 +1087,7 @@ SMB source -> SMB target 下载 Worker                              已实现
 交付物：
 
 ```text
-Web Console /app/download-to-local 页面                           已合并到 /app/remote-libraries
+Web Console 历史 /app/download-to-local 页面能力                  已合并到 /app/remote-libraries
 Web Console /app/libraries 页面或等价媒体库管理入口                 已实现
 Web Console /app/remote-libraries 页面                            已实现
 ```
@@ -1095,35 +1096,17 @@ Web Console /app/remote-libraries 页面                            已实现
 
 ```text
 可以通过 SMB 将文件写入本地媒体库。
-下载成功后按配置删除源文件和空目录。
+同步成功后按配置删除源文件和空目录。
 失败时保留源文件、.downloading 和任务日志。
-路径绑定不明确时进入 unclassified 媒体库。
+路径绑定不明确时进入 unclassified 本地媒体库。
 剧集目录按原目录结构下载，不额外拆分季集。
-```
-
-### Phase 8.4: Web Console 前端
-
-交付物：
-
-```text
-Web Console /app/download-to-local 页面                           已实现
-Web Console /app/libraries 页面或等价媒体库管理入口                 已实现
-```
-
-验收标准：
-
-```text
-配置类页面先展示列表，通过新增按钮弹出表单。
-下载到本地页面不显示 SMB password 明文。
-下载到本地页面绑定目标为媒体库，不重复配置目标 SMB 凭据。
-下载到本地页面可手动触发扫描。
 ```
 
 ### Phase 8 整体验收标准
 
 ```text
 默认自动化测试不依赖真实网盘或真实 SMB。
-真实挂载目录下载到本地通过手动集成验收。
+真实挂载目录同步到本地媒体库通过手动集成验收。
 docs/15-download-to-local-spec.md 与实际 API / 数据模型一致。
 pytest 通过。
 涉及前端时 npm run build 通过。
@@ -1138,15 +1121,15 @@ pytest 通过。
 可以创建 movie / series / unclassified 等媒体库，并绑定到 SMB 本地目录。
 可以配置多个 SMB 连接。
 媒体库只能选择已配置 SMB 连接和目录，不重复填写 SMB 凭据。
-下载到本地绑定只能选择来源 SMB 连接、来源目录和目标媒体库。
-可以配置网盘挂载来源目录到本地媒体库的绑定。
-路径绑定不明确时进入 unclassified 媒体库。
+同步绑定只能选择远程媒体库（来源）和本地媒体库（目标）。
+可以配置网盘挂载来源目录为远程媒体库，并绑定到本地媒体库。
+路径绑定不明确时进入 unclassified 本地媒体库。
 剧集目录按原目录结构下载，不额外拆分季集。
 文件或目录稳定后才开始下载。
-下载成功后按配置删除源文件和空目录。
+同步成功后按配置删除源文件和空目录。
 失败时保留源文件、.downloading 和任务日志。
 默认自动化测试不依赖真实网盘或真实 SMB。
-真实挂载目录下载到本地通过手动集成验收。
+真实挂载目录同步到本地媒体库通过手动集成验收。
 ```
 
 停止条件：
@@ -1168,27 +1151,27 @@ pytest 通过。
 
 ## Phase 9: 模块重构
 
-目标：清理旧模块，统一术语，建立远程媒体库模型，重构同步绑定。将系统从"网盘导入"概念统一为"远程媒体库同步到本地媒体库"。
+目标：清理旧模块，统一术语，建立远程媒体库模型，重构同步绑定。将系统统一为"远程媒体库同步到本地媒体库"。
 
-背景：Phase 8 完成后，系统中存在 Ingest（旧）和 Download To Local（新）两套并行模块，以及旧 storage.smb 和新 smb_connections 两套配置系统。需要统一清理。
+背景：Phase 8 完成后，系统存在历史 Ingest / Download To Local 命名和实现残留，以及旧 storage.smb 和新 smb_connections 两套配置系统。需要统一清理。
 
 交付物：
 
 ```text
-删除 Ingest 模块（model/service/api/Worker/Web Console）
+删除历史 Ingest / Download To Local 残留（model/service/api/Worker/Web Console）
 删除旧 storage_config_service（settings.storage.smb）
 新增远程媒体库模型（RemoteMediaLibrary）
 重构同步绑定（SyncBinding 引用 remote_library_id -> local_library_id）
-重命名 TransferTask.ingest_seen_file_id -> sync_seen_file_id
+确认 TransferTask.sync_seen_file_id 为唯一 seen file 字段
 TransferTask 增加 binding_id 字段
-统一 Worker 处理路径（合并 process_ingest_task 和 process_dtl_task）
+统一 Worker 处理路径（收口 process_dtl_task 为 process_sync_task）
 更新 Web Console（/app/remote-libraries、/app/sync）
 ```
 
 验收标准：
 
 ```text
-系统中不再有 Ingest 相关代码和 API。
+系统中不再有 Ingest / Download To Local 历史主链路代码和 API。
 系统中不再有 storage.smb 相关代码和 API。
 远程媒体库可通过 API 管理。
 同步绑定引用远程媒体库和本地媒体库。
@@ -1309,11 +1292,13 @@ pytest 通过。
 工作区已提交或明确说明不提交原因。
 ```
 
-## Phase 12: Cloud Direct Download
+## Phase 12: Cloud Direct Download（后续高级功能，非 MVP）
 
-目标：实现网盘直链下载能力，跳过"保存到网盘 + SMB 挂载"步骤，直接从网盘 CDN 下载文件到本地。
+目标：作为 MVP 之后的高级功能，实现网盘直链下载能力，跳过"保存到网盘 + SMB 挂载"步骤，直接从网盘 CDN 下载文件到本地。
 
-背景：参考 LinkSwift 项目原理，通过调用网盘公开 API 获取文件直链（CDN 地址），结合 aria2 多线程下载，实现更快、更直接的下载体验。详细规范见 `docs/16-cloud-direct-download-spec.md`。
+背景：参考 LinkSwift 项目原理，通过调用网盘公开 API 获取文件直链（CDN 地址），结合 aria2 多线程下载，实现更快、更直接的下载体验。详细规范见 `docs/18-cloud-direct-download-spec.md`。
+
+范围说明：本阶段不包含在 MVP 中，不阻塞 Phase 9 模块重构、Phase 10 真实媒体源和 Phase 11 AI Friendly API。
 
 交付物：
 
@@ -1351,7 +1336,7 @@ pytest 通过。
 停止条件：
 
 ```text
-docs/16-cloud-direct-download-spec.md 与实际 API / 数据模型一致。
+docs/18-cloud-direct-download-spec.md 与实际 API / 数据模型一致。
 aria2 Docker 服务独立启动和 RPC 连接测试通过。
 夸克网盘扫码登录 + 直链提取 + 下载完整流程手动验收通过。
 Cookie/Token 加密存储有测试覆盖。
@@ -1363,7 +1348,7 @@ pytest 通过。
 工作区已提交或明确说明不提交原因。
 ```
 
-### Phase 11.1: Aria2 服务集成
+### Phase 12.1: Aria2 服务集成
 
 状态：未开始。
 
@@ -1398,7 +1383,7 @@ pytest 通过。
 docker-compose.yml 变更不影响现有服务。
 ```
 
-### Phase 11.2: 夸克网盘认证
+### Phase 12.2: 夸克网盘认证
 
 状态：未开始。
 
@@ -1439,7 +1424,7 @@ pytest 通过。
 Web Console 构建通过。
 ```
 
-### Phase 11.3: 夸克直链提取
+### Phase 12.3: 夸克直链提取
 
 状态：未开始。
 
@@ -1477,7 +1462,7 @@ pytest 覆盖成功和失败路径。
 不依赖 aria2（纯提取，不含下载）。
 ```
 
-### Phase 11.4: 直链下载完整流程
+### Phase 12.4: 直链下载完整流程
 
 状态：未开始。
 

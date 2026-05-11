@@ -233,7 +233,12 @@ Sonarr / Lidarr 等），沿用**圆角正方形徽章 + 单一主色底**的家
 - **载体**：100×100 viewBox 圆角正方形，`rx="22"`（相当于 64px 实际尺寸下的 14px 圆角）。
 - **底色**：`--mark-bg` = terracotta。
 - **前景 Disc**：`cx=50 cy=50 r=28`，`fill=var(--mark-fg)`（奶油）。
-- **Punches**（不对称，上左重下右轻）：
+- **Punches**（不对称，上左重下右轻）。Web Console 小尺寸实现不用 SVG mask，而是在 Disc 上覆盖同色圆点，避免 34/46px 下 mask 抗锯齿吞掉穿孔：
+  - `(40, 38) r=7` — 最大，承担视觉重量
+  - `(54, 42) r=4.5` — 右上小伴星
+  - `(38, 56) r=4.5` — 左下小伴星
+  - `(58, 60) r=5.5` — 右下中号
+- **原始大尺寸构图参考**：
   - `(40, 38) r=5` — 最大，承担视觉重量
   - `(54, 42) r=3` — 右上小伴星
   - `(38, 56) r=3` — 左下小伴星
@@ -246,7 +251,7 @@ Sonarr / Lidarr 等），沿用**圆角正方形徽章 + 单一主色底**的家
 | Disc radius | `r=28` |
 | 前景驱动 | CSS vars `--mark-bg` / `--mark-fg` |
 | Clear space | ≥ 0.15 × 徽章边长（@64px 即 ≥ 10px） |
-| 最小尺寸 | 16px（4 个穿孔在此尺寸下仍可辨） |
+| 最小尺寸 | 34px 使用四个穿孔；16px favicon 可退化为单一 Disc 轮廓 |
 
 ### 5.2 Wordmark — r · r Rule
 
@@ -489,10 +494,12 @@ Already exist as `LoadingState`, `EmptyState`, `ErrorState`. Keep the API, resty
 
 ### 6.14 Theme Switcher
 
-- Segmented control, 3 pills: 亮色 / 暗色 / 跟随系统.
+- Segmented control, 3 icon buttons: sun / moon / system display.
 - Container: `--surface-sunken`, `--radius-pill`, 2px padding, 1px `--hairline`.
 - Selected pill: `--surface-1`, `--shadow-sm`, text `--text`. Unselected: text `--text-muted`.
-- 12px font, 6/12 padding per pill. Lives at sidebar bottom (desktop) / in top bar (mobile).
+- Each icon button keeps `aria-label` and `title` with 亮色 / 暗色 / 跟随系统 for accessibility.
+- 32px desktop button, 30px compact button. Lives in the global top-right utility bar on desktop.
+- Mobile uses the same segmented control below the sticky top bar, aligned right; toast notifications start below it.
 
 ### 6.15 Keyboard Shortcuts (new affordance)
 
@@ -587,9 +594,10 @@ Touch targets: 44×44 minimum on mobile for buttons, row-action icons, and nav i
 1. **Tokens**: rewrite `styles.css` top block to include every token in §2, keeping the theme-switching logic.
 2. **Global primitives**: extract `Card`, `Button`, `StatusBadge`, `ProgressBar`, `Field`, `Table`, `EmptyState`, `LoadingState`, `ErrorState`, `Toast`, `Skeleton`, `Kbd` into `web/src/ui/` as tiny React components with className + variant props.
 3. **Shell**: rebuild `App` / `Sidebar` / `TopBar` to the §6 recipes, add the hamburger + drawer + mobile top bar.
-4. **Brand**: 资产已落位 `docs/assets/brand/`。接下来将 `logo.svg` /
-   `logo-mono.svg` 接入 `web/src/ui/` 的 `<Brand />` 组件，生成 16/32/48/180 px
-   favicon，并接上 `<meta>` 标签。
+4. **Brand**: 资产已落位 `docs/assets/brand/`。Web Console 已通过
+   `web/src/ui/Brand.tsx` 接入 `<BrandLockup />`，用于 sidebar / top bar，并已接入
+   SVG favicon 与 `theme-color`。后续如需安装到移动端主屏，再补 180 px
+   `apple-touch-icon`。
 5. **Pages**: redo in this order — (a) Transfers (hero), (b) Status, (c) Storage, (d) Sources, (e) Libraries, (f) Remote Libraries, (g) Search. Each page PR-reviewable independently once the shell is in.
 6. **Polish**: skeletons for initial load states, keyboard shortcuts, reduced-motion audit.
 

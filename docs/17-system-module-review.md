@@ -154,27 +154,28 @@ sundarr/app/
 │   ├── setting.py                 # Setting（KV 配置）        ✓ 已实现
 │   ├── smb_connection.py          # SmbConnection             ✓ 已实现
 │   ├── media_library.py           # MediaLibrary              ✓ 已实现（本地）
-│   ├── download_to_local.py       # Binding, SeenFile         ⚠ 需重构为"同步绑定"
-│   └── ingest.py                  # IngestBinding 等          ✗ 旧模块，待删除
+│   ├── remote_media_library.py    # RemoteMediaLibrary        ✓ 已实现
+│   ├── sync.py                    # SyncBinding, SyncSeenFile ✓ 已实现
+│   └── download_to_local.py       # 历史 Binding, SeenFile    ✗ 旧模块，待删除
 ├── services/                      # 业务逻辑
 │   ├── search_service.py          # 搜索聚合                  ✓ 已实现
 │   ├── resource_library_service.py # 资源管理                 ✓ 已实现
 │   ├── transfer_service.py        # TransferTask CRUD         ✓ 已实现
-│   ├── storage_config_service.py  # 旧单 SMB 配置             ✗ 旧模块，待删除
 │   ├── smb_connection_service.py  # 多 SMB 连接               ✓ 已实现
 │   ├── media_library_service.py   # 本地媒体库管理            ✓ 已实现
-│   ├── download_to_local_service.py # 下载绑定+扫描+任务创建  ⚠ 需重构
-│   ├── ingest_service.py          # 旧模块                    ✗ 旧模块，待删除
+│   ├── remote_media_library_service.py # 远程媒体库管理       ✓ 已实现
+│   ├── sync_service.py            # 同步绑定+扫描+任务创建    ✓ 已实现
+│   ├── download_to_local_service.py # 历史同步实现            ✗ 旧模块，待删除
 │   └── source_service.py          # Source CRUD               ✓ 已实现
 ├── api/                           # API 路由
 │   ├── search.py                  # 搜索                      ✓
 │   ├── resources.py               # 资源                      ✓
 │   ├── transfers.py               # 任务                      ✓
-│   ├── storage.py                 # 旧单 SMB 配置             ✗ 旧，待删除
 │   ├── smb_connections.py         # 多 SMB 连接               ✓
 │   ├── media_libraries.py         # 本地媒体库                ✓
-│   ├── download_to_local.py       # 下载绑定                  ⚠ 需重构
-│   ├── ingest.py                  # 旧模块                    ✗ 旧，待删除
+│   ├── remote_media_libraries.py  # 远程媒体库                ✓
+│   ├── sync.py                    # 同步绑定                  ✓
+│   ├── download_to_local.py       # 历史同步 API              ✗ 旧，待删除
 │   ├── sources.py                 # 媒体源                    ✓
 │   └── health.py                  # 健康检查                  ✓
 ├── storage/                       # 存储抽象
@@ -198,13 +199,13 @@ sundarr/app/
     │
     ├──> 本地媒体库 (media_libraries) ──> 绑定到 SMB 连接 + 本地目录
     │
-    └──> 远程媒体库 (通过 download_to_local_bindings.source_connection_id + source_path)
+    └──> 远程媒体库 (remote_media_libraries.connection_id + base_path)
               │
               ▼
-         下载管理 (download_to_local_bindings)
+         同步管理 (sync_bindings)
               │
-              ├── scan() -> download_to_local_seen_files
-              └── create_tasks() -> transfer_tasks (mode=download_to_local)
+              ├── scan() -> sync_seen_files
+              └── create_tasks() -> transfer_tasks (mode=sync)
                      │
                      ▼
                 Worker
@@ -218,19 +219,19 @@ sundarr/app/
 
 ## 3. 已知问题
 
-### 3.1 Ingest 模块是旧实现，但仍完整保留
+### 3.1 历史 Download To Local / Ingest 模块仍有残留
 
 | 文件 | 状态 |
 |---|---|
-| `models/ingest.py` | 旧，SMB 配置以 JSON 存在 binding 内 |
-| `services/ingest_service.py` | 旧，与 download_to_local_service 高度重复 |
-| `api/ingest.py` | 旧，仍注册在 main.py |
-| `worker.py` process_ingest_task | 旧，与 process_dtl_task 几乎相同 |
-| Web Console `/app/ingest` | 旧，与 `/app/download-to-local` 并存 |
+| `models/download_to_local.py` | 旧，已被 `models/sync.py` 替代 |
+| `services/download_to_local_service.py` | 旧，已被 `sync_service.py` 替代 |
+| `api/download_to_local.py` | 旧，已被 `api/sync.py` 和 `api/remote_media_libraries.py` 替代 |
+| `worker.py` process_dtl_task | 历史命名，需统一为 process_sync_task |
+| Web Console 旧 ingest / download-to-local 代码 | 旧，需统一到 `/app/remote-libraries` 和 `/app/sync` |
 
-**问题**：用户不知道该用哪个，代码维护两份。
+**问题**：文档和代码命名不统一，后续维护容易误判主链路。
 
-### 3.2 两套 SMB 配置系统并存
+### 3.2 旧 storage.smb 兼容入口仍需清理
 
 | 模块 | 存储方式 | 用途 |
 |---|---|---|
@@ -239,27 +240,27 @@ sundarr/app/
 
 **问题**：旧 `storage.smb` 仍可写入，新功能用 `smb_connections`，两套中断逻辑各自独立。
 
-### 3.3 Worker 有 3 条处理路径，代码重复
+### 3.3 Worker 仍有历史处理路径命名
 
 ```python
-process_transfer_task()   # mode=copy，CloudProvider -> StorageWriter
-process_ingest_task()     # mode=ingest，SMB -> SMB（旧）
-process_dtl_task()        # mode=download_to_local，SMB -> SMB（新）
+process_transfer_task()   # mode=copy，CloudProvider -> StorageWriter（测试/可选扩展）
+process_dtl_task()        # 历史命名，实际承担远程媒体库同步
+目标：process_sync_task() # mode=sync，SMB -> SMB
 ```
 
-`process_ingest_task` 和 `process_dtl_task` 逻辑几乎完全相同。
+`process_dtl_task` 名称仍带历史阶段语义，应统一为 `process_sync_task`。
 
-### 3.4 `TransferTask.ingest_seen_file_id` 字段名不合理
+### 3.4 `TransferTask` 字段和 mode 仍需统一
 
-这个字段同时被 ingest 和 download_to_local 使用，但名字叫 `ingest_seen_file_id`，语义不清。
+`sync_seen_file_id` 已作为目标字段引入，但任务 `mode`、日志事件和部分代码命名仍带 `download_to_local` / `dtl` 历史语义。
 
 ### 3.5 TransferTask 没有直接关联 binding_id
 
 任务创建时把 SMB 配置快照存入 JSON，但没有记录来源 binding_id。
 
-### 3.6 远程媒体库没有独立模型
+### 3.6 远程媒体库模型已引入，旧文档和代码残留仍需收口
 
-当前远程媒体库的信息散落在 `download_to_local_bindings` 的 `source_connection_id + source_path` 中，没有独立的"远程媒体库"概念。
+当前已引入 `RemoteMediaLibrary`，但旧 `download_to_local` 代码和文档残留仍需清理。
 
 ### 3.7 媒体库命名不清晰
 
@@ -273,13 +274,13 @@ process_dtl_task()        # mode=download_to_local，SMB -> SMB（新）
 
 | 重构项 | 说明 |
 |---|---|
-| 删除 Ingest 模块 | 移除 model/service/api/Worker 测试 |
+| 删除历史 Download To Local / Ingest 残留 | 移除历史 model/service/api/Worker/Web Console 代码 |
 | 删除旧 storage_config_service | 移除 `settings.storage.smb` 相关代码 |
 | 新增远程媒体库模型 | `RemoteMediaLibrary`，绑定 SMB 连接 + 目录 |
 | 重构下载绑定 | `SyncBinding` 引用：remote_library_id -> local_library_id |
 | 重命名 seen_file_id | `ingest_seen_file_id` -> `sync_seen_file_id` |
 | TransferTask 增加 binding_id | 直接记录来源绑定 |
-| 统一 Worker 处理路径 | 合并 process_ingest_task 和 process_dtl_task |
+| 统一 Worker 处理路径 | 将历史 process_dtl_task 收口为 process_sync_task |
 
 ### 4.2 目标数据模型
 
@@ -351,12 +352,11 @@ GET      /health
 #### Phase 9.1: 清理旧模块
 
 ```text
-删除 models/ingest.py
-删除 services/ingest_service.py
-删除 api/ingest.py
-删除 tests/test_ingest.py
-删除 Worker 中 process_ingest_task 相关代码
-删除 Web Console 中 /app/ingest 页面
+删除 models/download_to_local.py
+删除 services/download_to_local_service.py
+删除 api/download_to_local.py
+删除历史 ingest / download-to-local 前端代码
+删除或迁移相关旧测试
 删除 db_admin.py 中 INGEST_CONFIG_KEY
 从 main.py 移除 ingest_router
 ```
@@ -386,12 +386,9 @@ GET      /health
 #### Phase 9.4: 重构同步绑定
 
 ```text
-重构 models/download_to_local.py -> models/sync.py (SyncBinding, SyncSeenFile)
+确认 models/sync.py (SyncBinding, SyncSeenFile) 为唯一同步绑定模型
 新增迁移 0007_rename_sync_tables
-重构 schemas/download_to_local.py -> schemas/sync.py
-重构 services/download_to_local_service.py -> services/sync_service.py
-重构 api/download_to_local.py -> api/sync.py
-重构 tests/test_download_to_local.py -> tests/test_sync.py
+确认 schemas/sync.py、services/sync_service.py、api/sync.py、tests/test_sync.py 为唯一同步接口
 ```
 
 #### Phase 9.5: 清理 TransferTask
@@ -406,7 +403,7 @@ GET      /health
 #### Phase 9.6: 统一 Worker 处理路径
 
 ```text
-合并 process_ingest_task 和 process_dtl_task 为 process_sync_task
+将 process_dtl_task 重命名并收口为 process_sync_task
 统一清理配置读取逻辑
 统一中断逻辑
 更新 tests/test_worker.py
@@ -417,7 +414,7 @@ GET      /health
 ```text
 删除 /app/ingest 页面
 新增 /app/remote-libraries 页面
-重构 /app/download-to-local -> /app/sync
+删除历史 /app/download-to-local 代码，保留 /app/remote-libraries 与 /app/sync
 更新导航
 ```
 

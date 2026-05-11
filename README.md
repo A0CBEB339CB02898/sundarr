@@ -2,7 +2,7 @@
 
 Sundarr 是个人自用的远程媒体库同步到本地媒体库自动化系统。
 
-当前状态：Phase 8 Download To Local 已完成。Phase 9 模块重构待启动，目标是清理旧模块、统一术语、建立远程媒体库模型。
+当前状态：Phase 8 历史“下载到本地”能力已实现，当前统一命名为“远程媒体库同步到本地媒体库”。Phase 9 模块重构是下一步优先任务，目标是清理旧模块、统一术语和代码路径。
 
 核心功能：将远程媒体库（如网盘通过 SMB 暴露的目录）同步到本地 NAS 媒体库。
 
@@ -78,6 +78,7 @@ docs/03-mvp-roadmap.md
 docs/12-local-development.md
 docs/13-web-console-spec.md
 docs/15-download-to-local-spec.md
+docs/18-cloud-direct-download-spec.md
 ```
 
 ## Web Console
@@ -85,13 +86,13 @@ docs/15-download-to-local-spec.md
 MVP Web Console 提供以下页面：
 
 ```text
-/app/search       搜索资源并创建搬运任务
-/app/transfers    查询任务、查看日志、取消和重试
-/app/storage      管理 SMB 配置、测试连接、只读浏览目录
-/app/libraries    管理 movie / series / unclassified 等本地媒体库目录绑定
-/app/sources      管理配置型和文档/表格型媒体源
-/app/download-to-local 管理网盘目录到媒体库的下载绑定
-/app/status       查看 API、Worker、PostgreSQL 和 Redis 状态
+/app/search            搜索资源并创建搬运任务
+/app/transfers         查询任务、查看日志、取消和重试
+/app/storage           管理 SMB 配置、测试连接、只读浏览目录
+/app/libraries         管理 movie / series / unclassified 等本地媒体库目录绑定
+/app/remote-libraries  管理远程媒体库目录绑定
+/app/sources           管理配置型和文档/表格型媒体源
+/app/status            查看 API、Worker、PostgreSQL 和 Redis 状态
 ```
 
 Web Console 不做登录注册、多用户权限、完整媒体库 UI、海报墙、播放器或完整 NAS 文件管理器。

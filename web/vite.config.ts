@@ -17,6 +17,7 @@ export default defineConfig({
       '/remote-media-libraries': 'http://localhost:8080',
       '/sync': 'http://localhost:8080',
       '/download-to-local': 'http://localhost:8080',
+      '/worker': 'http://localhost:8080',
     }
   }
 })

@@ -182,7 +182,7 @@ def claim_pending_tasks(session: Session, settings: WorkerSettings) -> list[Tran
 
     now = datetime.now(UTC)
     for task in tasks:
-        if task.mode in ("ingest", "download_to_local"):
+        if task.mode == "download_to_local":
             task.status = "downloading"
         else:
             task.status = "staging_to_cloud"

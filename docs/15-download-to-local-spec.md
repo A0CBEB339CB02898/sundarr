@@ -1,6 +1,6 @@
-# 下载到本地规范
+# 远程媒体库同步到本地媒体库规范
 
-本文档定义 Sundarr Phase 8 “下载到本地”能力：从已挂载的网盘 SMB 目录下载到本地 SMB 媒体库目录。
+本文档定义 Sundarr Phase 8 历史“下载到本地”能力的当前规范命名：远程媒体库同步到本地媒体库。该能力从已挂载的网盘 SMB 目录读取内容，并同步到本地 SMB 媒体库目录。
 
 ---
 
@@ -17,15 +17,15 @@ Sundarr 不应把以下能力作为近期主链路：
 依赖非稳定下载直链
 ```
 
-近期主链路是：
+MVP 主链路是：
 
 ```text
 用户手动保存资源到网盘
 -> NAS 或挂载服务将网盘远程挂载为目录
 -> SMB 服务暴露挂载目录
--> Sundarr 从已配置 SMB 连接中选择来源目录
--> Sundarr 将来源目录正向绑定到某个本地媒体库
--> Worker 下载到 .downloading、校验、rename
+-> Sundarr 将挂载目录配置为远程媒体库
+-> Sundarr 通过同步绑定连接远程媒体库（来源）和本地媒体库（目标）
+-> Worker 同步到 .downloading、校验、rename
 -> 成功后按配置删除来源文件和空目录
 ```
 
@@ -35,15 +35,15 @@ Sundarr 不应把以下能力作为近期主链路：
 
 ## 2. 目标
 
-下载到本地需要覆盖：
+远程媒体库同步到本地媒体库需要覆盖：
 
 ```text
 支持多个 SMB connection。
-来源目录只能选择已配置 SMB connection 下的目录。
-媒体库管理模块负责创建 movie / series / unclassified 等本地媒体库。
-媒体库必须绑定到某个 SMB connection 下的本地 NAS 目录。
-下载到本地 binding 负责将来源目录正向绑定到某个媒体库。
-绑定不明确时进入 unclassified 媒体库。
+远程媒体库只能选择已配置 SMB connection 下的远程目录。
+本地媒体库管理模块负责创建 movie / series / unclassified 等本地媒体库。
+本地媒体库必须绑定到某个 SMB connection 下的本地 NAS 目录。
+同步绑定负责连接远程媒体库（来源）和本地媒体库（目标）。
+绑定不明确时进入 unclassified 本地媒体库。
 成功后按配置删除来源文件，并清理空目录。
 保留后续完整媒体库 UI 和 AI 自动分类扩展空间。
 ```
@@ -70,7 +70,7 @@ AI 自动分类。
 
 ## 4. SMB 连接关系
 
-SMB connection 由 Storage 模块统一管理。下载到本地模块不得重复填写 SMB host、share、username、password。
+SMB connection 由 Storage 模块统一管理。远程媒体库和本地媒体库不得重复填写 SMB host、share、username、password。
 
 媒体库保存：
 
@@ -80,15 +80,16 @@ base_path
 media_type
 ```
 
-下载绑定只保存：
+远程媒体库保存：
 
 ```text
-source_connection_id
-source_path
+connection_id
+base_path
+media_type
 target_library_id
 ```
 
-来源 SMB connection 和媒体库 SMB connection 可以相同，也可以不同。
+同步绑定连接远程媒体库和本地媒体库；远程媒体库 SMB connection 和本地媒体库 SMB connection 可以相同，也可以不同。
 
 ---
 
@@ -106,14 +107,14 @@ target_library_id
 }
 ```
 
-下载绑定示例：
+远程媒体库示例：
 
 ```json
 {
-  "name": "电影下载",
+  "name": "电影远程库",
   "media_type": "movie",
-  "source_connection_id": "cloud_mount",
-  "source_path": "CloudMovie",
+  "connection_id": "cloud_mount",
+  "base_path": "CloudMovie",
   "target_library_id": "library_movie",
   "enabled": true
 }
@@ -123,10 +124,10 @@ target_library_id
 
 ```json
 {
-  "name": "剧集下载",
+  "name": "剧集远程库",
   "media_type": "series",
-  "source_connection_id": "cloud_mount",
-  "source_path": "CloudSeries",
+  "connection_id": "cloud_mount",
+  "base_path": "CloudSeries",
   "target_library_id": "library_series",
   "enabled": true
 }
@@ -135,8 +136,8 @@ target_library_id
 规则：
 
 ```text
-source_path 是 source_connection_id 对应 SMB base_path 内的相对路径。
-source_path 通常是 NAS 已挂载的网盘目录。
+base_path 是 connection_id 对应 SMB base_path 内的相对路径。
+base_path 通常是 NAS 已挂载的网盘目录。
 target_library_id 指向本地媒体库，目标目录来自媒体库的 connection_id 和 base_path。
 媒体类型允许 movie / series / unclassified。
 ```
@@ -146,7 +147,7 @@ target_library_id 指向本地媒体库，目标目录来自媒体库的 connect
 ## 6. 扫描和稳定性判断
 
 Worker 或手动操作扫描启用的来源目录。
-Worker 应按 scan_interval_seconds 定时扫描启用的下载绑定，也允许 Web Console 手动触发单次扫描。
+Worker 应按 scan_interval_seconds 定时扫描启用的同步绑定，也允许 Web Console 手动触发单次扫描。
 
 默认建议：
 
@@ -164,13 +165,13 @@ mtime 超过 stable_seconds。
 不处于已处理记录中。
 ```
 
-扫描结果写入 `download_to_local_seen_files`。稳定文件进入 `stable`，创建下载任务后进入 `queued`，并记录对应 `task_id`。
+扫描结果写入 `sync_seen_files`。稳定文件进入 `stable`，创建同步任务后进入 `queued`，并记录对应 `task_id`。
 
 ---
 
 ## 7. 任务状态
 
-下载到本地任务复用 `transfer_tasks`，但不进入 cloud staging。
+同步任务复用 `transfer_tasks`，但不进入 cloud staging。
 
 状态：
 
@@ -221,8 +222,8 @@ Worker 使用目标媒体库 connection 快照写入 SMB 目标 .downloading 文
 全局配置：
 
 ```text
-download_to_local.delete_source_after_success = true
-download_to_local.delete_empty_source_dirs = true
+sync.delete_source_after_success = true
+sync.delete_empty_source_dirs = true
 ```
 
 binding 可以覆盖全局配置：
@@ -254,13 +255,15 @@ binding 覆盖 > 全局默认
 页面：
 
 ```text
-/app/download-to-local
+/app/remote-libraries
+/app/sync
 ```
 
 页面能力：
 
 ```text
-查看下载绑定列表。
+查看远程媒体库列表。
+查看同步绑定列表。
 通过新增按钮弹出表单创建 binding。
 编辑、启用、禁用 binding。
 选择来源 SMB connection 和来源目录。
@@ -278,7 +281,7 @@ binding 覆盖 > 全局默认
 默认先展示列表，不默认展开空新增表单。
 新增和编辑使用弹出表单。
 表单只选择已配置 SMB connection，不重复填写 SMB 凭据。
-目标目录由媒体库管理模块维护，下载到本地页面不重复配置目标目录。
+目标目录由本地媒体库管理模块维护，远程媒体库和同步页面不重复配置目标目录。
 ```
 
 ---
@@ -297,18 +300,25 @@ POST /media-libraries/{library_id}/update
 POST /media-libraries/{library_id}/enable
 POST /media-libraries/{library_id}/disable
 POST /media-libraries/{library_id}/test
-GET  /download-to-local/config
-POST /download-to-local/config/save
-GET  /download-to-local/bindings
-POST /download-to-local/bindings/create
-GET  /download-to-local/bindings/{binding_id}
-POST /download-to-local/bindings/{binding_id}/update
-POST /download-to-local/bindings/{binding_id}/enable
-POST /download-to-local/bindings/{binding_id}/disable
-POST /download-to-local/bindings/{binding_id}/test
-POST /download-to-local/scan
-GET  /download-to-local/discovered
-POST /download-to-local/tasks/create
+GET  /remote-media-libraries
+POST /remote-media-libraries/create
+GET  /remote-media-libraries/{library_id}
+POST /remote-media-libraries/{library_id}/update
+POST /remote-media-libraries/{library_id}/enable
+POST /remote-media-libraries/{library_id}/disable
+POST /remote-media-libraries/{library_id}/test
+GET  /sync/config
+POST /sync/config/save
+GET  /sync/bindings
+POST /sync/bindings/create
+GET  /sync/bindings/{binding_id}
+POST /sync/bindings/{binding_id}/update
+POST /sync/bindings/{binding_id}/enable
+POST /sync/bindings/{binding_id}/disable
+POST /sync/bindings/{binding_id}/test
+POST /sync/scan
+GET  /sync/discovered
+POST /sync/tasks/create
 ```
 
 MVP 仍不使用 PUT / PATCH / DELETE。
@@ -317,19 +327,19 @@ MVP 仍不使用 PUT / PATCH / DELETE。
 
 ## 11. 验收标准
 
-下载到本地完成时必须满足：
+远程媒体库同步到本地媒体库完成时必须满足：
 
 ```text
 可以配置多个 SMB connection。
 可以创建 movie / series / unclassified 媒体库，并绑定到本地 SMB 目录。
-可以配置来源目录到媒体库的绑定。
-绑定只引用来源 SMB connection、来源目录和目标媒体库，不保存 SMB 凭据。
-绑定不明确时进入 unclassified 媒体库。
+可以配置远程媒体库到本地媒体库的同步绑定。
+绑定只引用远程媒体库和本地媒体库，不保存 SMB 凭据。
+绑定不明确时进入 unclassified 本地媒体库。
 可以扫描 SMB 来源目录。
-可以判断文件或目录稳定后再下载。
-可以通过 SMB 将文件写入本地媒体库。
+可以判断文件或目录稳定后再同步。
+可以通过 SMB 将远程媒体库文件写入本地媒体库。
 成功后按配置删除源文件和空目录。
 失败时保留源文件和 .downloading。
 默认自动化测试不依赖真实 SMB 或真实网盘。
-真实挂载目录下载到本地通过手动集成验收验证。
+真实挂载目录同步到本地媒体库通过手动集成验收验证。
 ```
