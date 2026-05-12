@@ -3,7 +3,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session, object_session
 
 from sundarr.app.models import ResourceLink, Setting, SyncSeenFile, TransferFile, TransferLog, TransferTask
-from sundarr.app.schemas.transfer import TransferCreateRequest, TransferLogResponse, TransferResponse
+from sundarr.app.schemas.transfer import TransferCreateRequest, TransferListResponse, TransferLogResponse, TransferResponse
 
 CANCELLABLE_TRANSFER_STATUSES = {"pending", "staging_to_cloud", "cloud_ready", "downloading", "verifying", "paused"}
 CANCELLABLE_FILE_STATUSES = {"pending", "downloading", "verified"}
@@ -38,10 +38,13 @@ class TransferService:
         task = db.get(TransferTask, task_id)
         return self._to_response(task) if task else None
 
-    def list_transfers(self, db: Session, limit: int = 30) -> list[TransferResponse]:
-        safe_limit = max(1, min(limit, 100))
-        tasks = db.query(TransferTask).order_by(TransferTask.updated_at.desc(), TransferTask.created_at.desc()).limit(safe_limit).all()
-        return [self._to_response(task) for task in tasks]
+    def list_transfers(self, db: Session, page: int = 1, page_size: int = 20) -> TransferListResponse:
+        safe_page = max(1, page)
+        safe_page_size = max(1, min(page_size, 100))
+        query = db.query(TransferTask).order_by(TransferTask.updated_at.desc(), TransferTask.created_at.desc())
+        count = query.count()
+        tasks = query.offset((safe_page - 1) * safe_page_size).limit(safe_page_size).all()
+        return TransferListResponse(count=count, page=safe_page, page_size=safe_page_size, results=[self._to_response(task) for task in tasks])
 
     def cancel_transfer(self, db: Session, task_id: str) -> TransferResponse:
         task = db.get(TransferTask, task_id)

@@ -15,10 +15,14 @@ EDITABLE_SOURCE_TYPES = {"configurable", "document"}
 
 
 class SourceService:
-    def list_sources(self, db: Session) -> SourceListResponse:
-        sources = db.query(Source).order_by(Source.created_at.desc(), Source.id.asc()).all()
+    def list_sources(self, db: Session, page: int = 1, page_size: int = 20) -> SourceListResponse:
+        safe_page = max(1, page)
+        safe_page_size = max(1, min(page_size, 100))
+        query = db.query(Source).order_by(Source.created_at.desc(), Source.id.asc())
+        count = query.count()
+        sources = query.offset((safe_page - 1) * safe_page_size).limit(safe_page_size).all()
         results = [self._to_response(source) for source in sources]
-        return SourceListResponse(count=len(results), results=results)
+        return SourceListResponse(count=count, page=safe_page, page_size=safe_page_size, results=results)
 
     def get_source(self, db: Session, source_id: str) -> SourceResponse | None:
         source = db.get(Source, source_id)

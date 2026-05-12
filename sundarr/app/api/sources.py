@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
@@ -15,8 +15,12 @@ router = APIRouter(tags=["sources"])
 
 
 @router.get("/sources", response_model=SourceListResponse)
-async def list_sources(db: Session = Depends(get_db)) -> SourceListResponse:
-    return source_service.list_sources(db)
+async def list_sources(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> SourceListResponse:
+    return source_service.list_sources(db, page=page, page_size=page_size)
 
 
 @router.post("/sources/create", response_model=SourceResponse)

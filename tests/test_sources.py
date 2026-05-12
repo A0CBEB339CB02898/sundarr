@@ -43,6 +43,8 @@ def test_create_and_list_document_source(db_session: Session) -> None:
     list_response = client.get("/sources")
     assert list_response.status_code == 200
     assert list_response.json()["count"] == 1
+    assert list_response.json()["page"] == 1
+    assert list_response.json()["page_size"] == 20
 
 
 def test_update_enable_disable_source(db_session: Session) -> None:

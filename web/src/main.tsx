@@ -80,6 +80,13 @@ type TransferLogResponse = {
   created_at: string
 }
 
+type TransferListResponse = {
+  count: number
+  page: number
+  page_size: number
+  results: TransferResponse[]
+}
+
 type TransferStatus =
   | 'pending'
   | 'staging_to_cloud'
@@ -225,6 +232,8 @@ type SourceResponse = {
 
 type SourceListResponse = {
   count: number
+  page: number
+  page_size: number
   results: SourceResponse[]
 }
 
@@ -548,6 +557,9 @@ function App() {
   const [activePage, setActivePage] = useState<PageKey>(() => pageFromPath(window.location.pathname))
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => storedThemeMode())
   const [transfers, setTransfers] = useState<TransferResponse[]>([])
+  const [transferPage, setTransferPage] = useState(1)
+  const [transferTotalCount, setTransferTotalCount] = useState(0)
+  const [transferPageSize] = useState(20)
   const [transferError, setTransferError] = useState<string | null>(null)
   const [isTransferPanelOpen, setIsTransferPanelOpen] = useState(true)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -599,12 +611,13 @@ function App() {
       window.clearInterval(timer)
       window.removeEventListener('sundarr:transfers-changed', onTransfersChanged)
     }
-  }, [])
+  }, [transferPage])
 
-  async function loadTransfers() {
+  async function loadTransfers(nextPage = transferPage) {
     try {
-      const result = await api.get<TransferResponse[]>('/transfers?limit=20')
-      setTransfers(result)
+      const result = await api.get<TransferListResponse>(`/transfers?page=${nextPage}&page_size=${transferPageSize}`)
+      setTransfers(result.results)
+      setTransferTotalCount(result.count)
       setTransferError(null)
     } catch (exc) {
       setTransferError(exc instanceof Error ? exc.message : '无法读取任务列表。')
@@ -687,7 +700,16 @@ function App() {
       </div>
 
       <main className="content-shell">
-        <PagePanel activePage={activePage} onTransfersChanged={loadTransfers} transfers={transfers} showToast={showToast} />
+        <PagePanel
+          activePage={activePage}
+          onTransfersChanged={loadTransfers}
+          transferPage={transferPage}
+          transferPageSize={transferPageSize}
+          transferTotalCount={transferTotalCount}
+          onTransferPageChange={setTransferPage}
+          transfers={transfers}
+          showToast={showToast}
+        />
       </main>
       <GlobalTransferPanel
         error={transferError}
@@ -778,11 +800,19 @@ function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
 function PagePanel({
   activePage,
   onTransfersChanged,
+  transferPage,
+  transferPageSize,
+  transferTotalCount,
+  onTransferPageChange,
   transfers,
   showToast,
 }: {
   activePage: PageKey
   onTransfersChanged: () => Promise<void>
+  transferPage: number
+  transferPageSize: number
+  transferTotalCount: number
+  onTransferPageChange: (page: number) => void
   transfers: TransferResponse[]
   showToast: (type: 'success' | 'error' | 'info', message: string) => void
 }) {
@@ -791,7 +821,7 @@ function PagePanel({
     return <StatusPanel />
   }
   if (activePage === 'transfers') {
-    return <TransfersPanel onTransfersChanged={onTransfersChanged} transfers={transfers} showToast={showToast} />
+    return <TransfersPanel onTransfersChanged={onTransfersChanged} page={transferPage} pageSize={transferPageSize} totalCount={transferTotalCount} onPageChange={onTransferPageChange} transfers={transfers} showToast={showToast} />
   }
   if (activePage === 'storage') {
     return <StoragePanel showToast={showToast} />
@@ -1841,6 +1871,9 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
 
 function SourcesPanel() {
   const [sources, setSources] = useState<SourceResponse[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -1859,7 +1892,7 @@ function SourcesPanel() {
 
   useEffect(() => {
     void loadSources()
-  }, [])
+  }, [page])
 
   const editingSource =
     drawerMode === 'edit' && editingId
@@ -1870,8 +1903,9 @@ function SourcesPanel() {
     setIsLoading(true)
     setLoadError(null)
     try {
-      const response = await api.get<SourceListResponse>('/sources')
+      const response = await api.get<SourceListResponse>(`/sources?page=${page}&page_size=${pageSize}`)
       setSources(response.results)
+      setTotalCount(response.count)
     } catch (exc) {
       setSources([])
       setLoadError(exc instanceof Error ? exc.message : '无法读取媒体源。')
@@ -1992,6 +2026,7 @@ function SourcesPanel() {
 
   const showEmpty = !isLoading && !loadError && sources.length === 0
   const drawerOpen = drawerMode !== null
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
   return (
     <section className="sc-page" aria-labelledby="sources-title">
@@ -2051,24 +2086,27 @@ function SourcesPanel() {
       ) : null}
 
       {sources.length > 0 ? (
-        <div className="sc-grid" role="list" aria-label="媒体源列表">
-          {sources.map((source) => (
-            <SourceCard
-              key={source.id}
-              source={source}
-              testStatus={testState[source.id]}
-              testResult={testResults[source.id] || null}
-              isExpanded={expandedTestId === source.id}
-              toggling={Boolean(togglingIds[source.id])}
-              onTest={() => void testSource(source)}
-              onEdit={() => openEdit(source)}
-              onToggle={() => void toggleSource(source)}
-              onToggleTestDetail={() =>
-                setExpandedTestId((prev) => (prev === source.id ? null : source.id))
-              }
-            />
-          ))}
-        </div>
+        <>
+          <div className="sc-grid" role="list" aria-label="媒体源列表">
+            {sources.map((source) => (
+              <SourceCard
+                key={source.id}
+                source={source}
+                testStatus={testState[source.id]}
+                testResult={testResults[source.id] || null}
+                isExpanded={expandedTestId === source.id}
+                toggling={Boolean(togglingIds[source.id])}
+                onTest={() => void testSource(source)}
+                onEdit={() => openEdit(source)}
+                onToggle={() => void toggleSource(source)}
+                onToggleTestDetail={() =>
+                  setExpandedTestId((prev) => (prev === source.id ? null : source.id))
+                }
+              />
+            ))}
+          </div>
+          <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
+        </>
       ) : null}
 
       <SourceDrawer
@@ -3330,6 +3368,21 @@ function TextField({
   )
 }
 
+function PaginationControls({ page, totalPages, onPageChange }: { page: number; totalPages: number; onPageChange: (page: number) => void }) {
+  if (totalPages <= 1) return null
+  return (
+    <div className="pagination">
+      <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+        上一页
+      </Button>
+      <span>第 {page} / {totalPages} 页</span>
+      <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+        下一页
+      </Button>
+    </div>
+  )
+}
+
 function StorageBrowser({ result, onOpen }: { result: StorageBrowseResponse; onOpen: (path: string) => void }) {
   if (result.entries.length === 0) {
     return <EmptyState message="该目录为空。" />
@@ -3351,7 +3404,23 @@ function StorageBrowser({ result, onOpen }: { result: StorageBrowseResponse; onO
   )
 }
 
-function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransfersChanged: () => Promise<void>; transfers: TransferResponse[]; showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
+function TransfersPanel({
+  onTransfersChanged,
+  page,
+  pageSize,
+  totalCount,
+  onPageChange,
+  transfers,
+  showToast,
+}: {
+  onTransfersChanged: () => Promise<void>
+  page: number
+  pageSize: number
+  totalCount: number
+  onPageChange: (page: number) => void
+  transfers: TransferResponse[]
+  showToast: (type: 'success' | 'error' | 'info', message: string) => void
+}) {
   const [transfer, setTransfer] = useState<TransferResponse | null>(null)
   const [logs, setLogs] = useState<TransferLogResponse[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -3465,6 +3534,7 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
   const canRetry = transfer?.status === 'failed' && transfer.retryable === true
   const canPause = transfer ? canPauseTransfer(transfer.status) : false
   const canResume = transfer ? canResumeTransfer(transfer.status) : false
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
   return (
     <section className="tx-page" aria-labelledby="transfers-title">
@@ -3493,6 +3563,7 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
         onPause={(id) => void pauseTaskById(id)}
         onResume={(id) => void resumeTaskById(id)}
       />
+      <PaginationControls page={page} totalPages={totalPages} onPageChange={onPageChange} />
 
       {isLoading && !transfer ? (
         <Card>

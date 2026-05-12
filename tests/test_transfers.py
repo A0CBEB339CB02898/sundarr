@@ -121,9 +121,12 @@ def test_list_transfers_returns_recent_tasks(db_session: Session) -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert [item["id"] for item in body[:2]] == ["task_newer", older.id]
-    assert body[0]["progress"] == 50
-    assert body[0]["updated_at"] is not None
+    assert body["count"] == 2
+    assert body["page"] == 1
+    assert body["page_size"] == 20
+    assert [item["id"] for item in body["results"][:2]] == ["task_newer", older.id]
+    assert body["results"][0]["progress"] == 50
+    assert body["results"][0]["updated_at"] is not None
 
 
 def test_create_transfer_rejects_missing_link(db_session: Session) -> None:

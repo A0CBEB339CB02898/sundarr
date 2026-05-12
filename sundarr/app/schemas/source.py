@@ -40,6 +40,8 @@ class SourceResponse(BaseModel):
 
 class SourceListResponse(BaseModel):
     count: int
+    page: int = 1
+    page_size: int = 20
     results: list[SourceResponse]
 
 

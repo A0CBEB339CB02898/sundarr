@@ -52,6 +52,13 @@ class TransferResponse(BaseModel):
     updated_at: str | None = None
 
 
+class TransferListResponse(BaseModel):
+    count: int
+    page: int = 1
+    page_size: int = 20
+    results: list[TransferResponse]
+
+
 class TransferLogResponse(BaseModel):
     id: str
     task_id: str
