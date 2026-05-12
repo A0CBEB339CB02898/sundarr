@@ -837,6 +837,7 @@ function PagePanel({
 function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [libraries, setLibraries] = useState<MediaLibraryResponse[]>([])
   const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
+  const [remoteLibraries, setRemoteLibraries] = useState<RemoteMediaLibraryResponse[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
@@ -847,6 +848,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<MediaLibraryFormState>(emptyLibraryForm())
+  const [selectedRemoteIds, setSelectedRemoteIds] = useState<string[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
 
@@ -867,12 +869,14 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
     setIsLoading(true)
     setLoadError(null)
     try {
-      const [libResult, connResult] = await Promise.all([
+      const [libResult, connResult, remoteResult] = await Promise.all([
         api.get<MediaLibraryListResponse>(`/media-libraries?page=${page}&page_size=${pageSize}`),
         api.get<SmbConnectionListResponse>('/storage/smb-connections?page_size=100'),
+        api.get<RemoteMediaLibraryListResponse>('/remote-media-libraries?page_size=100'),
       ])
       setLibraries(libResult.results); setTotalCount(libResult.count)
       setConnections(connResult.results)
+      setRemoteLibraries(remoteResult.results)
     } catch (exc) {
       const message = exc instanceof Error ? exc.message : '无法读取媒体库。'
       setLoadError(message)
@@ -883,12 +887,13 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
 
   function openCreate() {
     setFormMode('create'); setEditingId(null)
-    setForm(emptyLibraryForm()); setShowForm(true)
+    setForm(emptyLibraryForm()); setSelectedRemoteIds([]); setShowForm(true)
   }
 
   function openEdit(lib: MediaLibraryResponse) {
     setFormMode('edit'); setEditingId(lib.id)
     setForm({ id: lib.id, name: lib.name, media_type: lib.media_type, enabled: lib.enabled, connection_id: lib.connection_id, base_path: lib.base_path })
+    setSelectedRemoteIds(remoteLibraries.filter((item) => item.target_library_id === lib.id).map((item) => item.id))
     setShowForm(true)
   }
 
@@ -900,6 +905,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
         await api.post('/media-libraries/create', { id: newUuid(), ...payload })
       } else {
         await api.post(`/media-libraries/${encodeURIComponent(editingId!)}/update`, payload)
+        await saveRemoteBindings(editingId!, selectedRemoteIds)
       }
       setShowForm(false); showToast('success', formMode === 'create' ? '媒体库已创建。' : '媒体库已保存。')
       await loadAll()
@@ -974,6 +980,30 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
   }
 
   function updateForm(key: keyof MediaLibraryFormState, value: string | boolean) { setForm((c) => ({ ...c, [key]: value })) }
+
+  function toggleRemoteBinding(remoteId: string, checked: boolean) {
+    setSelectedRemoteIds((current) => checked ? [...new Set([...current, remoteId])] : current.filter((id) => id !== remoteId))
+  }
+
+  async function saveRemoteBindings(localLibraryId: string, nextRemoteIds: string[]) {
+    const candidates = remoteLibraries.filter((remote) => remote.media_type === form.media_type)
+    await Promise.all(candidates.map((remote) => {
+      const nextTargetId = nextRemoteIds.includes(remote.id) ? localLibraryId : remote.target_library_id === localLibraryId ? null : remote.target_library_id
+      if (nextTargetId === remote.target_library_id) return Promise.resolve()
+      return api.post(`/remote-media-libraries/${encodeURIComponent(remote.id)}/update`, {
+        name: remote.name,
+        media_type: remote.media_type,
+        enabled: remote.enabled,
+        connection_id: remote.connection_id,
+        base_path: remote.base_path,
+        target_library_id: nextTargetId,
+        scan_interval_seconds: remote.scan_interval_seconds,
+        stable_seconds: remote.stable_seconds,
+        delete_source_after_success: remote.delete_source_after_success,
+        delete_empty_source_dirs: remote.delete_empty_source_dirs,
+      })
+    }))
+  }
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
   const connName = (id: string) => connections.find((c) => c.id === id)?.name || id
@@ -1119,9 +1149,12 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
           mode={formMode}
           form={form}
           connections={connections}
+          remoteLibraries={remoteLibraries}
+          selectedRemoteIds={selectedRemoteIds}
           isSaving={isSaving}
           isTesting={isTesting}
           onFieldChange={updateForm}
+          onRemoteBindingChange={toggleRemoteBinding}
           onClose={() => setShowForm(false)}
           onTest={() => void testLibraryInForm()}
           onSubmit={() => void saveLibrary()}
@@ -1164,9 +1197,12 @@ function LibraryEditModal({
   mode,
   form,
   connections,
+  remoteLibraries,
+  selectedRemoteIds,
   isSaving,
   isTesting,
   onFieldChange,
+  onRemoteBindingChange,
   onClose,
   onTest,
   onSubmit,
@@ -1174,9 +1210,12 @@ function LibraryEditModal({
   mode: 'create' | 'edit'
   form: MediaLibraryFormState
   connections: SmbConnectionResponse[]
+  remoteLibraries: RemoteMediaLibraryResponse[]
+  selectedRemoteIds: string[]
   isSaving: boolean
   isTesting: boolean
   onFieldChange: (key: keyof MediaLibraryFormState, value: string | boolean) => void
+  onRemoteBindingChange: (remoteId: string, checked: boolean) => void
   onClose: () => void
   onTest: () => void
   onSubmit: () => void
@@ -1193,6 +1232,8 @@ function LibraryEditModal({
       document.body.style.overflow = prev
     }
   }, [onClose])
+
+  const remoteBindingOptions = remoteLibraries.filter((remote) => remote.media_type === form.media_type)
 
   return (
     <div
@@ -1279,6 +1320,31 @@ function LibraryEditModal({
             </label>
             <small>禁用后远程媒体库不会向该目录写入。</small>
           </div>
+          {mode === 'edit' ? (
+            <div className="lb-modal-toggle">
+              <div>
+                <span className="ui-eyebrow">绑定远程媒体库</span>
+                {remoteBindingOptions.length === 0 ? (
+                  <p className="lb-bindings-empty">暂无同类型远程媒体库。</p>
+                ) : (
+                  <div className="lb-bindings">
+                    {remoteBindingOptions.map((remote) => (
+                      <label className="lb-binding-row" key={remote.id}>
+                        <input
+                          type="checkbox"
+                          checked={selectedRemoteIds.includes(remote.id)}
+                          onChange={(event) => onRemoteBindingChange(remote.id, event.target.checked)}
+                        />
+                        <span>{remote.name}</span>
+                        <small>{remote.base_path} · {remote.enabled ? '已启用' : '已禁用'}</small>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <small>保存本地媒体库时同步更新远程媒体库的目标绑定。</small>
+            </div>
+          ) : null}
           <footer className="lb-modal-actions">
             <Button variant="ghost" onClick={onClose} type="button">取消</Button>
             <Button variant="secondary" onClick={onTest} disabled={isTesting} type="button">
