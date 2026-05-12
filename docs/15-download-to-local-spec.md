@@ -140,6 +140,7 @@ base_path 是 connection_id 对应 SMB base_path 内的相对路径。
 base_path 通常是 NAS 已挂载的网盘目录。
 target_library_id 指向本地媒体库，目标目录来自媒体库的 connection_id 和 base_path。
 媒体类型允许 movie / series / unclassified。
+同步绑定的 media_type、远程媒体库 media_type 和本地媒体库 media_type 必须一致。
 ```
 
 ---
@@ -165,7 +166,19 @@ mtime 超过 stable_seconds。
 不处于已处理记录中。
 ```
 
+扫描必须忽略 `*.sundarr.downloading` 临时文件，避免把未完成或中断遗留文件当作正式媒体文件创建任务。
+
 扫描结果写入 `sync_seen_files`。稳定文件进入 `stable`，创建同步任务后进入 `queued`，并记录对应 `task_id`。
+
+目标路径规则：
+
+```text
+目标路径 = 本地媒体库 base_path + 去掉远程媒体库 base_path 后的来源相对路径。
+例如远程媒体库 base_path=CloudMovie，来源 CloudMovie/Movie.mkv，同步到本地 Movies/Movie.mkv。
+如果媒体本身带目录结构，例如 CloudMovie/MovieFolder/Movie.mkv，则同步到 Movies/MovieFolder/Movie.mkv。
+```
+
+创建任务前，如果目标路径已存在同名文件，且 size 和 MD5 均与来源文件一致，应直接将该发现记录视为已完成，不再创建重复任务。
 
 ---
 

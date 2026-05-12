@@ -31,6 +31,13 @@ def _create_smb_connection(client: TestClient, connection_id: str = "conn_1") ->
     ).json()
 
 
+def _create_media_library(client: TestClient, library_id: str, media_type: str = "movie", base_path: str = "Movies") -> dict:
+    return client.post(
+        "/media-libraries/create",
+        json={"id": library_id, "name": library_id, "media_type": media_type, "connection_id": "conn_1", "base_path": base_path},
+    ).json()
+
+
 def test_create_remote_media_library(db_session: Session) -> None:
     client = make_client(db_session)
     _create_smb_connection(client)
@@ -54,6 +61,27 @@ def test_create_remote_media_library(db_session: Session) -> None:
     assert body["connection_id"] == "conn_1"
     assert body["base_path"] == "CloudMovie"
     assert body["enabled"] is True
+
+
+def test_create_remote_media_library_rejects_target_media_type_mismatch(db_session: Session) -> None:
+    client = make_client(db_session)
+    _create_smb_connection(client)
+    _create_media_library(client, "lib_series", media_type="series", base_path="Series")
+
+    response = client.post(
+        "/remote-media-libraries/create",
+        json={
+            "id": "rml_movie",
+            "name": "远程电影",
+            "media_type": "movie",
+            "connection_id": "conn_1",
+            "base_path": "CloudMovie",
+            "target_library_id": "lib_series",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "类型不一致" in response.json()["detail"]
 
 
 def test_create_remote_media_library_duplicate(db_session: Session) -> None:

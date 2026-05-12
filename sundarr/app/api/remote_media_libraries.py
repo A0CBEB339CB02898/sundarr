@@ -103,11 +103,13 @@ def _error(exc: ValueError) -> HTTPException:
         "REMOTE_MEDIA_LIBRARY_EXISTS": "远程媒体库已存在。",
         "REMOTE_MEDIA_LIBRARY_NOT_FOUND": "远程媒体库不存在。",
         "SMB_CONNECTION_NOT_FOUND": "SMB 连接不存在。",
+        "MEDIA_LIBRARY_NOT_FOUND": "媒体库不存在。",
+        "REMOTE_MEDIA_TYPE_MISMATCH": "远程媒体库和目标本地媒体库类型不一致。",
         "SMB_PATH_INVALID": "远程媒体库路径配置无效。",
     }
     if error_code == "REMOTE_MEDIA_LIBRARY_EXISTS":
         status_code = 409
-    elif error_code in ("REMOTE_MEDIA_LIBRARY_NOT_FOUND", "SMB_CONNECTION_NOT_FOUND"):
+    elif error_code in ("REMOTE_MEDIA_LIBRARY_NOT_FOUND", "SMB_CONNECTION_NOT_FOUND", "MEDIA_LIBRARY_NOT_FOUND"):
         status_code = 404
     else:
         status_code = 400

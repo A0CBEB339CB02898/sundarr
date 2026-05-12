@@ -480,10 +480,12 @@ def _seed_dtl_task(
         media_type="movie",
         remote_library_id="rml_source",
         local_library_id="lib_movie",
+        delete_source_after_success=delete_source,
+        delete_empty_source_dirs=True,
     )
     seen = SyncSeenFile(
         id="seen_dtl",
-        binding_id=remote_lib.id,
+        binding_id=binding.id,
         source_fingerprint="fingerprint_dtl",
         source_path=source_path,
         source_size=size,

@@ -1,3 +1,4 @@
+import hashlib
 from dataclasses import dataclass, field
 from typing import Any, BinaryIO
 
@@ -105,6 +106,18 @@ class SmbWriter(StorageWriter):
                 handle.truncate(max(0, int(size)))
         except Exception as exc:
             raise ValueError("SMB_WRITE_FAILED") from exc
+
+    async def checksum_md5(self, path: str) -> str:
+        digest = hashlib.md5(usedforsecurity=False)
+        try:
+            with await self.open_read(path) as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+        except ValueError:
+            raise
+        except Exception as exc:
+            self._raise_smb_error(exc)
+        return digest.hexdigest()
 
     async def rename(self, src: str, dst: str) -> None:
         smbclient = self._require_smbclient()

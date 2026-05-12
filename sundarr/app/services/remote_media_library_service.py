@@ -34,6 +34,8 @@ class RemoteMediaLibraryService:
             target = db.get(MediaLibrary, request.target_library_id)
             if target is None:
                 raise ValueError("MEDIA_LIBRARY_NOT_FOUND")
+            if target.media_type != request.media_type:
+                raise ValueError("REMOTE_MEDIA_TYPE_MISMATCH")
         self._validate_path(request.base_path)
         lib = RemoteMediaLibrary(
             id=request.id,
@@ -64,6 +66,8 @@ class RemoteMediaLibraryService:
             target = db.get(MediaLibrary, request.target_library_id)
             if target is None:
                 raise ValueError("MEDIA_LIBRARY_NOT_FOUND")
+            if target.media_type != request.media_type:
+                raise ValueError("REMOTE_MEDIA_TYPE_MISMATCH")
         self._validate_path(request.base_path)
 
         lib.name = request.name

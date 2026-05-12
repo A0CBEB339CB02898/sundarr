@@ -40,3 +40,6 @@ class StorageWriter(ABC):
     async def truncate(self, path: str, size: int = 0) -> None:
         """Truncate an existing file to ``size`` bytes. Default clears the file."""
         raise NotImplementedError
+
+    async def checksum_md5(self, path: str) -> str:
+        raise NotImplementedError

@@ -104,7 +104,7 @@ async def create_sync_tasks(
     request: SyncTaskCreateRequest | None = None, db: Session = Depends(get_db)
 ) -> SyncTaskCreateResponse:
     try:
-        return sync_service.create_tasks(db, request or SyncTaskCreateRequest())
+        return await sync_service.create_tasks(db, request or SyncTaskCreateRequest())
     except ValueError as exc:
         raise _error(exc) from exc
 
@@ -118,6 +118,7 @@ def _error(exc: ValueError) -> HTTPException:
         "MEDIA_LIBRARY_NOT_FOUND": "媒体库不存在。",
         "SMB_CONNECTION_NOT_FOUND": "SMB 连接不存在。",
         "LIBRARY_NOT_FOUND": "媒体库不存在。",
+        "SYNC_MEDIA_TYPE_MISMATCH": "同步绑定的远程媒体库、本地媒体库和媒体类型不一致。",
         "SMB_PATH_INVALID": "路径配置无效。",
     }
     if error_code == "SYNC_BINDING_EXISTS":

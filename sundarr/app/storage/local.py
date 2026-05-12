@@ -1,3 +1,4 @@
+import hashlib
 import shutil
 from pathlib import Path
 from typing import BinaryIO
@@ -67,6 +68,16 @@ class LocalWriter(StorageWriter):
             return
         with target.open("r+b") as handle:
             handle.truncate(max(0, int(size)))
+
+    async def checksum_md5(self, path: str) -> str:
+        target = self._resolve_path(path)
+        if not target.exists() or not target.is_file():
+            raise ValueError("STORAGE_PATH_NOT_FOUND")
+        digest = hashlib.md5(usedforsecurity=False)
+        with target.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
 
     def _resolve_path(self, path: str) -> Path:
         relative = path.strip().replace("\\", "/").strip("/")
