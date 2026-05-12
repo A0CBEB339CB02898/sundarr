@@ -258,8 +258,10 @@ http://localhost:8080/docs
 后端测试：
 
 ```bash
-.venv\Scripts\python -m pytest
+.venv\Scripts\python -m pytest --basetemp ".sundarr\pytest-tmp" -o cache_dir=".sundarr\pytest-cache"
 ```
+
+Windows 本地开发优先使用项目内 `.sundarr\pytest-tmp` 和 `.sundarr\pytest-cache`。不要依赖系统 Temp 或默认 `.pytest_cache`，避免权限或占用问题导致测试失败。
 
 前端 smoke：
 
