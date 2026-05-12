@@ -189,7 +189,7 @@ class TransferService:
         db.commit()
 
     def clear_completed(self, db: Session) -> int:
-        completed_tasks = db.query(TransferTask).filter(TransferTask.status == "completed").all()
+        completed_tasks = db.query(TransferTask).filter(TransferTask.status.in_(("completed", "cancelled"))).all()
         count = 0
         for task in completed_tasks:
             db.query(SyncSeenFile).filter(SyncSeenFile.task_id == task.id).update({"task_id": None})

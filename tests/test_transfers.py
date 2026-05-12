@@ -379,6 +379,42 @@ def test_list_transfer_logs_missing_transfer_returns_404(db_session: Session) ->
     assert response.json()["detail"] == "搬运任务不存在。"
 
 
+def test_clear_completed_removes_completed_and_cancelled_transfers(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    completed = _add_task(db_session, link, "completed")
+    cancelled = _add_task(db_session, link, "cancelled")
+    failed = _add_task(db_session, link, "failed")
+    running = _add_task(db_session, link, "downloading")
+    db_session.add_all(
+        [
+            TransferFile(
+                id="file_completed",
+                task_id=completed.id,
+                cloud_path="/Sundarr/_staging/completed/Movie.mkv",
+                target_path="Movies/Completed.mkv",
+                temp_path="Movies/Completed.mkv.sundarr.downloading",
+                filename="Completed.mkv",
+                size_bytes=1,
+                status="completed",
+            ),
+            TransferLog(id="log_cancelled", task_id=cancelled.id, level="info", event="task_cancelled"),
+        ]
+    )
+    db_session.commit()
+
+    response = client.post("/transfers/clear-completed")
+
+    assert response.status_code == 200
+    assert response.json()["deleted_count"] == 2
+    assert db_session.get(TransferTask, completed.id) is None
+    assert db_session.get(TransferTask, cancelled.id) is None
+    assert db_session.get(TransferTask, failed.id) is not None
+    assert db_session.get(TransferTask, running.id) is not None
+    assert db_session.get(TransferFile, "file_completed") is None
+    assert db_session.get(TransferLog, "log_cancelled") is None
+
+
 def _add_task(db_session: Session, link: ResourceLink, status: str) -> TransferTask:
     task = TransferTask(
         id=f"task_{status}",

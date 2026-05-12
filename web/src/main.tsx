@@ -612,14 +612,14 @@ function App() {
   }
 
   async function clearNonRunningTasks() {
-    const nonRunning = transfers.filter((t) => !['pending', 'downloading', 'verifying', 'renaming', 'cleaning_source', 'cleaning_cloud'].includes(t.status))
-    if (nonRunning.length === 0) { showToast('info', '没有可清空的任务。'); return }
-    if (!window.confirm(`确认清空 ${nonRunning.length} 个非运行中的任务？（包括已完成、失败、取消的任务）`)) return
+    const clearable = transfers.filter((t) => ['completed', 'cancelled'].includes(t.status))
+    if (clearable.length === 0) { showToast('info', '没有可清理的任务。'); return }
+    if (!window.confirm(`确认清理 ${clearable.length} 个已完成或已取消的任务？`)) return
     try {
       const result = await api.post<{ ok: boolean; deleted_count: number }>('/transfers/clear-completed')
-      showToast('success', `已清空 ${result.deleted_count} 个任务。`)
+      showToast('success', `已清理 ${result.deleted_count} 个任务。`)
       void loadTransfers()
-    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '清空失败。') }
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '清理失败。') }
   }
 
   function navigate(item: NavItem) {
@@ -3419,13 +3419,13 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
   }
 
   async function clearCompleted() {
-    if (!window.confirm('确认清空所有已完成的任务？')) return
+    if (!window.confirm('确认清理所有已完成或已取消的任务？')) return
     try {
       const result = await api.post<{ ok: boolean; deleted_count: number }>('/transfers/clear-completed')
-      showToast('success', `已清空 ${result.deleted_count} 个已完成任务。`)
+      showToast('success', `已清理 ${result.deleted_count} 个任务。`)
       setTransfer(null); setLogs([])
       await onTransfersChanged()
-    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '清空失败。') }
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '清理失败。') }
   }
 
   const canCancel = transfer ? canCancelTransfer(transfer.status) : false
@@ -3446,7 +3446,7 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
           </div>
           <div className="tx-overview-actions">
             <Button variant="ghost" onClick={() => void clearCompleted()}>
-              清空已完成
+              清理
             </Button>
           </div>
         </div>
