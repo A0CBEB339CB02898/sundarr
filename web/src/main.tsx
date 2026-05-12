@@ -592,7 +592,7 @@ function App() {
 
   useEffect(() => {
     void loadTransfers()
-    const timer = window.setInterval(() => void loadTransfers(), 15000)
+    const timer = window.setInterval(() => void loadTransfers(), 5000)
     const onTransfersChanged = () => void loadTransfers()
     window.addEventListener('sundarr:transfers-changed', onTransfersChanged)
     return () => {
@@ -687,7 +687,6 @@ function App() {
       </div>
 
       <main className="content-shell">
-        <PageHeader activePage={activePage} />
         <PagePanel activePage={activePage} onTransfersChanged={loadTransfers} transfers={transfers} showToast={showToast} />
       </main>
       <GlobalTransferPanel
@@ -773,17 +772,6 @@ function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
       <rect x="4" y="5" width="16" height="11" rx="2" />
       <path d="M9 20h6M12 16v4" />
     </svg>
-  )
-}
-
-function PageHeader({ activePage }: { activePage: PageKey }) {
-  const copy = pageCopy[activePage]
-  return (
-    <header className="page-header">
-      <p className="eyebrow">{copy.eyebrow}</p>
-      <h1>{copy.title}</h1>
-      <p>{copy.body}</p>
-    </header>
   )
 }
 
@@ -909,7 +897,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
     try {
       const payload = { name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/' }
       if (formMode === 'create') {
-        await api.post('/media-libraries/create', { id: form.id.trim(), ...payload })
+        await api.post('/media-libraries/create', { id: newUuid(), ...payload })
       } else {
         await api.post(`/media-libraries/${encodeURIComponent(editingId!)}/update`, payload)
       }
@@ -929,7 +917,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
   async function testLibraryInForm() {
     setIsTesting(true)
     try {
-      const payload = { id: form.id.trim() || '', name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/' }
+      const payload = { id: formMode === 'edit' && editingId ? editingId : newUuid(), name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/' }
       const endpoint = formMode === 'edit' && editingId
         ? `/media-libraries/${encodeURIComponent(editingId)}/test`
         : '/media-libraries/test-new'
@@ -955,7 +943,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
     setIsBrowsing(true)
     try {
       const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(connectionId)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
-      setBrowseResult(result); setBrowsePath(result.path)
+      setBrowseResult(result); setBrowsePath(normalizeBrowsePath(result.path))
     } catch (exc) { setBrowseResult(null); showToast('error', exc instanceof Error ? exc.message : '浏览失败。') }
     finally { setIsBrowsing(false) }
   }
@@ -1230,16 +1218,6 @@ function LibraryEditModal({
           }}
         >
           <div className="lb-form-grid">
-            <Field label="唯一标识" helper="用于在其他模块中引用，保存后不可修改。" htmlFor="lb-f-id">
-              <input
-                id="lb-f-id"
-                type="text"
-                value={form.id}
-                required
-                disabled={mode === 'edit'}
-                onChange={(event) => onFieldChange('id', event.target.value)}
-              />
-            </Field>
             <Field label="名称" helper="页面展示名称。" htmlFor="lb-f-name">
               <input
                 id="lb-f-name"
@@ -1570,7 +1548,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
         delete_empty_source_dirs: triStateToBoolean(form.delete_empty_source_dirs),
       }
       if (formMode === 'create') {
-        await api.post('/remote-media-libraries/create', { id: form.id.trim(), ...payload })
+        await api.post('/remote-media-libraries/create', { id: newUuid(), ...payload })
       } else {
         await api.post(`/remote-media-libraries/${encodeURIComponent(editingId!)}/update`, payload)
       }
@@ -1591,7 +1569,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
     setIsTesting(true)
     try {
       const payload = {
-        id: form.id.trim() || '', name: form.name.trim(), media_type: form.media_type, enabled: form.enabled,
+        id: formMode === 'edit' && editingId ? editingId : newUuid(), name: form.name.trim(), media_type: form.media_type, enabled: form.enabled,
         connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/',
         target_library_id: form.target_library_id || null,
         scan_interval_seconds: Number(form.scan_interval_seconds) || 60,
@@ -1623,7 +1601,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
     setIsBrowsing(true)
     try {
       const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(connectionId)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
-      setBrowseResult(result); setBrowsePath(result.path)
+      setBrowseResult(result); setBrowsePath(normalizeBrowsePath(result.path))
     } catch (exc) { setBrowseResult(null); showToast('error', exc instanceof Error ? exc.message : '浏览失败。') }
     finally { setIsBrowsing(false) }
   }
@@ -1721,7 +1699,6 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
               <button className="ghost-button" onClick={() => setShowForm(false)} type="button">×</button>
             </div>
             <div className="form-grid">
-              <TextField disabled={formMode === 'edit'} helper="唯一 ID，保存后不可改。" label="唯一标识" onChange={(v) => updateForm('id', v)} required value={form.id} />
               <TextField helper="页面展示名称。" label="名称" onChange={(v) => updateForm('name', v)} required value={form.name} />
               <label className="field"><span>媒体类型</span><select value={form.media_type} onChange={(e) => updateForm('media_type', e.target.value)}>
                 <option value="movie">电影</option><option value="series">剧集</option><option value="unclassified">未分类</option>
@@ -1877,7 +1854,7 @@ function SourcesPanel() {
       if (drawerMode === 'create') {
         await api.post<SourceResponse>('/sources/create', {
           ...payload,
-          id: form.id.trim(),
+          id: newUuid(),
           type: form.type,
         })
       } else if (editingId) {
@@ -2256,20 +2233,6 @@ function SourceDrawer({
           }}
         >
           <Field
-            label="Source ID"
-            htmlFor="sc-f-id"
-            helper="创建后不可修改。仅允许字母、数字、下划线和短横线。"
-          >
-            <input
-              id="sc-f-id"
-              type="text"
-              disabled={mode === 'edit'}
-              required
-              value={form.id}
-              onChange={(event) => onFieldChange('id', event.target.value)}
-            />
-          </Field>
-          <Field
             label="名称"
             htmlFor="sc-f-name"
             helper="在搜索结果和来源列表中展示的人类可读名称。"
@@ -2626,7 +2589,7 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
     try {
       const payload = { host: form.host.trim(), port: Number(form.port) || 445, share: form.share.trim(), username: form.username.trim(), password: form.password || null, domain: form.domain.trim(), base_path: form.base_path.trim() || '/' }
       if (formMode === 'create') {
-        const id = `conn_${Date.now()}`
+        const id = newUuid()
         await api.post('/storage/smb-connections/create', { id, name: formName.trim() || `${payload.host}/${payload.share}`, ...payload })
       } else {
         await api.post(`/storage/smb-connections/${encodeURIComponent(editingId!)}/update`, { name: formName.trim(), ...payload })
@@ -2686,7 +2649,7 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
     setIsBrowsing(true)
     try {
       const result = await api.get<StorageBrowseResponse>(`/storage/smb-connections/${encodeURIComponent(connectionId)}/browse?path=${encodeURIComponent(nextPath.trim())}`)
-      setBrowseResult(result); setBrowsePath(result.path)
+      setBrowseResult(result); setBrowsePath(normalizeBrowsePath(result.path))
     } catch (exc) { setBrowseResult(null); showToast('error', exc instanceof Error ? exc.message : '浏览失败。') }
     finally { setIsBrowsing(false) }
   }
@@ -3323,7 +3286,6 @@ function StorageBrowser({ result, onOpen }: { result: StorageBrowseResponse; onO
 }
 
 function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransfersChanged: () => Promise<void>; transfers: TransferResponse[]; showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
-  const [taskId, setTaskId] = useState('')
   const [transfer, setTransfer] = useState<TransferResponse | null>(null)
   const [logs, setLogs] = useState<TransferLogResponse[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -3334,7 +3296,6 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
     const handler = (event: Event) => {
       const taskIdFromEvent = (event as CustomEvent<{ taskId?: string }>).detail?.taskId
       if (taskIdFromEvent) {
-        setTaskId(taskIdFromEvent)
         void loadTransfer(taskIdFromEvent)
       }
     }
@@ -3342,14 +3303,21 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
     return () => window.removeEventListener('sundarr:select-transfer', handler)
   }, [])
 
-  async function loadTransfer(nextTaskId = taskId) {
+  useEffect(() => {
+    if (!transfer) return
+    const timer = window.setInterval(() => {
+      void loadTransfer(transfer.id, { silent: true })
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [transfer?.id])
+
+  async function loadTransfer(nextTaskId: string, options: { silent?: boolean } = {}) {
     const trimmedTaskId = nextTaskId.trim()
     if (!trimmedTaskId) {
-      setError('请输入任务 ID。')
       return
     }
 
-    setIsLoading(true)
+    if (!options.silent) setIsLoading(true)
     setError(null)
     try {
       const [task, taskLogs] = await Promise.all([
@@ -3358,13 +3326,12 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
       ])
       setTransfer(task)
       setLogs(taskLogs)
-      setTaskId(trimmedTaskId)
     } catch (exc) {
       setTransfer(null)
       setLogs([])
       setError(exc instanceof Error ? exc.message : '无法读取任务。')
     } finally {
-      setIsLoading(false)
+      if (!options.silent) setIsLoading(false)
     }
   }
 
@@ -3461,37 +3428,6 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
         onResume={(id) => void resumeTaskById(id)}
       />
 
-      <Card>
-        <form
-          className="tx-lookup"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void loadTransfer()
-          }}
-        >
-          <Field
-            label="任务 ID"
-            htmlFor="tx-lookup-id"
-            helper={
-              <>
-                也可以从上方列表或右侧浮动面板选择任务。按 <Kbd>Enter</Kbd> 查询。
-              </>
-            }
-          >
-            <input
-              id="tx-lookup-id"
-              onChange={(event) => setTaskId(event.target.value)}
-              placeholder="例如 task_001"
-              type="text"
-              value={taskId}
-            />
-          </Field>
-          <Button variant="primary" disabled={isLoading} type="submit">
-            {isLoading ? '查询中' : '查询任务'}
-          </Button>
-        </form>
-      </Card>
-
       {isLoading && !transfer ? (
         <Card>
           <UILoadingState message="正在读取任务详情和日志。" />
@@ -3506,7 +3442,7 @@ function TransfersPanel({ onTransfersChanged, transfers, showToast }: { onTransf
         <Card>
           <UIEmptyState
             message="选择一个任务查看详情"
-            sub="在上方任务表格点选，或在下方输入任务 ID。"
+            sub="在上方任务表格点选，任务详情会每 5 秒自动刷新。"
           />
         </Card>
       ) : null}
@@ -4168,6 +4104,18 @@ function triStateToBoolean(value: '' | 'true' | 'false') {
 
 function emptyLibraryForm(): MediaLibraryFormState {
   return { id: '', name: '', media_type: 'movie', enabled: true, connection_id: '', base_path: '/' }
+}
+
+function newUuid() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`
+}
+
+function normalizeBrowsePath(path: string) {
+  const normalized = path.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+  return normalized ? `/${normalized}` : '/'
 }
 
 function emptyRemoteLibraryForm(): RemoteMediaLibraryFormState {
