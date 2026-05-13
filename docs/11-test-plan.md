@@ -50,11 +50,13 @@ LocalWriter
 
 默认 pytest 使用 SQLite 内存数据库验证模型、服务和 API 行为，不要求本机 PostgreSQL 已启动。真实 PostgreSQL 连通性属于本地集成环境检查，必须通过 `/health` 或独立启动校验确认。
 
-Windows 本地运行 pytest 时，优先使用项目内 `.sundarr` 目录作为 pytest 临时目录和 cache 目录，避免系统 Temp 或默认 `.pytest_cache` 权限、占用问题影响测试结果。推荐命令：
+Windows 本地运行 pytest 时，默认使用项目内 `.sundarr` 目录作为 pytest 临时目录和 cache 目录，避免系统 Temp、pytest 内置 basetemp 或默认 `.pytest_cache` 权限、占用问题影响测试结果。推荐命令：
 
 ```bash
-.venv\Scripts\python -m pytest --basetemp ".sundarr\pytest-tmp" -o cache_dir=".sundarr\pytest-cache"
+.venv\Scripts\python -m pytest
 ```
+
+不要在 Windows / Codex 沙盒环境下手动传入 `--basetemp`。项目测试通过 `tests/conftest.py` 接管 `tmp_path` 到 `.sundarr\pytest-tmp`，并通过 `pyproject.toml` 固定 cache 到 `.sundarr\pytest-cache`，避免 pytest 内置临时目录在混合权限运行后生成仅管理员或系统可访问的私有 ACL。
 
 真实 SMB 可用于手动开发测试，以减少过度 mock 带来的偏差。但这类测试必须满足：
 

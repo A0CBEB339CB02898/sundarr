@@ -30,3 +30,4 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+cache_dir = ".sundarr/pytest-cache"
