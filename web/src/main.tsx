@@ -1060,7 +1060,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
             <Button variant="ghost" disabled={isLoading} onClick={() => void loadAll()}>
               {isLoading ? '读取中' : '重新读取'}
             </Button>
-            <Button variant="primary" onClick={openCreate}>新增媒体库</Button>
+            <Button variant="primary" onClick={openCreate}>新增本地媒体库</Button>
           </div>
         </div>
       </Card>
@@ -1088,8 +1088,8 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
         {showEmpty ? (
           <UIEmptyState
             message="暂无媒体库"
-            sub="点击上方 新增媒体库 创建第一个本地媒体库。"
-            action={<Button variant="primary" onClick={openCreate}>新增媒体库</Button>}
+            sub="点击上方 新增本地媒体库 创建第一个本地媒体库。"
+            action={<Button variant="primary" onClick={openCreate}>新增本地媒体库</Button>}
           />
         ) : null}
 
@@ -1161,19 +1161,17 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
                 )
               })}
             </div>
-            {totalPages > 1 && (
-              <div className="lb-pagination">
-                <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                  上一页
-                </Button>
-                <span>
-                  第 <strong>{page}</strong> / {totalPages} 页
-                </span>
-                <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-                  下一页
-                </Button>
-              </div>
-            )}
+            <div className="lb-pagination">
+              <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                上一页
+              </Button>
+              <span>
+                第 <strong>{page}</strong> / {totalPages} 页
+              </span>
+              <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+                下一页
+              </Button>
+            </div>
           </>
         ) : null}
       </Card>
@@ -1806,33 +1804,71 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
       {loadError ? <UIErrorState message="无法读取远程媒体库" sub={loadError} action={<Button variant="secondary" onClick={() => void loadAll()}>重试</Button>} /> : null}
 
       <div className="rm-list-section">
-        <div className="rm-table-head"><p className="ui-eyebrow">远程媒体库</p><span className="rm-table-count">{totalCount} 个</span></div>
+        <div className="rm-table-head">
+          <p className="ui-eyebrow">远程媒体库</p>
+          <span className="rm-table-count">
+            {totalCount} 个{totalPages > 1 ? ` · 第 ${page} / ${totalPages} 页` : ''}
+          </span>
+        </div>
         {showEmpty ? <UIEmptyState message="暂无远程媒体库" sub="点击上方 新增远程媒体库 创建。" action={<Button variant="primary" onClick={openCreate}>新增远程媒体库</Button>} /> : null}
         {showList ? (
-          <div className="rm-list">
-            {libraries.map((lib) => (
-              <div key={lib.id} className="rm-row-card">
-                <div className="rm-row-main">
-                  <strong>{lib.name}</strong>
-                  <span>{dtlMediaTypeLabel(lib.media_type)} · {connName(lib.connection_id)} · {lib.base_path} · {lib.enabled ? '已启用' : '已禁用'}</span>
-                  <small>同步目标: {lib.target_library_id ? libName(lib.target_library_id) : '未绑定'} · 扫描间隔: {lib.scan_interval_seconds}s</small>
+          <div className="rm-table" role="table" aria-label="远程媒体库列表">
+            <div className="rm-table-header" role="row">
+              <span role="columnheader">状态</span>
+              <span role="columnheader">名称</span>
+              <span role="columnheader">类型</span>
+              <span role="columnheader">路径</span>
+              <span role="columnheader">绑定</span>
+              <span role="columnheader" aria-label="操作" />
+            </div>
+            {libraries.map((lib) => {
+              const tone: StatusTone = lib.enabled ? 'success' : 'paused'
+              const typeLabel = dtlMediaTypeLabel(lib.media_type)
+              const typeTone: StatusTone =
+                lib.media_type === 'movie' ? 'info'
+                : lib.media_type === 'series' ? 'running'
+                : 'paused'
+              const targetName = lib.target_library_id ? lib.target_library_name || libName(lib.target_library_id) : ''
+              return (
+                <div className="rm-row" key={lib.id} role="row">
+                  <span className="rm-col-status" role="cell">
+                    <StatusBadge tone={tone}>{lib.enabled ? '已启用' : '已禁用'}</StatusBadge>
+                  </span>
+                  <span className="rm-col-title" role="cell">
+                    <strong title={lib.name}>{lib.name}</strong>
+                    <small title={lib.id}>{lib.id}</small>
+                  </span>
+                  <span className="rm-col-type" role="cell">
+                    <StatusBadge tone={typeTone}>{typeLabel}</StatusBadge>
+                  </span>
+                  <span className="rm-col-path" role="cell">
+                    <span title={connName(lib.connection_id)}>{connName(lib.connection_id)}</span>
+                    <code title={lib.base_path}>{lib.base_path || '/'}</code>
+                  </span>
+                  <span className="rm-col-bindings" role="cell">
+                    {targetName ? (
+                      <span className="rm-bindings-count" title={targetName}>{targetName}</span>
+                    ) : (
+                      <span className="rm-bindings-empty">—</span>
+                    )}
+                  </span>
+                  <div className="rm-row-actions" role="cell">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(lib)}>编辑</Button>
+                    <Button variant="ghost" size="sm" onClick={() => void testLibrary(lib)}>测试</Button>
+                    <Button variant="ghost" size="sm" onClick={() => openBrowse(lib)}>浏览</Button>
+                    {lib.target_library_id ? <Button variant="ghost" size="sm" onClick={() => void triggerScan(lib)}>扫描</Button> : null}
+                    <Button variant="ghost" size="sm" onClick={() => void toggleEnabled(lib)}>{lib.enabled ? '禁用' : '启用'}</Button>
+                    <Button variant="danger" size="sm" onClick={() => openDeleteModal(lib)}>删除</Button>
+                  </div>
                 </div>
-                <div className="rm-row-actions">
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(lib)}>编辑</Button>
-                  <Button variant="ghost" size="sm" onClick={() => void testLibrary(lib)}>测试</Button>
-                  <Button variant="ghost" size="sm" onClick={() => openBrowse(lib)}>浏览</Button>
-                  {lib.target_library_id && <Button variant="ghost" size="sm" onClick={() => void triggerScan(lib)}>扫描</Button>}
-                  <Button variant="ghost" size="sm" onClick={() => void toggleEnabled(lib)}>{lib.enabled ? '禁用' : '启用'}</Button>
-                  <Button variant="danger" size="sm" onClick={() => openDeleteModal(lib)}>删除</Button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : null}
-        {totalPages > 1 ? (
+        {showList ? (
           <div className="rm-pagination">
             <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>上一页</Button>
-            <span>第 {page} / {totalPages} 页</span>
+            <span>第 <strong>{page}</strong> / {totalPages} 页</span>
             <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>下一页</Button>
           </div>
         ) : null}
