@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useId, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import './styles.css'
 import {
@@ -847,9 +847,9 @@ function PagePanel({
         <p>{copy.next}</p>
       </div>
       <div className="state-grid">
-        <LoadingState message="后续页面加载数据时使用此状态。" />
-        <ErrorState message="API 错误会统一显示在这里。" />
-        <EmptyState message="没有数据时展示明确的空状态。" />
+        <UILoadingState message="后续页面加载数据时使用此状态。" />
+        <UIErrorState message="API 错误会统一显示在这里。" />
+        <UIEmptyState message="没有数据时展示明确的空状态。" />
       </div>
       <ApiClientPreview />
     </section>
@@ -1011,8 +1011,12 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
 
   function updateForm(key: keyof MediaLibraryFormState, value: string | boolean) { setForm((c) => ({ ...c, [key]: value })) }
 
-  function toggleRemoteBinding(remoteId: string, checked: boolean) {
-    setSelectedRemoteIds((current) => checked ? [...new Set([...current, remoteId])] : current.filter((id) => id !== remoteId))
+  function addRemoteBinding(remoteId: string) {
+    setSelectedRemoteIds((current) => [...new Set([...current, remoteId])])
+  }
+
+  function removeRemoteBinding(remoteId: string) {
+    setSelectedRemoteIds((current) => current.filter((id) => id !== remoteId))
   }
 
   async function saveRemoteBindings(localLibraryId: string, nextRemoteIds: string[]) {
@@ -1110,7 +1114,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
                   lib.media_type === 'movie' ? 'info'
                   : lib.media_type === 'series' ? 'running'
                   : 'paused'
-                const remoteCount = lib.bound_remote_libraries.length
+                const bindingPreview = remoteBindingPreview(lib.bound_remote_libraries)
                 return (
                   <div className="lb-row" key={lib.id} role="row">
                     <span className="lb-col-status" role="cell">
@@ -1128,12 +1132,12 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
                       <code title={lib.base_path}>{lib.base_path || '/'}</code>
                     </span>
                     <span className="lb-col-bindings" role="cell">
-                      {remoteCount > 0 ? (
+                      {lib.bound_remote_libraries.length > 0 ? (
                         <span
                           className="lb-bindings-count"
                           title={lib.bound_remote_libraries.join('、')}
                         >
-                          远程 {remoteCount}
+                          {bindingPreview}
                         </span>
                       ) : (
                         <span className="lb-bindings-empty">—</span>
@@ -1184,7 +1188,8 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
           isSaving={isSaving}
           isTesting={isTesting}
           onFieldChange={updateForm}
-          onRemoteBindingChange={toggleRemoteBinding}
+          onRemoteBindingAdd={addRemoteBinding}
+          onRemoteBindingRemove={removeRemoteBinding}
           onClose={() => setShowForm(false)}
           onTest={() => void testLibraryInForm()}
           onSubmit={() => void saveLibrary()}
@@ -1232,7 +1237,8 @@ function LibraryEditModal({
   isSaving,
   isTesting,
   onFieldChange,
-  onRemoteBindingChange,
+  onRemoteBindingAdd,
+  onRemoteBindingRemove,
   onClose,
   onTest,
   onSubmit,
@@ -1245,7 +1251,8 @@ function LibraryEditModal({
   isSaving: boolean
   isTesting: boolean
   onFieldChange: (key: keyof MediaLibraryFormState, value: string | boolean) => void
-  onRemoteBindingChange: (remoteId: string, checked: boolean) => void
+  onRemoteBindingAdd: (remoteId: string) => void
+  onRemoteBindingRemove: (remoteId: string) => void
   onClose: () => void
   onTest: () => void
   onSubmit: () => void
@@ -1263,7 +1270,8 @@ function LibraryEditModal({
     }
   }, [onClose])
 
-  const remoteBindingOptions = remoteLibraries.filter((remote) => remote.media_type === form.media_type)
+  const availableRemoteLibraries = remoteLibraries.filter((remote) => !selectedRemoteIds.includes(remote.id))
+  const selectedRemoteLibraries = remoteLibraries.filter((remote) => selectedRemoteIds.includes(remote.id))
 
   return (
     <div
@@ -1351,28 +1359,58 @@ function LibraryEditModal({
             <small>禁用后远程媒体库不会向该目录写入。</small>
           </div>
           {mode === 'edit' ? (
-            <div className="lb-modal-toggle">
-              <div>
+            <div className="lb-remote-picker">
+              <div className="lb-remote-picker-head">
                 <span className="ui-eyebrow">绑定远程媒体库</span>
-                {remoteBindingOptions.length === 0 ? (
-                  <p className="lb-bindings-empty">暂无同类型远程媒体库。</p>
-                ) : (
-                  <div className="lb-bindings">
-                    {remoteBindingOptions.map((remote) => (
-                      <label className="lb-binding-row" key={remote.id}>
-                        <input
-                          type="checkbox"
-                          checked={selectedRemoteIds.includes(remote.id)}
-                          onChange={(event) => onRemoteBindingChange(remote.id, event.target.checked)}
-                        />
-                        <span>{remote.name}</span>
-                        <small>{remote.base_path} · {remote.enabled ? '已启用' : '已禁用'}</small>
-                      </label>
-                    ))}
-                  </div>
-                )}
+                <p>从左侧添加到右侧，保存后更新这些远程媒体库的同步目标。</p>
               </div>
-              <small>保存本地媒体库时同步更新远程媒体库的目标绑定。</small>
+              <div className="lb-remote-picker-grid">
+                <div className="lb-remote-list">
+                  <div className="lb-remote-list-title">
+                    <strong>全部远程媒体库</strong>
+                    <span>{availableRemoteLibraries.length}</span>
+                  </div>
+                  {availableRemoteLibraries.length === 0 ? (
+                    <p className="lb-bindings-empty">没有可添加的远程媒体库。</p>
+                  ) : (
+                    availableRemoteLibraries.map((remote) => {
+                      const typeMismatch = remote.media_type !== form.media_type
+                      return (
+                        <div className="lb-remote-item" key={remote.id} data-disabled={typeMismatch || undefined}>
+                          <div>
+                            <strong>{remote.name}</strong>
+                            <small>{remote.base_path} · {remote.media_type} · {remote.enabled ? '已启用' : '已禁用'}</small>
+                          </div>
+                          <Button variant="ghost" size="sm" disabled={typeMismatch} onClick={() => onRemoteBindingAdd(remote.id)} type="button">
+                            添加 →
+                          </Button>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+                <div className="lb-remote-list">
+                  <div className="lb-remote-list-title">
+                    <strong>已绑定到当前媒体库</strong>
+                    <span>{selectedRemoteLibraries.length}</span>
+                  </div>
+                  {selectedRemoteLibraries.length === 0 ? (
+                    <p className="lb-bindings-empty">尚未绑定远程媒体库。</p>
+                  ) : (
+                    selectedRemoteLibraries.map((remote) => (
+                      <div className="lb-remote-item" key={remote.id}>
+                        <div>
+                          <strong>{remote.name}</strong>
+                          <small>{remote.base_path} · {remote.media_type} · {remote.enabled ? '已启用' : '已禁用'}</small>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => onRemoteBindingRemove(remote.id)} type="button">
+                          ← 移除
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           ) : null}
           <footer className="lb-modal-actions">
@@ -1577,6 +1615,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
@@ -1599,6 +1638,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
 
   async function loadAll() {
     setIsLoading(true)
+    setLoadError(null)
     try {
       const [libResult, connResult, localResult] = await Promise.all([
         api.get<RemoteMediaLibraryListResponse>(`/remote-media-libraries?page=${page}&page_size=${pageSize}`),
@@ -1608,7 +1648,11 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
       setLibraries(libResult.results); setTotalCount(libResult.count)
       setConnections(connResult.results)
       setLocalLibraries(localResult.results)
-    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '无法读取远程媒体库。') }
+    } catch (exc) {
+      const message = exc instanceof Error ? exc.message : '无法读取远程媒体库。'
+      setLoadError(message)
+      showToast('error', message)
+    }
     finally { setIsLoading(false) }
   }
 
@@ -1738,128 +1782,144 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
   const connName = (id: string) => connections.find((c) => c.id === id)?.name || id
   const libName = (id: string) => localLibraries.find((l) => l.id === id)?.name || id
+  const showEmpty = !isLoading && !loadError && libraries.length === 0
+  const showList = !loadError && libraries.length > 0
 
   return (
-    <section className="panel" aria-labelledby="remote-libraries-title">
-      <div className="panel-header-row">
+    <section className="rm-page" aria-labelledby="remote-libraries-title">
+      <Card className="rm-overview">
+      <div className="rm-overview-head">
         <div>
-          <p className="panel-kicker">远程媒体库</p>
+          <p className="ui-eyebrow">远程媒体库</p>
           <h2 id="remote-libraries-title">远程媒体库管理</h2>
-          <p>管理远程媒体库目录绑定，配置同步目标和扫描参数。</p>
+          <p className="rm-overview-lead">管理远程媒体库目录绑定，配置同步目标和扫描参数。</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="ghost-button" disabled={isLoading} onClick={() => void loadAll()} type="button">{isLoading ? '读取中' : '重新读取'}</button>
-          <button className="primary-button" onClick={openCreate} type="button">新增</button>
+        <div className="rm-overview-actions">
+          <Button variant="ghost" disabled={isLoading} onClick={() => void loadAll()}>{isLoading ? '读取中' : '重新读取'}</Button>
+          <Button variant="primary" onClick={openCreate}>新增远程媒体库</Button>
         </div>
       </div>
+      </Card>
 
-      {isLoading && <LoadingState message="正在读取远程媒体库。" />}
+      <Card emphasis="sunken" className="rm-table-card">
+      {isLoading && libraries.length === 0 ? <UILoadingState message="正在读取远程媒体库…" /> : null}
+      {loadError ? <UIErrorState message="无法读取远程媒体库" sub={loadError} action={<Button variant="secondary" onClick={() => void loadAll()}>重试</Button>} /> : null}
 
-      <div className="transfer-list-section">
-        <div className="section-heading"><h3>远程媒体库列表</h3><span>{totalCount} 个</span></div>
-        {libraries.length === 0 ? <EmptyState message="暂无远程媒体库。点击新增创建。" /> : (
-          <div className="transfer-list">
+      <div className="rm-list-section">
+        <div className="rm-table-head"><p className="ui-eyebrow">远程媒体库</p><span className="rm-table-count">{totalCount} 个</span></div>
+        {showEmpty ? <UIEmptyState message="暂无远程媒体库" sub="点击上方 新增远程媒体库 创建。" action={<Button variant="primary" onClick={openCreate}>新增远程媒体库</Button>} /> : null}
+        {showList ? (
+          <div className="rm-list">
             {libraries.map((lib) => (
-              <div key={lib.id} className="transfer-row">
-                <div className="transfer-row-main">
+              <div key={lib.id} className="rm-row-card">
+                <div className="rm-row-main">
                   <strong>{lib.name}</strong>
-                  <span>{lib.media_type} · {connName(lib.connection_id)} · {lib.base_path} · {lib.enabled ? '已启用' : '已禁用'}</span>
+                  <span>{dtlMediaTypeLabel(lib.media_type)} · {connName(lib.connection_id)} · {lib.base_path} · {lib.enabled ? '已启用' : '已禁用'}</span>
                   <small>同步目标: {lib.target_library_id ? libName(lib.target_library_id) : '未绑定'} · 扫描间隔: {lib.scan_interval_seconds}s</small>
                 </div>
-                <div className="transfer-row-actions">
-                  <button className="ghost-button" onClick={() => openEdit(lib)} type="button">编辑</button>
-                  <button className="ghost-button" onClick={() => void testLibrary(lib)} type="button">测试</button>
-                  <button className="ghost-button" onClick={() => openBrowse(lib)} type="button">浏览</button>
-                  {lib.target_library_id && <button className="ghost-button" onClick={() => void triggerScan(lib)} type="button">扫描</button>}
-                  <button className="ghost-button" onClick={() => void toggleEnabled(lib)} type="button">{lib.enabled ? '禁用' : '启用'}</button>
-                  <button className="ghost-button danger" onClick={() => openDeleteModal(lib)} type="button">删除</button>
+                <div className="rm-row-actions">
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(lib)}>编辑</Button>
+                  <Button variant="ghost" size="sm" onClick={() => void testLibrary(lib)}>测试</Button>
+                  <Button variant="ghost" size="sm" onClick={() => openBrowse(lib)}>浏览</Button>
+                  {lib.target_library_id && <Button variant="ghost" size="sm" onClick={() => void triggerScan(lib)}>扫描</Button>}
+                  <Button variant="ghost" size="sm" onClick={() => void toggleEnabled(lib)}>{lib.enabled ? '禁用' : '启用'}</Button>
+                  <Button variant="danger" size="sm" onClick={() => openDeleteModal(lib)}>删除</Button>
                 </div>
               </div>
             ))}
           </div>
-        )}
-        {totalPages > 1 && (
-          <div className="pagination">
-            <button className="ghost-button" disabled={page <= 1} onClick={() => setPage(page - 1)} type="button">上一页</button>
+        ) : null}
+        {totalPages > 1 ? (
+          <div className="rm-pagination">
+            <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>上一页</Button>
             <span>第 {page} / {totalPages} 页</span>
-            <button className="ghost-button" disabled={page >= totalPages} onClick={() => setPage(page + 1)} type="button">下一页</button>
+            <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>下一页</Button>
           </div>
-        )}
+        ) : null}
       </div>
+      </Card>
 
       {showForm && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{formMode === 'create' ? '创建远程媒体库' : '编辑远程媒体库'}</h3>
-              <button className="ghost-button" onClick={() => setShowForm(false)} type="button">×</button>
-            </div>
-            <div className="form-grid">
+        <div className="rm-modal-overlay">
+          <div className="rm-modal rm-modal-lg" onClick={(e) => e.stopPropagation()}>
+            <header className="rm-modal-head">
+              <div>
+                <p className="ui-eyebrow">{formMode === 'create' ? '新增' : '编辑'}</p>
+                <h3>{formMode === 'create' ? '创建远程媒体库' : '编辑远程媒体库'}</h3>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowForm(false)} aria-label="关闭">×</Button>
+            </header>
+            <div className="rm-modal-body">
+            <div className="rm-form-grid">
               <TextField helper="页面展示名称。" label="名称" onChange={(v) => updateForm('name', v)} required value={form.name} />
-              <label className="field"><span>媒体类型</span><select value={form.media_type} onChange={(e) => updateForm('media_type', e.target.value)}>
+              <Field label="媒体类型" helper="电影、剧集或未分类。"><select value={form.media_type} onChange={(e) => updateForm('media_type', e.target.value)}>
                 <option value="movie">电影</option><option value="series">剧集</option><option value="unclassified">未分类</option>
-              </select><small>电影、剧集或未分类。</small></label>
-              <label className="field"><span>SMB 连接</span><select value={form.connection_id} onChange={(e) => updateForm('connection_id', e.target.value)}>
+              </select></Field>
+              <Field label="SMB 连接" helper="绑定到某个已配置的 SMB 连接。"><select value={form.connection_id} onChange={(e) => updateForm('connection_id', e.target.value)}>
                 <option value="">选择连接</option>{connections.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.host}/{c.share})</option>)}
-              </select><small>绑定到某个已配置的 SMB 连接。</small></label>
+              </select></Field>
               <TextField helper="相对于 SMB 连接 Base Path 的远程目录。" label="目录路径" onChange={(v) => updateForm('base_path', v)} required value={form.base_path} />
             </div>
-            <div className="section-heading" style={{ marginTop: 16 }}><h3>同步配置</h3></div>
-            <div className="form-grid">
-              <label className="field"><span>同步目标本地媒体库</span><select value={form.target_library_id} onChange={(e) => updateForm('target_library_id', e.target.value)}>
-                <option value="">不绑定（禁用自动同步）</option>{localLibraries.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.media_type})</option>)}
-              </select><small>绑定后 Worker 将自动扫描并下载到此本地媒体库。</small></label>
+            <div className="rm-section-heading"><p className="ui-eyebrow">同步配置</p></div>
+            <div className="rm-form-grid">
+              <Field label="同步目标本地媒体库" helper="绑定后 Worker 将自动扫描并下载到此本地媒体库。"><select value={form.target_library_id} onChange={(e) => updateForm('target_library_id', e.target.value)}>
+                <option value="">不绑定（禁用自动同步）</option>{localLibraries.map((l) => <option key={l.id} value={l.id}>{l.name} ({dtlMediaTypeLabel(l.media_type)})</option>)}
+              </select></Field>
               <TextField helper="两次扫描之间的间隔秒数。" label="扫描间隔(秒)" onChange={(v) => updateForm('scan_interval_seconds', v)} type="number" value={form.scan_interval_seconds} />
               <TextField helper="文件 size/mtime 不变超过该秒数后才创建任务。" label="稳定等待(秒)" onChange={(v) => updateForm('stable_seconds', v)} type="number" value={form.stable_seconds} />
-              <label className="field"><span>成功后删除来源</span><select value={form.delete_source_after_success} onChange={(e) => updateForm('delete_source_after_success', e.target.value)}>
+              <Field label="成功后删除来源" helper="为空时使用全局配置。"><select value={form.delete_source_after_success} onChange={(e) => updateForm('delete_source_after_success', e.target.value)}>
                 <option value="">使用全局默认</option><option value="true">删除</option><option value="false">保留</option>
-              </select><small>为空时使用全局配置。</small></label>
-              <label className="field"><span>成功后删除空目录</span><select value={form.delete_empty_source_dirs} onChange={(e) => updateForm('delete_empty_source_dirs', e.target.value)}>
+              </select></Field>
+              <Field label="成功后删除空目录" helper="为空时使用全局配置。"><select value={form.delete_empty_source_dirs} onChange={(e) => updateForm('delete_empty_source_dirs', e.target.value)}>
                 <option value="">使用全局默认</option><option value="true">删除</option><option value="false">保留</option>
-              </select><small>为空时使用全局配置。</small></label>
+              </select></Field>
             </div>
-            <div className="form-actions">
-              <button className="ghost-button" onClick={() => setShowForm(false)} type="button">取消</button>
-              <button className="ghost-button" disabled={isTesting} onClick={() => void testLibraryInForm()} type="button">{isTesting ? '测试中' : '测试连接'}</button>
-              <button className="primary-button" disabled={isSaving} onClick={() => void saveLibrary()} type="button">{isSaving ? '保存中' : formMode === 'create' ? '创建' : '保存'}</button>
             </div>
+            <footer className="rm-modal-actions">
+              <Button variant="ghost" onClick={() => setShowForm(false)}>取消</Button>
+              <Button variant="secondary" disabled={isTesting} onClick={() => void testLibraryInForm()}>{isTesting ? '测试中…' : '测试连接'}</Button>
+              <Button variant="primary" disabled={isSaving} onClick={() => void saveLibrary()}>{isSaving ? '保存中…' : formMode === 'create' ? '创建' : '保存'}</Button>
+            </footer>
           </div>
         </div>
       )}
 
       {showBrowse && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>目录浏览</h3>
-              <button className="ghost-button" onClick={() => { setShowBrowse(false); setBrowseResult(null); setBrowsePath('') }} type="button">×</button>
-            </div>
-            <form className="lookup-form" onSubmit={(event) => { event.preventDefault(); void doBrowse() }}>
-              <label>
-                <span>路径</span>
+        <div className="rm-modal-overlay">
+          <div className="rm-modal rm-modal-lg" onClick={(e) => e.stopPropagation()}>
+            <header className="rm-modal-head">
+              <div><p className="ui-eyebrow">浏览</p><h3>目录浏览</h3></div>
+              <Button variant="ghost" size="sm" onClick={() => { setShowBrowse(false); setBrowseResult(null); setBrowsePath('') }} aria-label="关闭">×</Button>
+            </header>
+            <form className="rm-modal-body rm-browse-body" onSubmit={(event) => { event.preventDefault(); void doBrowse() }}>
+              <div className="rm-browse-toolbar">
+              <Field label="路径" helper={<>相对于 SMB 连接 Base Path 的目录。按 <Kbd>Enter</Kbd> 浏览。</>}>
                 <input onChange={(event) => setBrowsePath(event.target.value)} placeholder="例如 Movies" type="text" value={browsePath} />
-              </label>
-              <button className="primary-button" disabled={isBrowsing} type="submit">{isBrowsing ? '浏览中' : '浏览'}</button>
+              </Field>
+              <Button variant="primary" disabled={isBrowsing} type="submit">{isBrowsing ? '浏览中…' : '浏览'}</Button>
+              </div>
+              {isBrowsing && !browseResult ? <UILoadingState message="正在读取目录…" /> : null}
+              {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void doBrowse(path)} /> : <UIEmptyState message="输入路径后浏览目录" sub="空值表示浏览连接 Base Path 下的根目录。" />}
             </form>
-            <p className="lookup-form-hint">相对于 Base Path 的目录。</p>
-            {isBrowsing && !browseResult ? <LoadingState message="正在读取目录。" /> : null}
-            {browseResult ? <StorageBrowser result={browseResult} onOpen={(path) => void doBrowse(path)} /> : <EmptyState message="输入路径后浏览目录。" />}
           </div>
         </div>
       )}
 
       {showDelete && deleteTarget && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>删除远程媒体库</h3>
-              <button className="ghost-button" onClick={() => setShowDelete(false)} type="button">×</button>
+        <div className="rm-modal-overlay">
+          <div className="rm-modal rm-modal-sm" onClick={(e) => e.stopPropagation()}>
+            <header className="rm-modal-head">
+              <div><p className="ui-eyebrow">删除</p><h3>删除远程媒体库</h3></div>
+              <Button variant="ghost" size="sm" onClick={() => setShowDelete(false)} aria-label="关闭">×</Button>
+            </header>
+            <div className="rm-modal-body">
+              <p className="rm-danger-lede">确认删除远程媒体库 <strong>{deleteTarget.name}</strong>？关联的同步记录将被清理。</p>
+              <p className="rm-danger-hint">删除远程媒体库不会删除 SMB 来源目录中的文件。</p>
             </div>
-            <p>确认删除远程媒体库 <strong>{deleteTarget.name}</strong>？关联的同步记录将被清理。</p>
-            <div className="form-actions">
-              <button className="ghost-button" onClick={() => void executeDelete('cancel')} type="button">取消</button>
-              <button className="ghost-button danger" disabled={isSaving} onClick={() => void executeDelete('delete')} type="button">确认删除</button>
-            </div>
+            <footer className="rm-modal-actions">
+              <Button variant="ghost" onClick={() => void executeDelete('cancel')}>取消</Button>
+              <Button variant="danger" disabled={isSaving} onClick={() => void executeDelete('delete')}>{isSaving ? '删除中…' : '删除'}</Button>
+            </footer>
           </div>
         </div>
       )}
@@ -2532,41 +2592,43 @@ function SearchPanel() {
   }
 
   return (
-    <section className="panel" aria-labelledby="search-title">
-      <div className="panel-header-row">
+    <section className="sx-page" aria-labelledby="search-title">
+      <Card className="sx-overview">
+      <div className="sx-overview-head">
         <div>
-          <p className="panel-kicker">搜索</p>
+          <p className="ui-eyebrow">搜索</p>
           <h2 id="search-title">搜索与创建任务</h2>
-          <p>搜索候选资源，选择网盘链接，填写目标路径后创建 transfer task。</p>
+          <p className="sx-overview-lead">搜索候选资源，选择网盘链接，填写目标路径后创建 Transfer 任务。</p>
         </div>
       </div>
+      </Card>
 
-      <form className="search-form" onSubmit={(event) => { event.preventDefault(); void runSearch() }}>
+      <Card className="sx-search-card">
+      <form className="sx-form" onSubmit={(event) => { event.preventDefault(); void runSearch() }}>
         <TextField helper="要搜索的片名、剧名或关键词。" label="关键词" onChange={(value) => updateField('q', value)} required value={form.q} />
-        <label className="field">
-          <span>类型</span>
+        <Field label="类型" helper="用于缩小搜索范围；不确定时选“未知”。">
           <select onChange={(event) => updateField('type', event.target.value)} value={form.type}>
             <option value="unknown">未知</option>
             <option value="movie">电影</option>
             <option value="tv">剧集</option>
             <option value="anime">动画</option>
           </select>
-          <small>用于缩小搜索范围；不确定时选“未知”。</small>
-        </label>
+        </Field>
         <TextField helper="可选，用于区分同名作品。" label="年份" onChange={(value) => updateField('year', value)} type="number" value={form.year} />
         <TextField helper="最多返回多少个候选结果。" label="数量限制" onChange={(value) => updateField('limit', value)} type="number" value={form.limit} />
-        <div className="form-actions">
-          <button className="primary-button" disabled={isSearching} type="submit">{isSearching ? '搜索中' : '搜索资源'}</button>
+        <div className="sx-form-actions">
+          <Button variant="primary" disabled={isSearching} type="submit">{isSearching ? '搜索中…' : '搜索资源'}</Button>
         </div>
       </form>
+      </Card>
 
-      {isSearching ? <LoadingState message="正在聚合搜索候选资源。" /> : null}
-      {error ? <ErrorState message={error} /> : null}
+      {isSearching ? <UILoadingState message="正在聚合搜索候选资源…" /> : null}
+      {error ? <UIErrorState message="搜索或创建任务失败" sub={error} /> : null}
 
       {response ? (
-        <div className="search-results">
-          <div className="section-heading"><h3>候选资源</h3><span>{response.count} 个结果</span></div>
-          {response.results.length === 0 ? <EmptyState message="没有搜索到候选资源。" /> : null}
+        <Card emphasis="sunken" className="sx-results-card">
+          <div className="sx-section-head"><p className="ui-eyebrow">候选资源</p><span>{response.count} 个结果</span></div>
+          {response.results.length === 0 ? <UIEmptyState message="没有搜索到候选资源" sub="可以换一个关键词、年份或类型后重新搜索。" /> : null}
           {response.results.map((resource) => (
             <ResourceCard
               key={resource.id}
@@ -2578,22 +2640,22 @@ function SearchPanel() {
               selectedLinkId={selectedLink?.link.id || null}
             />
           ))}
-        </div>
+        </Card>
       ) : null}
 
-      <section className="create-transfer-panel" aria-labelledby="create-transfer-title">
-        <div className="section-heading"><h3 id="create-transfer-title">创建任务</h3><span>{selectedLink ? selectedLink.link.provider : '未选择链接'}</span></div>
-        {selectedLink ? <div className="selected-link-card"><strong>{selectedLink.resource.title}</strong><p>{selectedLink.link.url}</p></div> : <EmptyState message="请先在候选资源中选择一个链接。" />}
-        <form className="search-form" onSubmit={(event) => { event.preventDefault(); void createTransfer() }}>
+      <Card className="sx-create-card" aria-labelledby="create-transfer-title">
+        <div className="sx-section-head"><p className="ui-eyebrow" id="create-transfer-title">创建任务</p><span>{selectedLink ? selectedLink.link.provider : '未选择链接'}</span></div>
+        {selectedLink ? <div className="selected-link-card"><strong>{selectedLink.resource.title}</strong><p>{selectedLink.link.url}</p></div> : <UIEmptyState message="请先选择一个资源链接" sub="选择候选资源里的链接后，再确认目标路径。" />}
+        <form className="sx-form" onSubmit={(event) => { event.preventDefault(); void createTransfer() }}>
           <TextField helper="逻辑媒体库名称，例如 movies、tv、anime。" label="目标 Library" onChange={(value) => updateField('target_library', value)} value={form.target_library} />
           <TextField helper="相对目标路径，不要填写 SMB host/share；例如 Movies/Movie Name (2024)。" label="目标路径" onChange={(value) => updateField('target_path', value)} required value={form.target_path} />
-          <div className="form-actions">
-            <button className="secondary-button" disabled={!selectedLink || isCreating} type="submit">{isCreating ? '创建中' : '创建 Transfer'}</button>
+          <div className="sx-form-actions">
+            <Button variant="primary" disabled={!selectedLink || isCreating} type="submit">{isCreating ? '创建中…' : '创建 Transfer'}</Button>
           </div>
         </form>
-        {!form.target_path.trim() ? <div className="notice-card"><strong>需要确认目标路径</strong><p>目标路径为空时不会创建任务，请先确认 library 和最终文件路径。</p></div> : null}
-        {createdTask ? <div className="notice-card"><strong>任务已创建</strong><p>任务 ID：{createdTask.id}。可前往任务页查询进度。</p></div> : null}
-      </section>
+        {!form.target_path.trim() ? <div className="sx-notice"><strong>需要确认目标路径</strong><p>目标路径为空时不会创建任务，请先确认 library 和最终文件路径。</p></div> : null}
+        {createdTask ? <div className="sx-notice"><strong>任务已创建</strong><p>任务 ID：{createdTask.id}。可前往任务页查询进度。</p></div> : null}
+      </Card>
 
       <ApiClientPreview />
     </section>
@@ -2617,7 +2679,7 @@ function ResourceCard({ onSelect, resource, selectedLinkId }: { onSelect: (link:
         <DetailItem label="来源" value={resource.source_id} />
       </div>
       <div className="link-list">
-        {resource.links.length === 0 ? <EmptyState message="该候选资源没有可用链接。" /> : null}
+        {resource.links.length === 0 ? <UIEmptyState message="该候选资源没有可用链接" /> : null}
         {resource.links.map((link) => (
           <button className="link-row" data-selected={selectedLinkId === link.id} key={link.id} onClick={() => onSelect(link)} type="button">
             <span>{link.provider}</span>
@@ -3359,12 +3421,12 @@ function TextField({
   type?: string
   value: string
 }) {
+  const id = useId()
+
   return (
-    <label className="field">
-      <span>{label}</span>
-      <input disabled={disabled} onChange={(event) => onChange(event.target.value)} required={required} type={type} value={value} />
-      {helper ? <small>{helper}</small> : null}
-    </label>
+    <Field label={label} helper={helper} htmlFor={id}>
+      <input id={id} disabled={disabled} onChange={(event) => onChange(event.target.value)} required={required} type={type} value={value} />
+    </Field>
   )
 }
 
@@ -3385,7 +3447,7 @@ function PaginationControls({ page, totalPages, onPageChange }: { page: number; 
 
 function StorageBrowser({ result, onOpen }: { result: StorageBrowseResponse; onOpen: (path: string) => void }) {
   if (result.entries.length === 0) {
-    return <EmptyState message="该目录为空。" />
+    return <UIEmptyState message="该目录为空" sub="这个目录下暂时没有可继续浏览的子目录。" />
   }
 
   return (
@@ -4114,34 +4176,6 @@ function StatusCard({ label, value, lastChecked }: { label: string; value: strin
   )
 }
 
-function LoadingState({ message }: { message: string }) {
-  return (
-    <div className="state-card">
-      <span className="spinner" aria-hidden="true" />
-      <strong>加载中</strong>
-      <p>{message}</p>
-    </div>
-  )
-}
-
-function ErrorState({ message }: { message: string }) {
-  return (
-    <div className="state-card error-card">
-      <strong>请求失败</strong>
-      <p>{message}</p>
-    </div>
-  )
-}
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="state-card empty-card">
-      <strong>暂无数据</strong>
-      <p>{message}</p>
-    </div>
-  )
-}
-
 function ApiClientPreview() {
   return (
     <div className="api-preview">
@@ -4253,6 +4287,11 @@ function newUuid() {
 function normalizeBrowsePath(path: string) {
   const normalized = path.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
   return normalized ? `/${normalized}` : '/'
+}
+
+function remoteBindingPreview(names: string[]) {
+  if (names.length <= 2) return names.join('、')
+  return `${names.slice(0, 2).join('、')}…`
 }
 
 function emptyRemoteLibraryForm(): RemoteMediaLibraryFormState {
@@ -4426,6 +4465,15 @@ function mediaTypeLabel(type: MediaType) {
     tv: '剧集',
     anime: '动画',
     unknown: '未知',
+  }
+  return labels[type]
+}
+
+function dtlMediaTypeLabel(type: DtlMediaType) {
+  const labels: Record<DtlMediaType, string> = {
+    movie: '电影',
+    series: '剧集',
+    unclassified: '未分类',
   }
   return labels[type]
 }
