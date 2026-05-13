@@ -3523,7 +3523,7 @@ function PaginationControls({
               onPageSizeChange(Number(event.target.value))
             }}
           >
-            {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+            {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size} 条</option>)}
           </select>
         </label>
       ) : null}
