@@ -19,7 +19,7 @@ class MediaLibraryCreateRequest(BaseModel):
         normalized = value.replace("\\", "/").replace("//", "/").rstrip("/") or "/"
         if ".." in normalized.split("/"):
             raise ValueError("媒体库路径不能包含 ..。")
-        return normalized
+        return normalized if normalized.startswith("/") else f"/{normalized}"
 
 
 class MediaLibraryUpdateRequest(BaseModel):
@@ -35,7 +35,7 @@ class MediaLibraryUpdateRequest(BaseModel):
         normalized = value.replace("\\", "/").replace("//", "/").rstrip("/") or "/"
         if ".." in normalized.split("/"):
             raise ValueError("媒体库路径不能包含 ..。")
-        return normalized
+        return normalized if normalized.startswith("/") else f"/{normalized}"
 
 
 class MediaLibraryResponse(BaseModel):
@@ -46,6 +46,9 @@ class MediaLibraryResponse(BaseModel):
     connection_id: str
     base_path: str
     bound_remote_libraries: list[str] = Field(default_factory=list)
+    last_test_ok: bool | None = None
+    last_test_error_code: str | None = None
+    last_test_error_message: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
 

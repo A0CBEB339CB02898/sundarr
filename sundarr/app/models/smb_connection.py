@@ -18,3 +18,6 @@ class SmbConnection(TimestampMixin, Base):
     password: Mapped[str | None] = mapped_column(Text)
     domain: Mapped[str | None] = mapped_column(Text)
     base_path: Mapped[str] = mapped_column(Text, nullable=False, default="/", server_default="/")
+    last_test_ok: Mapped[bool | None] = mapped_column(Boolean)
+    last_test_error_code: Mapped[str | None] = mapped_column(Text)
+    last_test_error_message: Mapped[str | None] = mapped_column(Text)

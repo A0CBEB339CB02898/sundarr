@@ -77,6 +77,16 @@ async def test_smb_connection(connection_id: str, db: Session = Depends(get_db))
         raise _smb_connection_error(exc) from exc
 
 
+@router.post("/storage/smb-connections/{connection_id}/test-new", response_model=SmbConnectionTestResponse)
+async def test_existing_smb_connection_form(
+    connection_id: str, request: SmbConnectionUpdateRequest, db: Session = Depends(get_db)
+) -> SmbConnectionTestResponse:
+    try:
+        return await smb_connection_service.test_connection_with_request(db, connection_id, request)
+    except ValueError as exc:
+        raise _smb_connection_error(exc) from exc
+
+
 @router.post("/storage/smb-connections/test-new", response_model=SmbConnectionTestResponse)
 async def test_new_smb_connection(
     request: SmbConnectionCreateRequest, db: Session = Depends(get_db)
@@ -117,6 +127,7 @@ def _smb_connection_error(exc: ValueError) -> HTTPException:
     messages = {
         "SMB_CONNECTION_EXISTS": "SMB 连接已存在。",
         "SMB_CONNECTION_NOT_FOUND": "SMB 连接不存在。",
+        "SMB_CONNECTION_TEST_FAILED": "SMB 连接最近一次测试未通过，不能启用。",
         "SMB_PATH_INVALID": "SMB 路径配置无效。",
         "SMB_PATH_OUTSIDE_ROOT": "SMB 路径超出允许范围。",
         "SMB_CLIENT_NOT_INSTALLED": "SMB 客户端依赖未安装，暂不能连接真实 SMB。",

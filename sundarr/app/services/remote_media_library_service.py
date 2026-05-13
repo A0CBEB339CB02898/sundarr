@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection, SyncSeenFile, TransferTask
+from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection, SyncBinding, SyncSeenFile, TransferTask
 from sundarr.app.schemas.remote_media_library import (
     RemoteMediaLibraryCreateRequest,
     RemoteMediaLibraryListResponse,
@@ -51,6 +51,8 @@ class RemoteMediaLibraryService:
             delete_empty_source_dirs=request.delete_empty_source_dirs,
         )
         db.add(lib)
+        db.flush()
+        self._sync_binding_for_library(db, lib)
         db.commit()
         db.refresh(lib)
         return self._to_response(db, lib)
@@ -70,6 +72,8 @@ class RemoteMediaLibraryService:
                 raise ValueError("REMOTE_MEDIA_TYPE_MISMATCH")
         self._validate_path(request.base_path)
 
+        old_value = (lib.connection_id, lib.base_path, lib.target_library_id)
+
         lib.name = request.name
         lib.media_type = request.media_type
         lib.enabled = request.enabled
@@ -80,6 +84,11 @@ class RemoteMediaLibraryService:
         lib.stable_seconds = request.stable_seconds
         lib.delete_source_after_success = request.delete_source_after_success
         lib.delete_empty_source_dirs = request.delete_empty_source_dirs
+        if old_value != (lib.connection_id, lib.base_path, lib.target_library_id):
+            self._clear_test_result(lib)
+        elif lib.enabled and lib.last_test_ok is False:
+            raise ValueError("REMOTE_MEDIA_LIBRARY_TEST_FAILED")
+        self._sync_binding_for_library(db, lib)
         db.commit()
         db.refresh(lib)
         return self._to_response(db, lib)
@@ -95,6 +104,9 @@ class RemoteMediaLibraryService:
         if lib is None:
             raise ValueError("REMOTE_MEDIA_LIBRARY_NOT_FOUND")
         db.query(SyncSeenFile).filter(SyncSeenFile.binding_id == library_id).delete()
+        binding = db.get(SyncBinding, library_id)
+        if binding is not None:
+            db.delete(binding)
         db.delete(lib)
         db.commit()
 
@@ -105,7 +117,10 @@ class RemoteMediaLibraryService:
         conn = db.get(SmbConnection, lib.connection_id)
         if conn is None:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
-        return await self._test_with_connection(db, lib.connection_id, lib.base_path)
+        result = await self._test_with_connection(db, lib.connection_id, lib.base_path)
+        self._record_test_result(lib, result)
+        db.commit()
+        return result
 
     async def test_new_library(self, db: Session, request: RemoteMediaLibraryCreateRequest) -> RemoteMediaLibraryTestResponse:
         conn = db.get(SmbConnection, request.connection_id)
@@ -140,6 +155,8 @@ class RemoteMediaLibraryService:
         lib = db.get(RemoteMediaLibrary, library_id)
         if lib is None:
             raise ValueError("REMOTE_MEDIA_LIBRARY_NOT_FOUND")
+        if enabled and lib.last_test_ok is False:
+            raise ValueError("REMOTE_MEDIA_LIBRARY_TEST_FAILED")
         lib.enabled = enabled
         db.commit()
         db.refresh(lib)
@@ -149,6 +166,36 @@ class RemoteMediaLibraryService:
         normalized = base_path.replace("\\", "/")
         if ".." in normalized.split("/"):
             raise ValueError("SMB_PATH_INVALID")
+
+    def _sync_binding_for_library(self, db: Session, lib: RemoteMediaLibrary) -> None:
+        binding = db.get(SyncBinding, lib.id)
+        if not lib.target_library_id:
+            if binding is not None:
+                db.delete(binding)
+            return
+        target = db.get(MediaLibrary, lib.target_library_id)
+        if target is None:
+            return
+        if binding is None:
+            binding = SyncBinding(id=lib.id, name=lib.name, remote_library_id=lib.id, local_library_id=target.id, media_type=lib.media_type)
+            db.add(binding)
+        binding.name = lib.name
+        binding.enabled = lib.enabled
+        binding.remote_library_id = lib.id
+        binding.local_library_id = target.id
+        binding.media_type = lib.media_type
+        binding.delete_source_after_success = lib.delete_source_after_success
+        binding.delete_empty_source_dirs = lib.delete_empty_source_dirs
+
+    def _record_test_result(self, lib: RemoteMediaLibrary, result: RemoteMediaLibraryTestResponse) -> None:
+        lib.last_test_ok = result.ok
+        lib.last_test_error_code = result.error_code
+        lib.last_test_error_message = result.error_message
+
+    def _clear_test_result(self, lib: RemoteMediaLibrary) -> None:
+        lib.last_test_ok = None
+        lib.last_test_error_code = None
+        lib.last_test_error_message = None
 
     def _to_response(self, db: Session, lib: RemoteMediaLibrary) -> RemoteMediaLibraryResponse:
         target_library_name = None
@@ -169,6 +216,9 @@ class RemoteMediaLibraryService:
             stable_seconds=lib.stable_seconds,
             delete_source_after_success=lib.delete_source_after_success,
             delete_empty_source_dirs=lib.delete_empty_source_dirs,
+            last_test_ok=lib.last_test_ok,
+            last_test_error_code=lib.last_test_error_code,
+            last_test_error_message=lib.last_test_error_message,
             created_at=lib.created_at.isoformat() if lib.created_at else None,
             updated_at=lib.updated_at.isoformat() if lib.updated_at else None,
         )

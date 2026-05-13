@@ -136,6 +136,31 @@ async def test_sync_scan_uses_binding_and_flattens_remote_base_path(db_session: 
 
 
 @pytest.mark.anyio
+async def test_sync_scan_accepts_remote_library_id(db_session: Session) -> None:
+    client = make_client(db_session)
+    _create_smb_connection(client)
+    _create_local_library_with_type(client, "lib_movie", "movie", "Movies")
+    client.post(
+        "/remote-media-libraries/create",
+        json={"id": "rml_remote", "name": "远程电影", "media_type": "movie", "connection_id": "conn_1", "base_path": "CloudMovie", "target_library_id": "lib_movie"},
+    )
+
+    async def list_dir(_connection_id: str, path: str) -> list[dict]:
+        assert path == "CloudMovie"
+        return [{"path": "CloudMovie/Movie.mkv", "is_dir": False, "size": 4, "modified_at": "100"}]
+
+    sync_service._list_dir_override = list_dir
+    try:
+        response = client.post("/sync/scan", json={"remote_library_id": "rml_remote"})
+    finally:
+        sync_service._list_dir_override = None
+
+    assert response.status_code == 200
+    assert response.json()["scanned_bindings"] == 1
+    assert response.json()["discovered_count"] == 1
+
+
+@pytest.mark.anyio
 async def test_create_sync_tasks_marks_existing_same_md5_completed(db_session: Session, monkeypatch) -> None:
     db_session.add_all(
         [

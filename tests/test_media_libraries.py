@@ -72,7 +72,7 @@ def test_create_media_library(db_session: Session) -> None:
     assert body["name"] == "电影"
     assert body["media_type"] == "movie"
     assert body["connection_id"] == "conn_1"
-    assert body["base_path"] == "Movies"
+    assert body["base_path"] == "/Movies"
     assert body["enabled"] is True
 
 
@@ -183,7 +183,7 @@ def test_update_media_library(db_session: Session) -> None:
 
     assert response.status_code == 200
     assert response.json()["name"] == "更新后的电影"
-    assert response.json()["base_path"] == "NewMovies"
+    assert response.json()["base_path"] == "/NewMovies"
 
 
 def test_update_media_library_connection_not_found(db_session: Session) -> None:

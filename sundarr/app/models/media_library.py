@@ -14,3 +14,6 @@ class MediaLibrary(TimestampMixin, Base):
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     connection_id: Mapped[str] = mapped_column(ForeignKey("smb_connections.id"), nullable=False)
     base_path: Mapped[str] = mapped_column(Text, nullable=False, default="/", server_default="/")
+    last_test_ok: Mapped[bool | None] = mapped_column(Boolean)
+    last_test_error_code: Mapped[str | None] = mapped_column(Text)
+    last_test_error_message: Mapped[str | None] = mapped_column(Text)

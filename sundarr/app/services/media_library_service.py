@@ -33,13 +33,14 @@ class MediaLibraryService:
         if conn is None:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
         self._validate_base_path(request.base_path)
+        base_path = self._normalize_base_path(request.base_path)
         lib = MediaLibrary(
             id=request.id,
             name=request.name,
             media_type=request.media_type,
             enabled=request.enabled,
             connection_id=request.connection_id,
-            base_path=request.base_path,
+            base_path=base_path,
         )
         db.add(lib)
         db.commit()
@@ -55,11 +56,18 @@ class MediaLibraryService:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
         self._validate_base_path(request.base_path)
 
+        old_value = (lib.connection_id, lib.base_path)
+        base_path = self._normalize_base_path(request.base_path)
+
         lib.name = request.name
         lib.media_type = request.media_type
         lib.enabled = request.enabled
         lib.connection_id = request.connection_id
-        lib.base_path = request.base_path
+        lib.base_path = base_path
+        if old_value != (lib.connection_id, lib.base_path):
+            self._clear_test_result(lib)
+        elif lib.enabled and lib.last_test_ok is False:
+            raise ValueError("MEDIA_LIBRARY_TEST_FAILED")
         db.commit()
         db.refresh(lib)
         return self._to_response(db, lib)
@@ -91,7 +99,10 @@ class MediaLibraryService:
         conn = db.get(SmbConnection, lib.connection_id)
         if conn is None:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
-        return await self._test_with_connection(db, lib.connection_id, lib.base_path)
+        result = await self._test_with_connection(db, lib.connection_id, lib.base_path)
+        self._record_test_result(lib, result)
+        db.commit()
+        return result
 
     async def test_new_library(self, db: Session, request: MediaLibraryCreateRequest) -> MediaLibraryTestResponse:
         conn = db.get(SmbConnection, request.connection_id)
@@ -133,6 +144,8 @@ class MediaLibraryService:
         lib = db.get(MediaLibrary, library_id)
         if lib is None:
             raise ValueError("MEDIA_LIBRARY_NOT_FOUND")
+        if enabled and lib.last_test_ok is False:
+            raise ValueError("MEDIA_LIBRARY_TEST_FAILED")
         lib.enabled = enabled
         db.commit()
         db.refresh(lib)
@@ -142,6 +155,20 @@ class MediaLibraryService:
         normalized = base_path.replace("\\", "/")
         if ".." in normalized.split("/"):
             raise ValueError("SMB_PATH_INVALID")
+
+    def _normalize_base_path(self, base_path: str) -> str:
+        normalized = base_path.strip().replace("\\", "/").replace("//", "/").rstrip("/") or "/"
+        return normalized if normalized.startswith("/") else f"/{normalized}"
+
+    def _record_test_result(self, lib: MediaLibrary, result: MediaLibraryTestResponse) -> None:
+        lib.last_test_ok = result.ok
+        lib.last_test_error_code = result.error_code
+        lib.last_test_error_message = result.error_message
+
+    def _clear_test_result(self, lib: MediaLibrary) -> None:
+        lib.last_test_ok = None
+        lib.last_test_error_code = None
+        lib.last_test_error_message = None
 
     def _to_response(self, db: Session, lib: MediaLibrary) -> MediaLibraryResponse:
         bound_remote = [r.name for r in db.query(RemoteMediaLibrary).filter(RemoteMediaLibrary.target_library_id == lib.id).all()]
@@ -153,6 +180,9 @@ class MediaLibraryService:
             connection_id=lib.connection_id,
             base_path=lib.base_path,
             bound_remote_libraries=bound_remote,
+            last_test_ok=lib.last_test_ok,
+            last_test_error_code=lib.last_test_error_code,
+            last_test_error_message=lib.last_test_error_message,
             created_at=lib.created_at.isoformat() if lib.created_at else None,
             updated_at=lib.updated_at.isoformat() if lib.updated_at else None,
         )

@@ -64,6 +64,7 @@ class SyncConfigResponse(SyncConfigRequest):
 
 class SyncScanRequest(BaseModel):
     binding_id: str | None = None
+    remote_library_id: str | None = None
 
 
 class SyncDiscoveredFileResponse(BaseModel):

@@ -306,6 +306,7 @@ POST /storage/smb-connections/{connection_id}/update
 POST /storage/smb-connections/{connection_id}/enable
 POST /storage/smb-connections/{connection_id}/disable
 POST /storage/smb-connections/{connection_id}/test
+POST /storage/smb-connections/{connection_id}/test-new
 GET  /storage/smb-connections/{connection_id}/browse?path=Movies
 ```
 
@@ -318,6 +319,9 @@ POST /storage/config/save 中 password 为空表示保留旧 password。
 SMB 配置修改必须中断旧配置运行中任务。
 GET /storage/browse 只能浏览允许范围。
 POST /storage/config/test 会验证配置结构、路径合法性，并尝试真实 SMB 连接和根路径访问。
+POST /storage/smb-connections/{connection_id}/test 会记录最近一次测试结果。
+POST /storage/smb-connections/{connection_id}/test-new 使用编辑表单中的当前配置测试，不覆盖数据库配置。
+最近一次测试明确失败的 SMB connection 不能启用，也不能作为同步任务的有效连接使用。
 新功能优先使用多 SMB connection API；旧 storage/config API 可作为默认连接兼容入口，后续收口时再移除。
 ```
 
@@ -360,6 +364,16 @@ POST /sync/bindings/{binding_id}/test
 POST /sync/scan
 GET  /sync/discovered
 POST /sync/tasks/create
+```
+
+规则：
+
+```text
+media-libraries 和 remote-media-libraries 的 test 接口会验证对应 SMB 连接下的目标目录是否可访问，不只是验证 SMB 连接存在。
+本地媒体库 base_path 统一保存为带前导斜杠的路径。
+列表响应返回 last_test_ok / last_test_error_code / last_test_error_message，用于 Web Console 状态列展示测试结果和失败详情。
+最近一次测试明确失败的本地媒体库、远程媒体库不能启用，也不能作为同步任务的有效来源或目标使用。
+POST /sync/scan 支持传入 remote_library_id；当远程媒体库已绑定本地媒体库时，系统会使用该远程媒体库对应的同步绑定执行扫描。
 ```
 
 全局配置响应示例：

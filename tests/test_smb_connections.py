@@ -213,6 +213,32 @@ def test_test_smb_connection_returns_specific_error(db_session: Session, monkeyp
     assert response.json()["error_code"] == "SMB_HOST_UNREACHABLE"
 
 
+def test_test_existing_smb_connection_form_uses_request_payload(db_session: Session, monkeypatch) -> None:
+    client = make_client(db_session)
+    _create_smb_connection(client, "conn_1")
+
+    async def assert_current_form(self):
+        assert self.config.host == "edited.example.invalid"
+        assert self.config.password == "secret"
+
+    monkeypatch.setattr("sundarr.app.services.smb_connection_service.SmbWriter.test_connection", assert_current_form)
+
+    response = client.post(
+        "/storage/smb-connections/conn_1/test-new",
+        json={
+            "name": "编辑中的连接",
+            "host": "edited.example.invalid",
+            "share": "media",
+            "username": "user",
+            "password": "",
+            "base_path": "/",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+
 def test_browse_smb_connection_not_found(db_session: Session) -> None:
     client = make_client(db_session)
 

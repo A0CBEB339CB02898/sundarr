@@ -135,11 +135,19 @@ class SyncService:
         return SyncBindingTestResponse(ok=False, remote_ok=remote_ok, local_ok=local_ok, error_code=error_code)
 
     async def scan(self, db: Session, request: SyncScanRequest) -> SyncScanResponse:
+        self._ensure_implicit_bindings(db)
         bindings_query = db.query(SyncBinding).filter(SyncBinding.enabled.is_(True))
+        if request.remote_library_id:
+            bindings_query = bindings_query.filter(SyncBinding.remote_library_id == request.remote_library_id)
         if request.binding_id:
             bindings_query = bindings_query.filter(SyncBinding.id == request.binding_id)
         bindings = bindings_query.order_by(SyncBinding.created_at, SyncBinding.id).all()
         if request.binding_id and not bindings:
+            binding = self._ensure_implicit_binding_for_remote(db, request.binding_id)
+            if binding is None or not binding.enabled:
+                raise ValueError("SYNC_BINDING_NOT_FOUND")
+            bindings = [binding]
+        if request.remote_library_id and not bindings:
             raise ValueError("SYNC_BINDING_NOT_FOUND")
 
         results: list[SyncSeenFile] = []
@@ -148,6 +156,17 @@ class SyncService:
             remote_lib = db.get(RemoteMediaLibrary, binding.remote_library_id)
             local_lib = db.get(MediaLibrary, binding.local_library_id)
             if remote_lib is None or local_lib is None or not remote_lib.enabled:
+                continue
+            remote_conn = db.get(SmbConnection, remote_lib.connection_id)
+            local_conn = db.get(SmbConnection, local_lib.connection_id)
+            if (
+                remote_conn is None
+                or local_conn is None
+                or not self._is_usable(remote_lib)
+                or not self._is_usable(local_lib)
+                or not self._is_usable(remote_conn)
+                or not self._is_usable(local_conn)
+            ):
                 continue
             try:
                 self._validate_binding_media_type(remote_lib, local_lib, binding.media_type)
@@ -196,6 +215,19 @@ class SyncService:
                 seen.status = "failed"
                 skipped_count += 1
                 continue
+            remote_conn = db.get(SmbConnection, remote_lib.connection_id)
+            local_conn = db.get(SmbConnection, local_lib.connection_id)
+            if (
+                remote_conn is None
+                or local_conn is None
+                or not self._is_usable(remote_lib)
+                or not self._is_usable(local_lib)
+                or not self._is_usable(remote_conn)
+                or not self._is_usable(local_conn)
+            ):
+                seen.status = "failed"
+                skipped_count += 1
+                continue
             try:
                 self._validate_binding_media_type(remote_lib, local_lib, binding.media_type)
             except ValueError:
@@ -224,6 +256,37 @@ class SyncService:
         db.commit()
         db.refresh(binding)
         return self._binding_to_response(binding)
+
+    def _ensure_implicit_bindings(self, db: Session) -> None:
+        for remote_lib in db.query(RemoteMediaLibrary).filter(RemoteMediaLibrary.target_library_id.isnot(None)).all():
+            self._ensure_implicit_binding_for_remote(db, remote_lib.id, remote_lib)
+        db.flush()
+
+    def _ensure_implicit_binding_for_remote(
+        self, db: Session, remote_library_id: str, remote_lib: RemoteMediaLibrary | None = None
+    ) -> SyncBinding | None:
+        remote_lib = remote_lib or db.get(RemoteMediaLibrary, remote_library_id)
+        if remote_lib is None or not remote_lib.target_library_id:
+            return None
+        local_lib = db.get(MediaLibrary, remote_lib.target_library_id)
+        if local_lib is None:
+            return None
+        binding = db.get(SyncBinding, remote_lib.id)
+        if binding is None:
+            binding = SyncBinding(id=remote_lib.id, name=remote_lib.name, remote_library_id=remote_lib.id, local_library_id=local_lib.id, media_type=remote_lib.media_type)
+            db.add(binding)
+        binding.name = remote_lib.name
+        binding.enabled = remote_lib.enabled
+        binding.remote_library_id = remote_lib.id
+        binding.local_library_id = local_lib.id
+        binding.media_type = remote_lib.media_type
+        binding.delete_source_after_success = remote_lib.delete_source_after_success
+        binding.delete_empty_source_dirs = remote_lib.delete_empty_source_dirs
+        db.flush()
+        return binding
+
+    def _is_usable(self, item: MediaLibrary | RemoteMediaLibrary | SmbConnection) -> bool:
+        return item.last_test_ok is not False
 
     async def _test_remote_library(self, db: Session, library_id: str) -> bool:
         lib = db.get(RemoteMediaLibrary, library_id)

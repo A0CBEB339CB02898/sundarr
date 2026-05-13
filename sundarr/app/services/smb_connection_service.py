@@ -80,7 +80,10 @@ class SmbConnectionService:
 
         new_value = self._conn_to_config_dict(conn)
         if old_value != new_value:
+            self._clear_test_result(conn)
             self._interrupt_running_tasks(db, connection_id)
+        elif conn.enabled and conn.last_test_ok is False:
+            raise ValueError("SMB_CONNECTION_TEST_FAILED")
 
         db.commit()
         db.refresh(conn)
@@ -115,7 +118,27 @@ class SmbConnectionService:
         conn = db.get(SmbConnection, connection_id)
         if conn is None:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
-        return await self._test_with_config(self._conn_to_full_dict(conn))
+        result = await self._test_with_config(self._conn_to_full_dict(conn))
+        self._record_test_result(conn, result)
+        db.commit()
+        return result
+
+    async def test_connection_with_request(
+        self, db: Session, connection_id: str, request: SmbConnectionUpdateRequest
+    ) -> SmbConnectionTestResponse:
+        conn = db.get(SmbConnection, connection_id)
+        if conn is None:
+            raise ValueError("SMB_CONNECTION_NOT_FOUND")
+        config_dict = {
+            "host": request.host,
+            "port": request.port,
+            "share": request.share,
+            "username": request.username,
+            "password": request.password if request.password else conn.password,
+            "domain": request.domain,
+            "base_path": request.base_path,
+        }
+        return await self._test_with_config(config_dict)
 
     async def test_new_connection(self, request: SmbConnectionCreateRequest | SmbConnectionUpdateRequest) -> SmbConnectionTestResponse:
         config_dict = {
@@ -176,6 +199,8 @@ class SmbConnectionService:
         conn = db.get(SmbConnection, connection_id)
         if conn is None:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
+        if enabled and conn.last_test_ok is False:
+            raise ValueError("SMB_CONNECTION_TEST_FAILED")
         conn.enabled = enabled
         db.commit()
         db.refresh(conn)
@@ -225,6 +250,16 @@ class SmbConnectionService:
         value["password"] = conn.password
         return value
 
+    def _record_test_result(self, conn: SmbConnection, result: SmbConnectionTestResponse) -> None:
+        conn.last_test_ok = result.ok
+        conn.last_test_error_code = result.error_code
+        conn.last_test_error_message = result.error_message
+
+    def _clear_test_result(self, conn: SmbConnection) -> None:
+        conn.last_test_ok = None
+        conn.last_test_error_code = None
+        conn.last_test_error_message = None
+
     def _to_response(self, db: Session, conn: SmbConnection) -> SmbConnectionResponse:
         bound_local = [lib.name for lib in db.query(MediaLibrary).filter(MediaLibrary.connection_id == conn.id).all()]
         bound_remote = [lib.name for lib in db.query(RemoteMediaLibrary).filter(RemoteMediaLibrary.connection_id == conn.id).all()]
@@ -241,6 +276,9 @@ class SmbConnectionService:
             base_path=conn.base_path,
             bound_local_libraries=bound_local,
             bound_remote_libraries=bound_remote,
+            last_test_ok=conn.last_test_ok,
+            last_test_error_code=conn.last_test_error_code,
+            last_test_error_message=conn.last_test_error_message,
             created_at=conn.created_at.isoformat() if conn.created_at else None,
             updated_at=conn.updated_at.isoformat() if conn.updated_at else None,
         )

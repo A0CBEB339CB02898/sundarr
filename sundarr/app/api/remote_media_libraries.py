@@ -102,6 +102,7 @@ def _error(exc: ValueError) -> HTTPException:
     messages = {
         "REMOTE_MEDIA_LIBRARY_EXISTS": "远程媒体库已存在。",
         "REMOTE_MEDIA_LIBRARY_NOT_FOUND": "远程媒体库不存在。",
+        "REMOTE_MEDIA_LIBRARY_TEST_FAILED": "远程媒体库最近一次测试未通过，不能启用。",
         "SMB_CONNECTION_NOT_FOUND": "SMB 连接不存在。",
         "MEDIA_LIBRARY_NOT_FOUND": "媒体库不存在。",
         "REMOTE_MEDIA_TYPE_MISMATCH": "远程媒体库和目标本地媒体库类型不一致。",

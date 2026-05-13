@@ -126,6 +126,9 @@ type SmbConnectionResponse = {
   base_path: string
   bound_local_libraries: string[]
   bound_remote_libraries: string[]
+  last_test_ok: boolean | null
+  last_test_error_code: string | null
+  last_test_error_message: string | null
   created_at: string | null
   updated_at: string | null
 }
@@ -264,6 +267,9 @@ type MediaLibraryResponse = {
   connection_id: string
   base_path: string
   bound_remote_libraries: string[]
+  last_test_ok: boolean | null
+  last_test_error_code: string | null
+  last_test_error_message: string | null
   created_at: string | null
   updated_at: string | null
 }
@@ -476,6 +482,9 @@ type RemoteMediaLibraryResponse = {
   stable_seconds: number
   delete_source_after_success: boolean | null
   delete_empty_source_dirs: boolean | null
+  last_test_ok: boolean | null
+  last_test_error_code: string | null
+  last_test_error_message: string | null
   created_at: string | null
   updated_at: string | null
 }
@@ -559,7 +568,7 @@ function App() {
   const [transfers, setTransfers] = useState<TransferResponse[]>([])
   const [transferPage, setTransferPage] = useState(1)
   const [transferTotalCount, setTransferTotalCount] = useState(0)
-  const [transferPageSize] = useState(20)
+  const [transferPageSize, setTransferPageSize] = useState(20)
   const [transferError, setTransferError] = useState<string | null>(null)
   const [isTransferPanelOpen, setIsTransferPanelOpen] = useState(true)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -611,7 +620,7 @@ function App() {
       window.clearInterval(timer)
       window.removeEventListener('sundarr:transfers-changed', onTransfersChanged)
     }
-  }, [transferPage])
+  }, [transferPage, transferPageSize])
 
   async function loadTransfers(nextPage = transferPage) {
     try {
@@ -707,6 +716,7 @@ function App() {
           transferPageSize={transferPageSize}
           transferTotalCount={transferTotalCount}
           onTransferPageChange={setTransferPage}
+          onTransferPageSizeChange={setTransferPageSize}
           transfers={transfers}
           showToast={showToast}
         />
@@ -804,6 +814,7 @@ function PagePanel({
   transferPageSize,
   transferTotalCount,
   onTransferPageChange,
+  onTransferPageSizeChange,
   transfers,
   showToast,
 }: {
@@ -813,6 +824,7 @@ function PagePanel({
   transferPageSize: number
   transferTotalCount: number
   onTransferPageChange: (page: number) => void
+  onTransferPageSizeChange: (pageSize: number) => void
   transfers: TransferResponse[]
   showToast: (type: 'success' | 'error' | 'info', message: string) => void
 }) {
@@ -821,7 +833,7 @@ function PagePanel({
     return <StatusPanel />
   }
   if (activePage === 'transfers') {
-    return <TransfersPanel onTransfersChanged={onTransfersChanged} page={transferPage} pageSize={transferPageSize} totalCount={transferTotalCount} onPageChange={onTransferPageChange} transfers={transfers} showToast={showToast} />
+    return <TransfersPanel onTransfersChanged={onTransfersChanged} page={transferPage} pageSize={transferPageSize} totalCount={transferTotalCount} onPageChange={onTransferPageChange} onPageSizeChange={onTransferPageSizeChange} transfers={transfers} showToast={showToast} />
   }
   if (activePage === 'storage') {
     return <StoragePanel showToast={showToast} />
@@ -870,7 +882,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
   const [remoteLibraries, setRemoteLibraries] = useState<RemoteMediaLibraryResponse[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
-  const [pageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -893,7 +905,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
   const [browseResult, setBrowseResult] = useState<StorageBrowseResponse | null>(null)
   const [isBrowsing, setIsBrowsing] = useState(false)
 
-  useEffect(() => { void loadAll() }, [page])
+  useEffect(() => { void loadAll() }, [page, pageSize])
 
   async function loadAll() {
     setIsLoading(true)
@@ -930,7 +942,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
   async function saveLibrary() {
     setIsSaving(true)
     try {
-      const payload = { name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/' }
+      const payload = { name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: normalizeLibraryPath(form.base_path) }
       if (formMode === 'create') {
         await api.post('/media-libraries/create', { id: newUuid(), ...payload })
       } else {
@@ -947,17 +959,15 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
     try {
       const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(`/media-libraries/${encodeURIComponent(lib.id)}/test`)
       showToast(result.ok ? 'success' : 'error', result.ok ? `${lib.name} 测试通过。` : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+      await loadAll()
     } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '测试失败。') }
   }
 
   async function testLibraryInForm() {
     setIsTesting(true)
     try {
-      const payload = { id: formMode === 'edit' && editingId ? editingId : newUuid(), name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: form.base_path.trim() || '/' }
-      const endpoint = formMode === 'edit' && editingId
-        ? `/media-libraries/${encodeURIComponent(editingId)}/test`
-        : '/media-libraries/test-new'
-      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(endpoint, payload)
+      const payload = { id: formMode === 'edit' && editingId ? editingId : newUuid(), name: form.name.trim(), media_type: form.media_type, enabled: form.enabled, connection_id: form.connection_id.trim(), base_path: normalizeLibraryPath(form.base_path) }
+      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>('/media-libraries/test-new', payload)
       showToast(result.ok ? 'success' : 'error', result.ok ? '媒体库目录测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
     } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '测试失败。') }
     finally { setIsTesting(false) }
@@ -1105,7 +1115,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
                 <span role="columnheader" aria-label="操作" />
               </div>
               {libraries.map((lib) => {
-                const tone: StatusTone = lib.enabled ? 'success' : 'paused'
+                const bindingStatus = lib.bound_remote_libraries.length === 0 ? '未绑定' : null
                 const typeLabel =
                   lib.media_type === 'movie' ? '电影'
                   : lib.media_type === 'series' ? '剧集'
@@ -1118,7 +1128,14 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
                 return (
                   <div className="lb-row" key={lib.id} role="row">
                     <span className="lb-col-status" role="cell">
-                      <StatusBadge tone={tone}>{lib.enabled ? '已启用' : '已禁用'}</StatusBadge>
+                      <StatusStack
+                        enabled={lib.enabled}
+                        bindingStatus={bindingStatus}
+                        lastTestOk={lib.last_test_ok}
+                        errorCode={lib.last_test_error_code}
+                        errorMessage={lib.last_test_error_message}
+                        onDetail={(message) => showToast('error', message)}
+                      />
                     </span>
                     <span className="lb-col-title" role="cell">
                       <strong title={lib.name}>{lib.name}</strong>
@@ -1161,17 +1178,7 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
                 )
               })}
             </div>
-            <div className="lb-pagination">
-              <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                上一页
-              </Button>
-              <span>
-                第 <strong>{page}</strong> / {totalPages} 页
-              </span>
-              <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-                下一页
-              </Button>
-            </div>
+            <PaginationControls page={page} totalPages={totalPages} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
           </>
         ) : null}
       </Card>
@@ -1277,7 +1284,6 @@ function LibraryEditModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="lb-form-title"
-      onClick={onClose}
     >
       <div className="lb-modal" onClick={(event) => event.stopPropagation()}>
         <header className="lb-modal-head">
@@ -1611,7 +1617,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
   const [localLibraries, setLocalLibraries] = useState<MediaLibraryResponse[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
-  const [pageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -1632,7 +1638,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
   const [browseResult, setBrowseResult] = useState<StorageBrowseResponse | null>(null)
   const [isBrowsing, setIsBrowsing] = useState(false)
 
-  useEffect(() => { void loadAll() }, [page])
+  useEffect(() => { void loadAll() }, [page, pageSize])
 
   async function loadAll() {
     setIsLoading(true)
@@ -1700,6 +1706,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
     try {
       const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(`/remote-media-libraries/${encodeURIComponent(lib.id)}/test`)
       showToast(result.ok ? 'success' : 'error', result.ok ? `${lib.name} 测试通过。` : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+      await loadAll()
     } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '测试失败。') }
   }
 
@@ -1715,10 +1722,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
         delete_source_after_success: triStateToBoolean(form.delete_source_after_success),
         delete_empty_source_dirs: triStateToBoolean(form.delete_empty_source_dirs),
       }
-      const endpoint = formMode === 'edit' && editingId
-        ? `/remote-media-libraries/${encodeURIComponent(editingId)}/test`
-        : '/remote-media-libraries/test-new'
-      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>(endpoint, payload)
+      const result = await api.post<{ ok: boolean; error_code: string | null; error_message: string | null }>('/remote-media-libraries/test-new', payload)
       showToast(result.ok ? 'success' : 'error', result.ok ? '远程媒体库目录测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
     } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '测试失败。') }
     finally { setIsTesting(false) }
@@ -1746,8 +1750,15 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
 
   async function triggerScan(lib: RemoteMediaLibraryResponse) {
     try {
-      await api.post('/sync/scan', { binding_id: lib.id })
+      await api.post('/sync/scan', { remote_library_id: lib.id })
       showToast('success', `${lib.name} 扫描完成。`)
+    } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '扫描失败。') }
+  }
+
+  async function triggerScanAll() {
+    try {
+      const result = await api.post<DtlScanResponse>('/sync/scan', {})
+      showToast('success', `扫描完成：扫描 ${result.scanned_bindings} 个绑定，发现 ${result.discovered_count} 个文件。`)
     } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '扫描失败。') }
   }
 
@@ -1794,6 +1805,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
         </div>
         <div className="rm-overview-actions">
           <Button variant="ghost" disabled={isLoading} onClick={() => void loadAll()}>{isLoading ? '读取中' : '重新读取'}</Button>
+          <Button variant="secondary" disabled={isLoading || libraries.length === 0} onClick={() => void triggerScanAll()}>扫描全部媒体库</Button>
           <Button variant="primary" onClick={openCreate}>新增远程媒体库</Button>
         </div>
       </div>
@@ -1822,7 +1834,6 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
               <span role="columnheader" aria-label="操作" />
             </div>
             {libraries.map((lib) => {
-              const tone: StatusTone = lib.enabled ? 'success' : 'paused'
               const typeLabel = dtlMediaTypeLabel(lib.media_type)
               const typeTone: StatusTone =
                 lib.media_type === 'movie' ? 'info'
@@ -1832,7 +1843,14 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
               return (
                 <div className="rm-row" key={lib.id} role="row">
                   <span className="rm-col-status" role="cell">
-                    <StatusBadge tone={tone}>{lib.enabled ? '已启用' : '已禁用'}</StatusBadge>
+                    <StatusStack
+                      enabled={lib.enabled}
+                      bindingStatus={targetName ? null : '未绑定'}
+                      lastTestOk={lib.last_test_ok}
+                      errorCode={lib.last_test_error_code}
+                      errorMessage={lib.last_test_error_message}
+                      onDetail={(message) => showToast('error', message)}
+                    />
                   </span>
                   <span className="rm-col-title" role="cell">
                     <strong title={lib.name}>{lib.name}</strong>
@@ -1866,11 +1884,7 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
           </div>
         ) : null}
         {showList ? (
-          <div className="rm-pagination">
-            <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>上一页</Button>
-            <span>第 <strong>{page}</strong> / {totalPages} 页</span>
-            <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>下一页</Button>
-          </div>
+          <PaginationControls page={page} totalPages={totalPages} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
         ) : null}
       </div>
       </Card>
@@ -1969,7 +1983,7 @@ function SourcesPanel() {
   const [sources, setSources] = useState<SourceResponse[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
-  const [pageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -1988,7 +2002,7 @@ function SourcesPanel() {
 
   useEffect(() => {
     void loadSources()
-  }, [page])
+  }, [page, pageSize])
 
   const editingSource =
     drawerMode === 'edit' && editingId
@@ -2201,7 +2215,7 @@ function SourcesPanel() {
               />
             ))}
           </div>
-          <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
+          <PaginationControls page={page} totalPages={totalPages} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
         </>
       ) : null}
 
@@ -2732,7 +2746,7 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
   const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
-  const [pageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -2756,7 +2770,7 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
   const [browseResult, setBrowseResult] = useState<StorageBrowseResponse | null>(null)
   const [isBrowsing, setIsBrowsing] = useState(false)
 
-  useEffect(() => { void loadConnections() }, [page])
+  useEffect(() => { void loadConnections() }, [page, pageSize])
 
   async function loadConnections() {
     setIsLoading(true)
@@ -2807,7 +2821,7 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
     try {
       const payload = { id: editingId || '', name: formName, host: form.host.trim(), port: Number(form.port) || 445, share: form.share.trim(), username: form.username.trim(), password: form.password || null, domain: form.domain.trim(), base_path: form.base_path.trim() || '/' }
       const endpoint = formMode === 'edit' && editingId
-        ? `/storage/smb-connections/${encodeURIComponent(editingId)}/test`
+        ? `/storage/smb-connections/${encodeURIComponent(editingId)}/test-new`
         : '/storage/smb-connections/test-new'
       const result = await api.post<StorageConfigTestResponse>(endpoint, payload)
       showToast(result.ok ? 'success' : 'error', result.ok ? 'SMB 连接测试通过。' : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
@@ -2819,6 +2833,7 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
     try {
       const result = await api.post<StorageConfigTestResponse>(`/storage/smb-connections/${encodeURIComponent(conn.id)}/test`)
       showToast(result.ok ? 'success' : 'error', result.ok ? `${conn.name} 测试通过。` : `${result.error_code || 'TEST_FAILED'}：${result.error_message || '测试失败。'}`)
+      await loadConnections()
     } catch (exc) { showToast('error', exc instanceof Error ? exc.message : '测试失败。') }
   }
 
@@ -2935,7 +2950,6 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
                 <span role="columnheader" aria-label="操作" />
               </div>
               {connections.map((conn) => {
-                const tone: StatusTone = conn.enabled ? 'success' : 'paused'
                 const bindingsSummary = [
                   conn.bound_local_libraries.length > 0
                     ? `本地 ${conn.bound_local_libraries.length}`
@@ -2949,9 +2963,13 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
                 return (
                   <div className="sg-row" key={conn.id} role="row">
                     <span className="sg-col-status" role="cell">
-                      <StatusBadge tone={tone}>
-                        {conn.enabled ? '已启用' : '已禁用'}
-                      </StatusBadge>
+                      <StatusStack
+                        enabled={conn.enabled}
+                        lastTestOk={conn.last_test_ok}
+                        errorCode={conn.last_test_error_code}
+                        errorMessage={conn.last_test_error_message}
+                        onDetail={(message) => showToast('error', message)}
+                      />
                     </span>
                     <span className="sg-col-title" role="cell">
                       <strong title={conn.name}>{conn.name}</strong>
@@ -2993,29 +3011,7 @@ function StoragePanel({ showToast }: { showToast: (type: 'success' | 'error' | '
                 )
               })}
             </div>
-            {totalPages > 1 && (
-              <div className="sg-pagination">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  上一页
-                </Button>
-                <span>
-                  第 <strong>{page}</strong> / {totalPages} 页
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(page + 1)}
-                >
-                  下一页
-                </Button>
-              </div>
-            )}
+            <PaginationControls page={page} totalPages={totalPages} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
           </>
         ) : null}
       </Card>
@@ -3110,7 +3106,6 @@ function SmbConnectionModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="sg-conn-modal-title"
-      onClick={onClose}
     >
       <div className="sg-modal" onClick={(event) => event.stopPropagation()}>
         <header className="sg-modal-head">
@@ -3466,8 +3461,49 @@ function TextField({
   )
 }
 
-function PaginationControls({ page, totalPages, onPageChange }: { page: number; totalPages: number; onPageChange: (page: number) => void }) {
-  if (totalPages <= 1) return null
+function StatusStack({
+  enabled,
+  bindingStatus,
+  lastTestOk,
+  errorCode,
+  errorMessage,
+  onDetail,
+}: {
+  enabled: boolean
+  bindingStatus?: string | null
+  lastTestOk: boolean | null
+  errorCode?: string | null
+  errorMessage?: string | null
+  onDetail: (message: string) => void
+}) {
+  const detail = `${errorCode || 'TEST_FAILED'}：${errorMessage || '测试失败。'}`
+  return (
+    <span className="status-stack">
+      <StatusBadge tone={enabled ? 'success' : 'paused'}>{enabled ? '已启用' : '已禁用'}</StatusBadge>
+      {bindingStatus ? <StatusBadge tone="paused">{bindingStatus}</StatusBadge> : null}
+      {lastTestOk === true ? <StatusBadge tone="success">测试通过</StatusBadge> : null}
+      {lastTestOk === false ? (
+        <button className="status-detail-button" onClick={() => onDetail(detail)} title={detail} type="button">
+          测试不通过
+        </button>
+      ) : null}
+    </span>
+  )
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  page: number
+  totalPages: number
+  pageSize?: number
+  onPageChange: (page: number) => void
+  onPageSizeChange?: (pageSize: number) => void
+}) {
   return (
     <div className="pagination">
       <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
@@ -3477,6 +3513,20 @@ function PaginationControls({ page, totalPages, onPageChange }: { page: number; 
       <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
         下一页
       </Button>
+      {pageSize && onPageSizeChange ? (
+        <label className="pagination-size">
+          每页
+          <select
+            value={pageSize}
+            onChange={(event) => {
+              onPageChange(1)
+              onPageSizeChange(Number(event.target.value))
+            }}
+          >
+            {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
+        </label>
+      ) : null}
     </div>
   )
 }
@@ -3491,10 +3541,10 @@ function StorageBrowser({ result, onOpen }: { result: StorageBrowseResponse; onO
       <p>当前路径：<strong>{result.path || '/'}</strong></p>
       <div className="browser-list">
         {result.entries.map((entry) => (
-          <button className="browser-row" disabled={!entry.is_dir} key={entry.path} onClick={() => onOpen(entry.path)} type="button">
+          <button className="browser-row" disabled={!entry.is_dir} key={entry.path} onClick={() => onOpen(entry.path)} title={entry.name} type="button">
             <span>{entry.is_dir ? '目录' : '文件'}</span>
-            <strong>{entry.name}</strong>
-            <small>{entry.is_dir ? entry.path : formatBytes(entry.size || 0)}</small>
+            <strong title={entry.name}>{entry.name}</strong>
+            <small title={entry.is_dir ? entry.path : formatBytes(entry.size || 0)}>{entry.is_dir ? entry.path : formatBytes(entry.size || 0)}</small>
           </button>
         ))}
       </div>
@@ -3508,6 +3558,7 @@ function TransfersPanel({
   pageSize,
   totalCount,
   onPageChange,
+  onPageSizeChange,
   transfers,
   showToast,
 }: {
@@ -3516,6 +3567,7 @@ function TransfersPanel({
   pageSize: number
   totalCount: number
   onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
   transfers: TransferResponse[]
   showToast: (type: 'success' | 'error' | 'info', message: string) => void
 }) {
@@ -3661,7 +3713,7 @@ function TransfersPanel({
         onPause={(id) => void pauseTaskById(id)}
         onResume={(id) => void resumeTaskById(id)}
       />
-      <PaginationControls page={page} totalPages={totalPages} onPageChange={onPageChange} />
+      <PaginationControls page={page} totalPages={totalPages} pageSize={pageSize} onPageChange={onPageChange} onPageSizeChange={onPageSizeChange} />
 
       {isLoading && !transfer ? (
         <Card>
@@ -4321,6 +4373,11 @@ function newUuid() {
 }
 
 function normalizeBrowsePath(path: string) {
+  const normalized = path.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+  return normalized ? `/${normalized}` : '/'
+}
+
+function normalizeLibraryPath(path: string) {
   const normalized = path.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
   return normalized ? `/${normalized}` : '/'
 }

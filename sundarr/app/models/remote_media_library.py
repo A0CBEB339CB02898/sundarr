@@ -19,3 +19,6 @@ class RemoteMediaLibrary(TimestampMixin, Base):
     stable_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=120, server_default="120")
     delete_source_after_success: Mapped[bool | None] = mapped_column()
     delete_empty_source_dirs: Mapped[bool | None] = mapped_column()
+    last_test_ok: Mapped[bool | None] = mapped_column(Boolean)
+    last_test_error_code: Mapped[str | None] = mapped_column(Text)
+    last_test_error_message: Mapped[str | None] = mapped_column(Text)

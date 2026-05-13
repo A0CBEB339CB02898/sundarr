@@ -259,6 +259,9 @@ username TEXT NOT NULL
 password TEXT
 domain TEXT
 base_path TEXT NOT NULL DEFAULT '/'
+last_test_ok BOOLEAN
+last_test_error_code TEXT
+last_test_error_message TEXT
 created_at TIMESTAMP NOT NULL
 updated_at TIMESTAMP NOT NULL
 ```
@@ -269,6 +272,7 @@ updated_at TIMESTAMP NOT NULL
 API 不返回 password 明文，只返回 password_set。
 password 空值更新表示保留旧 password。
 修改某个 SMB connection 会中断使用该 connection 旧配置快照的运行中任务。
+last_test_ok / last_test_error_code / last_test_error_message 记录最近一次连接测试结果；最近一次测试明确失败时，不能作为已启用连接使用。
 ```
 
 ---
@@ -288,6 +292,9 @@ media_type TEXT NOT NULL
 enabled BOOLEAN NOT NULL DEFAULT TRUE
 connection_id TEXT NOT NULL
 base_path TEXT NOT NULL
+last_test_ok BOOLEAN
+last_test_error_code TEXT
+last_test_error_message TEXT
 created_at TIMESTAMP NOT NULL
 updated_at TIMESTAMP NOT NULL
 ```
@@ -297,14 +304,53 @@ updated_at TIMESTAMP NOT NULL
 ```text
 media_type 允许 movie / series / unclassified，后续可扩展。
 connection_id 必须引用已配置 SMB connection。
-base_path 是 connection base_path 内的相对路径，指向本地 NAS 媒体库目录。
+base_path 是 connection base_path 内的目录路径，指向本地 NAS 媒体库目录；API 统一保存为带前导斜杠的写法。
 API 不在媒体库中保存 SMB host/share/username/password。
 至少需要一个 unclassified 媒体库作为绑定不明确时的 fallback。
+last_test_ok / last_test_error_code / last_test_error_message 记录最近一次目录测试结果；最近一次测试明确失败时，不能作为已启用媒体库使用。
 ```
 
 ---
 
-## 11. sync_bindings
+## 11. remote_media_libraries
+
+状态：已实现。
+
+用途：保存远程媒体库目录定义。远程媒体库绑定 SMB connection 下的远程目录，并可指向一个本地媒体库作为同步目标。
+
+字段建议：
+
+```text
+id TEXT PRIMARY KEY
+name TEXT NOT NULL
+media_type TEXT NOT NULL
+enabled BOOLEAN NOT NULL DEFAULT TRUE
+connection_id TEXT NOT NULL
+base_path TEXT NOT NULL
+target_library_id TEXT
+scan_interval_seconds INTEGER NOT NULL DEFAULT 60
+stable_seconds INTEGER NOT NULL DEFAULT 120
+delete_source_after_success BOOLEAN
+delete_empty_source_dirs BOOLEAN
+last_test_ok BOOLEAN
+last_test_error_code TEXT
+last_test_error_message TEXT
+created_at TIMESTAMP NOT NULL
+updated_at TIMESTAMP NOT NULL
+```
+
+规则：
+
+```text
+connection_id 必须引用已配置 SMB connection。
+target_library_id 为空时表示尚未绑定本地媒体库，列表页必须展示未绑定。
+target_library_id 不为空时，系统会维护同 id 的同步绑定用于扫描。
+最近一次测试明确失败时，不能作为已启用远程媒体库使用。
+```
+
+---
+
+## 12. sync_bindings
 
 状态：已实现（由历史 download_to_local 结构重构而来，Phase 9 继续清理旧命名残留）。
 
@@ -339,7 +385,7 @@ delete_empty_source_dirs 为空时使用全局默认。
 
 ---
 
-## 12. sync_seen_files
+## 13. sync_seen_files
 
 状态：已实现（由历史 download_to_local_seen_files 重构而来，Phase 9 继续清理旧命名残留）。
 
@@ -368,7 +414,7 @@ status 至少包含 discovered / stable / queued / downloading / completed / fai
 目录型资源可用目录路径和聚合 size/mtime 生成 fingerprint。
 ```
 
-## 13. 验收标准
+## 14. 验收标准
 
 数据模型完成时必须满足：
 

@@ -59,6 +59,9 @@ class RemoteMediaLibraryResponse(BaseModel):
     stable_seconds: int = 120
     delete_source_after_success: bool | None = None
     delete_empty_source_dirs: bool | None = None
+    last_test_ok: bool | None = None
+    last_test_error_code: str | None = None
+    last_test_error_message: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
 

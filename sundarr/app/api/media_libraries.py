@@ -102,6 +102,7 @@ def _media_library_error(exc: ValueError) -> HTTPException:
     messages = {
         "MEDIA_LIBRARY_EXISTS": "媒体库已存在。",
         "MEDIA_LIBRARY_NOT_FOUND": "媒体库不存在。",
+        "MEDIA_LIBRARY_TEST_FAILED": "媒体库最近一次测试未通过，不能启用。",
         "SMB_CONNECTION_NOT_FOUND": "SMB 连接不存在。",
         "SMB_PATH_INVALID": "媒体库路径配置无效。",
     }
