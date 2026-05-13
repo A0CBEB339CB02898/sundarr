@@ -4,11 +4,14 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 MediaType = Literal["movie", "tv", "anime", "unknown"]
+ResultType = Literal["all", "magnet", "quark", "aliyun", "baidu", "xunlei", "unknown"]
+LinkValidationStatus = Literal["unchecked", "checking", "valid", "invalid", "unknown", "error"]
 
 
 class SearchQuery(BaseModel):
     keyword: str = Field(min_length=1)
     type: MediaType = "unknown"
+    result_type: ResultType = "all"
     year: int | None = None
     season: int | None = None
     episode: int | None = None
@@ -41,6 +44,9 @@ class ResourceLinkResult(BaseModel):
     code: str | None = None
     valid: bool | None = None
     risk_level: str = "unknown"
+    validation_status: LinkValidationStatus = "unchecked"
+    validation_message: str | None = None
+    checked_at: datetime | None = None
 
 
 class ResourceCandidate(BaseModel):

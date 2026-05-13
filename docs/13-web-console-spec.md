@@ -103,7 +103,7 @@ Phase 7.8 Web Console UI Polish
 再 Status，用最小 API 调用验证前后端闭环。
 再 Transfers，优先把 Phase 6 cancel / retry / logs 暴露给用户。
 再 Storage，让用户能配置 SMB 并看到 STORAGE_CONFIG_CHANGED 影响。
-再 Search，形成搜索到创建任务的最小前端流程。
+再 Search，形成聚合搜索和结果展示的最小前端流程。
 最后 Sources 和统一收口，避免过早扩大到供应商开发。
 ```
 
@@ -117,22 +117,21 @@ Phase 7 期间仍不启动真实供应商开发或真实集成测试；这些工
 
 ```text
 输入 keyword
-选择 type: movie / tv / anime / unknown
-可选 year
-展示候选结果
-展示 source、quality、links、score
-选择 link
-选择目标 library
-选择或输入目标路径
-创建 transfer
+选择结果类型：全部 / 磁力 / 夸克网盘 / 阿里网盘 / 百度网盘 / 迅雷网盘
+展示聚合搜索结果
+展示 source、quality、links、score、链接有效性
+点击结果链接打开原链接
+每条链接提供操作区：保存到网盘、复制链接
 ```
 
 交互规则：
 
 ```text
 搜索调用 GET /search。
-创建任务调用 POST /transfers。
-低置信度目标目录应提示用户确认。
+搜索结果按真实链接去重。
+搜索返回前同步执行链接有效性检测，检测失败不阻塞结果展示。
+当前搜索页不创建 Transfer。
+保存到网盘是后续模块入口，当前只保留操作位置。
 ```
 
 ---
@@ -299,8 +298,6 @@ POST /media-libraries/{library_id}/test
 ```text
 查看 source 列表
 查看已安装代码型 Source Adapter
-编辑 Adapter 非代码参数
-启用 / 禁用 source
 测试 source 搜索
 查看最后一次错误
 查看最近一次搜索耗时和状态
@@ -314,9 +311,10 @@ POST /media-libraries/{library_id}/test
 不在配置或数据库中保存可执行 Python 代码。
 不支持通过 Web Console 配置复杂网站爬虫。
 不要求用户维护本地文档/表格作为主要媒体源。
+不允许通过 Web Console 创建、编辑、启用或禁用搜索源；搜索源统一从代码注册表加载。
 ```
 
-说明：Sources 页面是已安装代码型 Adapter 的管理入口，不代表真实媒体源接入已完成。真实媒体源需要后续通过代码型 Adapter 逐站点实现。
+说明：Sources 页面是已安装代码型 Adapter 的只读展示和测试入口。真实媒体源通过代码型 Adapter 逐站点实现。
 
 API：
 

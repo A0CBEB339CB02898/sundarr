@@ -513,15 +513,15 @@ Display keyboard hints on hover for major actions. Keycap (`kbd.kbd`):
 
 ### 7.1 `/app/sources` — 媒体源
 
-- Page header + "新增媒体源" primary button at right.
-- Grid of source cards (3-col desktop, 2-col tablet, 1-col mobile), each showing: adapter icon · name (`title`) · status badge · description (`body-sm`) · last tested timestamp (mono) · actions (Test, Edit, Disable).
-- Adding / editing opens a side drawer (right, 480px), not a full modal.
+- Page header + refresh action; no "新增媒体源" button because sources are code-registered.
+- Grid of source cards (3-col desktop, 2-col tablet, 1-col mobile), each showing: adapter icon · name (`title`) · status badge · description (`body-sm`) · last tested timestamp (mono) · actions (Test, View).
+- Viewing opens a read-only side drawer (right, 480px), not a full modal.
 
 ### 7.2 `/app/search` — 搜索
 
 - Single search input at top, full-width, 48px tall, with a keycap `/` hint inside.
-- Filter chips row below (source filter, category, date).
-- Results as a vertical list of `ResourceCard` — each card shows title, source, metadata row (size / date / seeders), and expands on click to show available links as a nested mini-table.
+- Result-type filter below or beside input: all / magnet / quark / aliyun / baidu / xunlei.
+- Results as a vertical list of `ResourceCard` — each card shows title, source, metadata row, link validity, and per-link actions: open, save to cloud, copy.
 
 ### 7.3 `/app/storage` — 存储
 

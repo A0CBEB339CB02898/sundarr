@@ -70,6 +70,7 @@ class ResourceLibraryService:
         resource_link.risk_level = link.risk_level
         resource_link.source_id = candidate.source_id
         resource_link.source_url = candidate.source_url
+        resource_link.last_checked_at = link.checked_at
 
     def _to_candidate(self, resource: Resource, links: list[ResourceLink]) -> ResourceCandidate:
         explanation = "来自资源库。"
@@ -96,6 +97,8 @@ class ResourceLibraryService:
                     code=link.code,
                     valid=link.valid,
                     risk_level=link.risk_level,
+                    validation_status="valid" if link.valid is True else "invalid" if link.valid is False else "unknown",
+                    checked_at=link.last_checked_at,
                 )
                 for link in links
             ],

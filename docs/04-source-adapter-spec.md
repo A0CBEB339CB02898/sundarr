@@ -24,10 +24,11 @@ Source Adapter 必须满足：
 当前实现边界：
 
 ```text
-Phase 0-7 已实现 Source Adapter 抽象、ExampleSource、Search Pipeline、sources API 和 Web Console 管理入口。
-Phase 0-7 未实现真实网站代码型 Adapter SDK 的完整开发体验。
-Phase 0-7 未实现通过 Web Console 配置复杂网站爬虫。
-真实媒体源接入需要作为后续独立大阶段设计和验收。
+搜索源统一由代码注册，不再由用户通过 Web Console 创建 configurable / document source。
+每个真实搜索源通常使用一个 Python 文件实现。
+Search Service 只调度统一接口，不写具体站点规则。
+当前第一个真实搜索源为 `SeedHubSource`，参考 seedhub-cli 的列表搜索 + 详情页解析方式。
+Sources 页面只读展示已安装代码型 source，并提供轻量测试入口。
 ```
 
 原因：
@@ -55,7 +56,7 @@ Source Adapter
 
 ## 2. Source 类型
 
-近期主线只保留代码型源。
+近期主线只保留代码型源。配置型源、文档/表格型源和在线编辑规则已退出主线。
 
 ### 2.1 代码型源
 
@@ -111,10 +112,7 @@ Web Console 配置复杂爬虫
 ```json
 {
   "keyword": "interstellar",
-  "type": "movie",
-  "year": 2014,
-  "season": null,
-  "episode": null,
+  "result_type": "all",
   "limit": 20
 }
 ```
@@ -123,9 +121,7 @@ Web Console 配置复杂爬虫
 
 ```text
 keyword 必填。
-type 可选，允许 movie / tv / anime / unknown。
-year 可选。
-season / episode 可选。
+result_type 可选，允许 all / magnet / quark / aliyun / baidu / xunlei / unknown。
 limit 由 Search Service 统一限制最大值。
 ```
 
@@ -143,7 +139,7 @@ Adapter 不应修改 SearchQuery。
   "source_type": "code",
   "raw_title": "Interstellar 2014 1080p",
   "raw_url": "https://example.invalid/detail/123",
-  "raw_content": "share url: https://pan.example.invalid/s/abc code: 1234",
+  "raw_content": "share url: https://pan.quark.cn/s/abc code: 1234",
   "published_at": null,
   "fetched_at": "2026-05-04T10:00:00Z",
   "metadata": {}
@@ -190,44 +186,37 @@ Adapter 不负责下载或转存。
 
 ---
 
-## 6. Source 配置字段
+## 6. Source 注册方式
 
-所有 source 必须具备基础字段：
+Source 事实来源是代码注册表：
+
+```text
+sundarr/app/sources/registry.py
+```
+
+每个 source 类必须具备：
 
 ```text
 id
 name
-type
+source_type = code
 enabled
-trust_level
+description
 legal_note
-adapter_module
-config_json
-created_at
-updated_at
+search(query)
 ```
 
-代码型源配置示例：
+注册示例：
 
-```json
-{
-  "id": "site_a",
-  "name": "站点 A",
-  "type": "code",
-  "enabled": true,
-  "trust_level": 1,
-  "legal_note": "用户自行确认来源合法性",
-  "adapter_module": "sundarr.app.sources.adapters.site_a",
-  "config_json": {
-    "base_url": "https://example.invalid",
-    "timeout_seconds": 10,
-    "rate_limit_per_minute": 20,
-    "user_agent": "Sundarr"
-  }
-}
+```python
+from sundarr.app.sources.seedhub import SeedHubSource
+
+
+def get_registered_sources():
+    return [SeedHubSource()]
 ```
 
-配置只保存开关、基础 URL、超时、限流、User-Agent 等参数，不保存可执行 Python 代码。
+不得在数据库、配置文件或 Web Console 中保存可执行 Python 代码。
 
 ---
 

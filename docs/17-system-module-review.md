@@ -15,8 +15,8 @@ Sundarr 系统按职责分为以下模块：
 ```text
 每个真实网站通过一个代码型 Source Adapter 接入。
 多个 Adapter 并发搜索，结果统一进入搜索模块。
-Source 配置只保存参数，不保存可执行 Python 代码。
-Web Console 只管理已安装 Adapter 的启用、禁用、参数、测试和错误查看。
+Source 统一从代码注册表加载，不再由用户在 Web Console 中创建或配置。
+Web Console 只读展示已安装 Adapter，并提供测试和错误查看入口。
 ```
 
 关联：媒体源通过统一接口暴露给搜索模块。
@@ -28,8 +28,8 @@ Web Console 只管理已安装 Adapter 的启用、禁用、参数、测试和�
 ```text
 搜索是媒体源的统一调用入口。
 一次搜索同时查询所有已启用的媒体源。
-结果经过标准化、去重、排序后返回。
-搜索结果可进入资源库，供后续下载使用。
+结果经过标准化、按真实链接去重、链接有效性检测和排序后返回。
+当前搜索页只展示搜索结果，后续可接入保存到网盘和下载流程。
 ```
 
 关联：搜索调用媒体源接口，结果写入资源库。
@@ -187,7 +187,8 @@ sundarr/app/
 │   └── local.py                   # LocalCloudProvider        ✓
 ├── sources/                       # Source Adapter 框架
 │   ├── base.py                    # BaseSource ABC            ✓
-│   └── example.py                 # ExampleSource             ✓
+│   ├── registry.py                # 代码注册表                ✓
+│   └── seedhub.py                 # 首个真实搜索源            ✓
 └── parsers/
     └── link_extractor.py          # 网盘链接提取              ✓
 ```

@@ -6,7 +6,7 @@
 
 ## 1. 管线目标
 
-搜索管线必须把不同来源的结果统一处理为可排序、可入库、可创建搬运任务的资源候选。
+搜索管线必须把不同来源的结果统一处理为可排序、可去重、可展示的搜索结果。当前搜索页只展示结果，不直接创建 Transfer。
 
 标准流程：
 
@@ -18,6 +18,7 @@ SearchQuery
 -> Cloud Link Extractor
 -> Normalizer
 -> Deduper
+-> Link Validator
 -> Ranker
 -> Resource Library
 -> API Response
@@ -32,11 +33,12 @@ Search Service 负责调度多个 source。
 规则：
 
 ```text
-只调用 enabled source。
+只调用代码注册表中 enabled source。
 多个 source 并发执行。
 单个 source 失败不能影响整体搜索。
 source timeout 和 global timeout 必须生效。
 所有 source 输出必须转换为 RawSearchItem。
+Search Service 可按 result_type 过滤链接类型。
 ```
 
 MVP 默认：
@@ -76,16 +78,16 @@ Parser 不负责：
 
 ## 4. Cloud Link Extractor
 
-Cloud Link Extractor 负责识别网盘 provider、url、code 和 confidence。
+Cloud Link Extractor 负责识别磁力 / 网盘 provider、url、code 和 confidence。
 
 输出结构：
 
 ```json
 {
   "provider": "quark",
-  "url": "https://pan.example.invalid/s/xxxx",
+  "url": "https://pan.quark.cn/s/xxxx",
   "code": null,
-  "raw_text": "quark: https://pan.example.invalid/s/xxxx",
+  "raw_text": "quark: https://pan.quark.cn/s/xxxx",
   "confidence": 0.95
 }
 ```
@@ -93,6 +95,11 @@ Cloud Link Extractor 负责识别网盘 provider、url、code 和 confidence。
 MVP 必须处理：
 
 ```text
+magnet
+quark
+aliyun
+baidu
+xunlei
 链接和提取码不在同一行
 同一文本多个链接
 一条资源多个 provider
@@ -161,8 +168,34 @@ MVP 可以使用启发式规则，不引入复杂推荐算法。
 
 ```text
 同一 Resource 可保留多个 ResourceLink。
+同一真实链接只保留一次，标题可任选较早或评分较高的结果展示。
 不同 quality 可作为同一资源的不同候选 link。
 无法高置信合并时保留为独立候选。
+```
+
+---
+
+## 6.5 Link Validator
+
+Link Validator 负责在搜索返回前同步检测链接有效性。
+
+规则：
+
+```text
+磁力链接只做格式级有效性判断，不承诺资源活性。
+网盘链接使用轻量 HEAD / GET 检测。
+404 / 410 视为 invalid。
+401 / 403 / 405 / 429 视为 unknown，避免把登录、权限或限流误判为失效。
+检测失败不影响搜索结果展示。
+```
+
+输出字段：
+
+```text
+valid
+validation_status
+validation_message
+checked_at
 ```
 
 ---

@@ -88,5 +88,6 @@ def _source_error(exc: ValueError) -> HTTPException:
     messages = {
         "SOURCE_ALREADY_EXISTS": "媒体源已存在。",
         "SOURCE_TYPE_NOT_EDITABLE": "该类型媒体源不能通过 Web Console 编辑。",
+        "SOURCE_CODE_ONLY": "媒体源现在统一由代码注册，不能通过 Web Console 创建或编辑。",
     }
     return HTTPException(status_code=status_code, detail=messages.get(error_code, "媒体源请求无效。"))

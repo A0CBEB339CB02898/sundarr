@@ -881,7 +881,7 @@ h2 {
 
 .link-row {
   display: grid;
-  grid-template-columns: 90px minmax(0, 1fr) minmax(100px, auto);
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -889,15 +889,27 @@ h2 {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.64);
   color: #172026;
-  cursor: pointer;
   padding: 14px;
   text-align: left;
 }
 
-.link-row:hover,
-.link-row[data-selected="true"] {
+.link-row:hover {
   border-color: rgba(166, 95, 32, 0.42);
   background: rgba(255, 255, 255, 0.92);
+}
+
+.link-row a {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) minmax(88px, auto);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.link-row a:hover strong {
+  color: var(--accent);
 }
 
 .link-row span,
@@ -911,6 +923,41 @@ h2 {
 .link-row small,
 .selected-link-card p {
   overflow-wrap: anywhere;
+}
+
+.link-validity {
+  justify-self: end;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  padding: 5px 10px;
+  white-space: nowrap;
+}
+
+.link-validity[data-status="valid"] {
+  border-color: color-mix(in srgb, var(--success) 34%, transparent);
+  background: var(--success-tint);
+  color: var(--success);
+}
+
+.link-validity[data-status="invalid"],
+.link-validity[data-status="error"] {
+  border-color: color-mix(in srgb, var(--danger-text) 34%, transparent);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.link-validity[data-status="unknown"] {
+  border-color: color-mix(in srgb, var(--warning) 34%, transparent);
+  background: var(--warning-tint);
+  color: var(--warning);
+}
+
+.link-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .selected-link-card {

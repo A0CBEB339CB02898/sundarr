@@ -177,6 +177,7 @@ type StorageFormState = {
 }
 
 type MediaType = 'movie' | 'tv' | 'anime' | 'unknown'
+type ResultType = 'all' | 'magnet' | 'quark' | 'aliyun' | 'baidu' | 'xunlei' | 'unknown'
 
 type SearchResponse = {
   query: string
@@ -206,15 +207,14 @@ type ResourceLinkResult = {
   code: string | null
   valid: boolean | null
   risk_level: string
+  validation_status: 'unchecked' | 'checking' | 'valid' | 'invalid' | 'unknown' | 'error'
+  validation_message: string | null
+  checked_at: string | null
 }
 
 type SearchFormState = {
   q: string
-  type: MediaType
-  year: string
-  limit: string
-  target_library: string
-  target_path: string
+  result_type: ResultType
 }
 
 type SourceType = 'configurable' | 'document' | 'code'
@@ -839,7 +839,7 @@ function PagePanel({
     return <StoragePanel showToast={showToast} />
   }
   if (activePage === 'search') {
-    return <SearchPanel />
+    return <SearchPanel showToast={showToast} />
   }
   if (activePage === 'sources') {
     return <SourcesPanel />
@@ -2146,16 +2146,12 @@ function SourcesPanel() {
             <p className="ui-eyebrow">媒体源</p>
             <h2 id="sources-title">媒体源管理</h2>
             <p className="sc-overview-lead">
-              管理配置型和文档/表格型 Source；代码型 Source Adapter 由后端代码提供，只读展示。
-              每一个卡片提供独立的测试、启用/禁用、编辑入口。
+              媒体源统一由后端代码注册，Web Console 只读展示已安装 Source Adapter，并提供测试入口。
             </p>
           </div>
           <div className="sc-overview-actions">
             <Button variant="ghost" disabled={isLoading} onClick={() => void loadSources()}>
               {isLoading ? '读取中' : '重新读取'}
-            </Button>
-            <Button variant="primary" onClick={openCreate}>
-              新增媒体源
             </Button>
           </div>
         </div>
@@ -2185,12 +2181,7 @@ function SourcesPanel() {
         <Card>
           <UIEmptyState
             message="暂无媒体源"
-            sub="点击 新增媒体源 配置第一个配置型或文档型 Source。"
-            action={
-              <Button variant="primary" onClick={openCreate}>
-                新增媒体源
-              </Button>
-            }
+            sub="请在后端代码中实现 Source Adapter，并注册到 sources/registry.py。"
           />
         </Card>
       ) : null}
@@ -2357,15 +2348,7 @@ function SourceCard({
           {testStatus === 'running' ? '测试中…' : '测试'}
         </Button>
         <Button variant="ghost" size="sm" onClick={onEdit}>
-          {isCode ? '查看' : '编辑'}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={isCode || toggling}
-          onClick={onToggle}
-        >
-          {source.enabled ? '禁用' : '启用'}
+          查看
         </Button>
       </div>
     </Card>
@@ -2565,21 +2548,14 @@ function SourceDrawer({
   )
 }
 
-function SearchPanel() {
+function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [form, setForm] = useState<SearchFormState>({
     q: '',
-    type: 'unknown',
-    year: '',
-    limit: '20',
-    target_library: 'movies',
-    target_path: '',
+    result_type: 'all',
   })
   const [response, setResponse] = useState<SearchResponse | null>(null)
-  const [selectedLink, setSelectedLink] = useState<{ resource: ResourceCandidate; link: ResourceLinkResult } | null>(null)
-  const [createdTask, setCreatedTask] = useState<TransferResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSearching, setIsSearching] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
 
   async function runSearch() {
     const keyword = form.q.trim()
@@ -2590,55 +2566,34 @@ function SearchPanel() {
 
     setIsSearching(true)
     setError(null)
-    setCreatedTask(null)
     try {
-      const params = new URLSearchParams({ q: keyword, type: form.type, limit: form.limit || '20' })
-      if (form.year.trim()) params.set('year', form.year.trim())
+      const params = new URLSearchParams({ q: keyword, result_type: form.result_type, limit: '20' })
       const result = await api.get<SearchResponse>(`/search?${params.toString()}`)
       setResponse(result)
-      setSelectedLink(null)
     } catch (exc) {
       setResponse(null)
-      setSelectedLink(null)
       setError(exc instanceof Error ? exc.message : '搜索失败。')
     } finally {
       setIsSearching(false)
     }
   }
 
-  async function createTransfer() {
-    if (!selectedLink) {
-      setError('请先选择一个资源链接。')
-      return
-    }
-    const targetPath = form.target_path.trim()
-    if (!targetPath) {
-      setError('请输入目标路径。目标路径不明确时需要先确认。')
-      return
-    }
-    if (!window.confirm(`确认创建搬运任务到 ${targetPath}？`)) {
-      return
-    }
+  function updateField(key: keyof SearchFormState, value: string) {
+    setForm((current) => ({ ...current, [key]: value }))
+  }
 
-    setIsCreating(true)
-    setError(null)
+  async function copyLink(link: ResourceLinkResult) {
+    const text = link.code ? `${link.url} 提取码：${link.code}` : link.url
     try {
-      const task = await api.post<TransferResponse>('/transfers', {
-        link_id: selectedLink.link.id,
-        target_library: form.target_library.trim() || null,
-        target_path: targetPath,
-      })
-      setCreatedTask(task)
-      window.dispatchEvent(new Event('sundarr:transfers-changed'))
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : '创建任务失败。')
-    } finally {
-      setIsCreating(false)
+      await navigator.clipboard.writeText(text)
+      showToast('success', '链接已复制。')
+    } catch {
+      window.prompt('复制链接', text)
     }
   }
 
-  function updateField(key: keyof SearchFormState, value: string) {
-    setForm((current) => ({ ...current, [key]: value }))
+  function saveToCloud(link: ResourceLinkResult) {
+    showToast('info', `保存到网盘入口已预留：${providerLabel(link.provider)}。`)
   }
 
   return (
@@ -2647,8 +2602,8 @@ function SearchPanel() {
       <div className="sx-overview-head">
         <div>
           <p className="ui-eyebrow">搜索</p>
-          <h2 id="search-title">搜索与创建任务</h2>
-          <p className="sx-overview-lead">搜索候选资源，选择网盘链接，填写目标路径后创建 Transfer 任务。</p>
+          <h2 id="search-title">聚合搜索</h2>
+          <p className="sx-overview-lead">从代码内置搜索源聚合结果，按真实链接去重，并同步检测链接有效性。</p>
         </div>
       </div>
       </Card>
@@ -2656,16 +2611,16 @@ function SearchPanel() {
       <Card className="sx-search-card">
       <form className="sx-form" onSubmit={(event) => { event.preventDefault(); void runSearch() }}>
         <TextField helper="要搜索的片名、剧名或关键词。" label="关键词" onChange={(value) => updateField('q', value)} required value={form.q} />
-        <Field label="类型" helper="用于缩小搜索范围；不确定时选“未知”。">
-          <select onChange={(event) => updateField('type', event.target.value)} value={form.type}>
-            <option value="unknown">未知</option>
-            <option value="movie">电影</option>
-            <option value="tv">剧集</option>
-            <option value="anime">动画</option>
+        <Field label="结果类型" helper="按链接类型过滤；默认展示全部可识别链接。">
+          <select onChange={(event) => updateField('result_type', event.target.value)} value={form.result_type}>
+            <option value="all">全部</option>
+            <option value="magnet">磁力</option>
+            <option value="quark">夸克网盘</option>
+            <option value="aliyun">阿里网盘</option>
+            <option value="baidu">百度网盘</option>
+            <option value="xunlei">迅雷网盘</option>
           </select>
         </Field>
-        <TextField helper="可选，用于区分同名作品。" label="年份" onChange={(value) => updateField('year', value)} type="number" value={form.year} />
-        <TextField helper="最多返回多少个候选结果。" label="数量限制" onChange={(value) => updateField('limit', value)} type="number" value={form.limit} />
         <div className="sx-form-actions">
           <Button variant="primary" disabled={isSearching} type="submit">{isSearching ? '搜索中…' : '搜索资源'}</Button>
         </div>
@@ -2673,46 +2628,37 @@ function SearchPanel() {
       </Card>
 
       {isSearching ? <UILoadingState message="正在聚合搜索候选资源…" /> : null}
-      {error ? <UIErrorState message="搜索或创建任务失败" sub={error} /> : null}
+      {error ? <UIErrorState message="搜索失败" sub={error} /> : null}
 
       {response ? (
         <Card emphasis="sunken" className="sx-results-card">
-          <div className="sx-section-head"><p className="ui-eyebrow">候选资源</p><span>{response.count} 个结果</span></div>
-          {response.results.length === 0 ? <UIEmptyState message="没有搜索到候选资源" sub="可以换一个关键词、年份或类型后重新搜索。" /> : null}
+          <div className="sx-section-head"><p className="ui-eyebrow">搜索结果</p><span>{response.count} 个结果</span></div>
+          {response.results.length === 0 ? <UIEmptyState message="没有搜索到结果" sub="可以换一个关键词或结果类型后重新搜索。" /> : null}
           {response.results.map((resource) => (
             <ResourceCard
               key={resource.id}
-              onSelect={(link) => {
-                setSelectedLink({ resource, link })
-                if (!form.target_path.trim()) updateField('target_path', suggestedTargetPath(resource))
-              }}
+              onCopyLink={(link) => void copyLink(link)}
+              onSaveToCloud={saveToCloud}
               resource={resource}
-              selectedLinkId={selectedLink?.link.id || null}
             />
           ))}
         </Card>
       ) : null}
-
-      <Card className="sx-create-card" aria-labelledby="create-transfer-title">
-        <div className="sx-section-head"><p className="ui-eyebrow" id="create-transfer-title">创建任务</p><span>{selectedLink ? selectedLink.link.provider : '未选择链接'}</span></div>
-        {selectedLink ? <div className="selected-link-card"><strong>{selectedLink.resource.title}</strong><p>{selectedLink.link.url}</p></div> : <UIEmptyState message="请先选择一个资源链接" sub="选择候选资源里的链接后，再确认目标路径。" />}
-        <form className="sx-form" onSubmit={(event) => { event.preventDefault(); void createTransfer() }}>
-          <TextField helper="逻辑媒体库名称，例如 movies、tv、anime。" label="目标 Library" onChange={(value) => updateField('target_library', value)} value={form.target_library} />
-          <TextField helper="相对目标路径，不要填写 SMB host/share；例如 Movies/Movie Name (2024)。" label="目标路径" onChange={(value) => updateField('target_path', value)} required value={form.target_path} />
-          <div className="sx-form-actions">
-            <Button variant="primary" disabled={!selectedLink || isCreating} type="submit">{isCreating ? '创建中…' : '创建 Transfer'}</Button>
-          </div>
-        </form>
-        {!form.target_path.trim() ? <div className="sx-notice"><strong>需要确认目标路径</strong><p>目标路径为空时不会创建任务，请先确认 library 和最终文件路径。</p></div> : null}
-        {createdTask ? <div className="sx-notice"><strong>任务已创建</strong><p>任务 ID：{createdTask.id}。可前往任务页查询进度。</p></div> : null}
-      </Card>
 
       <ApiClientPreview />
     </section>
   )
 }
 
-function ResourceCard({ onSelect, resource, selectedLinkId }: { onSelect: (link: ResourceLinkResult) => void; resource: ResourceCandidate; selectedLinkId: string | null }) {
+function ResourceCard({
+  onCopyLink,
+  onSaveToCloud,
+  resource,
+}: {
+  onCopyLink: (link: ResourceLinkResult) => void
+  onSaveToCloud: (link: ResourceLinkResult) => void
+  resource: ResourceCandidate
+}) {
   return (
     <article className="resource-card">
       <div className="resource-header">
@@ -2731,11 +2677,20 @@ function ResourceCard({ onSelect, resource, selectedLinkId }: { onSelect: (link:
       <div className="link-list">
         {resource.links.length === 0 ? <UIEmptyState message="该候选资源没有可用链接" /> : null}
         {resource.links.map((link) => (
-          <button className="link-row" data-selected={selectedLinkId === link.id} key={link.id} onClick={() => onSelect(link)} type="button">
-            <span>{link.provider}</span>
-            <strong>{link.url}</strong>
-            <small>风险：{link.risk_level}</small>
-          </button>
+          <div className="link-row" key={link.id}>
+            <a href={link.url} target="_blank" rel="noreferrer">
+              <span>{providerLabel(link.provider)}</span>
+              <strong>{link.url}</strong>
+              <small>{link.code ? `提取码：${link.code}` : '无提取码'}</small>
+            </a>
+            <span className="link-validity" data-status={link.validation_status}>
+              {validationLabel(link)}
+            </span>
+            <div className="link-actions">
+              <Button variant="ghost" size="sm" type="button" onClick={() => onSaveToCloud(link)}>保存到网盘</Button>
+              <Button variant="ghost" size="sm" type="button" onClick={() => onCopyLink(link)}>复制链接</Button>
+            </div>
+          </div>
         ))}
       </div>
     </article>
@@ -4560,6 +4515,26 @@ function mediaTypeLabel(type: MediaType) {
     unknown: '未知',
   }
   return labels[type]
+}
+
+function providerLabel(provider: string) {
+  const labels: Record<string, string> = {
+    magnet: '磁力',
+    quark: '夸克网盘',
+    aliyun: '阿里网盘',
+    baidu: '百度网盘',
+    xunlei: '迅雷网盘',
+    unknown: '未知链接',
+  }
+  return labels[provider] || provider
+}
+
+function validationLabel(link: ResourceLinkResult) {
+  if (link.validation_status === 'valid') return '有效'
+  if (link.validation_status === 'invalid') return '失效'
+  if (link.validation_status === 'error') return '检测失败'
+  if (link.validation_status === 'unknown') return '未知'
+  return link.valid === true ? '有效' : link.valid === false ? '失效' : '未检测'
 }
 
 function dtlMediaTypeLabel(type: DtlMediaType) {

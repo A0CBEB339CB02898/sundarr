@@ -167,17 +167,18 @@ cookie/token/password 不写入日志
 每个真实网站通过一个代码型 Adapter 接入
 多个 Adapter 并发搜索
 结果统一进入 Search Pipeline
+搜索源统一从代码注册表加载，不由用户在 Web Console 创建配置型源
 ```
 
 代码型 Source Adapter 必须通过代码实现和部署，不允许在 Web Console 中在线编辑 Python 代码。
 
-当前 MVP 的媒体源范围是框架能力，不等于真实网站 Adapter 已经完成。
+当前已开始接入真实代码型搜索源，首个实现为 `SeedHubSource`。
 
 Phase 0-7 已覆盖：
 
 ```text
 Source Adapter 抽象
-ExampleSource 示例源
+代码注册表和首个 SeedHubSource
 Search Pipeline
 sources 管理 API
 Web Console Sources 页面

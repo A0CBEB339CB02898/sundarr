@@ -1,5 +1,3 @@
-from datetime import UTC, datetime
-
 from sqlalchemy.orm import Session
 
 from sundarr.app.models import Source
@@ -10,157 +8,81 @@ from sundarr.app.schemas.source import (
     SourceTestResponse,
     SourceUpdateRequest,
 )
-
-EDITABLE_SOURCE_TYPES = {"configurable", "document"}
+from sundarr.app.sources import get_registered_sources
 
 
 class SourceService:
     def list_sources(self, db: Session, page: int = 1, page_size: int = 20) -> SourceListResponse:
         safe_page = max(1, page)
         safe_page_size = max(1, min(page_size, 100))
-        query = db.query(Source).order_by(Source.created_at.desc(), Source.id.asc())
-        count = query.count()
-        sources = query.offset((safe_page - 1) * safe_page_size).limit(safe_page_size).all()
-        results = [self._to_response(source) for source in sources]
+        registered = [self._registered_to_response(source) for source in get_registered_sources()]
+        stored = {source.id: source for source in db.query(Source).all()}
+        results = [
+            self._merge_registered_response(response, stored.get(response.id))
+            for response in registered
+        ]
+        count = len(results)
+        results = results[(safe_page - 1) * safe_page_size : safe_page * safe_page_size]
         return SourceListResponse(count=count, page=safe_page, page_size=safe_page_size, results=results)
 
     def get_source(self, db: Session, source_id: str) -> SourceResponse | None:
-        source = db.get(Source, source_id)
-        return self._to_response(source) if source else None
+        registered = next((source for source in get_registered_sources() if source.id == source_id), None)
+        if registered is None:
+            return None
+        return self._merge_registered_response(self._registered_to_response(registered), db.get(Source, source_id))
 
     def create_source(self, db: Session, request: SourceCreateRequest) -> SourceResponse:
-        self._ensure_editable_type(request.type)
-        if db.get(Source, request.id) is not None:
-            raise ValueError("SOURCE_ALREADY_EXISTS")
-
-        source = Source(
-            id=request.id,
-            name=request.name,
-            type=request.type,
-            enabled=request.enabled,
-            legal_note=request.legal_note,
-            trust_level=request.trust_level,
-            created_by_user=True,
-            config_json=request.config_json,
-        )
-        db.add(source)
-        db.commit()
-        db.refresh(source)
-        return self._to_response(source)
+        raise ValueError("SOURCE_CODE_ONLY")
 
     def update_source(self, db: Session, source_id: str, request: SourceUpdateRequest) -> SourceResponse | None:
-        source = db.get(Source, source_id)
-        if source is None:
+        if self.get_source(db, source_id) is None:
             return None
-        self._ensure_editable_type(source.type)
-
-        if request.name is not None:
-            source.name = request.name
-        if request.enabled is not None:
-            source.enabled = request.enabled
-        if request.legal_note is not None:
-            source.legal_note = request.legal_note
-        if request.trust_level is not None:
-            source.trust_level = request.trust_level
-        if request.config_json is not None:
-            source.config_json = request.config_json
-
-        db.commit()
-        db.refresh(source)
-        return self._to_response(source)
+        raise ValueError("SOURCE_CODE_ONLY")
 
     def set_enabled(self, db: Session, source_id: str, enabled: bool) -> SourceResponse | None:
-        source = db.get(Source, source_id)
-        if source is None:
+        if self.get_source(db, source_id) is None:
             return None
-        self._ensure_editable_type(source.type)
-        source.enabled = enabled
-        db.commit()
-        db.refresh(source)
-        return self._to_response(source)
+        raise ValueError("SOURCE_CODE_ONLY")
 
     def test_source(self, db: Session, source_id: str) -> SourceTestResponse | None:
-        source = db.get(Source, source_id)
+        source = self.get_source(db, source_id)
         if source is None:
             return None
-
-        try:
-            items = self._preview_items(source)
-            source.last_error_code = None
-            source.last_error_message = None
-            source.last_checked_at = datetime.now(UTC)
-            db.commit()
-            return SourceTestResponse(ok=True, source_id=source.id, items=items)
-        except ValueError as exc:
-            source.last_error_code = str(exc)
-            source.last_error_message = self._message_for_error(str(exc))
-            source.last_checked_at = datetime.now(UTC)
-            db.commit()
-            return SourceTestResponse(
-                ok=False,
-                source_id=source.id,
-                error_code=source.last_error_code,
-                error_message=source.last_error_message,
-            )
-
-    def _preview_items(self, source: Source) -> list[dict[str, str]]:
-        config = source.config_json or {}
-        if source.type == "document":
-            items = config.get("items")
-            if not isinstance(items, list) or not items:
-                raise ValueError("SOURCE_CONFIG_INVALID")
-            first = items[0]
-            return [
-                {
-                    "source_id": source.id,
-                    "source_type": source.type,
-                    "raw_title": str(first.get("title", source.name)),
-                    "raw_url": str(first.get("url", "")),
-                    "raw_content": str(first.get("content", first.get("link", ""))),
-                }
-            ]
-
-        if source.type == "configurable":
-            search_url = config.get("search_url")
-            selectors = config.get("selectors")
-            if not isinstance(search_url, str) or not isinstance(selectors, dict):
-                raise ValueError("SOURCE_CONFIG_INVALID")
-            return [
+        return SourceTestResponse(
+            ok=True,
+            source_id=source.id,
+            items=[
                 {
                     "source_id": source.id,
                     "source_type": source.type,
                     "raw_title": source.name,
-                    "raw_url": search_url,
-                    "raw_content": "配置型源测试通过，实际抓取将在后续 Parser 阶段实现。",
+                    "raw_url": "",
+                    "raw_content": "代码型搜索源已注册，实际连通性由 /search 聚合链路验证。",
                 }
-            ]
-
-        raise ValueError("SOURCE_TYPE_NOT_TESTABLE")
-
-    def _ensure_editable_type(self, source_type: str) -> None:
-        if source_type not in EDITABLE_SOURCE_TYPES:
-            raise ValueError("SOURCE_TYPE_NOT_EDITABLE")
-
-    def _to_response(self, source: Source) -> SourceResponse:
-        return SourceResponse(
-            id=source.id,
-            name=source.name,
-            type=source.type,
-            enabled=source.enabled,
-            legal_note=source.legal_note,
-            trust_level=source.trust_level,
-            created_by_user=source.created_by_user,
-            config_json=source.config_json or {},
-            last_error_code=source.last_error_code,
-            last_error_message=source.last_error_message,
+            ],
         )
 
-    def _message_for_error(self, error_code: str) -> str:
-        messages = {
-            "SOURCE_CONFIG_INVALID": "媒体源配置无效。",
-            "SOURCE_TYPE_NOT_TESTABLE": "该类型媒体源不能通过 Web Console 测试。",
-        }
-        return messages.get(error_code, "媒体源测试失败。")
+    def _registered_to_response(self, source) -> SourceResponse:
+        descriptor = source.describe()
+        return SourceResponse(
+            id=descriptor.id,
+            name=descriptor.name,
+            type="code",
+            enabled=descriptor.enabled,
+            legal_note=descriptor.legal_note,
+            trust_level=3,
+            created_by_user=False,
+            config_json={"description": descriptor.description},
+            last_error_code=None,
+            last_error_message=None,
+        )
+
+    def _merge_registered_response(self, response: SourceResponse, stored: Source | None) -> SourceResponse:
+        if stored is None:
+            return response
+        response.last_error_code = stored.last_error_code
+        response.last_error_message = stored.last_error_message
+        return response
 
 
 source_service = SourceService()

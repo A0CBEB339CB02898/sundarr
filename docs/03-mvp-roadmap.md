@@ -874,9 +874,9 @@ pytest 通过。
 
 ### Phase 7.5: Search Page
 
-状态：已完成；真实媒体源搜索未通过手动验收，后续需独立规划真实媒体源/爬虫能力。
+状态：已更新；搜索页已改为聚合搜索结果展示，不再直接创建 Transfer。
 
-目标：提供搜索、候选资源查看和创建 transfer 的最小流程。
+目标：提供关键词搜索、结果类型过滤、候选资源查看和链接操作入口。
 
 交付物：
 
@@ -884,19 +884,21 @@ pytest 通过。
 /app/search 页面
 GET /search
 候选资源列表
-资源链接选择
-目标 library / target_path 输入
-POST /transfers
-创建成功后跳转或提示任务 ID
+结果类型过滤：磁力 / 夸克网盘 / 阿里网盘 / 百度网盘 / 迅雷网盘
+链接有效性检测结果
+打开链接
+保存到网盘入口
+复制链接
 ```
 
 验收标准：
 
 ```text
 用户可以搜索资源。
-用户可以选择资源链接并创建任务。
-低置信度或目标路径不明确时提示用户确认。
-Phase 7.5 验收范围仅覆盖搜索页面、示例源和搜索管线，不覆盖真实媒体源。
+用户可以按结果类型过滤。
+搜索结果按真实链接去重。
+用户可以打开链接、复制链接或点击保存到网盘入口。
+Phase 7.5 当前验收范围覆盖搜索页面、代码型源注册表和搜索管线。
 ```
 
 停止条件：
@@ -910,20 +912,16 @@ pytest 通过。
 
 ### Phase 7.6: Sources Page
 
-状态：已完成；真实网站代码型 Adapter 未实现，不作为 Phase 7.6 验收范围。
+状态：已更新；Sources 页面改为代码注册源只读展示和测试入口。
 
-目标：提供配置型和文档/表格型 Source 的管理入口。
+目标：展示已安装代码型 Source Adapter，并提供测试和错误查看入口。
 
 交付物：
 
 ```text
 /app/sources 页面
 GET /sources
-POST /sources/create
 GET /sources/{source_id}
-POST /sources/{source_id}/update
-POST /sources/{source_id}/enable
-POST /sources/{source_id}/disable
 POST /sources/{source_id}/test
 代码型 Source Adapter 只读展示
 ```
@@ -931,10 +929,10 @@ POST /sources/{source_id}/test
 验收标准：
 
 ```text
-用户可以查看、启用、禁用和测试已安装代码型 Adapter。
+用户可以查看和测试已安装代码型 Adapter。
 代码型 Source Adapter 不允许在线编辑。
 source 测试失败有明确提示。
-真实站点 Adapter、通过 Web Console 配置复杂网站爬虫和在配置中保存可执行 Python 代码不属于当前阶段。
+通过 Web Console 创建/编辑/启用/禁用 source、配置复杂网站爬虫和在配置中保存可执行 Python 代码不属于当前阶段。
 ```
 
 停止条件：
@@ -1193,7 +1191,7 @@ npm run build 通过。
 
 ## Phase 10: Real Site Source Adapters
 
-目标：实现真实媒体网站即时搜索能力。每个真实网站通过代码型 Source Adapter 接入，多个 Adapter 并发搜索，结果统一进入 Search Pipeline。
+目标：实现真实媒体网站即时搜索能力。每个真实网站通过代码型 Source Adapter 接入，多个 Adapter 并发搜索，结果统一进入 Search Pipeline。搜索源统一由代码注册表提供，不再支持用户通过 Web Console 创建 configurable / document source。
 
 交付物：
 
@@ -1208,18 +1206,22 @@ HTML / JSON / 文本解析辅助工具
 通用网盘链接和提取码提取复用
 fixture 测试模板
 至少 1 个真实网站 Adapter
+首个 Adapter：`SeedHubSource`
+搜索页简化为关键词 + 结果类型过滤
+按真实链接去重
+搜索返回前同步检测链接有效性
 Web Console 已安装 Adapter 管理
 ```
 
 验收标准：
 
 ```text
-至少 1 个真实网站 Adapter 可以即时搜索。
+至少 1 个真实网站 Adapter 可以即时搜索，当前首个实现参考 seedhub-cli 的列表页 + 详情页抽取方式。
 Adapter 可以解析搜索结果和必要的详情页。
 搜索结果能进入现有 Search Pipeline。
 单个 Adapter 失败不会影响其他 Adapter。
 每个 Adapter 有超时、限流、错误记录和测试 fixture。
-Web Console 可以启用、禁用、测试 Adapter 并查看最后错误。
+Web Console 可以查看、测试 Adapter 并查看最后错误。
 ```
 
 停止条件：

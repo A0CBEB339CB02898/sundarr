@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import re
 from collections.abc import Iterable
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sundarr.app.parsers import extract_cloud_links
 from sundarr.app.schemas.search import (
@@ -11,21 +12,24 @@ from sundarr.app.schemas.search import (
     SearchQuery,
     SearchResponse,
 )
-from sundarr.app.sources import BaseSource, ExampleSource
+from sundarr.app.services.link_validator import LinkValidator, link_validator
+from sundarr.app.sources import BaseSource, get_registered_sources
 
 TITLE_TAG_PATTERN = re.compile(r"\b(720p|1080p|2160p|4k|bluray|web-dl)\b", re.IGNORECASE)
 YEAR_PATTERN = re.compile(r"\b(19\d{2}|20\d{2})\b")
 
 
 class SearchService:
-    def __init__(self, sources: Iterable[BaseSource] | None = None) -> None:
-        self.sources = list(sources) if sources is not None else [ExampleSource()]
+    def __init__(self, sources: Iterable[BaseSource] | None = None, validator: LinkValidator | None = None) -> None:
+        self.sources = list(sources) if sources is not None else get_registered_sources()
+        self.validator = validator or link_validator
 
     async def search(self, query: SearchQuery) -> SearchResponse:
         raw_items = await self._collect_raw_items(query)
-        candidates = [self._normalize(item, query) for item in raw_items]
+        candidates = [candidate for item in raw_items if (candidate := self._normalize(item, query)) is not None]
         deduped = self._dedupe(candidates)
         ranked = sorted(deduped, key=lambda item: item.score, reverse=True)[: query.limit]
+        await self._validate_links(ranked)
         return SearchResponse(query=query.keyword, count=len(ranked), results=ranked)
 
     async def _collect_raw_items(self, query: SearchQuery) -> list[RawSearchItem]:
@@ -42,15 +46,19 @@ class SearchService:
         except Exception:
             return []
 
-    def _normalize(self, item: RawSearchItem, query: SearchQuery) -> ResourceCandidate:
+    def _normalize(self, item: RawSearchItem, query: SearchQuery) -> ResourceCandidate | None:
         links = extract_cloud_links(item.raw_content)
+        if query.result_type != "all":
+            links = [link for link in links if link.provider == query.result_type]
+        if not links:
+            return None
         title = self._clean_title(item.raw_title)
         year = self._extract_year(item, query)
         media_type = item.metadata.get("type") or query.type
         quality = item.metadata.get("quality") or self._extract_quality(item.raw_title)
         result_links = [
             ResourceLinkResult(
-                id=self._stable_id(link.provider, link.url),
+                id=self._stable_id(link.provider, self._normalize_url(link.url)),
                 provider=link.provider,
                 url=link.url,
                 code=link.code,
@@ -83,16 +91,43 @@ class SearchService:
 
     def _dedupe(self, candidates: list[ResourceCandidate]) -> list[ResourceCandidate]:
         merged: dict[tuple[str, int | None, str], ResourceCandidate] = {}
+        seen_links: set[str] = set()
         for candidate in candidates:
+            unique_links: list[ResourceLinkResult] = []
+            for link in candidate.links:
+                link_key = self._link_key(link.provider, link.url)
+                if link_key in seen_links:
+                    continue
+                seen_links.add(link_key)
+                unique_links.append(link)
+            if not unique_links:
+                continue
+            candidate.links = unique_links
             key = (candidate.normalized_title, candidate.year, candidate.type)
             existing = merged.get(key)
             if existing is None:
                 merged[key] = candidate
                 continue
-            existing_links = {link.url for link in existing.links}
-            existing.links.extend(link for link in candidate.links if link.url not in existing_links)
+            existing.links.extend(candidate.links)
             existing.score = max(existing.score, candidate.score)
         return list(merged.values())
+
+    async def _validate_links(self, candidates: list[ResourceCandidate]) -> None:
+        links = [link for candidate in candidates for link in candidate.links]
+        results = await asyncio.gather(
+            *(self.validator.validate(link.provider, link.url) for link in links),
+            return_exceptions=True,
+        )
+        for link, result in zip(links, results, strict=True):
+            if isinstance(result, Exception):
+                link.valid = None
+                link.validation_status = "error"
+                link.validation_message = "链接检测失败。"
+                continue
+            link.valid = result.valid
+            link.validation_status = result.status  # type: ignore[assignment]
+            link.validation_message = result.message
+            link.checked_at = result.checked_at
 
     def _clean_title(self, raw_title: str) -> str:
         title = TITLE_TAG_PATTERN.sub("", raw_title)
@@ -115,6 +150,17 @@ class SearchService:
     def _stable_id(self, *parts: str | None) -> str:
         value = "|".join(part or "" for part in parts)
         return hashlib.sha1(value.encode("utf-8")).hexdigest()[:16]
+
+    def _link_key(self, provider: str, url: str) -> str:
+        return f"{provider}:{self._normalize_url(url)}"
+
+    def _normalize_url(self, url: str) -> str:
+        if url.lower().startswith("magnet:"):
+            return url.strip().lower()
+        split = urlsplit(url.strip())
+        query = urlencode(sorted(parse_qsl(split.query, keep_blank_values=True)))
+        path = split.path.rstrip("/")
+        return urlunsplit((split.scheme.lower(), split.netloc.lower(), path, query, ""))
 
 
 search_service = SearchService()
