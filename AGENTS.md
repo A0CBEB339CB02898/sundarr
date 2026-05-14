@@ -142,6 +142,7 @@ Phase 9 模块重构：删除 Ingest 模块和旧 storage_config_service，新�
 Phase 9 是下一步优先任务，用于统一术语、代码路径和维护边界。
 前端设计系统基线文档位于 docs/16-design-system.md，在 Phase 7.8 Web Console UI Polish 中落地。
 前端视觉基调：暖色操作台风格，强调色为 terracotta（暗色 #d97642 / 亮色 #b05623），字体 Inter + JetBrains Mono，支持亮色 / 暗色 / 跟随系统三种主题。
+本地 CLI 启动时 PID 文件必须指向真实 API / Web / Worker 服务进程，不使用日志包装进程改变 PID 语义；Docker Compose 模式日志默认走 stdout/stderr，由 Docker logging driver 控制大小。
 ```
 
 ---

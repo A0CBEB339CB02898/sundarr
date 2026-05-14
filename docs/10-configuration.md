@@ -152,13 +152,19 @@ POST /storage/config/save
 
 不建议直接手工修改数据库，除非是在排查 settings 表持久化问题。
 
-本地后台启动日志由 `.venv\Scripts\sundarr start/restart` 管理，默认单文件最大 100MB。可用环境变量覆盖：
+本地后台启动时，CLI 直接启动真实 API / Web / Worker 进程，PID 文件记录真实服务进程，不使用日志包装进程。API / Worker 在本地 CLI 模式下通过 `SUNDARR_LOG_TO_FILE=true` 写入滚动日志文件；Docker Compose 模式默认写 stdout/stderr，由 Docker logging driver 管理日志大小。
+
+本地文件日志默认单文件最大 100MB。可用环境变量覆盖：
 
 ```env
+SUNDARR_LOG_TO_FILE=true
+SUNDARR_LOG_FILE=.sundarr/sundarr-api.log
 SUNDARR_LOG_MAX_BYTES=104857600
 ```
 
-该限制适用于 `.sundarr/sundarr-api.log`、`.sundarr/sundarr-web.log` 和 `.sundarr/sundarr-worker.log`。超过限制时当前日志会被清空后继续写入，避免开发环境磁盘被无限增长的日志占满。
+该限制适用于本地 CLI 启动的 API / Worker 文件日志。超过限制时当前日志会被清空后继续写入，避免开发环境磁盘被无限增长的日志占满。Web/Vite 属于本地开发服务，CLI 仍将其输出写入 `.sundarr/sundarr-web.log`。
+
+Docker Compose 日志限制应通过 Compose `logging` 配置完成，例如 `max-size` 和 `max-file`。Docker 模式不应依赖 `.sundarr/*.log` 作为主日志。
 
 ---
 

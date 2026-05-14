@@ -1,5 +1,4 @@
 import argparse
-import json
 import os
 import signal
 import socket
@@ -11,7 +10,7 @@ from pathlib import Path
 
 from sundarr.app.config import PROJECT_ROOT
 from sundarr.app.db_admin import initialize_database
-from sundarr.app.log_runner import DEFAULT_LOG_MAX_BYTES
+from sundarr.app.logging_config import DEFAULT_LOG_MAX_BYTES, LOG_FILE_ENV, LOG_MAX_BYTES_ENV, LOG_TO_FILE_ENV
 
 RUNTIME_DIR = PROJECT_ROOT / ".sundarr"
 WEB_DIR = PROJECT_ROOT / "web"
@@ -162,22 +161,23 @@ def _ensure_web_dependencies() -> None:
 
 
 def _start_service(service: ManagedService, command: list[str], cwd: Path | None) -> None:
-    wrapped_command = [
-        sys.executable,
-        "-m",
-        "sundarr.app.log_runner",
-        "--log-file",
-        str(service.log_file),
-        "--max-bytes",
-        str(_log_max_bytes()),
-        "--command-json",
-        json.dumps(command),
-    ]
     env = os.environ.copy()
     env["PYTHONPATH"] = _prepend_pythonpath(PROJECT_ROOT, env.get("PYTHONPATH"))
+    stdout = subprocess.DEVNULL
+    stderr = subprocess.DEVNULL
+    log_file_handle = None
+    if service.name in {"api", "worker"}:
+        env[LOG_TO_FILE_ENV] = "true"
+        env[LOG_FILE_ENV] = str(service.log_file)
+        env[LOG_MAX_BYTES_ENV] = str(_log_max_bytes())
+    else:
+        service.log_file.parent.mkdir(parents=True, exist_ok=True)
+        log_file_handle = service.log_file.open("ab")
+        stdout = log_file_handle
+        stderr = subprocess.STDOUT
     kwargs = {
-        "stdout": subprocess.DEVNULL,
-        "stderr": subprocess.DEVNULL,
+        "stdout": stdout,
+        "stderr": stderr,
         "stdin": subprocess.DEVNULL,
         "cwd": cwd,
         "env": env,
@@ -186,7 +186,9 @@ def _start_service(service: ManagedService, command: list[str], cwd: Path | None
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
     else:
         kwargs["start_new_session"] = True
-    process = subprocess.Popen(wrapped_command, **kwargs)
+    process = subprocess.Popen(command, **kwargs)
+    if log_file_handle is not None:
+        log_file_handle.close()
     service.pid_file.write_text(str(process.pid), encoding="utf-8")
     time.sleep(0.5)
     print(f"{service.display_name} 已后台启动，PID={process.pid}。")
@@ -411,10 +413,15 @@ def _parent_pid(pid: int) -> int | None:
 
 def _looks_like_sundarr_command(command_line: str) -> bool:
     normalized = command_line.replace("\\", "/")
+    project_root = str(PROJECT_ROOT).replace("\\", "/")
     project_runtime = str(RUNTIME_DIR).replace("\\", "/")
     web_dir = str(WEB_DIR).replace("\\", "/")
     return "sundarr.app.main:app" in normalized or (
+        "sundarr.app.run_api" in normalized and project_root in normalized
+    ) or (
         "sundarr.app.log_runner" in normalized and project_runtime in normalized
+    ) or (
+        "sundarr.app.worker" in normalized and project_root in normalized
     ) or (
         "vite" in normalized and web_dir in normalized
     )
@@ -424,8 +431,7 @@ def _api_command(host: str, port: int, reload: bool) -> list[str]:
     command = [
         sys.executable,
         "-m",
-        "uvicorn",
-        "sundarr.app.main:app",
+        "sundarr.app.run_api",
         "--host",
         host,
         "--port",

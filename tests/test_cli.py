@@ -236,29 +236,28 @@ def test_prepare_port_reports_when_cleanup_does_not_release_port(tmp_path: Path,
 
 def test_is_sundarr_process_detects_api_command_without_pid_file(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli, "MANAGED_SERVICES", ())
-    monkeypatch.setattr(cli, "_process_command_line", lambda pid: "python -m uvicorn sundarr.app.main:app --port 8080")
+    monkeypatch.setattr(cli, "_process_command_line", lambda pid: f"{cli.PROJECT_ROOT} python -m sundarr.app.run_api --port 8080")
     monkeypatch.setattr(cli, "_parent_pid", lambda pid: None)
 
     assert cli._is_sundarr_process(456) is True
 
 
-def test_is_sundarr_process_detects_log_runner_parent(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_is_sundarr_process_detects_worker_command(monkeypatch: pytest.MonkeyPatch) -> None:
     runtime = str(cli.RUNTIME_DIR)
 
     monkeypatch.setattr(cli, "MANAGED_SERVICES", ())
-    monkeypatch.setattr(cli, "_process_command_line", lambda pid: "" if pid == 456 else f"python -m sundarr.app.log_runner --log-file {runtime}/sundarr-api.log")
+    monkeypatch.setattr(cli, "_process_command_line", lambda pid: f"{runtime} python -m sundarr.app.worker")
     monkeypatch.setattr(cli, "_parent_pid", lambda pid: 123 if pid == 456 else None)
 
     assert cli._is_sundarr_process(456) is True
 
 
 def test_is_sundarr_process_detects_deep_web_log_runner_ancestor(monkeypatch: pytest.MonkeyPatch) -> None:
-    runtime = str(cli.RUNTIME_DIR)
     commands = {
         456: "node vite.js --host 0.0.0.0 --port 5173",
         300: "cmd.exe /d /s /c vite --host 0.0.0.0 --port 5173",
         200: "node npm-cli.js run dev -- --host 0.0.0.0 --port 5173",
-        100: f"python -m sundarr.app.log_runner --log-file {runtime}/sundarr-web.log",
+        100: f"node {cli.WEB_DIR / 'node_modules' / 'vite' / 'bin' / 'vite.js'} --host 0.0.0.0 --port 5173",
     }
     parents = {456: 300, 300: 200, 200: 100, 100: None}
 
@@ -281,9 +280,9 @@ def test_is_sundarr_process_detects_project_vite_command(monkeypatch: pytest.Mon
 
 def test_sundarr_process_tree_root_prefers_highest_sundarr_ancestor(monkeypatch: pytest.MonkeyPatch) -> None:
     commands = {
-        456: "python -m uvicorn sundarr.app.main:app --port 8080",
-        300: "python -m uvicorn sundarr.app.main:app --port 8080",
-        200: f"python -m sundarr.app.log_runner --log-file {cli.RUNTIME_DIR / 'sundarr-api.log'}",
+        456: "python -m sundarr.app.run_api --port 8080",
+        300: "python -m sundarr.app.run_api --port 8080",
+        200: f"python -m sundarr.app.worker {cli.RUNTIME_DIR}",
         100: "powershell.exe",
     }
     parents = {456: 300, 300: 200, 200: 100, 100: None}
@@ -303,6 +302,10 @@ def test_worker_is_managed_service() -> None:
 
 def test_worker_command_uses_module_entry() -> None:
     assert cli._worker_command() == [sys.executable, "-m", "sundarr.app.worker"]
+
+
+def test_api_command_uses_module_entry() -> None:
+    assert cli._api_command("127.0.0.1", 8080, False) == [sys.executable, "-m", "sundarr.app.run_api", "--host", "127.0.0.1", "--port", "8080"]
 
 
 def test_log_max_bytes_defaults_to_100mb(monkeypatch: pytest.MonkeyPatch) -> None:

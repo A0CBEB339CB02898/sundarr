@@ -778,6 +778,9 @@ def _read_int_setting(session: Session, key: str, default: int, field: str) -> i
 
 
 def main() -> None:
+    from sundarr.app.logging_config import configure_file_logging_from_env
+
+    configure_file_logging_from_env()
     WorkerRuntime().run()
 
 
