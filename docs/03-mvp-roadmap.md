@@ -159,7 +159,7 @@ Alembic 初始迁移存在，并可通过离线迁移校验。
 交付物：
 
 ```text
-BaseSource
+SourceModel
 SearchQuery
 RawSearchItem
 one example source
@@ -185,7 +185,7 @@ RawSearchItem 输出格式统一。
 停止条件：
 
 ```text
-BaseSource / SearchQuery / RawSearchItem 已落地。
+SourceModel / SearchQuery / RawSearchItem 已落地。
 至少一个示例 source 可通过 /search 返回候选结果。
 Cloud Link Extractor 至少支持一个 provider 的链接和提取码识别。
 搜索结果可持久化到 resources / resource_links。

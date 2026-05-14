@@ -7,17 +7,17 @@
 每个真实网站通常一个 Python 文件：
 
 ```text
-sundarr/app/sources/base.py        # BaseSource 和 SourceDescriptor
+sundarr/app/sources/base.py        # SourceModel 和 SearchFunction
 sundarr/app/sources/registry.py    # 注册已安装搜索源
 sundarr/app/sources/seedhub.py     # 示例：SeedHubSource
 ```
 
 新增搜索源时：
 
-1. 在 `sundarr/app/sources/<source_id>.py` 中新增类，继承 `BaseSource`。
-2. 实现 `id`、`name`、`source_type = "code"`、`enabled`、`description`、`legal_note`。
-3. 实现 `async def search(self, query: SearchQuery) -> list[RawSearchItem]`。
-4. 在 `sundarr/app/sources/registry.py` 的 `get_registered_sources()` 中注册实例。
+1. 在 `sundarr/app/sources/<source_id>.py` 中新增类或模块级搜索函数。
+2. 实现 `id`、`name`、`description` 和 `async def search(self, query: SearchQuery) -> list[RawSearchItem]`。
+3. 在 `sundarr/app/sources/registry.py` 的 `get_registered_sources()` 中注册 `SourceModel` 实例。
+4. 不要为代码型搜索源新增数据库行，不要实现启用 / 禁用字段。
 5. 添加 fixture / 单元测试，不让默认 pytest 依赖真实网站实时可用性。
 
 ## Adapter 职责
@@ -25,7 +25,7 @@ sundarr/app/sources/seedhub.py     # 示例：SeedHubSource
 Adapter 只负责站点访问和转换为 `RawSearchItem`：
 
 ```text
-负责：搜索页面、详情页、站点字段解析、站点级超时、合法性说明。
+负责：搜索页面、详情页、站点字段解析、站点级超时。
 不负责：最终去重、排序、入库、创建 Transfer、保存到网盘。
 ```
 

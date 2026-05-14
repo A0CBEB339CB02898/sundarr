@@ -1,13 +1,12 @@
 from sqlalchemy.orm import Session
 
-from sundarr.app.models import Resource, ResourceLink, Source
+from sundarr.app.models import Resource, ResourceLink
 from sundarr.app.schemas.search import ResourceCandidate, ResourceLinkResult
 
 
 class ResourceLibraryService:
     def save_candidates(self, db: Session, candidates: list[ResourceCandidate]) -> None:
         for candidate in candidates:
-            self._ensure_source(db, candidate)
             self._upsert_resource(db, candidate)
             for link in candidate.links:
                 self._upsert_link(db, candidate, link)
@@ -25,21 +24,6 @@ class ResourceLibraryService:
             .all()
         )
         return self._to_candidate(resource, links)
-
-    def _ensure_source(self, db: Session, candidate: ResourceCandidate) -> None:
-        if db.get(Source, candidate.source_id) is not None:
-            return
-
-        db.add(
-            Source(
-                id=candidate.source_id,
-                name=candidate.source_id,
-                type="code",
-                enabled=True,
-                legal_note="搜索过程中自动记录的来源占位。",
-                created_by_user=False,
-            )
-        )
 
     def _upsert_resource(self, db: Session, candidate: ResourceCandidate) -> None:
         resource = db.get(Resource, candidate.id)
@@ -68,7 +52,7 @@ class ResourceLibraryService:
         resource_link.code = link.code
         resource_link.valid = link.valid
         resource_link.risk_level = link.risk_level
-        resource_link.source_id = candidate.source_id
+        resource_link.source_id = None
         resource_link.source_url = candidate.source_url
         resource_link.last_checked_at = link.checked_at
 

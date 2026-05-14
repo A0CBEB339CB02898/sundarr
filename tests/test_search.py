@@ -11,38 +11,44 @@ from sundarr.app.schemas.search import RawSearchItem, SearchQuery
 from sundarr.app.services.link_validator import LinkValidator
 from sundarr.app.services.resource_library_service import ResourceLibraryService
 from sundarr.app.services.search_service import SearchService
-from sundarr.app.sources import BaseSource
+from sundarr.app.sources import SourceModel
 from sundarr.app.sources.seedhub import SeedHubSource
 
 
-class FailingSource(BaseSource):
-    id = "failing"
-    name = "失败源"
-    source_type = "code"
-    enabled = True
-
-    async def search(self, query: SearchQuery) -> list[RawSearchItem]:
-        raise RuntimeError("模拟源失败")
+async def failing_search(query: SearchQuery) -> list[RawSearchItem]:
+    raise RuntimeError("模拟源失败")
 
 
-class StaticSource(BaseSource):
-    id = "static"
-    name = "静态源"
-    source_type = "code"
-    enabled = True
+async def static_search(query: SearchQuery) -> list[RawSearchItem]:
+    return [
+        RawSearchItem(
+            source_id="static",
+            source_type="code",
+            raw_title="星际穿越 2014 1080p",
+            raw_url="https://example.invalid/static",
+            raw_content="链接：https://pan.quark.cn/s/static 提取码：abcd",
+            fetched_at=datetime.now(UTC),
+            metadata={"year": 2014, "type": "movie"},
+        )
+    ]
 
-    async def search(self, query: SearchQuery) -> list[RawSearchItem]:
-        return [
-            RawSearchItem(
-                source_id=self.id,
-                source_type=self.source_type,
-                raw_title="星际穿越 2014 1080p",
-                raw_url="https://example.invalid/static",
-                raw_content="链接：https://pan.quark.cn/s/static 提取码：abcd",
-                fetched_at=datetime.now(UTC),
-                metadata={"year": 2014, "type": "movie"},
-            )
-        ]
+
+async def duplicate_search(query: SearchQuery) -> list[RawSearchItem]:
+    item = (await static_search(query))[0]
+    item.source_id = "duplicate"
+    return [item]
+
+
+def static_source() -> SourceModel:
+    return SourceModel(id="static", name="静态源", description="测试用静态源。", search_function=static_search)
+
+
+def failing_source() -> SourceModel:
+    return SourceModel(id="failing", name="失败源", description="测试用失败源。", search_function=failing_search)
+
+
+def duplicate_source() -> SourceModel:
+    return SourceModel(id="duplicate", name="重复源", description="测试用重复源。", search_function=duplicate_search)
 
 
 def test_extract_cloud_links_with_code() -> None:
@@ -75,26 +81,27 @@ def test_seedhub_source_parses_detail_html() -> None:
 
 @pytest.mark.anyio
 async def test_search_service_isolates_source_failure() -> None:
-    service = SearchService(sources=[FailingSource(), StaticSource()], validator=LinkValidator(enable_network=False))
+    service = SearchService(sources=[failing_source(), static_source()], validator=LinkValidator(enable_network=False))
 
     response = await service.search(SearchQuery(keyword="星际穿越", year=2014))
 
     assert response.count == 1
     assert response.results[0].links[0].code == "abcd"
     assert response.results[0].links[0].validation_status == "unknown"
+    assert response.source_results[0].source_id == "failing"
+    assert response.source_results[0].error is not None
+    assert response.source_results[1].count == 1
 
 
 @pytest.mark.anyio
 async def test_search_service_dedupes_by_real_link() -> None:
-    class DuplicateSource(StaticSource):
-        id = "duplicate"
-
-    service = SearchService(sources=[StaticSource(), DuplicateSource()], validator=LinkValidator(enable_network=False))
+    service = SearchService(sources=[static_source(), duplicate_source()], validator=LinkValidator(enable_network=False))
 
     response = await service.search(SearchQuery(keyword="星际穿越", result_type="quark"))
 
     assert response.count == 1
     assert len(response.results[0].links) == 1
+    assert {group.source_id: group.count for group in response.source_results} == {"static": 1, "duplicate": 1}
 
 
 def test_search_api_returns_candidates(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -104,7 +111,7 @@ def test_search_api_returns_candidates(db_session: Session, monkeypatch: pytest.
     monkeypatch.setattr(
         search_api,
         "search_service",
-        SearchService(sources=[StaticSource()], validator=LinkValidator(enable_network=False)),
+        SearchService(sources=[static_source()], validator=LinkValidator(enable_network=False)),
     )
 
     def override_get_db():
@@ -119,11 +126,13 @@ def test_search_api_returns_candidates(db_session: Session, monkeypatch: pytest.
     body = response.json()
     assert body["count"] == 1
     assert body["results"][0]["links"][0]["provider"] == "quark"
+    assert body["source_results"][0]["source_id"] == "static"
+    assert body["source_results"][0]["count"] == 1
 
 
 @pytest.mark.anyio
 async def test_resource_library_persists_candidates(db_session: Session) -> None:
-    service = SearchService(sources=[StaticSource()], validator=LinkValidator(enable_network=False))
+    service = SearchService(sources=[static_source()], validator=LinkValidator(enable_network=False))
     library = ResourceLibraryService()
 
     response = await service.search(SearchQuery(keyword="星际穿越", year=2014))
@@ -142,7 +151,7 @@ def test_resource_api_reads_from_database(db_session: Session, monkeypatch: pyte
     monkeypatch.setattr(
         search_api,
         "search_service",
-        SearchService(sources=[StaticSource()], validator=LinkValidator(enable_network=False)),
+        SearchService(sources=[static_source()], validator=LinkValidator(enable_network=False)),
     )
 
     def override_get_db():

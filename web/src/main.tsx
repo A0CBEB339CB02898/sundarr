@@ -183,6 +183,15 @@ type SearchResponse = {
   query: string
   count: number
   results: ResourceCandidate[]
+  source_results: SourceSearchResult[]
+}
+
+type SourceSearchResult = {
+  source_id: string
+  source_name: string
+  count: number
+  results: ResourceCandidate[]
+  error: string | null
 }
 
 type ResourceCandidate = {
@@ -217,20 +226,13 @@ type SearchFormState = {
   result_type: ResultType
 }
 
-type SourceType = 'configurable' | 'document' | 'code'
-type EditableSourceType = 'configurable' | 'document'
+type SourceType = 'code'
 
 type SourceResponse = {
   id: string
   name: string
   type: SourceType
-  enabled: boolean
-  legal_note: string | null
-  trust_level: number
-  created_by_user: boolean
-  config_json: Record<string, unknown>
-  last_error_code: string | null
-  last_error_message: string | null
+  description: string
 }
 
 type SourceListResponse = {
@@ -244,19 +246,23 @@ type SourceTestResponse = {
   ok: boolean
   source_id: string
   items: Record<string, unknown>[]
+  logs: SourceTestLog[]
   error_code: string | null
   error_message: string | null
   tested_at: string
 }
 
-type SourceFormState = {
-  id: string
-  name: string
-  type: SourceType
-  enabled: boolean
-  legal_note: string
-  trust_level: string
-  config_json: string
+type SourceTestLog = {
+  step: string
+  status: string
+  message: string
+  data: Record<string, unknown>
+}
+
+type SourceTestFormState = {
+  keyword: string
+  result_type: ResultType
+  limit: string
 }
 
 type MediaLibraryResponse = {
@@ -1987,27 +1993,17 @@ function SourcesPanel() {
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  const [drawerMode, setDrawerMode] = useState<'create' | 'edit' | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState<SourceFormState>(emptySourceForm())
-  const [drawerError, setDrawerError] = useState<string | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
-
   const [testState, setTestState] = useState<Record<string, 'running' | 'ok' | 'error'>>({})
-  const [togglingIds, setTogglingIds] = useState<Record<string, true>>({})
+  const [viewingSource, setViewingSource] = useState<SourceResponse | null>(null)
 
   // 最近一次测试的结果 detail（可展示条目 / 错误详情），key = source.id
   const [testResults, setTestResults] = useState<Record<string, SourceTestResponse>>({})
+  const [testForms, setTestForms] = useState<Record<string, SourceTestFormState>>({})
   const [expandedTestId, setExpandedTestId] = useState<string | null>(null)
 
   useEffect(() => {
     void loadSources()
   }, [page, pageSize])
-
-  const editingSource =
-    drawerMode === 'edit' && editingId
-      ? sources.find((source) => source.id === editingId) || null
-      : null
 
   async function loadSources() {
     setIsLoading(true)
@@ -2024,90 +2020,46 @@ function SourcesPanel() {
     }
   }
 
-  function openCreate() {
-    setDrawerMode('create')
-    setEditingId(null)
-    setForm(emptySourceForm())
-    setDrawerError(null)
+  function getTestForm(sourceId: string): SourceTestFormState {
+    return testForms[sourceId] || { keyword: '星际穿越', result_type: 'all', limit: '5' }
   }
 
-  function openEdit(source: SourceResponse) {
-    setDrawerMode('edit')
-    setEditingId(source.id)
-    setForm(sourceFormFromResponse(source))
-    setDrawerError(null)
-  }
-
-  function closeDrawer() {
-    setDrawerMode(null)
-    setEditingId(null)
-    setDrawerError(null)
-  }
-
-  async function saveSource() {
-    const editable = drawerMode === 'create' || editingSource?.type !== 'code'
-    if (!editable) {
-      setDrawerError('代码型 Source Adapter 只能只读展示，不能在线编辑。')
-      return
-    }
-    setIsSaving(true)
-    setDrawerError(null)
-    try {
-      const config = parseSourceConfig(form.config_json)
-      const payload = {
-        name: form.name.trim(),
-        enabled: form.enabled,
-        legal_note: form.legal_note.trim() || null,
-        trust_level: Number(form.trust_level) || 1,
-        config_json: config,
-      }
-      if (drawerMode === 'create') {
-        await api.post<SourceResponse>('/sources/create', {
-          ...payload,
-          id: newUuid(),
-          type: form.type,
-        })
-      } else if (editingId) {
-        await api.post<SourceResponse>(
-          `/sources/${encodeURIComponent(editingId)}/update`,
-          payload,
-        )
-      }
-      closeDrawer()
-      await loadSources()
-    } catch (exc) {
-      setDrawerError(exc instanceof Error ? exc.message : '保存媒体源失败。')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  async function toggleSource(source: SourceResponse) {
-    if (source.type === 'code') return
-    const next = !source.enabled
-    if (!window.confirm(`确认${next ? '启用' : '禁用'}媒体源 ${source.name}？`)) return
-    setTogglingIds((prev) => ({ ...prev, [source.id]: true }))
-    try {
-      const action = next ? 'enable' : 'disable'
-      await api.post<SourceResponse>(
-        `/sources/${encodeURIComponent(source.id)}/${action}`,
-      )
-      await loadSources()
-    } catch (exc) {
-      window.alert(exc instanceof Error ? exc.message : '切换媒体源状态失败。')
-    } finally {
-      setTogglingIds((prev) => {
-        const { [source.id]: _dropped, ...rest } = prev
-        return rest
-      })
-    }
+  function updateTestForm(sourceId: string, patch: Partial<SourceTestFormState>) {
+    setTestForms((prev) => ({
+      ...prev,
+      [sourceId]: { ...(prev[sourceId] || { keyword: '星际穿越', result_type: 'all', limit: '5' }), ...patch },
+    }))
   }
 
   async function testSource(source: SourceResponse) {
+    const form = getTestForm(source.id)
+    const keyword = form.keyword.trim()
+    if (!keyword) {
+      setTestResults((prev) => ({
+        ...prev,
+        [source.id]: {
+          ok: false,
+          source_id: source.id,
+          items: [],
+          logs: [{ step: 'prepare', status: 'error', message: '请输入测试关键词。', data: {} }],
+          error_code: 'KEYWORD_REQUIRED',
+          error_message: '请输入测试关键词。',
+          tested_at: new Date().toISOString(),
+        },
+      }))
+      setTestState((prev) => ({ ...prev, [source.id]: 'error' }))
+      setExpandedTestId(source.id)
+      return
+    }
     setTestState((prev) => ({ ...prev, [source.id]: 'running' }))
     try {
       const result = await api.post<SourceTestResponse>(
         `/sources/${encodeURIComponent(source.id)}/test`,
+        {
+          keyword,
+          result_type: form.result_type,
+          limit: Math.max(1, Math.min(20, Number(form.limit) || 5)),
+        },
       )
       setTestResults((prev) => ({ ...prev, [source.id]: result }))
       setTestState((prev) => ({ ...prev, [source.id]: result.ok ? 'ok' : 'error' }))
@@ -2120,6 +2072,7 @@ function SourcesPanel() {
           ok: false,
           source_id: source.id,
           items: [],
+          logs: [{ step: 'request', status: 'error', message: msg, data: {} }],
           error_code: 'REQUEST_FAILED',
           error_message: msg,
           tested_at: new Date().toISOString(),
@@ -2130,12 +2083,7 @@ function SourcesPanel() {
     }
   }
 
-  function updateField(key: keyof SourceFormState, value: string | boolean) {
-    setForm((current) => ({ ...current, [key]: value }))
-  }
-
   const showEmpty = !isLoading && !loadError && sources.length === 0
-  const drawerOpen = drawerMode !== null
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
   return (
@@ -2193,13 +2141,13 @@ function SourcesPanel() {
               <SourceCard
                 key={source.id}
                 source={source}
+                testForm={getTestForm(source.id)}
                 testStatus={testState[source.id]}
                 testResult={testResults[source.id] || null}
                 isExpanded={expandedTestId === source.id}
-                toggling={Boolean(togglingIds[source.id])}
                 onTest={() => void testSource(source)}
-                onEdit={() => openEdit(source)}
-                onToggle={() => void toggleSource(source)}
+                onView={() => setViewingSource(source)}
+                onTestFormChange={(patch) => updateTestForm(source.id, patch)}
                 onToggleTestDetail={() =>
                   setExpandedTestId((prev) => (prev === source.id ? null : source.id))
                 }
@@ -2210,48 +2158,34 @@ function SourcesPanel() {
         </>
       ) : null}
 
-      <SourceDrawer
-        open={drawerOpen}
-        mode={drawerMode || 'create'}
-        form={form}
-        error={drawerError}
-        isSaving={isSaving}
-        editingSource={editingSource}
-        onFieldChange={updateField}
-        onClose={closeDrawer}
-        onSubmit={() => void saveSource()}
-      />
+      <SourceDetailDrawer source={viewingSource} onClose={() => setViewingSource(null)} />
     </section>
   )
 }
 
 function SourceCard({
   source,
+  testForm,
   testStatus,
   testResult,
   isExpanded,
-  toggling,
   onTest,
-  onEdit,
-  onToggle,
+  onView,
+  onTestFormChange,
   onToggleTestDetail,
 }: {
   source: SourceResponse
+  testForm: SourceTestFormState
   testStatus: 'running' | 'ok' | 'error' | undefined
   testResult: SourceTestResponse | null
   isExpanded: boolean
-  toggling: boolean
   onTest: () => void
-  onEdit: () => void
-  onToggle: () => void
+  onView: () => void
+  onTestFormChange: (patch: Partial<SourceTestFormState>) => void
   onToggleTestDetail: () => void
 }) {
-  const isCode = source.type === 'code'
-  const enabledTone: StatusTone = source.enabled ? 'success' : 'paused'
-  const codeTone: StatusTone = 'info'
-
   return (
-    <Card className="sc-card" role="listitem">
+    <Card className="sc-card sc-source-card" role="listitem">
       <div className="sc-card-head">
         <div className="sc-card-title">
           <p className="ui-eyebrow">{sourceTypeLabel(source.type)}</p>
@@ -2259,39 +2193,58 @@ function SourceCard({
           <code className="sc-card-id">{source.id}</code>
         </div>
         <div className="sc-card-badges">
-          <StatusBadge tone={enabledTone}>
-            {source.enabled ? '已启用' : '已禁用'}
-          </StatusBadge>
-          {isCode ? <StatusBadge tone={codeTone}>只读</StatusBadge> : null}
+          <StatusBadge tone="info">代码注册</StatusBadge>
+          <StatusBadge tone="paused">只读</StatusBadge>
         </div>
       </div>
 
-      {source.legal_note ? (
-        <p className="sc-card-note">{source.legal_note}</p>
-      ) : (
-        <p className="sc-card-note sc-card-note-muted">未提供合规说明。</p>
-      )}
+      <p className="sc-card-note">{source.description || '该媒体源暂未提供说明。'}</p>
 
       <dl className="sc-card-meta">
         <div>
-          <dt>Trust</dt>
-          <dd className="sc-mono">{source.trust_level}</dd>
+          <dt>事实来源</dt>
+          <dd>代码注册</dd>
         </div>
         <div>
-          <dt>来源</dt>
-          <dd>{source.created_by_user ? '用户创建' : '内置'}</dd>
-        </div>
-        <div>
-          <dt>最后错误</dt>
-          <dd className={source.last_error_code ? 'sc-danger' : undefined}>
-            {source.last_error_code || '无'}
-          </dd>
+          <dt>搜索入口</dt>
+          <dd>search_function</dd>
         </div>
       </dl>
 
-      {source.last_error_message ? (
-        <p className="sc-card-last-error">{source.last_error_message}</p>
-      ) : null}
+      <div className="sc-source-test-form" aria-label={`${source.name} 测试搜索`}>
+        <label>
+          <span>测试关键词</span>
+          <input
+            value={testForm.keyword}
+            onChange={(event) => onTestFormChange({ keyword: event.target.value })}
+            placeholder="例如：星际穿越"
+          />
+        </label>
+        <label>
+          <span>结果类型</span>
+          <select
+            value={testForm.result_type}
+            onChange={(event) => onTestFormChange({ result_type: event.target.value as ResultType })}
+          >
+            <option value="all">全部</option>
+            <option value="magnet">磁力</option>
+            <option value="quark">夸克网盘</option>
+            <option value="aliyun">阿里网盘</option>
+            <option value="baidu">百度网盘</option>
+            <option value="xunlei">迅雷网盘</option>
+          </select>
+        </label>
+        <label>
+          <span>预览数</span>
+          <input
+            inputMode="numeric"
+            min="1"
+            max="20"
+            value={testForm.limit}
+            onChange={(event) => onTestFormChange({ limit: event.target.value })}
+          />
+        </label>
+      </div>
 
       {testResult ? (
         <div className="sc-card-test" data-tone={testStatus || 'idle'}>
@@ -2314,6 +2267,19 @@ function SourceCard({
           </button>
           {isExpanded ? (
             <div className="sc-card-test-body">
+              {testResult.logs.length > 0 ? (
+                <ol className="sc-source-log-list">
+                  {testResult.logs.map((log, index) => (
+                    <li key={`${log.step}-${index}`} data-status={log.status}>
+                      <span className="sc-source-log-step">{log.step}</span>
+                      <strong>{log.message}</strong>
+                      {Object.keys(log.data).length > 0 ? (
+                        <code>{JSON.stringify(log.data)}</code>
+                      ) : null}
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
               {testResult.error_code ? (
                 <div className="sc-card-test-error">
                   <strong>{testResult.error_code}</strong>
@@ -2345,9 +2311,9 @@ function SourceCard({
           disabled={testStatus === 'running'}
           onClick={onTest}
         >
-          {testStatus === 'running' ? '测试中…' : '测试'}
+          {testStatus === 'running' ? '测试中…' : '测试搜索'}
         </Button>
-        <Button variant="ghost" size="sm" onClick={onEdit}>
+        <Button variant="ghost" size="sm" onClick={onView}>
           查看
         </Button>
       </div>
@@ -2355,29 +2321,9 @@ function SourceCard({
   )
 }
 
-function SourceDrawer({
-  open,
-  mode,
-  form,
-  error,
-  isSaving,
-  editingSource,
-  onFieldChange,
-  onClose,
-  onSubmit,
-}: {
-  open: boolean
-  mode: 'create' | 'edit'
-  form: SourceFormState
-  error: string | null
-  isSaving: boolean
-  editingSource: SourceResponse | null
-  onFieldChange: (key: keyof SourceFormState, value: string | boolean) => void
-  onClose: () => void
-  onSubmit: () => void
-}) {
+function SourceDetailDrawer({ source, onClose }: { source: SourceResponse | null; onClose: () => void }) {
   useEffect(() => {
-    if (!open) return
+    if (!source) return
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose()
     }
@@ -2388,16 +2334,13 @@ function SourceDrawer({
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
     }
-  }, [open, onClose])
-
-  const isCodeSource = editingSource?.type === 'code'
-  const isEditable = mode === 'create' || !isCodeSource
+  }, [source, onClose])
 
   return (
     <div
       className="sc-drawer-overlay"
-      data-open={open || undefined}
-      aria-hidden={!open}
+      data-open={Boolean(source) || undefined}
+      aria-hidden={!source}
       onClick={onClose}
     >
       <aside
@@ -2409,138 +2352,26 @@ function SourceDrawer({
       >
         <header className="sc-drawer-head">
           <div>
-            <p className="ui-eyebrow">{mode === 'create' ? '新增' : isCodeSource ? '查看' : '编辑'}</p>
-            <h3 id="sc-drawer-title">
-              {mode === 'create'
-                ? '创建媒体源'
-                : isCodeSource
-                  ? `${form.name || form.id} · 只读`
-                  : `编辑 ${form.name || form.id}`}
-            </h3>
+            <p className="ui-eyebrow">代码注册源</p>
+            <h3 id="sc-drawer-title">{source?.name || '媒体源详情'}</h3>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose} aria-label="关闭">
             ×
           </Button>
         </header>
-        <form
-          className="sc-drawer-body"
-          onSubmit={(event) => {
-            event.preventDefault()
-            if (isEditable) onSubmit()
-          }}
-        >
-          <Field
-            label="名称"
-            htmlFor="sc-f-name"
-            helper="在搜索结果和来源列表中展示的人类可读名称。"
-          >
-            <input
-              id="sc-f-name"
-              type="text"
-              disabled={!isEditable}
-              required
-              value={form.name}
-              onChange={(event) => onFieldChange('name', event.target.value)}
-            />
-          </Field>
-          <Field
-            label="类型"
-            htmlFor="sc-f-type"
-            helper="配置型用于规则化网页源；文档/表格型用于维护静态条目；代码型只能只读展示。"
-          >
-            <select
-              id="sc-f-type"
-              disabled={mode === 'edit'}
-              value={form.type}
-              onChange={(event) =>
-                onFieldChange('type', event.target.value as EditableSourceType)
-              }
-            >
-              <option value="configurable">配置型</option>
-              <option value="document">文档/表格型</option>
-              {form.type === 'code' ? <option value="code">代码型</option> : null}
-            </select>
-          </Field>
-          <Field
-            label="Trust Level"
-            htmlFor="sc-f-trust"
-            helper="1 到 5，数字越大表示该 source 可信度越高。"
-          >
-            <input
-              id="sc-f-trust"
-              type="number"
-              disabled={!isEditable}
-              required
-              value={form.trust_level}
-              onChange={(event) => onFieldChange('trust_level', event.target.value)}
-            />
-          </Field>
-          <div className="sc-drawer-toggle">
-            <label>
-              <input
-                type="checkbox"
-                disabled={!isEditable}
-                checked={form.enabled}
-                onChange={(event) => onFieldChange('enabled', event.target.checked)}
-              />
-              <span>启用</span>
-            </label>
-            <small>禁用后不会参与搜索，但配置会保留。</small>
+        <div className="sc-drawer-body">
+          <DetailItem label="ID" value={source?.id || '-'} />
+          <DetailItem label="类型" value={source ? sourceTypeLabel(source.type) : '-'} />
+          <DetailItem label="事实来源" value="代码注册表" />
+          <DetailItem label="说明" value={source?.description || '-'} />
+          <div className="sc-drawer-notice">
+            <strong>只读 Source Adapter</strong>
+            <p>媒体源统一从后端代码注册表加载，不能在 Web Console 创建、编辑、启用或禁用。</p>
           </div>
-          <Field
-            label="合规说明"
-            htmlFor="sc-f-legal"
-            helper="记录该 source 的来源范围、使用限制或合法性说明。"
-          >
-            <textarea
-              id="sc-f-legal"
-              rows={3}
-              disabled={!isEditable}
-              value={form.legal_note}
-              onChange={(event) => onFieldChange('legal_note', event.target.value)}
-            />
-          </Field>
-          <Field
-            label="Config JSON"
-            htmlFor="sc-f-config"
-            helper={sourceConfigHint(form.type)}
-          >
-            <textarea
-              id="sc-f-config"
-              className="sc-drawer-json"
-              rows={12}
-              disabled={!isEditable}
-              spellCheck={false}
-              value={form.config_json}
-              onChange={(event) => onFieldChange('config_json', event.target.value)}
-            />
-          </Field>
-
-          {isCodeSource ? (
-            <div className="sc-drawer-notice">
-              <strong>只读 Source Adapter</strong>
-              <p>代码型 source 不允许通过 Web Console 在线编辑、启用或禁用。</p>
-            </div>
-          ) : null}
-
-          {error ? (
-            <div className="sc-drawer-error" role="alert">
-              <strong>保存失败</strong>
-              <p>{error}</p>
-            </div>
-          ) : null}
-        </form>
+        </div>
         <footer className="sc-drawer-actions">
           <Button variant="ghost" onClick={onClose} type="button">
-            取消
-          </Button>
-          <Button
-            variant="primary"
-            disabled={!isEditable || isSaving}
-            onClick={onSubmit}
-            type="button"
-          >
-            {isSaving ? '保存中…' : mode === 'create' ? '创建' : '保存'}
+            关闭
           </Button>
         </footer>
       </aside>
@@ -2554,6 +2385,7 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
     result_type: 'all',
   })
   const [response, setResponse] = useState<SearchResponse | null>(null)
+  const [activeResultTab, setActiveResultTab] = useState('all')
   const [error, setError] = useState<string | null>(null)
   const [isSearching, setIsSearching] = useState(false)
 
@@ -2570,6 +2402,7 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
       const params = new URLSearchParams({ q: keyword, result_type: form.result_type, limit: '20' })
       const result = await api.get<SearchResponse>(`/search?${params.toString()}`)
       setResponse(result)
+      setActiveResultTab('all')
     } catch (exc) {
       setResponse(null)
       setError(exc instanceof Error ? exc.message : '搜索失败。')
@@ -2595,6 +2428,20 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
   function saveToCloud(link: ResourceLinkResult) {
     showToast('info', `保存到网盘入口已预留：${providerLabel(link.provider)}。`)
   }
+
+  const resultTabs = response
+    ? [
+        { id: 'all', label: '全部', count: response.count, results: response.results, error: null },
+        ...response.source_results.map((group) => ({
+          id: group.source_id,
+          label: group.source_name,
+          count: group.count,
+          results: group.results,
+          error: group.error,
+        })),
+      ]
+    : []
+  const activeTab = resultTabs.find((tab) => tab.id === activeResultTab) || resultTabs[0]
 
   return (
     <section className="sx-page" aria-labelledby="search-title">
@@ -2632,16 +2479,38 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
 
       {response ? (
         <Card emphasis="sunken" className="sx-results-card">
-          <div className="sx-section-head"><p className="ui-eyebrow">搜索结果</p><span>{response.count} 个结果</span></div>
-          {response.results.length === 0 ? <UIEmptyState message="没有搜索到结果" sub="可以换一个关键词或结果类型后重新搜索。" /> : null}
-          {response.results.map((resource) => (
-            <ResourceCard
-              key={resource.id}
-              onCopyLink={(link) => void copyLink(link)}
-              onSaveToCloud={saveToCloud}
-              resource={resource}
-            />
-          ))}
+          <div className="sx-section-head"><p className="ui-eyebrow">搜索结果</p><span>{response.count} 个去重结果</span></div>
+          <div className="sx-result-tabs" role="tablist" aria-label="按媒体源查看搜索结果">
+            {resultTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab?.id === tab.id}
+                data-active={activeTab?.id === tab.id || undefined}
+                onClick={() => setActiveResultTab(tab.id)}
+              >
+                <span>{tab.label}</span>
+                <strong>{tab.count}</strong>
+              </button>
+            ))}
+          </div>
+          <div className="sx-result-pane" role="tabpanel">
+            {activeTab?.error ? (
+              <UIErrorState message="该媒体源搜索失败" sub={activeTab.error} />
+            ) : null}
+            {activeTab && activeTab.results.length === 0 && !activeTab.error ? (
+              <UIEmptyState message="没有搜索到结果" sub="可以换一个关键词或结果类型后重新搜索。" />
+            ) : null}
+            {activeTab?.results.map((resource) => (
+              <ResourceCard
+                key={resource.id}
+                onCopyLink={(link) => void copyLink(link)}
+                onSaveToCloud={saveToCloud}
+                resource={resource}
+              />
+            ))}
+          </div>
         </Card>
       ) : null}
 
@@ -2659,16 +2528,26 @@ function ResourceCard({
   onSaveToCloud: (link: ResourceLinkResult) => void
   resource: ResourceCandidate
 }) {
+  const primaryLink = resource.links[0]
   return (
     <article className="resource-card">
-      <div className="resource-header">
+      <a
+        className="resource-header resource-main-link"
+        href={primaryLink?.url || resource.source_url || '#'}
+        target="_blank"
+        rel="noreferrer"
+        aria-disabled={!primaryLink && !resource.source_url}
+        onClick={(event) => {
+          if (!primaryLink && !resource.source_url) event.preventDefault()
+        }}
+      >
         <div>
           <span className="status-pill running">{mediaTypeLabel(resource.type)}</span>
           <h3>{resource.title}</h3>
           <p>{resource.explanation}</p>
         </div>
         <strong>{resource.score.toFixed(2)}</strong>
-      </div>
+      </a>
       <div className="detail-grid">
         <DetailItem label="年份" value={resource.year ? String(resource.year) : '未知'} />
         <DetailItem label="质量" value={resource.quality || '未知'} />
@@ -4451,60 +4330,11 @@ function storageRequestFromForm(form: StorageFormState): StorageConfigRequest {
   }
 }
 
-function emptySourceForm(): SourceFormState {
-  return {
-    id: '',
-    name: '',
-    type: 'configurable',
-    enabled: true,
-    legal_note: '',
-    trust_level: '1',
-    config_json: '{\n  "search_url": "https://example.invalid/search?q={query}",\n  "selectors": {}\n}',
-  }
-}
-
-function sourceFormFromResponse(source: SourceResponse): SourceFormState {
-  return {
-    id: source.id,
-    name: source.name,
-    type: source.type,
-    enabled: source.enabled,
-    legal_note: source.legal_note || '',
-    trust_level: String(source.trust_level),
-    config_json: JSON.stringify(source.config_json || {}, null, 2),
-  }
-}
-
-function parseSourceConfig(value: string): Record<string, unknown> {
-  try {
-    const parsed = JSON.parse(value || '{}') as unknown
-    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
-      throw new Error('Config JSON 必须是对象。')
-    }
-    return parsed as Record<string, unknown>
-  } catch (exc) {
-    if (exc instanceof SyntaxError) throw new Error('Config JSON 格式无效。')
-    throw exc
-  }
-}
-
 function sourceTypeLabel(type: SourceType) {
   const labels: Record<SourceType, string> = {
-    configurable: '配置型',
-    document: '文档/表格型',
     code: '代码型',
   }
   return labels[type]
-}
-
-function sourceConfigHint(type: SourceType) {
-  if (type === 'document') {
-    return '文档/表格型 source 需要 items 数组，至少包含 title 和 url/link/content。'
-  }
-  if (type === 'code') {
-    return '代码型 Source Adapter 由后端代码提供，Web Console 只读展示配置。'
-  }
-  return '配置型 source 需要 search_url 字符串和 selectors 对象。'
 }
 
 function mediaTypeLabel(type: MediaType) {

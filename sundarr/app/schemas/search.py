@@ -64,7 +64,16 @@ class ResourceCandidate(BaseModel):
     links: list[ResourceLinkResult] = Field(default_factory=list)
 
 
+class SourceSearchResult(BaseModel):
+    source_id: str
+    source_name: str
+    count: int
+    results: list[ResourceCandidate] = Field(default_factory=list)
+    error: str | None = None
+
+
 class SearchResponse(BaseModel):
     query: str
     count: int
     results: list[ResourceCandidate]
+    source_results: list[SourceSearchResult] = Field(default_factory=list)

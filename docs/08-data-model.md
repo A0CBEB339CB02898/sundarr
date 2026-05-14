@@ -22,9 +22,9 @@ Redis 只做缓存和实时进度辅助。
 
 ---
 
-## 2. sources
+## 2. sources（历史残留）
 
-用途：保存媒体源配置。
+用途：历史上保存媒体源配置。当前代码型搜索源的事实来源已经迁移到 `sundarr/app/sources/registry.py`，`/sources` API 和搜索管线不得读取该表。
 
 字段：
 
@@ -32,13 +32,13 @@ Redis 只做缓存和实时进度辅助。
 id TEXT PRIMARY KEY
 name TEXT NOT NULL
 type TEXT NOT NULL
-enabled BOOLEAN NOT NULL DEFAULT TRUE
-legal_note TEXT
-trust_level INTEGER NOT NULL DEFAULT 1
-created_by_user BOOLEAN NOT NULL DEFAULT TRUE
-config_json JSONB
-last_error_code TEXT
-last_error_message TEXT
+enabled BOOLEAN NOT NULL DEFAULT TRUE        # 历史字段，不再对代码型 source 生效
+legal_note TEXT                             # 历史字段，不再对 Web Console 暴露
+trust_level INTEGER NOT NULL DEFAULT 1      # 历史字段，不再作为代码注册源事实来源
+created_by_user BOOLEAN NOT NULL DEFAULT TRUE # 历史字段，不再对 Web Console 暴露
+config_json JSONB                           # 历史字段，不再保存 source 配置
+last_error_code TEXT                        # 历史字段，不再对代码型 source 生效
+last_error_message TEXT                     # 历史字段，不再对代码型 source 生效
 last_checked_at TIMESTAMP
 created_at TIMESTAMP NOT NULL
 updated_at TIMESTAMP NOT NULL
@@ -47,8 +47,8 @@ updated_at TIMESTAMP NOT NULL
 约束：
 
 ```text
-type 允许 configurable / code / document。
-Web Console 只能管理 configurable / document。
+搜索源事实来源是代码注册表，不再通过 Web Console 管理 configurable / document。
+新增代码型 source 不应新增数据库行；后续迁移可删除该表及 `resource_links.source_id` 外键。
 ```
 
 ---

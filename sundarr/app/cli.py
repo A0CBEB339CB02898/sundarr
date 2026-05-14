@@ -276,13 +276,6 @@ def _read_pid(service: ManagedService) -> int | None:
 def _is_process_running(pid: int) -> bool:
     if pid <= 0:
         return False
-    if os.name == "nt":
-        result = subprocess.run(
-            ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
-            capture_output=True,
-            text=True,
-        )
-        return str(pid) in result.stdout
     try:
         os.kill(pid, 0)
         return True
@@ -292,6 +285,15 @@ def _is_process_running(pid: int) -> bool:
 
 def _kill_process(pid: int) -> None:
     if os.name == "nt":
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            return
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            if not _is_process_running(pid):
+                return
+            time.sleep(0.1)
         subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return
     try:

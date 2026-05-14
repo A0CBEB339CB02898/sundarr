@@ -161,17 +161,20 @@ metadata 可保存 source 特有信息，但后续管线不能依赖特定 sourc
 
 ---
 
-## 5. BaseSource 接口
+## 5. SourceModel 接口
 
 ```python
-class BaseSource:
+from dataclasses import dataclass
+from collections.abc import Awaitable, Callable
+
+SearchFunction = Callable[[SearchQuery], Awaitable[list[RawSearchItem]]]
+
+@dataclass(frozen=True)
+class SourceModel:
     id: str
     name: str
-    source_type: str
-    enabled: bool
-
-    async def search(self, query: SearchQuery) -> list[RawSearchItem]:
-        raise NotImplementedError
+    description: str
+    search_function: SearchFunction
 ```
 
 规则：
@@ -194,27 +197,35 @@ Source 事实来源是代码注册表：
 sundarr/app/sources/registry.py
 ```
 
-每个 source 类必须具备：
+每个 source 实现通常提供一个具体类或模块级函数，但对搜索管线暴露为 `SourceModel` 实例：
 
 ```text
 id
 name
-source_type = code
-enabled
 description
-legal_note
-search(query)
+search_function
 ```
 
 注册示例：
 
 ```python
+from sundarr.app.sources.base import SourceModel
 from sundarr.app.sources.seedhub import SeedHubSource
 
 
 def get_registered_sources():
-    return [SeedHubSource()]
+    seedhub = SeedHubSource()
+    return [
+        SourceModel(
+            id=seedhub.id,
+            name=seedhub.name,
+            description=seedhub.description,
+            search_function=seedhub.search,
+        )
+    ]
 ```
+
+搜索源不通过数据库启用、禁用或保存展示字段；`sources` 表若存在，仅作为历史迁移残留，不是代码型搜索源事实来源。
 
 不得在数据库、配置文件或 Web Console 中保存可执行 Python 代码。
 
@@ -269,17 +280,16 @@ Adapter 不应无限重试。
 Web Console 可以管理：
 
 ```text
-已安装代码型 Adapter
-Adapter 启用 / 禁用
-Adapter 非代码参数
+已安装代码型 Adapter 只读列表
 Adapter 测试搜索
-Adapter 最后错误和耗时
+Adapter 测试过程日志和预览结果
 ```
 
 Web Console 不允许：
 
 ```text
 在线编辑代码型 Source Adapter
+创建、删除、启用或禁用代码型 Source Adapter
 上传执行 Python 代码
 在配置或数据库中保存可执行 Python 代码
 配置复杂网站爬虫
@@ -294,13 +304,12 @@ Web Console 不允许：
 
 ```text
 新增 Python Adapter 类。
-继承 BaseSource。
-实现 search(query)。
+实现 id、name、description 和 async search(query)。
 按需实现详情页解析、分页和站点级限流。
 输出 RawSearchItem。
 添加 fixture 测试。
-注册 adapter。
-在 Web Console 启用并执行测试搜索。
+在 registry.py 中注册 SourceModel。
+在 Web Console 执行测试搜索。
 ```
 
 ---
@@ -315,7 +324,7 @@ Source Adapter 框架完成时必须满足：
 单个 source 失败不影响整体搜索。
 source timeout 生效。
 Search Service 能聚合多个 source。
-Web Console 可管理已安装代码型 Adapter。
+Web Console 可查看已安装代码型 Adapter 并执行测试搜索。
 代码型源不能通过 Web Console 在线编辑。
-配置和数据库不保存可执行 Python 代码。
+配置和数据库不保存代码型源的展示字段或可执行 Python 代码。
 ```

@@ -7,16 +7,12 @@ from urllib.parse import quote, urljoin
 from urllib.request import Request, urlopen
 
 from sundarr.app.schemas.search import RawSearchItem, SearchQuery
-from sundarr.app.sources.base import BaseSource
 
 
-class SeedHubSource(BaseSource):
+class SeedHubSource:
     id = "seedhub"
     name = "SeedHub"
-    source_type = "code"
-    enabled = True
     description = "参考 seedhub-cli 的代码型搜索源，搜索列表后进入详情页抽取磁力、迅雷和网盘链接。"
-    legal_note = "仅聚合公开页面中已展示的链接；不绕过登录、验证码、会员或风控限制。"
 
     base_url = "https://seedhub.cc"
     timeout_seconds = 8
@@ -71,7 +67,7 @@ class SeedHubSource(BaseSource):
             return None
         return RawSearchItem(
             source_id=self.id,
-            source_type=self.source_type,
+            source_type="code",
             raw_title=self._extract_title(html) or "SeedHub 搜索结果",
             raw_url=detail_url,
             raw_content=content,

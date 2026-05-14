@@ -72,20 +72,17 @@ unknown: 当前环境没有 Worker pid，或无法判断 Worker 状态。
 
 ```http
 GET /sources
-POST /sources/create
 GET /sources/{source_id}
-POST /sources/{source_id}/update
-POST /sources/{source_id}/enable
-POST /sources/{source_id}/disable
 POST /sources/{source_id}/test
 ```
 
 规则：
 
 ```text
-Web Console 只能创建和编辑 configurable / document source。
-code source 只读展示，不允许在线编辑。
-test endpoint 返回 RawSearchItem 预览和错误信息。
+搜索源统一从代码注册表加载。
+Web Console 只读展示 code source，不允许在线创建、编辑、启用或禁用。
+test endpoint 接收 keyword / result_type / limit，返回 RawSearchItem 预览、错误信息和逐步测试日志。
+响应字段只包含 id、name、type、description；不返回 enabled、legal_note 或数据库错误状态。
 ```
 
 ---
@@ -121,6 +118,15 @@ GET /search?q=interstellar&type=movie&year=2014
           "risk_level": "unknown"
         }
       ]
+    }
+  ],
+  "source_results": [
+    {
+      "source_id": "seedhub",
+      "source_name": "SeedHub",
+      "count": 0,
+      "results": [],
+      "error": null
     }
   ]
 }

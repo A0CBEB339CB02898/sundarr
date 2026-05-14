@@ -33,12 +33,13 @@ Search Service 负责调度多个 source。
 规则：
 
 ```text
-只调用代码注册表中 enabled source。
+只调用代码注册表中的 SourceModel 实例；代码型 source 不再单独启用或禁用。
 多个 source 并发执行。
 单个 source 失败不能影响整体搜索。
 source timeout 和 global timeout 必须生效。
 所有 source 输出必须转换为 RawSearchItem。
 Search Service 可按 result_type 过滤链接类型。
+API Response 必须同时返回全局去重结果和每个 source 的独立结果分组，供 Web Console 横向 tab 展示。
 ```
 
 MVP 默认：

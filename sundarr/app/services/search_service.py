@@ -11,40 +11,66 @@ from sundarr.app.schemas.search import (
     ResourceLinkResult,
     SearchQuery,
     SearchResponse,
+    SourceSearchResult,
 )
 from sundarr.app.services.link_validator import LinkValidator, link_validator
-from sundarr.app.sources import BaseSource, get_registered_sources
+from sundarr.app.sources import SourceModel, get_registered_sources
 
 TITLE_TAG_PATTERN = re.compile(r"\b(720p|1080p|2160p|4k|bluray|web-dl)\b", re.IGNORECASE)
 YEAR_PATTERN = re.compile(r"\b(19\d{2}|20\d{2})\b")
 
 
 class SearchService:
-    def __init__(self, sources: Iterable[BaseSource] | None = None, validator: LinkValidator | None = None) -> None:
+    def __init__(self, sources: Iterable[SourceModel] | None = None, validator: LinkValidator | None = None) -> None:
         self.sources = list(sources) if sources is not None else get_registered_sources()
         self.validator = validator or link_validator
 
     async def search(self, query: SearchQuery) -> SearchResponse:
-        raw_items = await self._collect_raw_items(query)
+        raw_items_by_source, errors_by_source = await self._collect_raw_items(query)
+        raw_items = [item for group in raw_items_by_source.values() for item in group]
         candidates = [candidate for item in raw_items if (candidate := self._normalize(item, query)) is not None]
         deduped = self._dedupe(candidates)
         ranked = sorted(deduped, key=lambda item: item.score, reverse=True)[: query.limit]
-        await self._validate_links(ranked)
-        return SearchResponse(query=query.keyword, count=len(ranked), results=ranked)
+        source_results = []
+        for source in self.sources:
+            source_candidates = [
+                candidate
+                for item in raw_items_by_source.get(source.id, [])
+                if (candidate := self._normalize(item, query)) is not None
+            ]
+            source_ranked = sorted(self._dedupe(source_candidates), key=lambda item: item.score, reverse=True)[: query.limit]
+            source_results.append(
+                SourceSearchResult(
+                    source_id=source.id,
+                    source_name=source.name,
+                    count=len(source_ranked),
+                    results=source_ranked,
+                    error=errors_by_source.get(source.id),
+                )
+            )
+        await self._validate_links([*ranked, *(item for group in source_results for item in group.results)])
+        return SearchResponse(query=query.keyword, count=len(ranked), results=ranked, source_results=source_results)
 
-    async def _collect_raw_items(self, query: SearchQuery) -> list[RawSearchItem]:
-        enabled_sources = [source for source in self.sources if source.enabled]
+    async def _collect_raw_items(self, query: SearchQuery) -> tuple[dict[str, list[RawSearchItem]], dict[str, str]]:
         results = await asyncio.gather(
-            *(self._safe_search(source, query) for source in enabled_sources),
+            *(self._safe_search(source, query) for source in self.sources),
             return_exceptions=False,
         )
-        return [item for group in results for item in group]
+        items_by_source: dict[str, list[RawSearchItem]] = {}
+        errors_by_source: dict[str, str] = {}
+        for source_id, items, error in results:
+            items_by_source[source_id] = items
+            if error:
+                errors_by_source[source_id] = error
+        return items_by_source, errors_by_source
 
-    async def _safe_search(self, source: BaseSource, query: SearchQuery) -> list[RawSearchItem]:
+    async def _safe_search(self, source: SourceModel, query: SearchQuery) -> tuple[str, list[RawSearchItem], str | None]:
         try:
-            return await asyncio.wait_for(source.search(query), timeout=10)
-        except Exception:
-            return []
+            return source.id, await asyncio.wait_for(source.search_function(query), timeout=10), None
+        except TimeoutError:
+            return source.id, [], "SEARCH_SOURCE_TIMEOUT"
+        except Exception as exc:
+            return source.id, [], f"SEARCH_SOURCE_FAILED: {exc}"
 
     def _normalize(self, item: RawSearchItem, query: SearchQuery) -> ResourceCandidate | None:
         links = extract_cloud_links(item.raw_content)

@@ -166,7 +166,7 @@ sundarr/app/
 │   ├── remote_media_library_service.py # 远程媒体库管理       ✓ 已实现
 │   ├── sync_service.py            # 同步绑定+扫描+任务创建    ✓ 已实现
 │   ├── download_to_local_service.py # 历史同步实现            ✗ 旧模块，待删除
-│   └── source_service.py          # Source CRUD               ✓ 已实现
+│   └── source_service.py          # 代码注册源只读查询/测试   ✓ 已实现
 ├── api/                           # API 路由
 │   ├── search.py                  # 搜索                      ✓
 │   ├── resources.py               # 资源                      ✓
@@ -186,7 +186,7 @@ sundarr/app/
 │   ├── base.py                    # CloudProvider ABC         ✓
 │   └── local.py                   # LocalCloudProvider        ✓
 ├── sources/                       # Source Adapter 框架
-│   ├── base.py                    # BaseSource ABC            ✓
+│   ├── base.py                    # SourceModel               ✓
 │   ├── registry.py                # 代码注册表                ✓
 │   └── seedhub.py                 # 首个真实搜索源            ✓
 └── parsers/
@@ -467,7 +467,7 @@ GET      /health
 | test_storage_config.py | 旧单 SMB 配置测试 |
 | test_transfers.py | Transfer API 测试 |
 | test_search.py | 搜索测试 |
-| test_sources.py | Source CRUD 测试 |
+| test_sources.py | 代码注册源列表和测试搜索 |
 
 ### 7.2 重构后测试
 

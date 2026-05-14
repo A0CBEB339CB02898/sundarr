@@ -316,15 +316,30 @@ POST /media-libraries/{library_id}/test
 
 说明：Sources 页面是已安装代码型 Adapter 的只读展示和测试入口。真实媒体源通过代码型 Adapter 逐站点实现。
 
+页面规则：
+
+```text
+不展示启用 / 禁用状态。
+不展示 legal_note、last_error_code、last_error_message 等历史数据库字段。
+每个 source 提供测试搜索表单，支持 keyword、result_type、limit。
+测试结果展示 prepare、query、search、preview 等步骤日志和 RawSearchItem 预览。
+```
+
 API：
 
 ```text
 GET  /sources
 GET  /sources/{source_id}
-POST /sources/{source_id}/update
-POST /sources/{source_id}/enable
-POST /sources/{source_id}/disable
 POST /sources/{source_id}/test
+```
+
+Search 页面规则：
+
+```text
+搜索表单只保留关键词和结果类型。
+搜索结果默认展示全局去重结果。
+结果区提供横向 tab：全部 + 每个 source 的独立结果。
+点击结果主体打开链接；链接操作区提供保存到网盘和复制链接。
 ```
 
 ---
@@ -338,7 +353,7 @@ API health
 Worker status
 PostgreSQL status
 Redis status
-enabled source count
+registered source count
 storage config status
 ```
 
