@@ -2434,6 +2434,22 @@ h2 {
 .sc-source-test-form input,
 .sc-source-test-form select {
   width: 100%;
+  background: var(--surface-sunken);
+  color: var(--text);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+  transition: border-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+
+.sc-source-test-form input:focus,
+.sc-source-test-form select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .sc-card-test {
