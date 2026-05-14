@@ -99,6 +99,11 @@ source failure isolation
 真实站点 Adapter fixture
 网盘链接和提取码提取复用
 代码型源不能前端编辑
+外部搜索源仓库 manifest 解析
+外部搜索源仓库路径越界防护
+外部搜索源仓库加载失败隔离
+外部搜索源 id 冲突处理
+外部搜索源 commit 锁定和回滚
 ```
 
 真实媒体源测试原则：
@@ -107,6 +112,16 @@ source failure isolation
 每个真实网站 Adapter 必须有 fixture 测试。
 默认自动化测试不依赖实时外部网站。
 实时网站访问作为手动集成验收或显式集成测试，不纳入默认 pytest。
+```
+
+Git Source Repository 模式测试原则：
+
+```text
+默认自动化测试使用本地 fixture 仓库，不访问真实 GitHub。
+clone / fetch 可通过临时本地 git repository 或 mock repository manager 覆盖。
+加载器测试必须覆盖成功加载 SourceModel、入口不存在、返回值错误、manifest 缺字段、adapter_api_version 不支持。
+安全测试必须覆盖 source path 越界、entry module 越界和不执行未锁定 commit。
+Web Console 冒烟测试必须覆盖加载成功列表、加载失败列表和测试搜索入口。
 ```
 
 ---

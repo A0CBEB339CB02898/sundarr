@@ -83,6 +83,7 @@ AI Tool API -> docs/14-ai-tool-api-spec.md
 前端设计系统 -> docs/16-design-system.md
 系统模块梳理 -> docs/17-system-module-review.md
 网盘直链下载 -> docs/18-cloud-direct-download-spec.md
+外部搜索源仓库 -> docs/19-source-repository-plugin-spec.md
 Agent 工作规则 -> AGENTS.md
 ```
 
@@ -126,6 +127,9 @@ Web Console 中配置类页面默认先展示列表，通过新增按钮打开�
 媒体库管理是 MVP 的目录绑定管理能力，不等于完整媒体库 UI、海报墙或播放器。
 当前已实现的是媒体源框架和示例源，不是真实网站 Adapter。
 真实媒体源后续通过代码型 Source Adapter 逐站点接入。
+真实搜索源代码可以集中放在独立 Git 仓库中，Sundarr Core 只保存仓库地址、分支和锁定 commit，并从本地缓存中的已锁定 commit 受控加载。
+外部搜索源仓库接入采用 SourceManifest / LoadedSource / SourceModel 分层，SourceModel 继续作为最小运行时执行协议。
+Web Console 不上传、不编辑、不保存可执行 Python 代码，只负责搜索源仓库配置、检查更新、应用更新、回滚、测试和诊断。
 Web Console 只管理已安装 Adapter 的启用、禁用、参数、测试和错误查看，不在线编辑代码型 Source Adapter。
 文档型网站是否可通用读取作为后续实验阶段验证。
 Web Console 是核心控制台，不做完整媒体库 UI。

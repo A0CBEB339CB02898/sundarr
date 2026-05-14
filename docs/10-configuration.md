@@ -316,6 +316,33 @@ Web Console 可管理：
 
 真实网站 Source Adapter 通过 Python 代码实现和部署，不通过前端在线编辑。MVP 不通过 Web Console 管理 base_url、timeout、rate_limit、user_agent 等 Adapter 参数，不保存可执行 Python 代码。
 
+后续支持 Git Source Repository 模式时，系统可以保存搜索源仓库配置，但仍不得保存可执行 Python 代码。
+
+仓库配置字段建议：
+
+```text
+repo_url
+branch
+current_commit
+previous_commit
+auto_update
+enabled
+last_checked_at
+last_loaded_at
+last_error
+```
+
+配置规则：
+
+```text
+repo_url 和 branch 是用户配置。
+current_commit 是实际执行的锁定版本。
+fetch 远程更新不等于应用更新。
+默认不自动切换到远程最新 commit。
+更新失败时必须保留 previous_commit 以便回滚。
+数据库、settings 和 Web Console 不保存可执行 Python 代码。
+```
+
 ---
 
 ## 8. 敏感信息规则

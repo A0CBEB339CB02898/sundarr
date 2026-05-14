@@ -54,7 +54,7 @@ Phase 7 Web Console: 已完成。
 Phase 7.8 Web Console UI Polish: 已完成，来自 Phase 0-7 手动验收反馈；应在 Phase 8 前优先处理前端体验问题。
 Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需手动集成验收。
 Phase 9 Module Refactoring: 进行中；已新增远程媒体库和同步绑定，仍需清理旧 Download To Local / Ingest 残留并统一 Worker 处理路径。
-Phase 10 Real Site Source Adapters: 未开始，目标是实现真实网站代码型 Adapter 框架和至少一个真实源。
+Phase 10 Real Site Source Adapters: 未开始，目标是实现外部 Git 搜索源仓库加载框架和至少一个真实源。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
 Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档，后续单独实现。
 ```
@@ -1191,13 +1191,17 @@ npm run build 通过。
 
 ## Phase 10: Real Site Source Adapters
 
-目标：实现真实媒体网站即时搜索能力。每个真实网站通过 Source Adapter 接入，多个 Adapter 并发搜索，结果统一进入 Search Pipeline。搜索源统一由 Adapter 代码定义并同步到 `sources` 目录表，不再支持用户通过 Web Console 创建 configurable / document source。
+目标：实现真实媒体网站即时搜索能力。每个真实网站通过 Source Adapter 接入，多个 Adapter 并发搜索，结果统一进入 Search Pipeline。搜索源统一由 Adapter 代码定义并同步到 `sources` 目录表，不再支持用户通过 Web Console 创建 configurable / document source。真实搜索源代码优先通过外部 Git 搜索源仓库接入，Sundarr Core 只保存仓库地址、分支和锁定 commit。
 
 交付物：
 
 ```text
 Source Adapter SDK 完整化
 代码型 Adapter 插件加载机制
+外部 Git 搜索源仓库配置
+SourceManifest / LoadedSource / SourceModel 分层
+仓库 clone / fetch / checkout / rollback
+current_commit 锁定和更新检查
 统一 HTTP client
 站点级 timeout / rate limit
 失败隔离和错误码
@@ -1211,17 +1215,20 @@ fixture 测试模板
 按真实链接去重
 搜索返回前同步检测链接有效性
 Web Console 已安装 Adapter 管理
+Web Console 搜索源仓库检查更新、应用更新、回滚和加载诊断
 ```
 
 验收标准：
 
 ```text
 至少 1 个真实网站 Adapter 可以即时搜索，当前首个实现参考 seedhub-cli 的列表页 + 详情页抽取方式。
+至少 1 个外部 Git 搜索源仓库可以被配置、拉取、锁定 commit 并加载。
 Adapter 可以解析搜索结果和必要的详情页。
 搜索结果能进入现有 Search Pipeline。
 单个 Adapter 失败不会影响其他 Adapter。
 每个 Adapter 有超时、限流、错误记录和测试 fixture。
 Web Console 可以查看、测试 Adapter 并查看最后错误。
+Web Console 可以查看外部仓库 current_commit、加载成功列表和加载失败原因。
 ```
 
 停止条件：
@@ -1230,6 +1237,8 @@ Web Console 可以查看、测试 Adapter 并查看最后错误。
 pytest 通过。
 涉及前端时 npm run build 通过。
 不在数据库或 Web Console 中保存可执行 Python 代码。
+不在启动时无条件执行远程最新 commit。
+外部搜索源加载失败不影响 API 启动。
 不实现 Web Console 配置复杂爬虫。
 不要求用户维护本地文档/表格作为主要媒体源。
 不承诺通用在线文档读取。

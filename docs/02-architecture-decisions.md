@@ -4,6 +4,48 @@
 
 ---
 
+## ADR-000.1: 外部 Git 搜索源仓库
+
+状态：已确认。
+
+决策：
+
+```text
+真实搜索源代码可以与 Sundarr Core 分离，集中放在独立 Git 仓库中维护。
+Sundarr Core 只保存搜索源仓库地址、分支和锁定 commit。
+系统从本地缓存中的已锁定 commit 加载 Source Adapter。
+Web Console 只负责配置仓库、检查更新、应用更新、回滚、测试和诊断。
+Web Console 不上传、不编辑、不保存可执行 Python 代码。
+```
+
+理由：
+
+```text
+真实搜索源变化频率高，不应要求频繁修改 Sundarr Core。
+多个搜索源需要集中维护、测试和复用开发规范。
+SourceModel 已适合作为搜索执行协议，但不适合承载仓库来源、commit 和加载状态。
+通过 SourceManifest / LoadedSource / SourceModel 分层，可以同时保持搜索管线稳定和插件来源可追踪。
+```
+
+约束：
+
+```text
+默认不在启动时无条件执行远程最新代码。
+必须锁定 current_commit。
+加载失败不能影响系统启动。
+数据库和配置不得保存可执行 Python 代码。
+外部仓库必须视为用户信任代码来源。
+```
+
+相关文档：
+
+```text
+docs/04-source-adapter-spec.md
+docs/19-source-repository-plugin-spec.md
+```
+
+---
+
 ## ADR-001: 使用 Python 作为主后端语言
 
 状态：已确认。

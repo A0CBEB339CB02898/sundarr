@@ -231,6 +231,36 @@ def get_registered_sources():
 
 不得在数据库、配置文件或 Web Console 中保存可执行 Python 代码。
 
+### 6.1 外部 Git 搜索源仓库
+
+后续真实搜索源支持放入独立 Git 仓库，由 Sundarr Core 受控加载。
+
+设计原则：
+
+```text
+Sundarr Core 只提供 Source Adapter SDK、加载框架、搜索管线和 Web Console。
+真实搜索源代码可以集中放在独立 Git 仓库中。
+Sundarr 只保存仓库地址、分支和锁定 commit。
+系统从本地缓存中的已锁定 commit 加载搜索源。
+默认不在每次启动时无条件执行远程最新代码。
+```
+
+该模式详见 `docs/19-source-repository-plugin-spec.md`。
+
+### 6.2 SourceModel 分层边界
+
+外部仓库接入不把来源、commit、加载状态和配置 schema 直接塞入 `SourceModel`。
+
+后续模型分层：
+
+```text
+SourceManifest：来自外部仓库清单，描述搜索源声明。
+LoadedSource：系统加载结果，描述来源、commit、状态、错误和 SourceModel。
+SourceModel：SearchService 调用的最小运行时执行协议。
+```
+
+当前 `SourceModel` 继续作为 Adapter API v1 的执行接口，以兼容现有搜索管线和内置源。
+
 ---
 
 ## 7. 错误隔离
