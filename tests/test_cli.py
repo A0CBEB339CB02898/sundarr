@@ -87,9 +87,48 @@ def test_prepare_port_rejects_external_process(tmp_path: Path, monkeypatch: pyte
         log_file=tmp_path / "api.log",
     )
     monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: True)
+    monkeypatch.setattr(cli, "_find_port_pid", lambda host, port: None)
 
     with pytest.raises(RuntimeError, match="端口 8080 已被其他程序占用"):
         cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
+
+
+def test_prepare_port_cleans_sundarr_port_process_without_pid_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    service = cli.ManagedService(
+        name="api",
+        display_name="Sundarr API",
+        pid_file=tmp_path / "api.pid",
+        log_file=tmp_path / "api.log",
+    )
+    killed: list[int] = []
+    port_checks = iter([True, False])
+
+    monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: next(port_checks))
+    monkeypatch.setattr(cli, "_find_port_pid", lambda host, port: 456)
+    monkeypatch.setattr(cli, "_is_sundarr_process", lambda pid: pid == 456)
+    monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid))
+
+    cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
+
+    assert killed == [456]
+
+
+def test_is_sundarr_process_detects_api_command_without_pid_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli, "MANAGED_SERVICES", ())
+    monkeypatch.setattr(cli, "_process_command_line", lambda pid: "python -m uvicorn sundarr.app.main:app --port 8080")
+    monkeypatch.setattr(cli, "_parent_pid", lambda pid: None)
+
+    assert cli._is_sundarr_process(456) is True
+
+
+def test_is_sundarr_process_detects_log_runner_parent(monkeypatch: pytest.MonkeyPatch) -> None:
+    runtime = str(cli.RUNTIME_DIR)
+
+    monkeypatch.setattr(cli, "MANAGED_SERVICES", ())
+    monkeypatch.setattr(cli, "_process_command_line", lambda pid: "" if pid == 456 else f"python -m sundarr.app.log_runner --log-file {runtime}/sundarr-api.log")
+    monkeypatch.setattr(cli, "_parent_pid", lambda pid: 123 if pid == 456 else None)
+
+    assert cli._is_sundarr_process(456) is True
 
 
 def test_worker_is_managed_service() -> None:

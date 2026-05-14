@@ -229,6 +229,15 @@ def _prepare_port(service: ManagedService, host: str, port: int, quiet: bool) ->
     _prepare_process(service, quiet=quiet)
 
     if _is_port_in_use(host, port):
+        occupant_pid = _find_port_pid(host, port)
+        if occupant_pid is not None and _is_sundarr_process(occupant_pid):
+            if not quiet:
+                print(f"端口 {port} 被 Sundarr 旧进程 PID={occupant_pid} 占用，准备清理。")
+            _kill_process(occupant_pid)
+            time.sleep(0.3)
+            if _is_port_in_use(host, port):
+                raise RuntimeError(f"{service.display_name} 端口 {port} 清理后仍被占用，请手动释放后重试。")
+            return
         raise RuntimeError(f"{service.display_name} 端口 {port} 已被其他程序占用，请释放端口后重试。")
 
 
@@ -248,6 +257,120 @@ def _is_port_in_use(host: str, port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(0.5)
         return sock.connect_ex((check_host, port)) == 0
+
+
+def _find_port_pid(host: str, port: int) -> int | None:
+    """查找占用指定端口的进程 PID，找不到则返回 None。"""
+    check_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
+    if os.name == "nt":
+        return _find_port_pid_windows(check_host, port)
+    return _find_port_pid_posix(check_host, port)
+
+
+def _find_port_pid_windows(host: str, port: int) -> int | None:
+    try:
+        result = subprocess.run(
+            ["netstat", "-ano", "-p", "TCP"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+    target = f"{host}:{port}"
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 5:
+            continue
+        if parts[0] != "TCP":
+            continue
+        local_addr = parts[1]
+        state = parts[3]
+        try:
+            pid = int(parts[-1])
+        except ValueError:
+            continue
+        if local_addr.endswith(f":{port}") and state == "LISTENING":
+            return pid
+    return None
+
+
+def _find_port_pid_posix(host: str, port: int) -> int | None:
+    try:
+        result = subprocess.run(
+            ["lsof", "-ti", f"tcp:{port}", "-sTCP:LISTEN"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+    pid_str = result.stdout.strip()
+    if pid_str.isdigit():
+        return int(pid_str)
+    return None
+
+
+def _is_sundarr_process(pid: int) -> bool:
+    """判断指定 PID 是否为 Sundarr 管理的进程。"""
+    for service in MANAGED_SERVICES:
+        service_pid = _read_pid(service)
+        if service_pid == pid:
+            return True
+    command_line = _process_command_line(pid)
+    if _looks_like_sundarr_command(command_line):
+        return True
+    parent_pid = _parent_pid(pid)
+    if parent_pid is None:
+        return False
+    return _looks_like_sundarr_command(_process_command_line(parent_pid))
+
+
+def _process_command_line(pid: int) -> str:
+    if os.name != "nt":
+        return ""
+    try:
+        result = subprocess.run(
+            ["wmic", "process", "where", f"ProcessId={pid}", "get", "CommandLine", "/format:list"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return ""
+    for line in result.stdout.splitlines():
+        if line.startswith("CommandLine="):
+            return line.removeprefix("CommandLine=").strip()
+    return ""
+
+
+def _parent_pid(pid: int) -> int | None:
+    if os.name != "nt":
+        return None
+    try:
+        result = subprocess.run(
+            ["wmic", "process", "where", f"ProcessId={pid}", "get", "ParentProcessId", "/format:list"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+    for line in result.stdout.splitlines():
+        if not line.startswith("ParentProcessId="):
+            continue
+        value = line.removeprefix("ParentProcessId=").strip()
+        if value.isdigit():
+            return int(value)
+    return None
+
+
+def _looks_like_sundarr_command(command_line: str) -> bool:
+    normalized = command_line.replace("\\", "/")
+    project_runtime = str(RUNTIME_DIR).replace("\\", "/")
+    return "sundarr.app.main:app" in normalized or (
+        "sundarr.app.log_runner" in normalized and project_runtime in normalized
+    )
 
 
 def _api_command(host: str, port: int, reload: bool) -> list[str]:
