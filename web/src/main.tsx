@@ -2232,9 +2232,25 @@ function SourceDetailModal({
 
         <div className="sc-modal-body">
           <section className="sc-source-detail-block" aria-label="基础信息">
-            <DetailItem label="ID" value={source.id} />
-            <DetailItem label="原网址" value={source.homepage_url || '-'} />
-            <DetailItem label="说明" value={source.description || '-'} />
+            <div className="sc-source-identity">
+              <span className="status-pill running">搜索源</span>
+              <h4>{source.name}</h4>
+              <p>{source.description || '暂无说明。'}</p>
+            </div>
+            <dl className="sc-source-detail-list">
+              <div>
+                <dt>ID</dt>
+                <dd>{source.id}</dd>
+              </div>
+              <div>
+                <dt>原网址</dt>
+                <dd>
+                  {source.homepage_url ? (
+                    <a href={source.homepage_url} target="_blank" rel="noreferrer">{source.homepage_url}</a>
+                  ) : '未配置'}
+                </dd>
+              </div>
+            </dl>
           </section>
 
           <section className="sc-source-test-block" aria-label={`${source.name} 测试搜索`}>
@@ -2254,97 +2270,97 @@ function SourceDetailModal({
             </div>
 
             <div className="sc-source-test-form">
-        <label>
-          <span>关键词</span>
-          <input
-            value={testForm.keyword}
-            onChange={(event) => onTestFormChange({ keyword: event.target.value })}
-            placeholder="例如：星际穿越"
-          />
-        </label>
-        <label>
-          <span>结果类型</span>
-          <select
-            value={testForm.result_type}
-            onChange={(event) => onTestFormChange({ result_type: event.target.value as ResultType })}
-          >
-            <option value="all">全部</option>
-            <option value="magnet">磁力</option>
-            <option value="quark">夸克网盘</option>
-            <option value="aliyun">阿里网盘</option>
-            <option value="baidu">百度网盘</option>
-            <option value="xunlei">迅雷网盘</option>
-          </select>
-        </label>
-        <label>
-          <span>预览数</span>
-          <input
-            inputMode="numeric"
-            min="1"
-            max="20"
-            value={testForm.limit}
-            onChange={(event) => onTestFormChange({ limit: event.target.value })}
-          />
-        </label>
+              <label>
+                <span>关键词</span>
+                <input
+                  value={testForm.keyword}
+                  onChange={(event) => onTestFormChange({ keyword: event.target.value })}
+                  placeholder="例如：星际穿越"
+                />
+              </label>
+              <label>
+                <span>结果类型</span>
+                <select
+                  value={testForm.result_type}
+                  onChange={(event) => onTestFormChange({ result_type: event.target.value as ResultType })}
+                >
+                  <option value="all">全部</option>
+                  <option value="magnet">磁力</option>
+                  <option value="quark">夸克网盘</option>
+                  <option value="aliyun">阿里网盘</option>
+                  <option value="baidu">百度网盘</option>
+                  <option value="xunlei">迅雷网盘</option>
+                </select>
+              </label>
+              <label>
+                <span>预览数</span>
+                <input
+                  inputMode="numeric"
+                  min="1"
+                  max="20"
+                  value={testForm.limit}
+                  onChange={(event) => onTestFormChange({ limit: event.target.value })}
+                />
+              </label>
             </div>
 
-      {testResult ? (
-        <div className="sc-card-test" data-tone={testStatus || 'idle'}>
-          <button
-            className="sc-card-test-summary"
-            type="button"
-            onClick={onToggleTestDetail}
-            aria-expanded={isExpanded}
-          >
-            <span className="sc-card-test-dot" aria-hidden="true" />
-            <span className="sc-card-test-text">
-              {testResult.ok ? '测试通过' : '测试失败'}
-            </span>
-            <time className="sc-mono">{formatDateTime(testResult.tested_at)}</time>
-            <span className="sc-card-test-chevron" aria-hidden="true" data-expanded={isExpanded || undefined}>
-              <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 4.5l3 3 3-3" />
-              </svg>
-            </span>
-          </button>
-          {isExpanded ? (
-            <div className="sc-card-test-body">
-              {testResult.logs.length > 0 ? (
-                <ol className="sc-source-log-list">
-                  {testResult.logs.map((log, index) => (
-                    <li key={`${log.step}-${index}`} data-status={log.status}>
-                      <span className="sc-source-log-step">{log.step}</span>
-                      <strong>{log.message}</strong>
-                      {Object.keys(log.data).length > 0 ? (
-                        <code>{JSON.stringify(log.data)}</code>
-                      ) : null}
-                    </li>
-                  ))}
-                </ol>
-              ) : null}
-              {testResult.error_code ? (
-                <div className="sc-card-test-error">
-                  <strong>{testResult.error_code}</strong>
-                  <p>{testResult.error_message || '无错误详情。'}</p>
-                </div>
-              ) : null}
-              {testResult.items.length === 0 && !testResult.error_code ? (
-                <p className="sc-card-test-hint">测试未返回预览条目。</p>
-              ) : null}
-              {testResult.items.slice(0, 3).map((item, index) => (
-                <code className="sc-card-test-item" key={index}>
-                  {JSON.stringify(item)}
-                </code>
-              ))}
-              {testResult.items.length > 3 ? (
-                <p className="sc-card-test-hint">
-                  共 {testResult.items.length} 条，已展示前 3 条。
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+            {testResult ? (
+              <div className="sc-card-test" data-tone={testStatus || 'idle'}>
+                <button
+                  className="sc-card-test-summary"
+                  type="button"
+                  onClick={onToggleTestDetail}
+                  aria-expanded={isExpanded}
+                >
+                  <span className="sc-card-test-dot" aria-hidden="true" />
+                  <span className="sc-card-test-text">
+                    {testResult.ok ? '测试通过' : '测试失败'}
+                  </span>
+                  <time className="sc-mono">{formatDateTime(testResult.tested_at)}</time>
+                  <span className="sc-card-test-chevron" aria-hidden="true" data-expanded={isExpanded || undefined}>
+                    <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 4.5l3 3 3-3" />
+                    </svg>
+                  </span>
+                </button>
+                {isExpanded ? (
+                  <div className="sc-card-test-body">
+                    {testResult.logs.length > 0 ? (
+                      <ol className="sc-source-log-list">
+                        {testResult.logs.map((log, index) => (
+                          <li key={`${log.step}-${index}`} data-status={log.status}>
+                            <span className="sc-source-log-step">{log.step}</span>
+                            <strong>{log.message}</strong>
+                            {Object.keys(log.data).length > 0 ? (
+                              <code>{JSON.stringify(log.data)}</code>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ol>
+                    ) : null}
+                    {testResult.error_code ? (
+                      <div className="sc-card-test-error">
+                        <strong>{testResult.error_code}</strong>
+                        <p>{testResult.error_message || '无错误详情。'}</p>
+                      </div>
+                    ) : null}
+                    {testResult.items.length === 0 && !testResult.error_code ? (
+                      <p className="sc-card-test-hint">测试未返回预览条目。</p>
+                    ) : null}
+                    {testResult.items.slice(0, 3).map((item, index) => (
+                      <code className="sc-card-test-item" key={index}>
+                        {JSON.stringify(item)}
+                      </code>
+                    ))}
+                    {testResult.items.length > 3 ? (
+                      <p className="sc-card-test-hint">
+                        共 {testResult.items.length} 条，已展示前 3 条。
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </section>
         </div>
         <footer className="sc-modal-actions">

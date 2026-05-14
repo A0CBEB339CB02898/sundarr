@@ -27,7 +27,7 @@ Source Adapter 必须满足：
 搜索源统一由 Source Adapter 代码定义，不再由用户通过 Web Console 创建 configurable / document source。
 每个真实搜索源通常使用一个 Python 文件实现。
 Search Service 只调度统一接口，不写具体站点规则。
-当前第一个真实搜索源为 `SeedHubSource`，参考 seedhub-cli 的列表搜索 + 详情页解析方式。
+当前第一个真实搜索源为 `SeedHubSource`，参考 seedhub-cli 的 `/s/{keyword}/` 列表搜索、`/movies/{id}/` 详情页解析和 `/link_start/` 跳转页链接解析方式。
 Sources 页面以列表展示已安装搜索源，详情弹窗提供测试入口和步骤日志。
 ```
 

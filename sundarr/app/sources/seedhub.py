@@ -2,8 +2,8 @@ import asyncio
 import re
 from datetime import UTC, datetime
 from html import unescape
-from urllib.error import URLError
-from urllib.parse import quote, urljoin
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote, unquote, urljoin
 from urllib.request import Request, urlopen
 
 from sundarr.app.schemas.search import RawSearchItem, SearchQuery
@@ -15,13 +15,14 @@ class SeedHubSource:
     name = "SeedHub"
     description = "搜索列表后进入详情页抽取磁力、迅雷和网盘链接。"
 
-    base_url = "https://seedhub.cc"
+    base_url = "https://www.seedhub.cc"
     homepage_url = base_url
-    timeout_seconds = 8
+    timeout_seconds = 30
     max_details = 8
+    max_resolved_links_per_detail = 8
 
     async def search(self, query: SearchQuery) -> list[RawSearchItem]:
-        html = await asyncio.to_thread(self._fetch, f"{self.base_url}/search?keyword={quote(query.keyword)}")
+        html = await asyncio.to_thread(self._fetch, self._search_url(query.keyword))
         detail_urls = self._parse_detail_urls(html)
         items: list[RawSearchItem] = []
         for detail_url in detail_urls[: self.max_details]:
@@ -40,10 +41,10 @@ class SeedHubSource:
                 step="build_search_url",
                 status="ok",
                 message="已生成搜索地址。",
-                data={"url": f"{self.base_url}/search?keyword={quote(query.keyword)}"},
+                data={"url": self._search_url(query.keyword)},
             )
         ]
-        search_url = f"{self.base_url}/search?keyword={quote(query.keyword)}"
+        search_url = self._search_url(query.keyword)
         html = await asyncio.to_thread(self._fetch, search_url)
         logs.append(SourceTestEvent(step="fetch_search_page", status="ok", message="搜索页请求完成。", data={"bytes": len(html)}))
         detail_urls = self._parse_detail_urls(html)
@@ -86,11 +87,14 @@ class SeedHubSource:
         logs.append(SourceTestEvent(step="finish", status="ok", message="测试搜索流程结束。", data={"raw_count": len(items)}))
         return SourceTestExecution(items=items, logs=logs)
 
+    def _search_url(self, keyword: str) -> str:
+        return f"{self.base_url}/s/{quote(keyword)}/"
+
     def _fetch(self, url: str) -> str:
         request = Request(
             url,
             headers={
-                "User-Agent": "Sundarr/0.1 (+https://github.com/sundarr; homelab media sync)",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36 Sundarr/0.1",
                 "Accept": "text/html,application/xhtml+xml",
             },
         )
@@ -101,22 +105,30 @@ class SeedHubSource:
     def _parse_detail_urls(self, html: str) -> list[str]:
         urls: list[str] = []
         seen: set[str] = set()
+        for title, href in re.findall(r'title="([^"]+)"[^>]*class="image"[^>]*href="(/movies/\d+)/?"', html, flags=re.IGNORECASE):
+            url = self._normalize_detail_url(urljoin(self.base_url, unescape(href)))
+            if url not in seen:
+                seen.add(url)
+                urls.append(url)
         for href in re.findall(r'href=["\']([^"\']+)["\']', html, flags=re.IGNORECASE):
             if not self._looks_like_detail_href(href):
                 continue
-            url = urljoin(self.base_url, unescape(href))
+            url = self._normalize_detail_url(urljoin(self.base_url, unescape(href)))
             if url in seen:
                 continue
             seen.add(url)
             urls.append(url)
         return urls
 
+    def _normalize_detail_url(self, url: str) -> str:
+        return f"{url.rstrip('/')}/"
+
     def _looks_like_detail_href(self, href: str) -> bool:
         lowered = href.lower()
-        return any(marker in lowered for marker in ("/detail", "/movie", "/resource", "/seed"))
+        return bool(re.search(r"/movies/\d+/?$", lowered))
 
     def _parse_detail(self, detail_url: str, html: str) -> RawSearchItem | None:
-        content = self._strip_tags(html)
+        content = self._build_detail_content(detail_url, html)
         if not self._contains_supported_link(content):
             return None
         return RawSearchItem(
@@ -126,17 +138,80 @@ class SeedHubSource:
             raw_url=detail_url,
             raw_content=content,
             fetched_at=datetime.now(UTC),
-            metadata={"type": "unknown"},
+            metadata={"type": "unknown", "source": "seedhub"},
         )
+
+    def _build_detail_content(self, detail_url: str, html: str) -> str:
+        parts = [self._strip_tags(html)]
+        parts.extend(self._extract_direct_links(html))
+        for link in self._extract_seedhub_download_links(html)[: self.max_resolved_links_per_detail]:
+            try:
+                resolved = self._resolve_seedhub_link(link)
+            except (HTTPError, URLError, TimeoutError):
+                continue
+            if resolved:
+                parts.append(resolved)
+        return "\n".join(part for part in parts if part)
+
+    def _extract_direct_links(self, html: str) -> list[str]:
+        patterns = [
+            r"magnet:\?xt=urn:btih:[^\s<\"']+",
+            r"thunder://[^\s<\"']+",
+            r"ed2k://[^\s<\"']+",
+            r"https?://(?:pan\.quark\.cn|pan\.baidu\.com|www\.aliyundrive\.com|www\.alipan\.com|pan\.xunlei\.com|drive\.uc\.cn|cloud\.189\.cn)[^\s<\"']+",
+        ]
+        links: list[str] = []
+        seen: set[str] = set()
+        for pattern in patterns:
+            for match in re.findall(pattern, html, flags=re.IGNORECASE):
+                link = unescape(match).rstrip(".,;，。；")
+                if link not in seen:
+                    seen.add(link)
+                    links.append(link)
+        return links
+
+    def _extract_seedhub_download_links(self, html: str) -> list[str]:
+        links: list[str] = []
+        seen: set[str] = set()
+        for href in re.findall(r'href="(/link_start/\?redirect_to=pan_id_\d+[^"<]*)"', html, flags=re.IGNORECASE):
+            link = unescape(href)
+            if link in seen:
+                continue
+            seen.add(link)
+            links.append(link)
+        return links
+
+    def _resolve_seedhub_link(self, link: str) -> str | None:
+        html = self._fetch(urljoin(self.base_url, link))
+        links = self._extract_direct_links(html)
+        if links:
+            return links[0]
+        decoded = unquote(html)
+        links = self._extract_direct_links(decoded)
+        return links[0] if links else None
 
     def _contains_supported_link(self, text: str) -> bool:
         lowered = text.lower()
         return any(
             marker in lowered
-            for marker in ("magnet:?xt=urn:btih:", "pan.quark.cn", "aliyundrive.com", "pan.baidu.com", "pan.xunlei.com")
+            for marker in (
+                "magnet:?xt=urn:btih:",
+                "thunder://",
+                "ed2k://",
+                "pan.quark.cn",
+                "aliyundrive.com",
+                "alipan.com",
+                "pan.baidu.com",
+                "pan.xunlei.com",
+                "drive.uc.cn",
+                "cloud.189.cn",
+            )
         )
 
     def _extract_title(self, html: str) -> str | None:
+        match = re.search(r"<h1[^>]*>.*?</a>\s*([^<]+)", html, flags=re.IGNORECASE | re.DOTALL)
+        if match:
+            return self._strip_tags(match.group(1)).strip() or None
         match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
         if not match:
             return None

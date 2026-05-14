@@ -61,6 +61,7 @@ def test_extract_cloud_links_with_code() -> None:
 
 def test_seedhub_source_parses_detail_html() -> None:
     source = SeedHubSource()
+    source._resolve_seedhub_link = lambda _link: "https://pan.quark.cn/s/resolved"  # type: ignore[method-assign]
     item = source._parse_detail(
         "https://seedhub.cc/detail/1",
         """
@@ -69,6 +70,7 @@ def test_seedhub_source_parses_detail_html() -> None:
           <body>
             <a href="magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567">磁力</a>
             <p>夸克：https://pan.quark.cn/s/example 提取码：abcd</p>
+            <a data-link="quark" title="资源" href="/link_start/?redirect_to=pan_id_1&amp;movie_title=x">下载</a>
           </body>
         </html>
         """,
@@ -77,6 +79,32 @@ def test_seedhub_source_parses_detail_html() -> None:
     assert item is not None
     assert item.raw_title == "测试电影 2024"
     assert "pan.quark.cn" in item.raw_content
+
+
+def test_seedhub_source_uses_real_search_route() -> None:
+    source = SeedHubSource()
+
+    assert source._search_url("怪奇物语") == "https://www.seedhub.cc/s/%E6%80%AA%E5%A5%87%E7%89%A9%E8%AF%AD/"
+
+
+def test_seedhub_source_parses_movie_cards() -> None:
+    source = SeedHubSource()
+    html = '''
+      <a title="怪奇物语" class="image" href="/movies/119254/">封面</a>
+      <a title="重复" class="image" href="/movies/119254/">封面</a>
+      <a title="别的" class="image" href="/movies/1754/">封面</a>
+    '''
+
+    assert source._parse_detail_urls(html) == [
+        "https://www.seedhub.cc/movies/119254/",
+        "https://www.seedhub.cc/movies/1754/",
+    ]
+
+
+def test_extract_cloud_links_supports_more_netdisk_providers() -> None:
+    links = extract_cloud_links("UC https://drive.uc.cn/s/abc 123 https://www.123pan.com/s/a-b 天翼 https://cloud.189.cn/t/ABC")
+
+    assert {link.provider for link in links} >= {"uc", "123pan", "tianyi"}
 
 
 @pytest.mark.anyio

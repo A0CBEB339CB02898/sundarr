@@ -257,6 +257,7 @@ GET /sync/bindings
 POST /sync/bindings/create
 POST /sync/scan
 统一错误响应
+网盘链接有效性检测不依赖真实网盘网络，使用 mock 响应覆盖 quark / aliyun / baidu 等 provider 判断
 ```
 
 `POST /transfers/{id}/cancel`、`POST /transfers/{id}/retry` 和 `GET /transfers/{id}/logs` 属于 Phase 6 API 测试范围。

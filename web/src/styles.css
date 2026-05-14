@@ -2227,9 +2227,10 @@ h2 {
 
 .sc-modal-body {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-4);
   overflow: auto;
   padding: var(--space-5);
+  background: var(--surface-sunken);
 }
 
 .sc-modal-actions {
@@ -2241,8 +2242,76 @@ h2 {
 
 .sc-source-detail-block {
   display: grid;
-  grid-template-columns: minmax(120px, 0.8fr) minmax(220px, 1.2fr) minmax(220px, 1.4fr);
+  grid-template-columns: minmax(220px, 1fr) minmax(280px, 1.2fr);
+  gap: var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface-3);
+  padding: var(--space-4);
+}
+
+.sc-source-identity {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.sc-source-identity h4,
+.sc-source-identity p,
+.sc-source-detail-list {
+  margin: 0;
+}
+
+.sc-source-identity h4 {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+}
+
+.sc-source-identity p {
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.sc-source-detail-list {
+  display: grid;
   gap: var(--space-3);
+}
+
+.sc-source-detail-list div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  padding: var(--space-3);
+}
+
+.sc-source-detail-list dt {
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sc-source-detail-list dd,
+.sc-source-detail-list a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.sc-source-detail-list dd {
+  margin: 0;
+}
+
+.sc-source-detail-list a:hover {
+  color: var(--accent);
 }
 
 .sc-source-test-block {
@@ -2250,7 +2319,7 @@ h2 {
   gap: var(--space-3);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
-  background: var(--surface-1);
+  background: var(--surface-3);
   padding: var(--space-4);
 }
 
@@ -2266,6 +2335,10 @@ h2 {
   color: var(--text);
   font-size: 16px;
   font-weight: 600;
+}
+
+.sc-source-test-head .ui-eyebrow {
+  margin: 0 0 4px;
 }
 
 .sc-grid {
@@ -2803,6 +2876,9 @@ h2 {
   }
   .sc-source-actions {
     justify-content: flex-start;
+  }
+  .sc-source-test-head {
+    flex-direction: column;
   }
   .rm-row-actions {
     justify-content: flex-start;

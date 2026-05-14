@@ -183,10 +183,14 @@ Link Validator 负责在搜索返回前同步检测链接有效性。
 规则：
 
 ```text
-磁力链接只做格式级有效性判断，不承诺资源活性。
-网盘链接使用轻量 HEAD / GET 检测。
+磁力、thunder、ed2k 等下载协议链接只做格式级有效性判断，不承诺资源活性。
+已识别网盘链接优先使用 provider 公开接口或页面信号检测。
+当前支持 quark / aliyun / baidu / xunlei / uc / 115 / 123pan / tianyi。
+无法识别 provider 或 provider 没有明确检测信号时使用轻量 HEAD / GET 兜底。
 404 / 410 视为 invalid。
 401 / 403 / 405 / 429 视为 unknown，避免把登录、权限或限流误判为失效。
+需要提取码但分享存在时视为 valid。
+需要登录、验证码或风控校验时视为 unknown。
 检测失败不影响搜索结果展示。
 ```
 
