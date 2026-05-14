@@ -91,6 +91,12 @@ Web Console: http://localhost:5173/app/search
 .sundarr/sundarr-worker.log
 ```
 
+后台日志默认单文件最大 100MB。超过限制时会清空当前日志后继续写入，避免本地开发日志无限增长。可通过环境变量调整：
+
+```env
+SUNDARR_LOG_MAX_BYTES=104857600
+```
+
 端口占用规则：
 
 ```text

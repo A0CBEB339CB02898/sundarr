@@ -100,3 +100,22 @@ def test_worker_is_managed_service() -> None:
 
 def test_worker_command_uses_module_entry() -> None:
     assert cli._worker_command() == [sys.executable, "-m", "sundarr.app.worker"]
+
+
+def test_log_max_bytes_defaults_to_100mb(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(cli.LOG_MAX_BYTES_ENV, raising=False)
+
+    assert cli._log_max_bytes() == cli.DEFAULT_LOG_MAX_BYTES
+
+
+def test_log_max_bytes_reads_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(cli.LOG_MAX_BYTES_ENV, "1024")
+
+    assert cli._log_max_bytes() == 1024
+
+
+def test_log_max_bytes_rejects_invalid_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(cli.LOG_MAX_BYTES_ENV, "0")
+
+    with pytest.raises(RuntimeError, match="SUNDARR_LOG_MAX_BYTES"):
+        cli._log_max_bytes()

@@ -152,6 +152,14 @@ POST /storage/config/save
 
 不建议直接手工修改数据库，除非是在排查 settings 表持久化问题。
 
+本地后台启动日志由 `.venv\Scripts\sundarr start/restart` 管理，默认单文件最大 100MB。可用环境变量覆盖：
+
+```env
+SUNDARR_LOG_MAX_BYTES=104857600
+```
+
+该限制适用于 `.sundarr/sundarr-api.log`、`.sundarr/sundarr-web.log` 和 `.sundarr/sundarr-worker.log`。超过限制时当前日志会被清空后继续写入，避免开发环境磁盘被无限增长的日志占满。
+
 ---
 
 ## 4. SMB 配置

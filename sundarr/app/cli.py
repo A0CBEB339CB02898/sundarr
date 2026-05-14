@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import signal
 import socket
@@ -10,6 +11,7 @@ from pathlib import Path
 
 from sundarr.app.config import PROJECT_ROOT
 from sundarr.app.db_admin import initialize_database
+from sundarr.app.log_runner import DEFAULT_LOG_MAX_BYTES
 
 RUNTIME_DIR = PROJECT_ROOT / ".sundarr"
 WEB_DIR = PROJECT_ROOT / "web"
@@ -18,6 +20,7 @@ DEFAULT_API_HOST = "0.0.0.0"
 DEFAULT_API_PORT = 8080
 DEFAULT_WEB_HOST = "0.0.0.0"
 DEFAULT_WEB_PORT = 5173
+LOG_MAX_BYTES_ENV = "SUNDARR_LOG_MAX_BYTES"
 
 
 @dataclass(frozen=True)
@@ -159,19 +162,31 @@ def _ensure_web_dependencies() -> None:
 
 
 def _start_service(service: ManagedService, command: list[str], cwd: Path | None) -> None:
-    log_file = service.log_file.open("ab")
+    wrapped_command = [
+        sys.executable,
+        "-m",
+        "sundarr.app.log_runner",
+        "--log-file",
+        str(service.log_file),
+        "--max-bytes",
+        str(_log_max_bytes()),
+        "--command-json",
+        json.dumps(command),
+    ]
+    env = os.environ.copy()
+    env["PYTHONPATH"] = _prepend_pythonpath(PROJECT_ROOT, env.get("PYTHONPATH"))
     kwargs = {
-        "stdout": log_file,
-        "stderr": subprocess.STDOUT,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
         "stdin": subprocess.DEVNULL,
         "cwd": cwd,
+        "env": env,
     }
     if os.name == "nt":
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
     else:
         kwargs["start_new_session"] = True
-    process = subprocess.Popen(command, **kwargs)
-    log_file.close()
+    process = subprocess.Popen(wrapped_command, **kwargs)
     service.pid_file.write_text(str(process.pid), encoding="utf-8")
     time.sleep(0.5)
     print(f"{service.display_name} 已后台启动，PID={process.pid}。")
@@ -257,6 +272,26 @@ def _web_command(host: str, port: int) -> list[str]:
 
 def _worker_command() -> list[str]:
     return [sys.executable, "-m", "sundarr.app.worker"]
+
+
+def _log_max_bytes() -> int:
+    raw_value = os.environ.get(LOG_MAX_BYTES_ENV)
+    if raw_value is None or raw_value.strip() == "":
+        return DEFAULT_LOG_MAX_BYTES
+    try:
+        value = int(raw_value)
+    except ValueError:
+        raise RuntimeError(f"{LOG_MAX_BYTES_ENV} 必须是整数。") from None
+    if value <= 0:
+        raise RuntimeError(f"{LOG_MAX_BYTES_ENV} 必须大于 0。")
+    return value
+
+
+def _prepend_pythonpath(path: Path, current: str | None) -> str:
+    path_text = str(path)
+    if not current:
+        return path_text
+    return f"{path_text}{os.pathsep}{current}"
 
 
 def _npm_executable() -> str:
