@@ -226,30 +226,30 @@ def _print_status() -> None:
 
 
 def _prepare_port(service: ManagedService, host: str, port: int, quiet: bool) -> None:
-    _prepare_process(service, quiet=quiet)
+    cleaned_pid_file_process = _prepare_process(service, quiet=quiet)
+    if cleaned_pid_file_process and _wait_port_released(host, port, timeout_seconds=3.0):
+        return
 
     if _is_port_in_use(host, port):
-        occupant_pid = _find_port_pid(host, port)
-        if occupant_pid is not None and _is_sundarr_process(occupant_pid):
-            cleanup_pid = _sundarr_process_tree_root(occupant_pid) or occupant_pid
-            if not quiet:
-                print(f"端口 {port} 被 Sundarr 旧进程 PID={occupant_pid} 占用，准备清理 PID={cleanup_pid}。")
-            _kill_process(cleanup_pid)
-            if not _wait_port_released(host, port):
-                raise RuntimeError(f"{service.display_name} 端口 {port} 清理后仍被占用，请手动释放后重试。")
+        cleanup = _find_sundarr_port_cleanup_pid(host, port)
+        if cleanup is not None:
+            occupant_pid, cleanup_pid = cleanup
+            _cleanup_sundarr_port_process(service, host, port, occupant_pid, cleanup_pid, quiet)
             return
         raise RuntimeError(f"{service.display_name} 端口 {port} 已被其他程序占用，请释放端口后重试。")
 
 
-def _prepare_process(service: ManagedService, quiet: bool) -> None:
+def _prepare_process(service: ManagedService, quiet: bool) -> bool:
     pid = _read_pid(service)
     if pid and _is_process_running(pid):
         if not quiet:
             print(f"{service.display_name} 旧进程仍在运行，准备清理 PID={pid}。")
         _stop_service(service, quiet=True)
         time.sleep(0.2)
+        return True
     elif pid:
         service.pid_file.unlink(missing_ok=True)
+    return False
 
 
 def _is_port_in_use(host: str, port: int) -> bool:
@@ -266,6 +266,35 @@ def _wait_port_released(host: str, port: int, timeout_seconds: float = 3.0) -> b
             return True
         time.sleep(0.2)
     return not _is_port_in_use(host, port)
+
+
+def _find_sundarr_port_cleanup_pid(host: str, port: int, timeout_seconds: float = 3.0) -> tuple[int, int] | None:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        occupant_pid = _find_port_pid(host, port)
+        if occupant_pid is None:
+            time.sleep(0.2)
+            continue
+        cleanup_pid = _sundarr_process_tree_root(occupant_pid)
+        if cleanup_pid is not None:
+            return occupant_pid, cleanup_pid
+        time.sleep(0.2)
+    return None
+
+
+def _cleanup_sundarr_port_process(
+    service: ManagedService,
+    host: str,
+    port: int,
+    occupant_pid: int,
+    cleanup_pid: int,
+    quiet: bool,
+) -> None:
+    if not quiet:
+        print(f"端口 {port} 被 Sundarr 旧进程 PID={occupant_pid} 占用，准备清理 PID={cleanup_pid}。")
+    _kill_process(cleanup_pid)
+    if not _wait_port_released(host, port):
+        raise RuntimeError(f"{service.display_name} 端口 {port} 清理后仍被占用，请手动释放后重试。")
 
 
 def _find_port_pid(host: str, port: int) -> int | None:
