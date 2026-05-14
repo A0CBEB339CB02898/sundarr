@@ -55,7 +55,7 @@ MVP Web Console 不做：
 完整 NAS 文件管理器
 拖拽式文件管理
 任意 NAS 文件删除
-在线编辑代码型 Source Adapter
+在线编辑 Source Adapter
 配置版本回滚
 审计日志
 ```
@@ -297,32 +297,33 @@ POST /media-libraries/{library_id}/test
 
 ```text
 查看 source 列表
-查看已安装代码型 Source Adapter
+查看已安装搜索源
 测试 source 搜索
-查看最后一次错误
-查看最近一次搜索耗时和状态
+查看测试搜索步骤日志和 RawSearchItem 预览
 ```
 
 限制：
 
 ```text
-不允许在线编辑代码型 Source Adapter。
+不允许在线编辑 Source Adapter。
 不允许上传执行代码。
 不在配置或数据库中保存可执行 Python 代码。
 不支持通过 Web Console 配置复杂网站爬虫。
 不要求用户维护本地文档/表格作为主要媒体源。
-不允许通过 Web Console 创建、编辑、启用或禁用搜索源；搜索源统一从代码注册表加载。
+不允许通过 Web Console 创建、编辑、启用或禁用搜索源；搜索源由 Source Adapter 代码定义。
 ```
 
-说明：Sources 页面是已安装代码型 Adapter 的只读展示和测试入口。真实媒体源通过代码型 Adapter 逐站点实现。
+说明：Sources 页面是已安装搜索源的列表和测试入口。真实媒体源通过 Source Adapter 逐站点实现。
 
 页面规则：
 
 ```text
 不展示启用 / 禁用状态。
 不展示 legal_note、last_error_code、last_error_message 等历史数据库字段。
-每个 source 提供测试搜索表单，支持 keyword、result_type、limit。
-测试结果展示 prepare、query、search、preview 等步骤日志和 RawSearchItem 预览。
+列表只展示搜索源名称、原网址、说明摘要和详情入口。
+详情弹窗展示 ID、原网址、说明，并在弹窗内提供测试搜索表单。
+测试搜索支持 keyword、result_type、limit。
+测试结果展示 Adapter 内部请求、解析、提取、预览等步骤日志和 RawSearchItem 预览。
 ```
 
 API：
@@ -450,7 +451,7 @@ Web Console 完成时必须满足：
 可以查看和修改多个 SMB 连接。
 可以测试 SMB 连接。
 可以浏览 SMB 目标目录。
-可以管理已安装代码型 Source Adapter。
+可以查看已安装搜索源，并在详情弹窗中测试搜索流程。
 可以管理远程媒体库和同步绑定。
 可以通过全局任务面板查看当前任务状态摘要。
 可以在 /app/transfers 查看完整任务列表和详情。

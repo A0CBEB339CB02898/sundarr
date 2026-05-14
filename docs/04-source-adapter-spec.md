@@ -1,6 +1,6 @@
 # Source Adapter 接入规范
 
-本文档定义 Sundarr 多源搜索的接入方式。目标是通过代码型 Source Adapter 接入真实媒体网站，实现即时搜索、统一解析和失败隔离。
+本文档定义 Sundarr 多源搜索的接入方式。所有搜索源都通过 Source Adapter 代码实现，实现即时搜索、统一解析和失败隔离。
 
 ---
 
@@ -24,11 +24,11 @@ Source Adapter 必须满足：
 当前实现边界：
 
 ```text
-搜索源统一由代码注册，不再由用户通过 Web Console 创建 configurable / document source。
+搜索源统一由 Source Adapter 代码定义，不再由用户通过 Web Console 创建 configurable / document source。
 每个真实搜索源通常使用一个 Python 文件实现。
 Search Service 只调度统一接口，不写具体站点规则。
 当前第一个真实搜索源为 `SeedHubSource`，参考 seedhub-cli 的列表搜索 + 详情页解析方式。
-Sources 页面只读展示已安装代码型 source，并提供轻量测试入口。
+Sources 页面以列表展示已安装搜索源，详情弹窗提供测试入口和步骤日志。
 ```
 
 原因：
@@ -54,11 +54,7 @@ Source Adapter
 
 ---
 
-## 2. Source 类型
-
-近期主线只保留代码型源。配置型源、文档/表格型源和在线编辑规则已退出主线。
-
-### 2.1 代码型源
+## 2. Source Adapter
 
 适合真实媒体网站。
 
@@ -74,7 +70,7 @@ Source Adapter
 
 每个真实网站通常需要一个 Adapter，但 Adapter 复用统一 SDK、HTTP 工具、链接提取器、测试夹具和错误处理。
 
-### 2.2 文档型网站实验
+### 2.1 文档型网站实验
 
 后续可以单独验证“文档型网站是否存在可通用读取模式”。
 
@@ -94,7 +90,7 @@ Source Adapter
 承诺处理所有在线文档平台的登录、权限和导出格式。
 ```
 
-### 2.3 不作为近期主线的源类型
+### 2.2 不作为近期主线的源类型
 
 ```text
 simple HTML configurable source
@@ -174,7 +170,9 @@ class SourceModel:
     id: str
     name: str
     description: str
+    homepage_url: str
     search_function: SearchFunction
+    test_function: SourceTestFunction | None = None
 ```
 
 规则：
@@ -191,7 +189,7 @@ Adapter 不负责下载或转存。
 
 ## 6. Source 注册方式
 
-Source 事实来源是代码注册表：
+Source Adapter 事实来源是代码：
 
 ```text
 sundarr/app/sources/registry.py
@@ -203,7 +201,9 @@ sundarr/app/sources/registry.py
 id
 name
 description
+homepage_url
 search_function
+test_function
 ```
 
 注册示例：
@@ -220,12 +220,14 @@ def get_registered_sources():
             id=seedhub.id,
             name=seedhub.name,
             description=seedhub.description,
+            homepage_url=seedhub.homepage_url,
             search_function=seedhub.search,
+            test_function=seedhub.test_search,
         )
     ]
 ```
 
-搜索源不通过数据库启用、禁用或保存展示字段；`sources` 表若存在，仅作为历史迁移残留，不是代码型搜索源事实来源。
+搜索源不通过数据库启用、禁用或保存合规说明、错误状态、信任等级等旧配置字段。`sources` 表仅作为代码 Adapter 的目录表，由项目初始化或 API 读取时同步 `id`、`name`、`description`、`homepage_url`，不得保存可执行代码或用户可编辑的爬虫规则。
 
 不得在数据库、配置文件或 Web Console 中保存可执行 Python 代码。
 
@@ -280,7 +282,7 @@ Adapter 不应无限重试。
 Web Console 可以管理：
 
 ```text
-已安装代码型 Adapter 只读列表
+已安装搜索源列表
 Adapter 测试搜索
 Adapter 测试过程日志和预览结果
 ```
@@ -288,15 +290,15 @@ Adapter 测试过程日志和预览结果
 Web Console 不允许：
 
 ```text
-在线编辑代码型 Source Adapter
-创建、删除、启用或禁用代码型 Source Adapter
+在线编辑 Source Adapter
+创建、删除、启用或禁用搜索源
 上传执行 Python 代码
 在配置或数据库中保存可执行 Python 代码
 配置复杂网站爬虫
 绕过 Source Adapter 接口直接改搜索服务逻辑
 ```
 
-代码型源必须通过代码实现和部署。
+Source Adapter 必须通过代码实现和部署。
 
 ---
 
@@ -324,7 +326,7 @@ Source Adapter 框架完成时必须满足：
 单个 source 失败不影响整体搜索。
 source timeout 生效。
 Search Service 能聚合多个 source。
-Web Console 可查看已安装代码型 Adapter 并执行测试搜索。
-代码型源不能通过 Web Console 在线编辑。
-配置和数据库不保存代码型源的展示字段或可执行 Python 代码。
+Web Console 可查看已安装搜索源并执行测试搜索。
+Source Adapter 不能通过 Web Console 在线编辑。
+配置和数据库不保存可执行 Python 代码或用户可编辑爬虫规则。
 ```

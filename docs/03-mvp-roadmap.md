@@ -912,9 +912,9 @@ pytest 通过。
 
 ### Phase 7.6: Sources Page
 
-状态：已更新；Sources 页面改为代码注册源只读展示和测试入口。
+状态：已更新；Sources 页面改为搜索源列表和详情弹窗测试入口。
 
-目标：展示已安装代码型 Source Adapter，并提供测试和错误查看入口。
+目标：展示已安装搜索源，并提供详情弹窗、测试搜索和步骤日志入口。
 
 交付物：
 
@@ -923,14 +923,14 @@ pytest 通过。
 GET /sources
 GET /sources/{source_id}
 POST /sources/{source_id}/test
-代码型 Source Adapter 只读展示
+搜索源列表展示
 ```
 
 验收标准：
 
 ```text
-用户可以查看和测试已安装代码型 Adapter。
-代码型 Source Adapter 不允许在线编辑。
+用户可以查看和测试已安装搜索源。
+Source Adapter 不允许在线编辑。
 source 测试失败有明确提示。
 通过 Web Console 创建/编辑/启用/禁用 source、配置复杂网站爬虫和在配置中保存可执行 Python 代码不属于当前阶段。
 ```
@@ -1191,7 +1191,7 @@ npm run build 通过。
 
 ## Phase 10: Real Site Source Adapters
 
-目标：实现真实媒体网站即时搜索能力。每个真实网站通过代码型 Source Adapter 接入，多个 Adapter 并发搜索，结果统一进入 Search Pipeline。搜索源统一由代码注册表提供，不再支持用户通过 Web Console 创建 configurable / document source。
+目标：实现真实媒体网站即时搜索能力。每个真实网站通过 Source Adapter 接入，多个 Adapter 并发搜索，结果统一进入 Search Pipeline。搜索源统一由 Adapter 代码定义并同步到 `sources` 目录表，不再支持用户通过 Web Console 创建 configurable / document source。
 
 交付物：
 

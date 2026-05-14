@@ -7,14 +7,16 @@ from urllib.parse import quote, urljoin
 from urllib.request import Request, urlopen
 
 from sundarr.app.schemas.search import RawSearchItem, SearchQuery
+from sundarr.app.sources.base import SourceTestEvent, SourceTestExecution
 
 
 class SeedHubSource:
     id = "seedhub"
     name = "SeedHub"
-    description = "参考 seedhub-cli 的代码型搜索源，搜索列表后进入详情页抽取磁力、迅雷和网盘链接。"
+    description = "搜索列表后进入详情页抽取磁力、迅雷和网盘链接。"
 
     base_url = "https://seedhub.cc"
+    homepage_url = base_url
     timeout_seconds = 8
     max_details = 8
 
@@ -31,6 +33,58 @@ class SeedHubSource:
             if item is not None:
                 items.append(item)
         return items
+
+    async def test_search(self, query: SearchQuery) -> SourceTestExecution:
+        logs = [
+            SourceTestEvent(
+                step="build_search_url",
+                status="ok",
+                message="已生成搜索地址。",
+                data={"url": f"{self.base_url}/search?keyword={quote(query.keyword)}"},
+            )
+        ]
+        search_url = f"{self.base_url}/search?keyword={quote(query.keyword)}"
+        html = await asyncio.to_thread(self._fetch, search_url)
+        logs.append(SourceTestEvent(step="fetch_search_page", status="ok", message="搜索页请求完成。", data={"bytes": len(html)}))
+        detail_urls = self._parse_detail_urls(html)
+        logs.append(
+            SourceTestEvent(
+                step="parse_detail_urls",
+                status="ok",
+                message="已解析详情页入口。",
+                data={"count": len(detail_urls), "preview": detail_urls[: min(3, len(detail_urls))]},
+            )
+        )
+        items: list[RawSearchItem] = []
+        for detail_url in detail_urls[: min(query.limit, self.max_details)]:
+            try:
+                detail_html = await asyncio.to_thread(self._fetch, detail_url)
+            except URLError as exc:
+                logs.append(
+                    SourceTestEvent(
+                        step="fetch_detail_page",
+                        status="error",
+                        message="详情页请求失败，已跳过该结果。",
+                        data={"url": detail_url, "error": str(exc)},
+                    )
+                )
+                continue
+            logs.append(SourceTestEvent(step="fetch_detail_page", status="ok", message="详情页请求完成。", data={"url": detail_url, "bytes": len(detail_html)}))
+            item = self._parse_detail(detail_url, detail_html)
+            if item is None:
+                logs.append(SourceTestEvent(step="extract_links", status="empty", message="详情页未提取到支持的链接。", data={"url": detail_url}))
+                continue
+            items.append(item)
+            logs.append(
+                SourceTestEvent(
+                    step="extract_links",
+                    status="ok",
+                    message="已提取候选结果。",
+                    data={"url": detail_url, "title": item.raw_title},
+                )
+            )
+        logs.append(SourceTestEvent(step="finish", status="ok", message="测试搜索流程结束。", data={"raw_count": len(items)}))
+        return SourceTestExecution(items=items, logs=logs)
 
     def _fetch(self, url: str) -> str:
         request = Request(

@@ -34,7 +34,7 @@ def make_client(db_session: Session) -> TestClient:
 
 
 def test_sources_are_listed_from_code_registry(db_session: Session) -> None:
-    db_session.add(Source(id="legacy", name="观影", type="code", enabled=True, legal_note="旧数据"))
+    db_session.add(Source(id="legacy", name="观影", description="旧数据", homepage_url="https://legacy.invalid"))
     db_session.commit()
     client = make_client(db_session)
 
@@ -45,7 +45,8 @@ def test_sources_are_listed_from_code_registry(db_session: Session) -> None:
     assert list_response.json()["page_size"] == 20
     assert list_response.json()["results"][0]["id"] == "seedhub"
     assert {item["id"] for item in list_response.json()["results"]} == {"seedhub"}
-    assert set(list_response.json()["results"][0]) == {"id", "name", "type", "description"}
+    assert set(list_response.json()["results"][0]) == {"id", "name", "description", "homepage_url"}
+    assert db_session.get(Source, "legacy") is None
 
 
 def test_source_mutation_endpoints_are_removed(db_session: Session) -> None:
@@ -75,6 +76,7 @@ def test_source_test_returns_registered_source_preview(db_session: Session, monk
                 id="seedhub",
                 name="SeedHub",
                 description="测试源",
+                homepage_url="https://example.invalid",
                 search_function=static_search,
             )
         ],

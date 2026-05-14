@@ -27,19 +27,16 @@ def test_sources_table_matches_required_columns() -> None:
     for name in [
         "id",
         "name",
-        "type",
-        "enabled",
-        "legal_note",
-        "trust_level",
-        "created_by_user",
-        "config_json",
-        "last_error_code",
-        "last_error_message",
-        "last_checked_at",
+        "description",
+        "homepage_url",
+        "registered_at",
         "created_at",
         "updated_at",
     ]:
         assert name in columns
+
+    for removed_name in ["type", "enabled", "legal_note", "trust_level", "config_json", "last_error_code"]:
+        assert removed_name not in columns
 
 
 def test_runtime_settings_use_jsonb() -> None:

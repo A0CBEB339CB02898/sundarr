@@ -296,18 +296,17 @@ delete_source_after_success 和 delete_empty_source_dirs 可由 binding 覆盖�
 
 ## 7. Source 配置
 
-Source 配置保存到 sources 表。
+搜索源配置不保存到数据库；`sources` 表仅保存由 Source Adapter 代码同步得到的目录信息。
 
 Web Console 可管理：
 
 ```text
-已安装代码型 Adapter 的启用 / 禁用
-已安装代码型 Adapter 的非代码参数
+已安装搜索源列表
 测试搜索
-最后错误和耗时
+测试步骤日志和预览结果
 ```
 
-真实网站 Source Adapter 通过 Python 代码实现和部署，不通过前端在线编辑。配置只保存 base_url、timeout、rate_limit、user_agent 等参数，不保存可执行 Python 代码。
+真实网站 Source Adapter 通过 Python 代码实现和部署，不通过前端在线编辑。MVP 不通过 Web Console 管理 base_url、timeout、rate_limit、user_agent 等 Adapter 参数，不保存可执行 Python 代码。
 
 ---
 

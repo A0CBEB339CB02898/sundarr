@@ -226,13 +226,11 @@ type SearchFormState = {
   result_type: ResultType
 }
 
-type SourceType = 'code'
-
 type SourceResponse = {
   id: string
   name: string
-  type: SourceType
   description: string
+  homepage_url: string
 }
 
 type SourceListResponse = {
@@ -543,7 +541,7 @@ const pageCopy: Record<PageKey, { title: string; eyebrow: string; body: string; 
   sources: {
     eyebrow: 'Sources',
     title: '媒体源管理',
-    body: '管理已安装代码型 Source Adapter 的启用、参数、测试和错误状态。',
+    body: '查看已安装搜索源，测试搜索流程和解析日志。',
     next: '当前页面暂不可用，请从左侧导航重新进入。',
   },
   libraries: {
@@ -2094,7 +2092,7 @@ function SourcesPanel() {
             <p className="ui-eyebrow">媒体源</p>
             <h2 id="sources-title">媒体源管理</h2>
             <p className="sc-overview-lead">
-              媒体源统一由后端代码注册，Web Console 只读展示已安装 Source Adapter，并提供测试入口。
+              查看当前安装的搜索源。详情弹窗中可以运行测试搜索，检查请求、解析和结果预览。
             </p>
           </div>
           <div className="sc-overview-actions">
@@ -2136,84 +2134,128 @@ function SourcesPanel() {
 
       {sources.length > 0 ? (
         <>
-          <div className="sc-grid" role="list" aria-label="媒体源列表">
+          <div className="sc-source-table" role="table" aria-label="搜索源列表">
+            <div className="sc-source-table-header" role="row">
+              <span role="columnheader">名称</span>
+              <span role="columnheader">原网址</span>
+              <span role="columnheader">说明</span>
+              <span role="columnheader" aria-label="操作" />
+            </div>
             {sources.map((source) => (
-              <SourceCard
-                key={source.id}
-                source={source}
-                testForm={getTestForm(source.id)}
-                testStatus={testState[source.id]}
-                testResult={testResults[source.id] || null}
-                isExpanded={expandedTestId === source.id}
-                onTest={() => void testSource(source)}
-                onView={() => setViewingSource(source)}
-                onTestFormChange={(patch) => updateTestForm(source.id, patch)}
-                onToggleTestDetail={() =>
-                  setExpandedTestId((prev) => (prev === source.id ? null : source.id))
-                }
-              />
+              <div className="sc-source-row" key={source.id} role="row">
+                <span className="sc-source-name" role="cell">
+                  <strong title={source.name}>{source.name}</strong>
+                  <code>{source.id}</code>
+                </span>
+                <span className="sc-source-url" role="cell">
+                  <a href={source.homepage_url} target="_blank" rel="noreferrer" title={source.homepage_url}>
+                    {source.homepage_url || '未配置'}
+                  </a>
+                </span>
+                <span className="sc-source-description" role="cell" title={source.description}>
+                  {source.description || '暂无说明'}
+                </span>
+                <span className="sc-source-actions" role="cell">
+                  <Button variant="secondary" size="sm" onClick={() => { setViewingSource(source); setExpandedTestId(source.id) }}>
+                    详情
+                  </Button>
+                </span>
+              </div>
             ))}
           </div>
           <PaginationControls page={page} totalPages={totalPages} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
         </>
       ) : null}
 
-      <SourceDetailDrawer source={viewingSource} onClose={() => setViewingSource(null)} />
+      <SourceDetailModal
+        source={viewingSource}
+        testForm={viewingSource ? getTestForm(viewingSource.id) : null}
+        testStatus={viewingSource ? testState[viewingSource.id] : undefined}
+        testResult={viewingSource ? testResults[viewingSource.id] || null : null}
+        isExpanded={viewingSource ? expandedTestId === viewingSource.id : false}
+        onClose={() => setViewingSource(null)}
+        onTest={() => viewingSource ? void testSource(viewingSource) : undefined}
+        onTestFormChange={(patch) => viewingSource ? updateTestForm(viewingSource.id, patch) : undefined}
+        onToggleTestDetail={() => viewingSource ? setExpandedTestId((prev) => (prev === viewingSource.id ? null : viewingSource.id)) : undefined}
+      />
     </section>
   )
 }
 
-function SourceCard({
+function SourceDetailModal({
   source,
   testForm,
   testStatus,
   testResult,
   isExpanded,
+  onClose,
   onTest,
-  onView,
   onTestFormChange,
   onToggleTestDetail,
 }: {
-  source: SourceResponse
-  testForm: SourceTestFormState
+  source: SourceResponse | null
+  testForm: SourceTestFormState | null
   testStatus: 'running' | 'ok' | 'error' | undefined
   testResult: SourceTestResponse | null
   isExpanded: boolean
-  onTest: () => void
-  onView: () => void
-  onTestFormChange: (patch: Partial<SourceTestFormState>) => void
-  onToggleTestDetail: () => void
+  onClose: () => void
+  onTest: () => void | undefined
+  onTestFormChange: (patch: Partial<SourceTestFormState>) => void | undefined
+  onToggleTestDetail: () => void | undefined
 }) {
+  useEffect(() => {
+    if (!source) return
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [source, onClose])
+
+  if (!source || !testForm) return null
+
   return (
-    <Card className="sc-card sc-source-card" role="listitem">
-      <div className="sc-card-head">
-        <div className="sc-card-title">
-          <p className="ui-eyebrow">{sourceTypeLabel(source.type)}</p>
-          <h3>{source.name}</h3>
-          <code className="sc-card-id">{source.id}</code>
-        </div>
-        <div className="sc-card-badges">
-          <StatusBadge tone="info">代码注册</StatusBadge>
-          <StatusBadge tone="paused">只读</StatusBadge>
-        </div>
-      </div>
+    <div className="sc-modal-overlay" onClick={onClose}>
+      <div className="sc-modal sc-modal-lg" role="dialog" aria-modal="true" aria-labelledby="sc-source-modal-title" onClick={(event) => event.stopPropagation()}>
+        <header className="sc-modal-head">
+          <div>
+            <p className="ui-eyebrow">搜索源详情</p>
+            <h3 id="sc-source-modal-title">{source.name}</h3>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="关闭">×</Button>
+        </header>
 
-      <p className="sc-card-note">{source.description || '该媒体源暂未提供说明。'}</p>
+        <div className="sc-modal-body">
+          <section className="sc-source-detail-block" aria-label="基础信息">
+            <DetailItem label="ID" value={source.id} />
+            <DetailItem label="原网址" value={source.homepage_url || '-'} />
+            <DetailItem label="说明" value={source.description || '-'} />
+          </section>
 
-      <dl className="sc-card-meta">
-        <div>
-          <dt>事实来源</dt>
-          <dd>代码注册</dd>
-        </div>
-        <div>
-          <dt>搜索入口</dt>
-          <dd>search_function</dd>
-        </div>
-      </dl>
+          <section className="sc-source-test-block" aria-label={`${source.name} 测试搜索`}>
+            <div className="sc-source-test-head">
+              <div>
+                <p className="ui-eyebrow">测试搜索</p>
+                <h4>验证请求、解析和结果预览</h4>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={testStatus === 'running'}
+                onClick={onTest}
+              >
+                {testStatus === 'running' ? '测试中…' : '运行测试'}
+              </Button>
+            </div>
 
-      <div className="sc-source-test-form" aria-label={`${source.name} 测试搜索`}>
+            <div className="sc-source-test-form">
         <label>
-          <span>测试关键词</span>
+          <span>关键词</span>
           <input
             value={testForm.keyword}
             onChange={(event) => onTestFormChange({ keyword: event.target.value })}
@@ -2244,7 +2286,7 @@ function SourceCard({
             onChange={(event) => onTestFormChange({ limit: event.target.value })}
           />
         </label>
-      </div>
+            </div>
 
       {testResult ? (
         <div className="sc-card-test" data-tone={testStatus || 'idle'}>
@@ -2303,78 +2345,12 @@ function SourceCard({
           ) : null}
         </div>
       ) : null}
-
-      <div className="sc-card-actions">
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={testStatus === 'running'}
-          onClick={onTest}
-        >
-          {testStatus === 'running' ? '测试中…' : '测试搜索'}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onView}>
-          查看
-        </Button>
-      </div>
-    </Card>
-  )
-}
-
-function SourceDetailDrawer({ source, onClose }: { source: SourceResponse | null; onClose: () => void }) {
-  useEffect(() => {
-    if (!source) return
-    function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
-    }
-  }, [source, onClose])
-
-  return (
-    <div
-      className="sc-drawer-overlay"
-      data-open={Boolean(source) || undefined}
-      aria-hidden={!source}
-      onClick={onClose}
-    >
-      <aside
-        className="sc-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="sc-drawer-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header className="sc-drawer-head">
-          <div>
-            <p className="ui-eyebrow">代码注册源</p>
-            <h3 id="sc-drawer-title">{source?.name || '媒体源详情'}</h3>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label="关闭">
-            ×
-          </Button>
-        </header>
-        <div className="sc-drawer-body">
-          <DetailItem label="ID" value={source?.id || '-'} />
-          <DetailItem label="类型" value={source ? sourceTypeLabel(source.type) : '-'} />
-          <DetailItem label="事实来源" value="代码注册表" />
-          <DetailItem label="说明" value={source?.description || '-'} />
-          <div className="sc-drawer-notice">
-            <strong>只读 Source Adapter</strong>
-            <p>媒体源统一从后端代码注册表加载，不能在 Web Console 创建、编辑、启用或禁用。</p>
-          </div>
+          </section>
         </div>
-        <footer className="sc-drawer-actions">
-          <Button variant="ghost" onClick={onClose} type="button">
-            关闭
-          </Button>
+        <footer className="sc-modal-actions">
+          <Button variant="ghost" onClick={onClose} type="button">关闭</Button>
         </footer>
-      </aside>
+      </div>
     </div>
   )
 }
@@ -4328,13 +4304,6 @@ function storageRequestFromForm(form: StorageFormState): StorageConfigRequest {
     base_path: form.base_path.trim() || '/',
     libraries,
   }
-}
-
-function sourceTypeLabel(type: SourceType) {
-  const labels: Record<SourceType, string> = {
-    code: '代码型',
-  }
-  return labels[type]
 }
 
 function mediaTypeLabel(type: MediaType) {

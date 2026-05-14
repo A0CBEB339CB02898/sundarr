@@ -79,10 +79,10 @@ POST /sources/{source_id}/test
 规则：
 
 ```text
-搜索源统一从代码注册表加载。
-Web Console 只读展示 code source，不允许在线创建、编辑、启用或禁用。
+搜索源由 Source Adapter 代码定义，并同步到 `sources` 目录表。
+Web Console 仅展示和测试搜索源，不允许在线创建、编辑、启用或禁用。
 test endpoint 接收 keyword / result_type / limit，返回 RawSearchItem 预览、错误信息和逐步测试日志。
-响应字段只包含 id、name、type、description；不返回 enabled、legal_note 或数据库错误状态。
+响应字段只包含 id、name、description、homepage_url；不返回 enabled、legal_note 或数据库错误状态。
 ```
 
 ---

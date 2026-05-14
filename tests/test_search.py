@@ -40,15 +40,15 @@ async def duplicate_search(query: SearchQuery) -> list[RawSearchItem]:
 
 
 def static_source() -> SourceModel:
-    return SourceModel(id="static", name="静态源", description="测试用静态源。", search_function=static_search)
+    return SourceModel(id="static", name="静态源", description="测试用静态源。", homepage_url="https://example.invalid/static", search_function=static_search)
 
 
 def failing_source() -> SourceModel:
-    return SourceModel(id="failing", name="失败源", description="测试用失败源。", search_function=failing_search)
+    return SourceModel(id="failing", name="失败源", description="测试用失败源。", homepage_url="https://example.invalid/failing", search_function=failing_search)
 
 
 def duplicate_source() -> SourceModel:
-    return SourceModel(id="duplicate", name="重复源", description="测试用重复源。", search_function=duplicate_search)
+    return SourceModel(id="duplicate", name="重复源", description="测试用重复源。", homepage_url="https://example.invalid/duplicate", search_function=duplicate_search)
 
 
 def test_extract_cloud_links_with_code() -> None:

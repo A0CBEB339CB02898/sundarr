@@ -9,6 +9,8 @@ def get_registered_sources() -> list[SourceModel]:
             id=seedhub.id,
             name=seedhub.name,
             description=seedhub.description,
+            homepage_url=seedhub.homepage_url,
             search_function=seedhub.search,
+            test_function=seedhub.test_search,
         )
     ]

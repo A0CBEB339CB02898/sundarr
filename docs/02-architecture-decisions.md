@@ -377,15 +377,15 @@ AI Friendly API 后移到后续阶段。
 ```text
 聚合搜索必须使用 Source Adapter 框架。
 每个 source 输出统一 RawSearchItem。
-真实媒体源通过代码型 Source Adapter 逐站点接入。
-Source 统一从代码注册表加载，不再由用户通过 Web Console 创建 configurable / document source。
+真实媒体源通过 Source Adapter 逐站点接入。
+Source 统一由 Adapter 代码定义，并同步到 `sources` 目录表，不再由用户通过 Web Console 创建 configurable / document source。
 不得在数据库、配置文件或 Web Console 中保存可执行 Python 代码。
 ```
 
 近期主线源类型：
 
 ```text
-代码型源
+Source Adapter
 ```
 
 规则：
@@ -393,9 +393,9 @@ Source 统一从代码注册表加载，不再由用户通过 Web Console 创建
 ```text
 单个源失败不能影响整体搜索。
 聚合后统一解析、提取、标准化、去重、排序。
-Web Console 只读展示已安装代码型 Adapter，并提供测试和错误查看入口。
-代码型 Source Adapter 不允许前端在线编辑。
-当前已开始接入真实代码型搜索源，首个实现为 `SeedHubSource`。
+Web Console 展示已安装搜索源列表，并在详情弹窗中提供测试搜索和步骤日志。
+Source Adapter 不允许前端在线编辑。
+当前已开始接入真实搜索源，首个实现为 `SeedHubSource`。
 真实站点爬虫、通用爬虫规则引擎和通过 Web Console 配置复杂网站爬虫需要后续独立大阶段规划。
 文档型网站是否可通用读取可作为后续实验阶段验证，不作为当前主线承诺。
 ```

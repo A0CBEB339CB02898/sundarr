@@ -98,7 +98,7 @@ MVP 包含轻量 Web Console。
 搜索资源
 展示候选结果
 查看资源详情
-管理已安装代码型 Source Adapter
+管理已安装搜索源
 查看和修改多个 SMB 连接
 测试 SMB 连接
 浏览 SMB 目录
@@ -163,22 +163,22 @@ cookie/token/password 不写入日志
 媒体源近期主线：
 
 ```text
-真实网站代码型 Source Adapter 框架
-每个真实网站通过一个代码型 Adapter 接入
+真实网站 Source Adapter 框架
+每个真实网站通过一个 Adapter 接入
 多个 Adapter 并发搜索
 结果统一进入 Search Pipeline
-搜索源统一从代码注册表加载，不由用户在 Web Console 创建配置型源
+搜索源统一由 Adapter 代码定义，不由用户在 Web Console 创建配置型源
 ```
 
-代码型 Source Adapter 必须通过代码实现和部署，不允许在 Web Console 中在线编辑 Python 代码。
+Source Adapter 必须通过代码实现和部署，不允许在 Web Console 中在线编辑 Python 代码。
 
-当前已开始接入真实代码型搜索源，首个实现为 `SeedHubSource`。
+当前已开始接入真实搜索源，首个实现为 `SeedHubSource`。
 
 Phase 0-7 已覆盖：
 
 ```text
 Source Adapter 抽象
-代码注册表和首个 SeedHubSource
+Source Adapter 注册和首个 SeedHubSource
 Search Pipeline
 sources 管理 API
 Web Console Sources 页面
@@ -188,7 +188,7 @@ Phase 0-7 未覆盖：
 
 ```text
 真实站点爬虫
-真实网站代码型 Adapter SDK 完整开发体验
+真实网站 Adapter SDK 完整开发体验
 多个真实网站 Adapter 并发搜索验收
 站点分页和反爬策略
 通过 Web Console 配置复杂爬虫

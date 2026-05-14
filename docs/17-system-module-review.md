@@ -13,10 +13,10 @@ Sundarr 系统按职责分为以下模块：
 职责：接入真实媒体网站，提供搜索能力。
 
 ```text
-每个真实网站通过一个代码型 Source Adapter 接入。
+每个真实网站通过一个 Source Adapter 接入。
 多个 Adapter 并发搜索，结果统一进入搜索模块。
-Source 统一从代码注册表加载，不再由用户在 Web Console 中创建或配置。
-Web Console 只读展示已安装 Adapter，并提供测试和错误查看入口。
+Source 统一由 Adapter 代码定义，并同步到 `sources` 目录表，不再由用户在 Web Console 中创建或配置。
+Web Console 展示已安装搜索源列表，并在详情弹窗中提供测试搜索和步骤日志。
 ```
 
 关联：媒体源通过统一接口暴露给搜索模块。
@@ -166,7 +166,7 @@ sundarr/app/
 │   ├── remote_media_library_service.py # 远程媒体库管理       ✓ 已实现
 │   ├── sync_service.py            # 同步绑定+扫描+任务创建    ✓ 已实现
 │   ├── download_to_local_service.py # 历史同步实现            ✗ 旧模块，待删除
-│   └── source_service.py          # 代码注册源只读查询/测试   ✓ 已实现
+│   └── source_service.py          # 搜索源目录同步和测试      ✓ 已实现
 ├── api/                           # API 路由
 │   ├── search.py                  # 搜索                      ✓
 │   ├── resources.py               # 资源                      ✓
@@ -187,7 +187,7 @@ sundarr/app/
 │   └── local.py                   # LocalCloudProvider        ✓
 ├── sources/                       # Source Adapter 框架
 │   ├── base.py                    # SourceModel               ✓
-│   ├── registry.py                # 代码注册表                ✓
+│   ├── registry.py                # Adapter 注册入口          ✓
 │   └── seedhub.py                 # 首个真实搜索源            ✓
 └── parsers/
     └── link_extractor.py          # 网盘链接提取              ✓
@@ -467,7 +467,7 @@ GET      /health
 | test_storage_config.py | 旧单 SMB 配置测试 |
 | test_transfers.py | Transfer API 测试 |
 | test_search.py | 搜索测试 |
-| test_sources.py | 代码注册源列表和测试搜索 |
+| test_sources.py | 搜索源列表同步和测试搜索 |
 
 ### 7.2 重构后测试
 

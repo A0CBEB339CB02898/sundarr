@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from sundarr.app.config import PROJECT_ROOT, get_settings, redact_url_password
 from sundarr.app.models import Setting
+from sundarr.app.services.source_service import source_service
 
 DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
     "worker.enabled": {"enabled": True},
@@ -32,6 +33,7 @@ def initialize_database() -> None:
     create_database_if_missing(database_url)
     run_migrations()
     seed_default_settings(database_url)
+    seed_registered_sources(database_url)
 
 
 def create_database_if_missing(database_url: str) -> None:
@@ -78,6 +80,15 @@ def seed_default_settings(database_url: str) -> None:
     print(f"默认业务配置已检查：新增 {changed} 项。")
 
 
+def seed_registered_sources(database_url: str) -> None:
+    engine = create_engine(database_url, pool_pre_ping=True)
+    session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    with session_factory() as session:
+        changed = seed_registered_sources_for_session(session)
+    engine.dispose()
+    print(f"搜索源目录已同步：变更 {changed} 项。")
+
+
 def seed_default_settings_for_session(session: Session) -> int:
     changed = 0
     for key, value in DEFAULT_SETTINGS.items():
@@ -86,6 +97,10 @@ def seed_default_settings_for_session(session: Session) -> int:
         session.add(Setting(key=key, value_json=value, is_sensitive=False))
         changed += 1
     return changed
+
+
+def seed_registered_sources_for_session(session: Session) -> int:
+    return source_service.sync_registered_sources(session)
 
 
 def _build_maintenance_url(database_url: str) -> str:

@@ -52,7 +52,7 @@ class ResourceLibraryService:
         resource_link.code = link.code
         resource_link.valid = link.valid
         resource_link.risk_level = link.risk_level
-        resource_link.source_id = None
+        resource_link.source_id = candidate.source_id
         resource_link.source_url = candidate.source_url
         resource_link.last_checked_at = link.checked_at
 

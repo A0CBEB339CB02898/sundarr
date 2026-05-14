@@ -1,16 +1,13 @@
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, Field
-
-SourceType = Literal["code"]
-
 
 class SourceResponse(BaseModel):
     id: str
     name: str
-    type: SourceType
     description: str
+    homepage_url: str
 
 
 class SourceListResponse(BaseModel):

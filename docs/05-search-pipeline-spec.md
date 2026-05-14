@@ -33,7 +33,7 @@ Search Service 负责调度多个 source。
 规则：
 
 ```text
-只调用代码注册表中的 SourceModel 实例；代码型 source 不再单独启用或禁用。
+只调用代码中的 SourceModel 实例；搜索源不再单独启用或禁用。
 多个 source 并发执行。
 单个 source 失败不能影响整体搜索。
 source timeout 和 global timeout 必须生效。

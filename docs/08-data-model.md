@@ -22,24 +22,18 @@ Redis 只做缓存和实时进度辅助。
 
 ---
 
-## 2. sources（历史残留）
+## 2. sources
 
-用途：历史上保存媒体源配置。当前代码型搜索源的事实来源已经迁移到 `sundarr/app/sources/registry.py`，`/sources` API 和搜索管线不得读取该表。
+用途：保存已安装搜索源的目录信息，与代码中的 Source Adapter 对应。搜索执行逻辑仍以代码 Adapter 为事实来源，`sources` 表只用于列表展示和外键关联。
 
 字段：
 
 ```text
 id TEXT PRIMARY KEY
 name TEXT NOT NULL
-type TEXT NOT NULL
-enabled BOOLEAN NOT NULL DEFAULT TRUE        # 历史字段，不再对代码型 source 生效
-legal_note TEXT                             # 历史字段，不再对 Web Console 暴露
-trust_level INTEGER NOT NULL DEFAULT 1      # 历史字段，不再作为代码注册源事实来源
-created_by_user BOOLEAN NOT NULL DEFAULT TRUE # 历史字段，不再对 Web Console 暴露
-config_json JSONB                           # 历史字段，不再保存 source 配置
-last_error_code TEXT                        # 历史字段，不再对代码型 source 生效
-last_error_message TEXT                     # 历史字段，不再对代码型 source 生效
-last_checked_at TIMESTAMP
+description TEXT NOT NULL DEFAULT ''
+homepage_url TEXT NOT NULL DEFAULT ''
+registered_at TIMESTAMP NOT NULL
 created_at TIMESTAMP NOT NULL
 updated_at TIMESTAMP NOT NULL
 ```
@@ -47,8 +41,9 @@ updated_at TIMESTAMP NOT NULL
 约束：
 
 ```text
-搜索源事实来源是代码注册表，不再通过 Web Console 管理 configurable / document。
-新增代码型 source 不应新增数据库行；后续迁移可删除该表及 `resource_links.source_id` 外键。
+搜索源不支持启用、禁用、合规说明、信任等级、最后错误等旧字段。
+项目初始化和 `/sources` / `/search` API 会把代码中的 Source Adapter 同步到该表。
+Web Console 不允许创建、编辑、删除搜索源，也不在数据库中保存可执行 Python 代码。
 ```
 
 ---
