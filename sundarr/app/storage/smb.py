@@ -154,7 +154,7 @@ class SmbWriter(StorageWriter):
         try:
             smbclient.rmdir(self._build_unc_path(path))
         except Exception as exc:
-            raise ValueError("SMB_WRITE_FAILED") from exc
+            self._raise_smb_error(exc)
 
     async def list_dir(self, path: str) -> list[dict[str, object]]:
         target = self._build_unc_path(path)
@@ -233,13 +233,26 @@ class SmbWriter(StorageWriter):
 
         if any(marker in upper_text for marker in ("STATUS_LOGON_FAILURE", "LOGON_FAILURE", "AUTHENTICATION")):
             return "SMB_AUTH_FAILED", f"SMB 认证失败。请检查用户名、密码、domain 和账号状态。目标：{target}，共享：{share}。"
-        if "STATUS_ACCESS_DENIED" in upper_text:
+        if any(
+            marker in upper_text
+            for marker in (
+                "STATUS_ACCESS_DENIED",
+                "ACCESS_DENIED",
+                "ACCESS IS DENIED",
+                "PERMISSION_DENIED",
+                "PERMISSION DENIED",
+                "ERRNO 13",
+                "WINERROR 5",
+            )
+        ):
             return "SMB_PERMISSION_DENIED", f"SMB 认证通过但权限不足。请检查账号是否有访问共享或目标目录的权限。目标：{target}，共享：{share}。"
         if any(marker in upper_text for marker in ("STATUS_BAD_NETWORK_NAME", "BAD_NETWORK_NAME")):
             return "SMB_SHARE_NOT_FOUND", f"SMB 共享不存在或名称不正确。请检查 share 配置。目标：{target}，共享：{share}。"
+        if any(marker in upper_text for marker in ("STATUS_NOT_SUPPORTED", "NOT_SUPPORTED", "NOT SUPPORTED")):
+            return "SMB_OPERATION_NOT_SUPPORTED", f"SMB 服务端不支持当前文件操作。请检查共享目录是否来自远程挂载、虚拟文件系统或只读/受限后端。目标：{target}，共享：{share}。"
         if any(marker in upper_text for marker in ("TIMEOUT", "TIMED OUT", "CONNECTION REFUSED", "NO ROUTE", "GETADDRINFO", "NAME OR SERVICE")):
             return "SMB_HOST_UNREACHABLE", f"无法连接 SMB 主机或端口。请检查 host、port、防火墙、网络和 SMB 服务状态。目标：{target}。"
-        if isinstance(exc, (TimeoutError, ConnectionRefusedError, OSError)):
+        if isinstance(exc, (TimeoutError, ConnectionRefusedError)):
             return "SMB_HOST_UNREACHABLE", f"无法连接 SMB 主机或端口。请检查 host、port、防火墙、网络和 SMB 服务状态。目标：{target}。"
         return "SMB_CONNECT_FAILED", f"SMB 连接失败，底层错误：{self._safe_error_text(text)}"
 

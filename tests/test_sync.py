@@ -161,6 +161,42 @@ async def test_sync_scan_accepts_remote_library_id(db_session: Session) -> None:
 
 
 @pytest.mark.anyio
+async def test_scan_dir_removes_empty_child_dirs_but_keeps_remote_root(db_session: Session) -> None:
+    remote = RemoteMediaLibrary(
+        id="rml_remote",
+        name="远程电影",
+        media_type="movie",
+        connection_id="conn_1",
+        base_path="CloudMovie",
+        delete_empty_source_dirs=True,
+    )
+    db_session.add(remote)
+    db_session.commit()
+
+    tree = {
+        "CloudMovie": [{"path": "CloudMovie/Empty", "is_dir": True}],
+        "CloudMovie/Empty": [],
+    }
+    removed: list[str] = []
+
+    async def list_dir(_connection_id: str, path: str) -> list[dict]:
+        return tree[path]
+
+    class FakeWriter:
+        async def remove_empty_dir(self, path: str) -> None:
+            removed.append(path)
+
+    sync_service._list_dir_override = list_dir
+    try:
+        result = await sync_service._scan_dir(db_session, remote, remote.base_path, True, FakeWriter())
+    finally:
+        sync_service._list_dir_override = None
+
+    assert result == []
+    assert removed == ["CloudMovie/Empty"]
+
+
+@pytest.mark.anyio
 async def test_create_sync_tasks_marks_existing_same_md5_completed(db_session: Session, monkeypatch) -> None:
     db_session.add_all(
         [

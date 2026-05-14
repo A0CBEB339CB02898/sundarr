@@ -174,7 +174,17 @@ class SyncService:
                 continue
             scanned_count += 1
             stable_seconds = remote_lib.stable_seconds or 120
-            entries = await self._scan_dir(db, remote_lib, remote_lib.base_path)
+            delete_empty = self._resolve_delete_empty_source_dirs(binding, remote_lib)
+            source_writer: StorageWriter | None = None
+            if delete_empty and self._list_dir_override is None:
+                source_writer = SmbWriter(
+                    SmbConfig(
+                        host=remote_conn.host, port=remote_conn.port, share=remote_conn.share,
+                        username=remote_conn.username, password=remote_conn.password,
+                        domain=remote_conn.domain or "", base_path=remote_conn.base_path,
+                    )
+                )
+            entries = await self._scan_dir(db, remote_lib, remote_lib.base_path, delete_empty, source_writer)
             for entry in entries:
                 seen = self._upsert_seen_file(db, binding, remote_lib, entry, stable_seconds)
                 results.append(seen)
@@ -334,17 +344,47 @@ class SyncService:
         except (SmbStorageError, ValueError):
             return False
 
-    async def _scan_dir(self, db: Session, lib: RemoteMediaLibrary, path: str) -> list[dict]:
+    async def _scan_dir(
+        self,
+        db: Session,
+        lib: RemoteMediaLibrary,
+        path: str,
+        delete_empty: bool = False,
+        writer: StorageWriter | None = None,
+    ) -> list[dict]:
         entries = await self._list_source_dir(db, lib, path)
         files: list[dict] = []
         for entry in entries:
             if entry.get("is_dir"):
-                files.extend(await self._scan_dir(db, lib, str(entry.get("path", ""))))
+                child_files = await self._scan_dir(db, lib, str(entry.get("path", "")), delete_empty, writer)
+                files.extend(child_files)
             else:
                 source_path = str(entry.get("path", "")).replace("\\", "/").strip("/")
                 if not source_path.endswith(DOWNLOADING_SUFFIX):
                     files.append(entry)
+
+        # 不删除用户配置的根目录
+        normalized_base = lib.base_path.strip().replace("\\", "/").strip("/")
+        normalized_path = path.strip().replace("\\", "/").strip("/")
+        is_root = normalized_path == normalized_base
+
+        if delete_empty and writer is not None and not files and not is_root:
+            try:
+                await writer.remove_empty_dir(path)
+                print(f"远程媒体库空目录已删除：{path}", flush=True)
+            except SmbStorageError as exc:
+                print(f"远程媒体库空目录删除失败：{path}，错误：{exc.code}，{exc.message}", flush=True)
+            except Exception as exc:
+                print(f"远程媒体库空目录删除失败：{path}，错误：{type(exc).__name__}: {exc}", flush=True)
+
         return files
+
+    def _resolve_delete_empty_source_dirs(self, binding: SyncBinding, remote_lib: RemoteMediaLibrary) -> bool:
+        if binding.delete_empty_source_dirs is not None:
+            return binding.delete_empty_source_dirs
+        if remote_lib.delete_empty_source_dirs is not None:
+            return remote_lib.delete_empty_source_dirs
+        return True
 
     async def _list_source_dir(self, db: Session, lib: RemoteMediaLibrary, path: str) -> list[dict]:
         if self._list_dir_override is not None:

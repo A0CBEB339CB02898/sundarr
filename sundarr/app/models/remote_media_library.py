@@ -18,7 +18,7 @@ class RemoteMediaLibrary(TimestampMixin, Base):
     scan_interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=60, server_default="60")
     stable_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=120, server_default="120")
     delete_source_after_success: Mapped[bool | None] = mapped_column()
-    delete_empty_source_dirs: Mapped[bool | None] = mapped_column()
+    delete_empty_source_dirs: Mapped[bool | None] = mapped_column(default=True, server_default="true")
     last_test_ok: Mapped[bool | None] = mapped_column(Boolean)
     last_test_error_code: Mapped[str | None] = mapped_column(Text)
     last_test_error_message: Mapped[str | None] = mapped_column(Text)

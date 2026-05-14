@@ -97,6 +97,56 @@ async def test_smb_writer_remove_empty_dir_rejects_root(smb_writer: SmbWriter) -
 
 
 @pytest.mark.anyio
+async def test_smb_writer_remove_empty_dir_classifies_permission_denied(
+    smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class FakeSmbClient:
+        def rmdir(self, path: str) -> None:
+            raise RuntimeError("STATUS_ACCESS_DENIED")
+
+    monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
+
+    with pytest.raises(SmbStorageError) as exc_info:
+        await smb_writer.remove_empty_dir("Movies/Empty")
+
+    assert exc_info.value.code == "SMB_PERMISSION_DENIED"
+
+
+@pytest.mark.anyio
+async def test_smb_writer_remove_empty_dir_keeps_unknown_os_error_detail(
+    smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class FakeSmbClient:
+        def rmdir(self, path: str) -> None:
+            raise OSError("Directory not empty")
+
+    monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
+
+    with pytest.raises(SmbStorageError) as exc_info:
+        await smb_writer.remove_empty_dir("Movies/MaybeNotEmpty")
+
+    assert exc_info.value.code == "SMB_CONNECT_FAILED"
+    assert "Directory not empty" in exc_info.value.message
+
+
+@pytest.mark.anyio
+async def test_smb_writer_remove_empty_dir_classifies_unsupported_operation(
+    smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class FakeSmbClient:
+        def rmdir(self, path: str) -> None:
+            raise RuntimeError("STATUS_NOT_SUPPORTED")
+
+    monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
+
+    with pytest.raises(SmbStorageError) as exc_info:
+        await smb_writer.remove_empty_dir("Movies/RemoteMountedDir")
+
+    assert exc_info.value.code == "SMB_OPERATION_NOT_SUPPORTED"
+    assert "不支持" in exc_info.value.message
+
+
+@pytest.mark.anyio
 async def test_smb_writer_classifies_auth_failure(smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeSmbClient:
         def listdir(self, path: str) -> list[str]:
