@@ -911,6 +911,18 @@ function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
 
   useEffect(() => { void loadAll() }, [page, pageSize])
 
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      if (showForm) { setShowForm(false); return }
+      if (showBrowse) { setShowBrowse(false); setBrowseResult(null); setBrowsePath(''); return }
+      if (showDelete) setShowDelete(false)
+    }
+    if (!showForm && !showBrowse && !showDelete) return
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showForm, showBrowse, showDelete])
+
   async function loadAll() {
     setIsLoading(true)
     setLoadError(null)
@@ -1644,6 +1656,18 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
 
   useEffect(() => { void loadAll() }, [page, pageSize])
 
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      if (showForm) { setShowForm(false); return }
+      if (showBrowse) { setShowBrowse(false); setBrowseResult(null); setBrowsePath(''); return }
+      if (showDelete) setShowDelete(false)
+    }
+    if (!showForm && !showBrowse && !showDelete) return
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showForm, showBrowse, showDelete])
+
   async function loadAll() {
     setIsLoading(true)
     setLoadError(null)
@@ -1921,10 +1945,10 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
               </select></Field>
               <TextField helper="两次扫描之间的间隔秒数。" label="扫描间隔(秒)" onChange={(v) => updateForm('scan_interval_seconds', v)} type="number" value={form.scan_interval_seconds} />
               <TextField helper="文件 size/mtime 不变超过该秒数后才创建任务。" label="稳定等待(秒)" onChange={(v) => updateForm('stable_seconds', v)} type="number" value={form.stable_seconds} />
-              <Field label="成功后删除来源" helper="为空时使用全局配置。"><select value={form.delete_source_after_success} onChange={(e) => updateForm('delete_source_after_success', e.target.value)}>
+              <Field label="成功后删除来源" helper="同步成功后删除远程媒体库中的来源文件。"><select value={form.delete_source_after_success} onChange={(e) => updateForm('delete_source_after_success', e.target.value)}>
                 <option value="">使用全局默认</option><option value="true">删除</option><option value="false">保留</option>
               </select></Field>
-              <Field label="成功后删除空目录" helper="为空时使用全局配置。"><select value={form.delete_empty_source_dirs} onChange={(e) => updateForm('delete_empty_source_dirs', e.target.value)}>
+              <Field label="删除空目录" helper="扫描时自动删除远程媒体库中的空目录。"><select value={form.delete_empty_source_dirs} onChange={(e) => updateForm('delete_empty_source_dirs', e.target.value)}>
                 <option value="">使用全局默认</option><option value="true">删除</option><option value="false">保留</option>
               </select></Field>
             </div>
@@ -4214,7 +4238,7 @@ function remoteBindingPreview(names: string[]) {
 }
 
 function emptyRemoteLibraryForm(): RemoteMediaLibraryFormState {
-  return { id: '', name: '', media_type: 'movie', enabled: true, connection_id: '', base_path: '/', target_library_id: '', scan_interval_seconds: '60', stable_seconds: '120', delete_source_after_success: '', delete_empty_source_dirs: '' }
+  return { id: '', name: '', media_type: 'movie', enabled: true, connection_id: '', base_path: '/', target_library_id: '', scan_interval_seconds: '60', stable_seconds: '120', delete_source_after_success: '', delete_empty_source_dirs: 'true' }
 }
 
 function emptyDtlConfigForm(): DtlConfigFormState {
