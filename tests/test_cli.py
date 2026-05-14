@@ -70,13 +70,14 @@ def test_prepare_port_cleans_project_process(tmp_path: Path, monkeypatch: pytest
     killed: list[int] = []
 
     monkeypatch.setattr(cli, "_is_process_running", lambda pid: pid == 123)
-    monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid))
+    monkeypatch.setattr(cli, "_is_sundarr_process", lambda pid: True)
+    monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid) or True)
     monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: False)
 
     cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
 
     assert killed == [123]
-    assert not service.pid_file.exists()
+    assert service.pid_file.exists()
 
 
 def test_prepare_port_waits_after_pid_file_cleanup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -90,13 +91,64 @@ def test_prepare_port_waits_after_pid_file_cleanup(tmp_path: Path, monkeypatch: 
     killed: list[int] = []
 
     monkeypatch.setattr(cli, "_is_process_running", lambda pid: pid == 123)
-    monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid))
+    monkeypatch.setattr(cli, "_is_sundarr_process", lambda pid: True)
+    monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid) or True)
     monkeypatch.setattr(cli, "_wait_port_released", lambda host, port, timeout_seconds=3.0: True)
     monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: (_ for _ in ()).throw(AssertionError("不应继续检查端口")))
 
     cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
 
     assert killed == [123]
+
+
+def test_stop_service_keeps_pid_file_when_cleanup_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    service = cli.ManagedService(
+        name="api",
+        display_name="Sundarr API",
+        pid_file=tmp_path / "api.pid",
+        log_file=tmp_path / "api.log",
+    )
+    service.pid_file.write_text("123", encoding="utf-8")
+
+    monkeypatch.setattr(cli, "_is_process_running", lambda pid: pid == 123)
+    monkeypatch.setattr(cli, "_kill_process", lambda pid: False)
+
+    with pytest.raises(RuntimeError, match="清理失败"):
+        cli._stop_service(service, quiet=True)
+
+    assert service.pid_file.exists()
+
+
+def test_stop_service_keeps_pid_file_when_cleanup_succeeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    service = cli.ManagedService(
+        name="api",
+        display_name="Sundarr API",
+        pid_file=tmp_path / "api.pid",
+        log_file=tmp_path / "api.log",
+    )
+    service.pid_file.write_text("123", encoding="utf-8")
+
+    monkeypatch.setattr(cli, "_is_process_running", lambda pid: pid == 123)
+    monkeypatch.setattr(cli, "_kill_process", lambda pid: True)
+
+    assert cli._stop_service(service, quiet=True) is True
+    assert service.pid_file.exists()
+
+
+def test_prepare_port_rejects_pid_file_reused_by_external_process(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    service = cli.ManagedService(
+        name="api",
+        display_name="Sundarr API",
+        pid_file=tmp_path / "api.pid",
+        log_file=tmp_path / "api.log",
+    )
+    service.pid_file.write_text("123", encoding="utf-8")
+
+    monkeypatch.setattr(cli, "_is_process_running", lambda pid: pid == 123)
+    monkeypatch.setattr(cli, "_sundarr_process_tree_root", lambda pid: None)
+
+    with pytest.raises(RuntimeError, match="PID 文件指向非 Sundarr 进程"):
+        cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
 
 
 def test_prepare_port_rejects_external_process(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -125,7 +177,7 @@ def test_prepare_port_cleans_sundarr_port_process_without_pid_file(tmp_path: Pat
 
     monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: next(port_checks))
     monkeypatch.setattr(cli, "_find_sundarr_port_cleanup_pid", lambda host, port: (456, 456))
-    monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid))
+    monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid) or True)
     monkeypatch.setattr(cli, "_wait_port_released", lambda host, port: True)
 
     cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
@@ -144,7 +196,7 @@ def test_prepare_port_cleans_sundarr_process_tree_root(tmp_path: Path, monkeypat
 
     monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: True)
     monkeypatch.setattr(cli, "_find_sundarr_port_cleanup_pid", lambda host, port: (456, 100))
-    monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid))
+    monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid) or True)
     monkeypatch.setattr(cli, "_wait_port_released", lambda host, port: True)
 
     cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
@@ -162,7 +214,7 @@ def test_prepare_port_reports_when_cleanup_does_not_release_port(tmp_path: Path,
 
     monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: True)
     monkeypatch.setattr(cli, "_find_sundarr_port_cleanup_pid", lambda host, port: (456, 100))
-    monkeypatch.setattr(cli, "_kill_process", lambda pid: None)
+    monkeypatch.setattr(cli, "_kill_process", lambda pid: True)
     monkeypatch.setattr(cli, "_wait_port_released", lambda host, port: False)
 
     with pytest.raises(RuntimeError, match="清理后仍被占用"):

@@ -208,8 +208,8 @@ def _stop_service(service: ManagedService, quiet: bool = False) -> bool:
     if not pid:
         return False
     if _is_process_running(pid):
-        _kill_process(pid)
-    service.pid_file.unlink(missing_ok=True)
+        if not _kill_process(pid):
+            raise RuntimeError(f"{service.display_name} 旧进程 PID={pid} 清理失败，请手动结束后重试。")
     if not quiet:
         print(f"{service.display_name} 已停止。")
     return True
@@ -242,13 +242,13 @@ def _prepare_port(service: ManagedService, host: str, port: int, quiet: bool) ->
 def _prepare_process(service: ManagedService, quiet: bool) -> bool:
     pid = _read_pid(service)
     if pid and _is_process_running(pid):
+        if not _is_sundarr_process(pid):
+            raise RuntimeError(f"{service.display_name} PID 文件指向非 Sundarr 进程 PID={pid}，请检查后重试。")
         if not quiet:
             print(f"{service.display_name} 旧进程仍在运行，准备清理 PID={pid}。")
         _stop_service(service, quiet=True)
         time.sleep(0.2)
         return True
-    elif pid:
-        service.pid_file.unlink(missing_ok=True)
     return False
 
 
@@ -356,10 +356,6 @@ def _is_sundarr_process(pid: int) -> bool:
 
 def _sundarr_process_tree_root(pid: int) -> int | None:
     """返回应清理的 Sundarr 进程树根 PID。"""
-    for service in MANAGED_SERVICES:
-        service_pid = _read_pid(service)
-        if service_pid == pid:
-            return service_pid
     current_pid: int | None = pid
     seen: set[int] = set()
     root_pid: int | None = None
@@ -499,14 +495,24 @@ def _is_process_running(pid: int) -> bool:
         return False
 
 
-def _kill_process(pid: int) -> None:
+def _kill_process(pid: int) -> bool:
     if os.name == "nt":
         subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return
+        return _wait_process_stopped(pid)
     try:
         os.killpg(pid, signal.SIGTERM)
     except ProcessLookupError:
-        pass
+        return True
+    return _wait_process_stopped(pid)
+
+
+def _wait_process_stopped(pid: int, timeout_seconds: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if not _is_process_running(pid):
+            return True
+        time.sleep(0.2)
+    return not _is_process_running(pid)
 
 
 def _terminate_process(process: subprocess.Popen) -> None:
