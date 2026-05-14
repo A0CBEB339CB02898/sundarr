@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useState } from 'react'
+import React, { useEffect, useId, useMemo, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import './styles.css'
 import {
@@ -832,43 +832,16 @@ function PagePanel({
   transfers: TransferResponse[]
   showToast: (type: 'success' | 'error' | 'info', message: string) => void
 }) {
-  const copy = pageCopy[activePage]
-  if (activePage === 'status') {
-    return <StatusPanel />
-  }
-  if (activePage === 'transfers') {
-    return <TransfersPanel onTransfersChanged={onTransfersChanged} page={transferPage} pageSize={transferPageSize} totalCount={transferTotalCount} onPageChange={onTransferPageChange} onPageSizeChange={onTransferPageSizeChange} transfers={transfers} showToast={showToast} />
-  }
-  if (activePage === 'storage') {
-    return <StoragePanel showToast={showToast} />
-  }
-  if (activePage === 'search') {
-    return <SearchPanel showToast={showToast} />
-  }
-  if (activePage === 'sources') {
-    return <SourcesPanel />
-  }
-  if (activePage === 'libraries') {
-    return <LibrariesPanel showToast={showToast} />
-  }
-  if (activePage === 'remote-libraries') {
-    return <RemoteLibrariesPanel showToast={showToast} />
-  }
-
   return (
-    <section className="panel" aria-labelledby={`${activePage}-title`}>
-      <div>
-        <p className="panel-kicker">控制台</p>
-        <h2 id={`${activePage}-title`}>页面暂不可用</h2>
-        <p>{copy.next}</p>
-      </div>
-      <div className="state-grid">
-        <UILoadingState message="后续页面加载数据时使用此状态。" />
-        <UIErrorState message="API 错误会统一显示在这里。" />
-        <UIEmptyState message="没有数据时展示明确的空状态。" />
-      </div>
-      <ApiClientPreview />
-    </section>
+    <>
+      <div className={activePage === 'status' ? 'panel-visible' : 'panel-hidden'}><StatusPanel /></div>
+      <div className={activePage === 'transfers' ? 'panel-visible' : 'panel-hidden'}><TransfersPanel onTransfersChanged={onTransfersChanged} page={transferPage} pageSize={transferPageSize} totalCount={transferTotalCount} onPageChange={onTransferPageChange} onPageSizeChange={onTransferPageSizeChange} transfers={transfers} showToast={showToast} /></div>
+      <div className={activePage === 'storage' ? 'panel-visible' : 'panel-hidden'}><StoragePanel showToast={showToast} /></div>
+      <div className={activePage === 'search' ? 'panel-visible' : 'panel-hidden'}><SearchPanel showToast={showToast} /></div>
+      <div className={activePage === 'sources' ? 'panel-visible' : 'panel-hidden'}><SourcesPanel /></div>
+      <div className={activePage === 'libraries' ? 'panel-visible' : 'panel-hidden'}><LibrariesPanel showToast={showToast} /></div>
+      <div className={activePage === 'remote-libraries' ? 'panel-visible' : 'panel-hidden'}><RemoteLibrariesPanel showToast={showToast} /></div>
+    </>
   )
 }
 
@@ -2445,18 +2418,40 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
     showToast('info', `保存到网盘入口已预留：${providerLabel(link.provider)}。`)
   }
 
-  const resultTabs = response
-    ? [
-        { id: 'all', label: '全部', count: response.count, results: response.results, error: null },
-        ...response.source_results.map((group) => ({
-          id: group.source_id,
-          label: group.source_name,
-          count: group.count,
-          results: group.results,
-          error: group.error,
-        })),
-      ]
-    : []
+  const resultTabs = useMemo(() => {
+    if (!response) return []
+    const allTab = { id: 'all', label: '全部', count: response.count, results: response.results, provider: null }
+    const providerMap = new Map<string, {
+      label: string
+      results: ResourceCandidate[]
+      count: number
+    }>()
+    for (const resource of response.results) {
+      for (const link of resource.links) {
+        const provider = link.provider
+        if (!providerMap.has(provider)) {
+          providerMap.set(provider, {
+            label: providerLabel(provider),
+            results: [],
+            count: 0,
+          })
+        }
+        const group = providerMap.get(provider)!
+        if (!group.results.find(r => r.id === resource.id)) {
+          group.results.push(resource)
+          group.count++
+        }
+      }
+    }
+    const providerTabs = Array.from(providerMap.entries()).map(([id, group]) => ({
+      id,
+      label: group.label,
+      count: group.count,
+      results: group.results,
+      provider: id,
+    }))
+    return [allTab, ...providerTabs]
+  }, [response])
   const activeTab = resultTabs.find((tab) => tab.id === activeResultTab) || resultTabs[0]
 
   return (
@@ -2496,7 +2491,7 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
       {response ? (
         <Card emphasis="sunken" className="sx-results-card">
           <div className="sx-section-head"><p className="ui-eyebrow">搜索结果</p><span>{response.count} 个去重结果</span></div>
-          <div className="sx-result-tabs" role="tablist" aria-label="按媒体源查看搜索结果">
+          <div className="sx-result-tabs" role="tablist" aria-label="按网盘来源查看搜索结果">
             {resultTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -2512,15 +2507,13 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
             ))}
           </div>
           <div className="sx-result-pane" role="tabpanel">
-            {activeTab?.error ? (
-              <UIErrorState message="该媒体源搜索失败" sub={activeTab.error} />
-            ) : null}
-            {activeTab && activeTab.results.length === 0 && !activeTab.error ? (
+            {activeTab && activeTab.results.length === 0 ? (
               <UIEmptyState message="没有搜索到结果" sub="可以换一个关键词或结果类型后重新搜索。" />
             ) : null}
             {activeTab?.results.map((resource) => (
               <ResourceCard
                 key={resource.id}
+                activeProvider={activeTab?.provider ?? null}
                 onCopyLink={(link) => void copyLink(link)}
                 onSaveToCloud={saveToCloud}
                 resource={resource}
@@ -2536,51 +2529,36 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
 }
 
 function ResourceCard({
+  activeProvider,
   onCopyLink,
   onSaveToCloud,
   resource,
 }: {
+  activeProvider: string | null
   onCopyLink: (link: ResourceLinkResult) => void
   onSaveToCloud: (link: ResourceLinkResult) => void
   resource: ResourceCandidate
 }) {
-  const primaryLink = resource.links[0]
+  const links = activeProvider
+    ? resource.links.filter((link) => link.provider === activeProvider)
+    : resource.links
+
   return (
     <article className="resource-card">
-      <a
-        className="resource-header resource-main-link"
-        href={primaryLink?.url || resource.source_url || '#'}
-        target="_blank"
-        rel="noreferrer"
-        aria-disabled={!primaryLink && !resource.source_url}
-        onClick={(event) => {
-          if (!primaryLink && !resource.source_url) event.preventDefault()
-        }}
-      >
-        <div>
-          <span className="status-pill running">{mediaTypeLabel(resource.type)}</span>
-          <h3>{resource.title}</h3>
-          <p>{resource.explanation}</p>
-        </div>
-        <strong>{resource.score.toFixed(2)}</strong>
-      </a>
-      <div className="detail-grid">
-        <DetailItem label="年份" value={resource.year ? String(resource.year) : '未知'} />
-        <DetailItem label="质量" value={resource.quality || '未知'} />
-        <DetailItem label="来源" value={resource.source_id} />
+      <div className="resource-header">
+        <h3>{resource.title}</h3>
       </div>
       <div className="link-list">
-        {resource.links.length === 0 ? <UIEmptyState message="该候选资源没有可用链接" /> : null}
-        {resource.links.map((link) => (
+        {links.length === 0 ? <UIEmptyState message="该候选资源没有可用链接" /> : null}
+        {links.map((link) => (
           <div className="link-row" key={link.id}>
             <a href={link.url} target="_blank" rel="noreferrer">
-              <span>{providerLabel(link.provider)}</span>
               <strong>{link.url}</strong>
               <small>{link.code ? `提取码：${link.code}` : '无提取码'}</small>
             </a>
-            <span className="link-validity" data-status={link.validation_status}>
+            <StatusBadge tone={linkValidationTone(link.validation_status)}>
               {validationLabel(link)}
-            </span>
+            </StatusBadge>
             <div className="link-actions">
               <Button variant="ghost" size="sm" type="button" onClick={() => onSaveToCloud(link)}>保存到网盘</Button>
               <Button variant="ghost" size="sm" type="button" onClick={() => onCopyLink(link)}>复制链接</Button>
@@ -2588,6 +2566,7 @@ function ResourceCard({
           </div>
         ))}
       </div>
+      <p className="resource-source">来源 {resource.source_id}</p>
     </article>
   )
 }
@@ -4374,6 +4353,14 @@ function validationLabel(link: ResourceLinkResult) {
   if (link.validation_status === 'error') return '检测失败'
   if (link.validation_status === 'unknown') return '未知'
   return link.valid === true ? '有效' : link.valid === false ? '失效' : '未检测'
+}
+
+function linkValidationTone(status: ResourceLinkResult['validation_status']): StatusTone {
+  if (status === 'valid') return 'success'
+  if (status === 'invalid' || status === 'error') return 'danger'
+  if (status === 'unknown') return 'paused'
+  if (status === 'checking') return 'running'
+  return 'info'
 }
 
 function dtlMediaTypeLabel(type: DtlMediaType) {
