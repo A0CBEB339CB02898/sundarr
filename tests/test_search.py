@@ -101,6 +101,19 @@ def test_seedhub_source_parses_movie_cards() -> None:
     ]
 
 
+def test_seedhub_source_normalizes_redirect_link() -> None:
+    source = SeedHubSource()
+
+    assert source._normalize_seedhub_download_link("/link_start/?redirect_to=pan_id_1&movie_title=怪奇物语 4K") == "/link_start/?redirect_to=pan_id_1"
+
+
+def test_seedhub_source_detects_supported_netdisk_links() -> None:
+    source = SeedHubSource()
+
+    assert "https://115.com/s/abc123" in source._extract_direct_links("115 https://115.com/s/abc123")
+    assert source._contains_supported_link("123云盘 https://www.123pan.com/s/a-b")
+
+
 def test_extract_cloud_links_supports_more_netdisk_providers() -> None:
     links = extract_cloud_links("UC https://drive.uc.cn/s/abc 123 https://www.123pan.com/s/a-b 天翼 https://cloud.189.cn/t/ABC")
 

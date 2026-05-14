@@ -2,10 +2,12 @@ import asyncio
 import re
 from datetime import UTC, datetime
 from html import unescape
+from http.client import InvalidURL
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, unquote, urljoin
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urljoin, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
+from sundarr.app.parsers.link_extractor import LINK_PATTERNS
 from sundarr.app.schemas.search import RawSearchItem, SearchQuery
 from sundarr.app.sources.base import SourceTestEvent, SourceTestExecution
 
@@ -18,22 +20,14 @@ class SeedHubSource:
     base_url = "https://www.seedhub.cc"
     homepage_url = base_url
     timeout_seconds = 30
-    max_details = 8
+    max_details = 20
     max_resolved_links_per_detail = 8
 
     async def search(self, query: SearchQuery) -> list[RawSearchItem]:
         html = await asyncio.to_thread(self._fetch, self._search_url(query.keyword))
         detail_urls = self._parse_detail_urls(html)
-        items: list[RawSearchItem] = []
-        for detail_url in detail_urls[: self.max_details]:
-            try:
-                detail_html = await asyncio.to_thread(self._fetch, detail_url)
-            except URLError:
-                continue
-            item = self._parse_detail(detail_url, detail_html)
-            if item is not None:
-                items.append(item)
-        return items
+        results = await asyncio.gather(*(self._fetch_detail_item(detail_url) for detail_url in detail_urls[: self.max_details]))
+        return [item for item in results if item is not None]
 
     async def test_search(self, query: SearchQuery) -> SourceTestExecution:
         logs = [
@@ -60,7 +54,7 @@ class SeedHubSource:
         for detail_url in detail_urls[: min(query.limit, self.max_details)]:
             try:
                 detail_html = await asyncio.to_thread(self._fetch, detail_url)
-            except URLError as exc:
+            except (InvalidURL, URLError, ValueError) as exc:
                 logs.append(
                     SourceTestEvent(
                         step="fetch_detail_page",
@@ -71,7 +65,7 @@ class SeedHubSource:
                 )
                 continue
             logs.append(SourceTestEvent(step="fetch_detail_page", status="ok", message="详情页请求完成。", data={"url": detail_url, "bytes": len(detail_html)}))
-            item = self._parse_detail(detail_url, detail_html)
+            item = await self._parse_detail_async(detail_url, detail_html)
             if item is None:
                 logs.append(SourceTestEvent(step="extract_links", status="empty", message="详情页未提取到支持的链接。", data={"url": detail_url}))
                 continue
@@ -129,6 +123,20 @@ class SeedHubSource:
 
     def _parse_detail(self, detail_url: str, html: str) -> RawSearchItem | None:
         content = self._build_detail_content(detail_url, html)
+        return self._build_raw_item(detail_url, html, content)
+
+    async def _fetch_detail_item(self, detail_url: str) -> RawSearchItem | None:
+        try:
+            detail_html = await asyncio.to_thread(self._fetch, detail_url)
+        except (InvalidURL, URLError, ValueError):
+            return None
+        return await self._parse_detail_async(detail_url, detail_html)
+
+    async def _parse_detail_async(self, detail_url: str, html: str) -> RawSearchItem | None:
+        content = await self._build_detail_content_async(detail_url, html)
+        return self._build_raw_item(detail_url, html, content)
+
+    def _build_raw_item(self, detail_url: str, html: str, content: str) -> RawSearchItem | None:
         if not self._contains_supported_link(content):
             return None
         return RawSearchItem(
@@ -147,7 +155,22 @@ class SeedHubSource:
         for link in self._extract_seedhub_download_links(html)[: self.max_resolved_links_per_detail]:
             try:
                 resolved = self._resolve_seedhub_link(link)
-            except (HTTPError, URLError, TimeoutError):
+            except (HTTPError, InvalidURL, URLError, TimeoutError, ValueError):
+                continue
+            if resolved:
+                parts.append(resolved)
+        return "\n".join(part for part in parts if part)
+
+    async def _build_detail_content_async(self, detail_url: str, html: str) -> str:
+        parts = [self._strip_tags(html)]
+        parts.extend(self._extract_direct_links(html))
+        download_links = self._extract_seedhub_download_links(html)[: self.max_resolved_links_per_detail]
+        resolved_links = await asyncio.gather(
+            *(asyncio.to_thread(self._resolve_seedhub_link, link) for link in download_links),
+            return_exceptions=True,
+        )
+        for resolved in resolved_links:
+            if isinstance(resolved, Exception):
                 continue
             if resolved:
                 parts.append(resolved)
@@ -155,10 +178,9 @@ class SeedHubSource:
 
     def _extract_direct_links(self, html: str) -> list[str]:
         patterns = [
-            r"magnet:\?xt=urn:btih:[^\s<\"']+",
             r"thunder://[^\s<\"']+",
             r"ed2k://[^\s<\"']+",
-            r"https?://(?:pan\.quark\.cn|pan\.baidu\.com|www\.aliyundrive\.com|www\.alipan\.com|pan\.xunlei\.com|drive\.uc\.cn|cloud\.189\.cn)[^\s<\"']+",
+            *(pattern.pattern for pattern in LINK_PATTERNS.values()),
         ]
         links: list[str] = []
         seen: set[str] = set()
@@ -182,13 +204,18 @@ class SeedHubSource:
         return links
 
     def _resolve_seedhub_link(self, link: str) -> str | None:
-        html = self._fetch(urljoin(self.base_url, link))
+        html = self._fetch(urljoin(self.base_url, self._normalize_seedhub_download_link(link)))
         links = self._extract_direct_links(html)
         if links:
             return links[0]
         decoded = unquote(html)
         links = self._extract_direct_links(decoded)
         return links[0] if links else None
+
+    def _normalize_seedhub_download_link(self, link: str) -> str:
+        split = urlsplit(unescape(link))
+        query = [(key, value) for key, value in parse_qsl(split.query, keep_blank_values=True) if key == "redirect_to"]
+        return urlunsplit((split.scheme, split.netloc, split.path, urlencode(query), split.fragment))
 
     def _contains_supported_link(self, text: str) -> bool:
         lowered = text.lower()
@@ -205,6 +232,19 @@ class SeedHubSource:
                 "pan.xunlei.com",
                 "drive.uc.cn",
                 "cloud.189.cn",
+                "115.com",
+                "115cdn.com",
+                "anxia.com",
+                "123684.com",
+                "123685.com",
+                "123912.com",
+                "123pan.com",
+                "123592.com",
+                "123684.cn",
+                "123685.cn",
+                "123912.cn",
+                "123pan.cn",
+                "123592.cn",
             )
         )
 
