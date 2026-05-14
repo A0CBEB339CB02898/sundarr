@@ -151,6 +151,19 @@ def test_prepare_port_rejects_pid_file_reused_by_external_process(tmp_path: Path
         cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
 
 
+def test_taskkill_process_tree_retries_until_process_stops(monkeypatch: pytest.MonkeyPatch) -> None:
+    states = iter([True, True, False])
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr(cli.time, "monotonic", iter([0.0, 0.1, 0.2, 0.3]).__next__)
+    monkeypatch.setattr(cli.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(cli, "_is_process_running", lambda _pid: next(states))
+    monkeypatch.setattr(cli.subprocess, "run", lambda command, **_kwargs: calls.append(command))
+
+    assert cli._taskkill_process_tree(123) is True
+    assert calls == [["taskkill", "/PID", "123", "/T", "/F"], ["taskkill", "/PID", "123", "/T", "/F"]]
+
+
 def test_prepare_port_rejects_external_process(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     service = cli.ManagedService(
         name="api",

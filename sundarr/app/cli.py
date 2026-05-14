@@ -497,13 +497,22 @@ def _is_process_running(pid: int) -> bool:
 
 def _kill_process(pid: int) -> bool:
     if os.name == "nt":
-        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return _wait_process_stopped(pid)
+        return _taskkill_process_tree(pid)
     try:
         os.killpg(pid, signal.SIGTERM)
     except ProcessLookupError:
         return True
     return _wait_process_stopped(pid)
+
+
+def _taskkill_process_tree(pid: int, timeout_seconds: float = 10.0) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if not _is_process_running(pid):
+            return True
+        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(0.2)
+    return not _is_process_running(pid)
 
 
 def _wait_process_stopped(pid: int, timeout_seconds: float = 5.0) -> bool:
