@@ -317,13 +317,17 @@ def _is_sundarr_process(pid: int) -> bool:
         service_pid = _read_pid(service)
         if service_pid == pid:
             return True
-    command_line = _process_command_line(pid)
-    if _looks_like_sundarr_command(command_line):
-        return True
-    parent_pid = _parent_pid(pid)
-    if parent_pid is None:
-        return False
-    return _looks_like_sundarr_command(_process_command_line(parent_pid))
+    current_pid: int | None = pid
+    seen: set[int] = set()
+    for _ in range(8):
+        if current_pid is None or current_pid in seen:
+            return False
+        seen.add(current_pid)
+        command_line = _process_command_line(current_pid)
+        if _looks_like_sundarr_command(command_line):
+            return True
+        current_pid = _parent_pid(current_pid)
+    return False
 
 
 def _process_command_line(pid: int) -> str:
@@ -368,8 +372,11 @@ def _parent_pid(pid: int) -> int | None:
 def _looks_like_sundarr_command(command_line: str) -> bool:
     normalized = command_line.replace("\\", "/")
     project_runtime = str(RUNTIME_DIR).replace("\\", "/")
+    web_dir = str(WEB_DIR).replace("\\", "/")
     return "sundarr.app.main:app" in normalized or (
         "sundarr.app.log_runner" in normalized and project_runtime in normalized
+    ) or (
+        "vite" in normalized and web_dir in normalized
     )
 
 

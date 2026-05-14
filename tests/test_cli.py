@@ -131,6 +131,33 @@ def test_is_sundarr_process_detects_log_runner_parent(monkeypatch: pytest.Monkey
     assert cli._is_sundarr_process(456) is True
 
 
+def test_is_sundarr_process_detects_deep_web_log_runner_ancestor(monkeypatch: pytest.MonkeyPatch) -> None:
+    runtime = str(cli.RUNTIME_DIR)
+    commands = {
+        456: "node vite.js --host 0.0.0.0 --port 5173",
+        300: "cmd.exe /d /s /c vite --host 0.0.0.0 --port 5173",
+        200: "node npm-cli.js run dev -- --host 0.0.0.0 --port 5173",
+        100: f"python -m sundarr.app.log_runner --log-file {runtime}/sundarr-web.log",
+    }
+    parents = {456: 300, 300: 200, 200: 100, 100: None}
+
+    monkeypatch.setattr(cli, "MANAGED_SERVICES", ())
+    monkeypatch.setattr(cli, "_process_command_line", lambda pid: commands.get(pid, ""))
+    monkeypatch.setattr(cli, "_parent_pid", lambda pid: parents.get(pid))
+
+    assert cli._is_sundarr_process(456) is True
+
+
+def test_is_sundarr_process_detects_project_vite_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    command = f"node {cli.WEB_DIR / 'node_modules' / '.bin' / '..' / 'vite' / 'bin' / 'vite.js'} --port 5173"
+
+    monkeypatch.setattr(cli, "MANAGED_SERVICES", ())
+    monkeypatch.setattr(cli, "_process_command_line", lambda pid: command)
+    monkeypatch.setattr(cli, "_parent_pid", lambda pid: None)
+
+    assert cli._is_sundarr_process(456) is True
+
+
 def test_worker_is_managed_service() -> None:
     assert cli.WORKER_SERVICE in cli.MANAGED_SERVICES
     assert cli.WORKER_SERVICE.pid_file.name == "sundarr-worker.pid"
