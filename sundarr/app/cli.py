@@ -231,11 +231,11 @@ def _prepare_port(service: ManagedService, host: str, port: int, quiet: bool) ->
     if _is_port_in_use(host, port):
         occupant_pid = _find_port_pid(host, port)
         if occupant_pid is not None and _is_sundarr_process(occupant_pid):
+            cleanup_pid = _sundarr_process_tree_root(occupant_pid) or occupant_pid
             if not quiet:
-                print(f"端口 {port} 被 Sundarr 旧进程 PID={occupant_pid} 占用，准备清理。")
-            _kill_process(occupant_pid)
-            time.sleep(0.3)
-            if _is_port_in_use(host, port):
+                print(f"端口 {port} 被 Sundarr 旧进程 PID={occupant_pid} 占用，准备清理 PID={cleanup_pid}。")
+            _kill_process(cleanup_pid)
+            if not _wait_port_released(host, port):
                 raise RuntimeError(f"{service.display_name} 端口 {port} 清理后仍被占用，请手动释放后重试。")
             return
         raise RuntimeError(f"{service.display_name} 端口 {port} 已被其他程序占用，请释放端口后重试。")
@@ -257,6 +257,15 @@ def _is_port_in_use(host: str, port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(0.5)
         return sock.connect_ex((check_host, port)) == 0
+
+
+def _wait_port_released(host: str, port: int, timeout_seconds: float = 3.0) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if not _is_port_in_use(host, port):
+            return True
+        time.sleep(0.2)
+    return not _is_port_in_use(host, port)
 
 
 def _find_port_pid(host: str, port: int) -> int | None:
@@ -313,21 +322,27 @@ def _find_port_pid_posix(host: str, port: int) -> int | None:
 
 def _is_sundarr_process(pid: int) -> bool:
     """判断指定 PID 是否为 Sundarr 管理的进程。"""
+    return _sundarr_process_tree_root(pid) is not None
+
+
+def _sundarr_process_tree_root(pid: int) -> int | None:
+    """返回应清理的 Sundarr 进程树根 PID。"""
     for service in MANAGED_SERVICES:
         service_pid = _read_pid(service)
         if service_pid == pid:
-            return True
+            return service_pid
     current_pid: int | None = pid
     seen: set[int] = set()
+    root_pid: int | None = None
     for _ in range(8):
         if current_pid is None or current_pid in seen:
-            return False
+            return root_pid
         seen.add(current_pid)
         command_line = _process_command_line(current_pid)
         if _looks_like_sundarr_command(command_line):
-            return True
+            root_pid = current_pid
         current_pid = _parent_pid(current_pid)
-    return False
+    return root_pid
 
 
 def _process_command_line(pid: int) -> str:

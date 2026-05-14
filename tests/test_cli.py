@@ -106,11 +106,53 @@ def test_prepare_port_cleans_sundarr_port_process_without_pid_file(tmp_path: Pat
     monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: next(port_checks))
     monkeypatch.setattr(cli, "_find_port_pid", lambda host, port: 456)
     monkeypatch.setattr(cli, "_is_sundarr_process", lambda pid: pid == 456)
+    monkeypatch.setattr(cli, "_sundarr_process_tree_root", lambda pid: None)
     monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid))
+    monkeypatch.setattr(cli, "_wait_port_released", lambda host, port: True)
 
     cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
 
     assert killed == [456]
+
+
+def test_prepare_port_cleans_sundarr_process_tree_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    service = cli.ManagedService(
+        name="api",
+        display_name="Sundarr API",
+        pid_file=tmp_path / "api.pid",
+        log_file=tmp_path / "api.log",
+    )
+    killed: list[int] = []
+
+    monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: True)
+    monkeypatch.setattr(cli, "_find_port_pid", lambda host, port: 456)
+    monkeypatch.setattr(cli, "_is_sundarr_process", lambda pid: True)
+    monkeypatch.setattr(cli, "_sundarr_process_tree_root", lambda pid: 100)
+    monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid))
+    monkeypatch.setattr(cli, "_wait_port_released", lambda host, port: True)
+
+    cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
+
+    assert killed == [100]
+
+
+def test_prepare_port_reports_when_cleanup_does_not_release_port(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    service = cli.ManagedService(
+        name="api",
+        display_name="Sundarr API",
+        pid_file=tmp_path / "api.pid",
+        log_file=tmp_path / "api.log",
+    )
+
+    monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: True)
+    monkeypatch.setattr(cli, "_find_port_pid", lambda host, port: 456)
+    monkeypatch.setattr(cli, "_is_sundarr_process", lambda pid: True)
+    monkeypatch.setattr(cli, "_sundarr_process_tree_root", lambda pid: 100)
+    monkeypatch.setattr(cli, "_kill_process", lambda pid: None)
+    monkeypatch.setattr(cli, "_wait_port_released", lambda host, port: False)
+
+    with pytest.raises(RuntimeError, match="清理后仍被占用"):
+        cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
 
 
 def test_is_sundarr_process_detects_api_command_without_pid_file(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -156,6 +198,22 @@ def test_is_sundarr_process_detects_project_vite_command(monkeypatch: pytest.Mon
     monkeypatch.setattr(cli, "_parent_pid", lambda pid: None)
 
     assert cli._is_sundarr_process(456) is True
+
+
+def test_sundarr_process_tree_root_prefers_highest_sundarr_ancestor(monkeypatch: pytest.MonkeyPatch) -> None:
+    commands = {
+        456: "python -m uvicorn sundarr.app.main:app --port 8080",
+        300: "python -m uvicorn sundarr.app.main:app --port 8080",
+        200: f"python -m sundarr.app.log_runner --log-file {cli.RUNTIME_DIR / 'sundarr-api.log'}",
+        100: "powershell.exe",
+    }
+    parents = {456: 300, 300: 200, 200: 100, 100: None}
+
+    monkeypatch.setattr(cli, "MANAGED_SERVICES", ())
+    monkeypatch.setattr(cli, "_process_command_line", lambda pid: commands.get(pid, ""))
+    monkeypatch.setattr(cli, "_parent_pid", lambda pid: parents.get(pid))
+
+    assert cli._sundarr_process_tree_root(456) == 200
 
 
 def test_worker_is_managed_service() -> None:
