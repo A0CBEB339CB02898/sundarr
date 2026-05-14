@@ -44,7 +44,7 @@ Web Console 上传 Python 文件。
 Web Console 在线编辑 Source Adapter。
 数据库保存可执行 Python 代码。
 配置文件保存可执行 Python 代码。
-启动时无条件 pull 远程 main 并执行最新代码。
+启动时无条件 pull 远程默认分支并执行最新代码。
 搜索源 Adapter 直接访问 Sundarr 内部数据库、服务对象或任务状态机。
 ```
 
