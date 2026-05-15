@@ -606,6 +606,17 @@ function App() {
     }
   }, [transferPage, transferPageSize])
 
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      const target = e.target as HTMLElement
+      if (target.getAttribute('role') === 'tab') {
+        e.preventDefault()
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
+
   async function loadTransfers(nextPage = transferPage) {
     try {
       const result = await api.get<TransferListResponse>(`/transfers?page=${nextPage}&page_size=${transferPageSize}`)
