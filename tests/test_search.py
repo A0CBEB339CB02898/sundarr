@@ -223,23 +223,13 @@ async def test_resource_library_favorites_resource_and_link(db_session: Session)
             normalized_title=candidate.normalized_title,
             original_title=candidate.original_title,
             year=candidate.year,
-        ),
-    )
-    stored_link = library.favorite_link(
-        db_session,
-        ResourceLinkFavoriteRequest(
-            resource=ResourceFavoriteRequest(
-                id=candidate.id,
-                title=candidate.title,
-                normalized_title=candidate.normalized_title,
-                original_title=candidate.original_title,
-                year=candidate.year,
-            ),
-            link=link,
+            links=candidate.links,
         ),
     )
 
     assert stored_resource.is_favorited is True
+    assert len(stored_resource.links) == 1
+    stored_link = stored_resource.links[0]
     assert stored_link.is_favorited is True
     assert stored_link.name == "星际穿越 1080P"
     assert stored_link.code == "abcd"

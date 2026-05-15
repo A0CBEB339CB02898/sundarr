@@ -43,6 +43,30 @@ class ResourceLibraryService:
     def favorite_resource(self, db: Session, request: ResourceFavoriteRequest) -> ResourceCandidate:
         resource = self._get_or_create_resource(db, request)
         resource.favorited_at = self._now()
+        for link in request.links:
+            resource_link = db.get(ResourceLink, link.id)
+            if resource_link is None:
+                resource_link = ResourceLink(
+                    id=link.id,
+                    resource_id=resource.id,
+                    provider=link.provider,
+                    name=link.name,
+                    url=link.url,
+                    favorited_at=self._now(),
+                )
+                db.add(resource_link)
+            resource_link.resource_id = resource.id
+            resource_link.provider = link.provider
+            resource_link.name = link.name
+            resource_link.url = link.url
+            resource_link.code = link.code
+            resource_link.quality = link.quality
+            resource_link.valid = link.valid
+            resource_link.last_checked_at = link.checked_at
+            resource_link.source_id = link.source_id
+            resource_link.source_url = link.source_url
+            resource_link.published_at = link.published_at
+            resource_link.favorited_at = self._now()
         db.commit()
         db.refresh(resource)
         return self._to_candidate(resource, self._get_links(db, resource.id))
@@ -55,14 +79,17 @@ class ResourceLibraryService:
         db.commit()
         return True
 
-    def list_favorite_resources(self, db: Session) -> list[ResourceCandidate]:
+    def list_favorite_resources(self, db: Session, page: int = 1, page_size: int = 20) -> tuple[int, list[ResourceCandidate]]:
+        base_q = db.query(Resource).filter(Resource.favorited_at.is_not(None))
+        count = base_q.count()
         resources = (
-            db.query(Resource)
-            .filter(Resource.favorited_at.is_not(None))
+            base_q
             .order_by(Resource.favorited_at.desc(), Resource.updated_at.desc())
+            .limit(page_size)
+            .offset((page - 1) * page_size)
             .all()
         )
-        return [self._to_candidate(resource, self._get_links(db, resource.id)) for resource in resources]
+        return count, [self._to_candidate(resource, self._get_links(db, resource.id)) for resource in resources]
 
     def get_resource(self, db: Session, resource_id: str) -> ResourceCandidate | None:
         resource = db.get(Resource, resource_id)
@@ -105,6 +132,7 @@ class ResourceLibraryService:
         resource_link.last_checked_at = request.link.checked_at
         resource_link.source_id = request.link.source_id
         resource_link.source_url = request.link.source_url
+        resource_link.published_at = request.link.published_at
         resource_link.favorited_at = self._now()
         db.commit()
         db.refresh(resource_link)
@@ -125,14 +153,17 @@ class ResourceLibraryService:
         db.commit()
         return True
 
-    def list_favorite_links(self, db: Session) -> list[ResourceLinkResult]:
+    def list_favorite_links(self, db: Session, page: int = 1, page_size: int = 20) -> tuple[int, list[ResourceLinkResult]]:
+        base_q = db.query(ResourceLink).filter(ResourceLink.favorited_at.is_not(None))
+        count = base_q.count()
         links = (
-            db.query(ResourceLink)
-            .filter(ResourceLink.favorited_at.is_not(None))
+            base_q
             .order_by(ResourceLink.favorited_at.desc(), ResourceLink.updated_at.desc())
+            .limit(page_size)
+            .offset((page - 1) * page_size)
             .all()
         )
-        return [self._to_link_result(link) for link in links]
+        return count, [self._to_link_result(link) for link in links]
 
     def get_link(self, db: Session, link_id: str) -> ResourceLinkResult | None:
         link = db.get(ResourceLink, link_id)
@@ -197,6 +228,7 @@ class ResourceLibraryService:
             checked_at=link.last_checked_at,
             source_id=link.source_id,
             source_url=link.source_url,
+            published_at=link.published_at,
             is_favorited=link.favorited_at is not None,
             favorited_at=link.favorited_at,
             validation_status="valid" if link.valid is True else "invalid" if link.valid is False else "unknown",

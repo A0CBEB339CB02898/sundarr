@@ -48,6 +48,7 @@ class ResourceLinkResult(BaseModel):
     checked_at: datetime | None = None
     source_id: str | None = None
     source_url: str | None = None
+    published_at: datetime | None = None
     is_favorited: bool = False
     favorited_at: datetime | None = None
 
@@ -71,6 +72,7 @@ class ResourceFavoriteRequest(BaseModel):
     normalized_title: str
     original_title: str | None = None
     year: int | None = None
+    links: list[ResourceLinkResult] = Field(default_factory=list)
 
 
 class ResourceLinkFavoriteRequest(BaseModel):
@@ -91,3 +93,17 @@ class SearchResponse(BaseModel):
     count: int
     results: list[ResourceCandidate]
     source_results: list[SourceSearchResult] = Field(default_factory=list)
+
+
+class ResourceFavoritesListResponse(BaseModel):
+    count: int
+    page: int = 1
+    page_size: int = 20
+    results: list[ResourceCandidate] = Field(default_factory=list)
+
+
+class ResourceLinksFavoritesListResponse(BaseModel):
+    count: int
+    page: int = 1
+    page_size: int = 20
+    results: list[ResourceLinkResult] = Field(default_factory=list)

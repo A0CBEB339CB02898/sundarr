@@ -33,3 +33,4 @@ class ResourceLink(TimestampMixin, Base):
     valid: Mapped[bool | None] = mapped_column(Boolean)
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     favorited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

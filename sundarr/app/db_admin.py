@@ -131,6 +131,8 @@ def ensure_runtime_schema_for_engine(engine: Engine) -> None:
             statements.append(_add_column_sql(engine, "resource_links", "quality", "TEXT"))
         if "favorited_at" not in columns:
             statements.append(_add_column_sql(engine, "resource_links", "favorited_at", "TIMESTAMP"))
+        if "published_at" not in columns:
+            statements.append(_add_column_sql(engine, "resource_links", "published_at", "TIMESTAMP"))
 
     if not statements:
         return

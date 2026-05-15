@@ -95,6 +95,7 @@ class SearchService:
                 quality=quality,
                 source_id=item.source_id,
                 source_url=item.raw_url,
+                published_at=item.published_at,
             )
             for link in links
         ]

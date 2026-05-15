@@ -74,3 +74,4 @@ def test_runtime_schema_auto_adds_favorite_columns_for_legacy_tables() -> None:
     assert "name" in link_columns
     assert "quality" in link_columns
     assert "favorited_at" in link_columns
+    assert "published_at" in link_columns
