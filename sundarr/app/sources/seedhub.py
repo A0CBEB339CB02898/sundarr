@@ -143,6 +143,16 @@ class SeedHubSource:
         raw_title = self._extract_title(html) or "SeedHub 搜索结果"
         year = extract_year_from_text(raw_title)
         quality = extract_quality_from_text(raw_title)
+        if year is None:
+            year = extract_year_from_text(content)
+        if quality is None:
+            quality = extract_quality_from_text(content)
+        if quality is None:
+            for link_title in self._extract_download_link_titles(html):
+                q = extract_quality_from_text(link_title)
+                if q:
+                    quality = q
+                    break
         metadata: dict[str, object] = {"type": "unknown", "source": "seedhub"}
         if year is not None:
             metadata["year"] = year
@@ -212,6 +222,14 @@ class SeedHubSource:
             links.append(link)
         return links
 
+    def _extract_download_link_titles(self, html: str) -> list[str]:
+        titles: list[str] = []
+        for match in re.finditer(r'href="(/link_start/\?redirect_to=pan_id_\d+[^"<]*)"[^>]*>(.*?)</a>', html, flags=re.IGNORECASE):
+            text = self._strip_tags(match.group(2)).strip()
+            if text:
+                titles.append(text)
+        return titles
+
     def _resolve_seedhub_link(self, link: str) -> str | None:
         html = self._fetch(urljoin(self.base_url, self._normalize_seedhub_download_link(link)))
         links = self._extract_direct_links(html)
@@ -261,6 +279,11 @@ class SeedHubSource:
         match = re.search(r"<h1[^>]*>.*?</a>\s*([^<]+)", html, flags=re.IGNORECASE | re.DOTALL)
         if match:
             return self._strip_tags(match.group(1)).strip() or None
+        match = re.search(r"<h1[^>]*>(.*?)</h1>", html, flags=re.IGNORECASE | re.DOTALL)
+        if match:
+            raw = self._strip_tags(match.group(1)).strip()
+            if raw:
+                return raw
         match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
         if not match:
             return None
