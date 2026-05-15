@@ -505,28 +505,6 @@ h2 {
   gap: 14px;
 }
 
-.api-preview {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-radius: 20px;
-  background: #172026;
-  color: #f8f2e8;
-  padding: 18px 20px;
-}
-
-.api-preview span {
-  font-weight: 800;
-}
-
-.api-preview code {
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 8px 12px;
-}
-
 .transfer-summary {
   display: grid;
   gap: 22px;
@@ -862,6 +840,36 @@ h2 {
   padding: var(--space-5);
 }
 
+.resource-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.resource-header-actions,
+.favorite-resource-list,
+.favorite-link-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.favorite-tab-body {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.favorite-tab-panel {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.favorite-tab-panel .resource-card {
+  margin: 0;
+}
+
 .resource-header h3 {
   margin: 0;
   font-size: 22px;
@@ -1180,10 +1188,6 @@ h2 {
   .link-row,
   .transfer-row {
     grid-template-columns: 1fr;
-  }
-
-  .resource-header {
-    display: grid;
   }
 }
 
@@ -2021,6 +2025,44 @@ h2 {
   font-weight: 600;
   padding: 2px 7px;
   text-align: center;
+}
+
+.sx-provider-tabs {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface-1);
+}
+
+.sx-provider-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-subtle);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  white-space: nowrap;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.sx-provider-tabs button:hover {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.sx-provider-tabs button[data-active="true"] {
+  border-color: color-mix(in srgb, var(--accent) 36%, transparent);
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .sx-result-pane {

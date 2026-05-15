@@ -15,7 +15,7 @@ import {
 } from './ui'
 import type { StatusTone } from './ui'
 
-type PageKey = 'search' | 'transfers' | 'storage' | 'sources' | 'libraries' | 'remote-libraries' | 'status'
+type PageKey = 'search' | 'favorites' | 'transfers' | 'storage' | 'sources' | 'libraries' | 'remote-libraries' | 'status'
 type ThemeMode = 'light' | 'dark' | 'system'
 
 type NavItem = {
@@ -199,26 +199,42 @@ type ResourceCandidate = {
   title: string
   normalized_title: string
   original_title: string | null
-  type: MediaType
   year: number | null
-  quality: string | null
-  score: number
-  explanation: string
   source_id: string
   source_url: string | null
+  is_favorited: boolean
+  favorited_at: string | null
   links: ResourceLinkResult[]
 }
 
 type ResourceLinkResult = {
   id: string
   provider: string
+  name: string | null
   url: string
   code: string | null
+  quality: string | null
   valid: boolean | null
-  risk_level: string
   validation_status: 'unchecked' | 'checking' | 'valid' | 'invalid' | 'unknown' | 'error'
   validation_message: string | null
   checked_at: string | null
+  source_id: string | null
+  source_url: string | null
+  is_favorited: boolean
+  favorited_at: string | null
+}
+
+type ResourceFavoriteRequest = {
+  id: string
+  title: string
+  normalized_title: string
+  original_title: string | null
+  year: number | null
+}
+
+type ResourceLinkFavoriteRequest = {
+  resource: ResourceFavoriteRequest
+  link: ResourceLinkResult
 }
 
 type SearchFormState = {
@@ -512,57 +528,13 @@ type MediaLibraryFormState = {
 const navItems: NavItem[] = [
   { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
   { key: 'search', path: '/app/search', label: '搜索', description: '搜索资源并创建搬运任务' },
+  { key: 'favorites', path: '/app/favorites', label: '收藏', description: '查看收藏资源和收藏链接' },
   { key: 'storage', path: '/app/storage', label: '存储', description: '管理 SMB 配置和目录浏览' },
   { key: 'libraries', path: '/app/libraries', label: '本地媒体库', description: '管理本地媒体库目录绑定' },
   { key: 'remote-libraries', path: '/app/remote-libraries', label: '远程媒体库', description: '管理远程媒体库目录绑定' },
   { key: 'transfers', path: '/app/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
   { key: 'status', path: '/app/status', label: '状态', description: '查看 API、Worker、数据库和 Redis' },
 ]
-
-const pageCopy: Record<PageKey, { title: string; eyebrow: string; body: string; next: string }> = {
-  search: {
-    eyebrow: 'Search',
-    title: '搜索资源并创建搬运任务',
-    body: '搜索候选资源，选择可用链接，并创建后续搬运任务。',
-    next: '当前页面暂不可用，请从左侧导航重新进入。',
-  },
-  transfers: {
-    eyebrow: 'Transfers',
-    title: '任务控制台',
-    body: '查询任务状态、查看日志，并按任务状态取消或重试。',
-    next: '当前页面暂不可用，请从左侧导航重新进入。',
-  },
-  storage: {
-    eyebrow: 'Storage',
-    title: 'SMB 存储设置',
-    body: '管理 SMB 配置、测试连接，并只读浏览目标目录。',
-    next: '当前页面暂不可用，请从左侧导航重新进入。',
-  },
-  sources: {
-    eyebrow: 'Sources',
-    title: '媒体源管理',
-    body: '查看已安装搜索源，测试搜索流程和解析日志。',
-    next: '当前页面暂不可用，请从左侧导航重新进入。',
-  },
-  libraries: {
-    eyebrow: 'Libraries',
-    title: '本地媒体库管理',
-    body: '管理 movie / series / unclassified 等本地媒体库目录绑定。',
-    next: '当前页面暂不可用，请从左侧导航重新进入。',
-  },
-  'remote-libraries': {
-    eyebrow: 'Remote Libraries',
-    title: '远程媒体库管理',
-    body: '管理远程媒体库目录绑定，配置同步目标和扫描参数。',
-    next: '当前页面暂不可用，请从左侧导航重新进入。',
-  },
-  status: {
-    eyebrow: 'Status',
-    title: '系统状态摘要',
-    body: '查看 API、Worker、PostgreSQL 和 Redis 的当前状态。',
-    next: '当前页面暂不可用，请从左侧导航重新进入。',
-  },
-}
 
 const api = createApiClient()
 
@@ -751,11 +723,7 @@ function App() {
             <button className="toast-close" onClick={() => removeToast(toast.id)} type="button" aria-label="关闭">
               <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 3l6 6M9 3l-6 6" /></svg>
             </button>
-            <span
-              className="toast-progress"
-              style={{ animationDuration: `${toast.duration}ms` }}
-              aria-hidden="true"
-            />
+            <span className="toast-progress" style={{ animationDuration: `${toast.duration}ms` }} aria-hidden="true" />
           </div>
         ))}
       </div>
@@ -838,6 +806,7 @@ function PagePanel({
       <div className={activePage === 'transfers' ? 'panel-visible' : 'panel-hidden'}><TransfersPanel onTransfersChanged={onTransfersChanged} page={transferPage} pageSize={transferPageSize} totalCount={transferTotalCount} onPageChange={onTransferPageChange} onPageSizeChange={onTransferPageSizeChange} transfers={transfers} showToast={showToast} /></div>
       <div className={activePage === 'storage' ? 'panel-visible' : 'panel-hidden'}><StoragePanel showToast={showToast} /></div>
       <div className={activePage === 'search' ? 'panel-visible' : 'panel-hidden'}><SearchPanel showToast={showToast} /></div>
+      <div className={activePage === 'favorites' ? 'panel-visible' : 'panel-hidden'}><FavoritesPanel showToast={showToast} /></div>
       <div className={activePage === 'sources' ? 'panel-visible' : 'panel-hidden'}><SourcesPanel /></div>
       <div className={activePage === 'libraries' ? 'panel-visible' : 'panel-hidden'}><LibrariesPanel showToast={showToast} /></div>
       <div className={activePage === 'remote-libraries' ? 'panel-visible' : 'panel-hidden'}><RemoteLibrariesPanel showToast={showToast} /></div>
@@ -845,14 +814,6 @@ function PagePanel({
   )
 }
 
-/**
- * 本地媒体库页面 · docs/16-design-system.md §7.4
- *
- * §7.4 要求：name · type · path · scan settings · stats · actions。
- * Local library schema 没有 scan_interval/stable_seconds/last_scan 字段
- * （这些属于 remote_media_libraries 同步配置），所以 stats 列用
- * `bound_remote_libraries` 的引用数代替，path 列显示 SMB 连接名 + mono path。
- */
 function LibrariesPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [libraries, setLibraries] = useState<MediaLibraryResponse[]>([])
   const [connections, setConnections] = useState<SmbConnectionResponse[]>([])
@@ -1975,7 +1936,6 @@ function RemoteLibrariesPanel({ showToast }: { showToast: (type: 'success' | 'er
         </div>
       )}
 
-      <ApiClientPreview />
     </section>
   )
 }
@@ -2368,6 +2328,243 @@ function SourceDetailModal({
   )
 }
 
+function FavoritesPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
+  const [activeTab, setActiveTab] = useState<'resources' | 'links'>(() => window.location.pathname === '/app/favorite-links' ? 'links' : 'resources')
+
+  return (
+    <section className="sx-page" aria-labelledby="favorites-title">
+      <Card className="sx-overview">
+        <div className="sx-overview-head">
+          <div>
+            <p className="ui-eyebrow">收藏</p>
+            <h2 id="favorites-title">收藏</h2>
+            <p className="sx-overview-lead">统一管理已收藏的资源和具体链接。资源用于持续跟踪媒体，链接用于保留某个具体分享版本。</p>
+          </div>
+        </div>
+      </Card>
+      <Card emphasis="sunken" className="sx-results-card favorites-card">
+        <div className="sx-result-tabs favorite-module-tabs" role="tablist" aria-label="收藏类型">
+          <button type="button" role="tab" data-active={activeTab === 'resources'} aria-selected={activeTab === 'resources'} onClick={() => setActiveTab('resources')}>
+            收藏资源
+          </button>
+          <button type="button" role="tab" data-active={activeTab === 'links'} aria-selected={activeTab === 'links'} onClick={() => setActiveTab('links')}>
+            收藏链接
+          </button>
+        </div>
+        <div className="favorite-tab-body">
+          {activeTab === 'resources' ? <FavoriteResourcesPanel showToast={showToast} /> : null}
+          {activeTab === 'links' ? <FavoriteLinksPanel showToast={showToast} /> : null}
+        </div>
+      </Card>
+    </section>
+  )
+}
+
+function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
+  const [resources, setResources] = useState<ResourceCandidate[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => { void loadFavorites() }, [])
+
+  async function loadFavorites() {
+    setIsLoading(true)
+    setError(null)
+    try {
+      setResources(await api.get<ResourceCandidate[]>('/resources/favorites'))
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '无法读取收藏资源。')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function toggleFavoriteResource(resource: ResourceCandidate) {
+    try {
+      await api.post<{ ok: boolean }>(`/resources/${encodeURIComponent(resource.id)}/unfavorite`)
+      setResources((current) => current.filter((item) => item.id !== resource.id))
+      showToast('success', '已取消收藏资源。')
+    } catch (exc) {
+      showToast('error', exc instanceof Error ? exc.message : '取消收藏资源失败。')
+    }
+  }
+
+  async function toggleFavoriteLink(resource: ResourceCandidate, link: ResourceLinkResult) {
+    try {
+      await api.post<{ ok: boolean }>(`/resource-links/${encodeURIComponent(link.id)}/unfavorite`)
+      setResources((current) => current.map((item) => item.id === resource.id ? {
+        ...item,
+        links: item.links.filter((entry) => entry.id !== link.id),
+      } : item))
+      showToast('success', '已取消收藏链接。')
+    } catch (exc) {
+      showToast('error', exc instanceof Error ? exc.message : '取消收藏链接失败。')
+    }
+  }
+
+  async function refreshResource(resource: ResourceCandidate) {
+    try {
+      const refreshed = await api.post<SearchResponse>(`/resources/${encodeURIComponent(resource.id)}/refresh`)
+      const next = refreshed.results.find((item) => item.normalized_title === resource.normalized_title && item.year === resource.year) || refreshed.results[0]
+      if (!next) {
+        showToast('info', '未找到新的候选结果。')
+        return
+      }
+      setResources((current) => current.map((item) => item.id === resource.id ? {
+        ...next,
+        id: item.id,
+        is_favorited: true,
+        favorited_at: item.favorited_at,
+      } : item))
+      showToast('success', `资源刷新完成，返回 ${refreshed.count} 条候选结果。`)
+    } catch (exc) {
+      showToast('error', exc instanceof Error ? exc.message : '刷新资源失败。')
+    }
+  }
+
+  async function refreshLink(resource: ResourceCandidate, link: ResourceLinkResult) {
+    try {
+      const refreshed = await api.post<ResourceLinkResult>(`/resource-links/${encodeURIComponent(link.id)}/refresh`)
+      setResources((current) => current.map((item) => item.id === resource.id ? {
+        ...item,
+        links: item.links.map((entry) => entry.id === link.id ? refreshed : entry),
+      } : item))
+      showToast('success', '链接刷新完成。')
+    } catch (exc) {
+      showToast('error', exc instanceof Error ? exc.message : '刷新链接失败。')
+    }
+  }
+
+  async function copyLink(link: ResourceLinkResult) {
+    const text = link.code ? `${link.url} 提取码：${link.code}` : link.url
+    try {
+      await navigator.clipboard.writeText(text)
+      showToast('success', '链接已复制。')
+    } catch {
+      window.prompt('复制链接', text)
+    }
+  }
+
+  return (
+    <section className="favorite-tab-panel" aria-labelledby="favorite-resources-title">
+      <div className="sx-section-head">
+        <div>
+          <p className="ui-eyebrow">收藏资源</p>
+          <h3 id="favorite-resources-title">按媒体维度持续跟踪</h3>
+        </div>
+        <span>{resources.length} 个资源</span>
+      </div>
+      {isLoading ? <UILoadingState message="正在读取收藏资源…" /> : null}
+      {error ? <UIErrorState message="读取收藏资源失败" sub={error} /> : null}
+      {!isLoading && !error && resources.length === 0 ? <UIEmptyState message="还没有收藏资源" sub="先在搜索结果中收藏资源。" /> : null}
+      {!isLoading && !error ? (
+        <div className="favorite-resource-list">
+          {resources.map((resource) => (
+            <ResourceCard
+              key={resource.id}
+              activeProvider={null}
+              onCopyLink={(link) => void copyLink(link)}
+              onFavoriteLink={(link) => void toggleFavoriteLink(resource, link)}
+              onFavoriteResource={() => void toggleFavoriteResource(resource)}
+              onRefreshLink={(link) => void refreshLink(resource, link)}
+              onRefreshResource={() => void refreshResource(resource)}
+              onSaveToCloud={() => showToast('info', '保存到网盘入口已预留。')}
+              resource={resource}
+            />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function FavoriteLinksPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
+  const [links, setLinks] = useState<ResourceLinkResult[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => { void loadFavorites() }, [])
+
+  async function loadFavorites() {
+    setIsLoading(true)
+    setError(null)
+    try {
+      setLinks(await api.get<ResourceLinkResult[]>('/resource-links/favorites'))
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : '无法读取收藏链接。')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function refreshLink(link: ResourceLinkResult) {
+    try {
+      const refreshed = await api.post<ResourceLinkResult>(`/resource-links/${encodeURIComponent(link.id)}/refresh`)
+      setLinks((current) => current.map((item) => item.id === link.id ? refreshed : item))
+      showToast('success', '链接刷新完成。')
+    } catch (exc) {
+      showToast('error', exc instanceof Error ? exc.message : '刷新链接失败。')
+    }
+  }
+
+  async function unfavoriteLink(link: ResourceLinkResult) {
+    try {
+      await api.post<{ ok: boolean }>(`/resource-links/${encodeURIComponent(link.id)}/unfavorite`)
+      setLinks((current) => current.filter((item) => item.id !== link.id))
+      showToast('success', '已取消收藏链接。')
+    } catch (exc) {
+      showToast('error', exc instanceof Error ? exc.message : '取消收藏链接失败。')
+    }
+  }
+
+  async function copyLink(link: ResourceLinkResult) {
+    const text = link.code ? `${link.url} 提取码：${link.code}` : link.url
+    try {
+      await navigator.clipboard.writeText(text)
+      showToast('success', '链接已复制。')
+    } catch {
+      window.prompt('复制链接', text)
+    }
+  }
+
+  return (
+    <section className="favorite-tab-panel" aria-labelledby="favorite-links-title">
+      <div className="sx-section-head">
+        <div>
+          <p className="ui-eyebrow">收藏链接</p>
+          <h3 id="favorite-links-title">保留具体分享版本</h3>
+        </div>
+        <span>{links.length} 条链接</span>
+      </div>
+      {isLoading ? <UILoadingState message="正在读取收藏链接…" /> : null}
+      {error ? <UIErrorState message="读取收藏链接失败" sub={error} /> : null}
+      {!isLoading && !error && links.length === 0 ? <UIEmptyState message="还没有收藏链接" sub="先在搜索结果中收藏具体链接。" /> : null}
+      {!isLoading && !error && links.length > 0 ? (
+        <Card emphasis="sunken" className="favorite-link-card">
+          <div className="favorite-link-list">
+            {links.map((link) => (
+              <div className="link-row" key={link.id}>
+                <a href={link.url} target="_blank" rel="noreferrer">
+                  <strong>{link.name || link.url}</strong>
+                  <small>{[link.quality, link.code ? `提取码：${link.code}` : '无提取码', link.name ? link.url : null].filter(Boolean).join(' · ')}</small>
+                </a>
+                <StatusBadge tone={linkValidationTone(link.validation_status)}>
+                  {validationLabel(link)}
+                </StatusBadge>
+                <div className="link-actions">
+                  <Button variant="ghost" size="sm" type="button" onClick={() => void refreshLink(link)}>刷新链接</Button>
+                  <Button variant="secondary" size="sm" type="button" onClick={() => void unfavoriteLink(link)}>取消收藏</Button>
+                  <Button variant="ghost" size="sm" type="button" onClick={() => void copyLink(link)}>复制链接</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+    </section>
+  )
+}
+
 function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [form, setForm] = useState<SearchFormState>({
     q: '',
@@ -2375,6 +2572,7 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
   })
   const [response, setResponse] = useState<SearchResponse | null>(null)
   const [activeResultTab, setActiveResultTab] = useState('all')
+  const [activeProvider, setActiveProvider] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSearching, setIsSearching] = useState(false)
 
@@ -2392,6 +2590,7 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
       const result = await api.get<SearchResponse>(`/search?${params.toString()}`)
       setResponse(result)
       setActiveResultTab('all')
+      setActiveProvider(null)
     } catch (exc) {
       setResponse(null)
       setError(exc instanceof Error ? exc.message : '搜索失败。')
@@ -2418,41 +2617,99 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
     showToast('info', `保存到网盘入口已预留：${providerLabel(link.provider)}。`)
   }
 
-  const resultTabs = useMemo(() => {
+  function resourceFavoritePayload(resource: ResourceCandidate): ResourceFavoriteRequest {
+    return {
+      id: resource.id,
+      title: resource.title,
+      normalized_title: resource.normalized_title,
+      original_title: resource.original_title,
+      year: resource.year,
+    }
+  }
+
+  function updateSearchResponse(mutator: (resource: ResourceCandidate) => ResourceCandidate) {
+    setResponse((current) => {
+      if (!current) return current
+      return {
+        ...current,
+        results: current.results.map(mutator),
+        source_results: current.source_results.map((group) => ({
+          ...group,
+          results: group.results.map(mutator),
+        })),
+      }
+    })
+  }
+
+  async function toggleFavoriteResource(resource: ResourceCandidate) {
+    try {
+      if (resource.is_favorited) {
+        await api.post<{ ok: boolean }>(`/resources/${encodeURIComponent(resource.id)}/unfavorite`)
+        updateSearchResponse((item) => item.id === resource.id ? { ...item, is_favorited: false, favorited_at: null } : item)
+        showToast('success', '已取消收藏资源。')
+        return
+      }
+      const stored = await api.post<ResourceCandidate>('/resources/favorite', resourceFavoritePayload(resource))
+      updateSearchResponse((item) => item.id === resource.id ? { ...item, is_favorited: stored.is_favorited, favorited_at: stored.favorited_at } : item)
+      showToast('success', '已收藏资源。')
+    } catch (exc) {
+      showToast('error', exc instanceof Error ? exc.message : '收藏资源失败。')
+    }
+  }
+
+  async function toggleFavoriteLink(resource: ResourceCandidate, link: ResourceLinkResult) {
+    try {
+      if (link.is_favorited) {
+        await api.post<{ ok: boolean }>(`/resource-links/${encodeURIComponent(link.id)}/unfavorite`)
+        updateSearchResponse((item) => item.id === resource.id ? {
+          ...item,
+          links: item.links.map((entry) => entry.id === link.id ? { ...entry, is_favorited: false, favorited_at: null } : entry),
+        } : item)
+        showToast('success', '已取消收藏链接。')
+        return
+      }
+      const stored = await api.post<ResourceLinkResult>('/resource-links/favorite', {
+        resource: resourceFavoritePayload(resource),
+        link,
+      } satisfies ResourceLinkFavoriteRequest)
+      updateSearchResponse((item) => item.id === resource.id ? {
+        ...item,
+        links: item.links.map((entry) => entry.id === link.id ? { ...entry, is_favorited: stored.is_favorited, favorited_at: stored.favorited_at } : entry),
+      } : item)
+      showToast('success', '已收藏链接。')
+    } catch (exc) {
+      showToast('error', exc instanceof Error ? exc.message : '收藏链接失败。')
+    }
+  }
+
+  const sourceTabs = useMemo(() => {
     if (!response) return []
-    const allTab = { id: 'all', label: '全部', count: response.count, results: response.results, provider: null }
-    const providerMap = new Map<string, {
-      label: string
-      results: ResourceCandidate[]
-      count: number
-    }>()
-    for (const resource of response.results) {
+    return [
+      { id: 'all', label: '全部', count: response.count, results: response.results },
+      ...response.source_results.map((group) => ({
+        id: group.source_id,
+        label: group.source_name,
+        count: group.count,
+        results: group.results,
+      })),
+    ]
+  }, [response])
+
+  const activeTab = sourceTabs.find((tab) => tab.id === activeResultTab) || sourceTabs[0]
+
+  const providerFilters = useMemo(() => {
+    if (!activeTab || activeTab.id === 'all') return []
+    const providerSet = new Set<string>()
+    for (const resource of activeTab.results) {
       for (const link of resource.links) {
-        const provider = link.provider
-        if (!providerMap.has(provider)) {
-          providerMap.set(provider, {
-            label: providerLabel(provider),
-            results: [],
-            count: 0,
-          })
-        }
-        const group = providerMap.get(provider)!
-        if (!group.results.find(r => r.id === resource.id)) {
-          group.results.push(resource)
-          group.count++
-        }
+        providerSet.add(link.provider)
       }
     }
-    const providerTabs = Array.from(providerMap.entries()).map(([id, group]) => ({
+    return Array.from(providerSet).map((id) => ({
       id,
-      label: group.label,
-      count: group.count,
-      results: group.results,
-      provider: id,
+      label: providerLabel(id),
     }))
-    return [allTab, ...providerTabs]
-  }, [response])
-  const activeTab = resultTabs.find((tab) => tab.id === activeResultTab) || resultTabs[0]
+  }, [activeTab])
 
   return (
     <section className="sx-page" aria-labelledby="search-title">
@@ -2491,21 +2748,44 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
       {response ? (
         <Card emphasis="sunken" className="sx-results-card">
           <div className="sx-section-head"><p className="ui-eyebrow">搜索结果</p><span>{response.count} 个去重结果</span></div>
-          <div className="sx-result-tabs" role="tablist" aria-label="按网盘来源查看搜索结果">
-            {resultTabs.map((tab) => (
+          <div className="sx-result-tabs" role="tablist" aria-label="按媒体源查看搜索结果">
+            {sourceTabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 role="tab"
                 aria-selected={activeTab?.id === tab.id}
                 data-active={activeTab?.id === tab.id || undefined}
-                onClick={() => setActiveResultTab(tab.id)}
+                onClick={() => { setActiveResultTab(tab.id); setActiveProvider(null) }}
               >
                 <span>{tab.label}</span>
                 <strong>{tab.count}</strong>
               </button>
             ))}
           </div>
+          {providerFilters.length > 0 ? (
+            <div className="sx-provider-tabs" role="tablist" aria-label="按网盘类型过滤">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeProvider === null}
+                data-active={activeProvider === null || undefined}
+                onClick={() => setActiveProvider(null)}
+              >全部网盘</button>
+              {providerFilters.map((pf) => (
+                <button
+                  key={pf.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeProvider === pf.id}
+                  data-active={activeProvider === pf.id || undefined}
+                  onClick={() => setActiveProvider(pf.id)}
+                >
+                  <span>{pf.label}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="sx-result-pane" role="tabpanel">
             {activeTab && activeTab.results.length === 0 ? (
               <UIEmptyState message="没有搜索到结果" sub="可以换一个关键词或结果类型后重新搜索。" />
@@ -2513,8 +2793,10 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
             {activeTab?.results.map((resource) => (
               <ResourceCard
                 key={resource.id}
-                activeProvider={activeTab?.provider ?? null}
+                activeProvider={activeProvider}
                 onCopyLink={(link) => void copyLink(link)}
+                onFavoriteLink={(link) => void toggleFavoriteLink(resource, link)}
+                onFavoriteResource={() => void toggleFavoriteResource(resource)}
                 onSaveToCloud={saveToCloud}
                 resource={resource}
               />
@@ -2523,19 +2805,27 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
         </Card>
       ) : null}
 
-      <ApiClientPreview />
     </section>
   )
 }
 
+
 function ResourceCard({
   activeProvider,
   onCopyLink,
+  onFavoriteLink,
+  onFavoriteResource,
+  onRefreshLink,
+  onRefreshResource,
   onSaveToCloud,
   resource,
 }: {
   activeProvider: string | null
   onCopyLink: (link: ResourceLinkResult) => void
+  onFavoriteLink: (link: ResourceLinkResult) => void
+  onFavoriteResource: () => void
+  onRefreshLink?: (link: ResourceLinkResult) => void
+  onRefreshResource?: () => void
   onSaveToCloud: (link: ResourceLinkResult) => void
   resource: ResourceCandidate
 }) {
@@ -2547,19 +2837,35 @@ function ResourceCard({
     <article className="resource-card">
       <div className="resource-header">
         <h3>{resource.title}</h3>
+        <div className="resource-header-actions">
+          {onRefreshResource ? <Button variant="ghost" size="sm" type="button" onClick={onRefreshResource}>刷新资源</Button> : null}
+          <Button variant={resource.is_favorited ? 'secondary' : 'ghost'} size="sm" type="button" onClick={onFavoriteResource}>
+            {resource.is_favorited ? '已收藏资源' : '收藏资源'}
+          </Button>
+        </div>
       </div>
       <div className="link-list">
         {links.length === 0 ? <UIEmptyState message="该候选资源没有可用链接" /> : null}
         {links.map((link) => (
           <div className="link-row" key={link.id}>
             <a href={link.url} target="_blank" rel="noreferrer">
-              <strong>{link.url}</strong>
-              <small>{link.code ? `提取码：${link.code}` : '无提取码'}</small>
+              <strong>{link.name || link.url}</strong>
+              <small>
+                {[
+                  link.quality,
+                  link.code ? `提取码：${link.code}` : '无提取码',
+                  link.name ? link.url : null,
+                ].filter(Boolean).join(' · ')}
+              </small>
             </a>
             <StatusBadge tone={linkValidationTone(link.validation_status)}>
               {validationLabel(link)}
             </StatusBadge>
             <div className="link-actions">
+              {onRefreshLink ? <Button variant="ghost" size="sm" type="button" onClick={() => onRefreshLink(link)}>刷新链接</Button> : null}
+              <Button variant={link.is_favorited ? 'secondary' : 'ghost'} size="sm" type="button" onClick={() => onFavoriteLink(link)}>
+                {link.is_favorited ? '已收藏链接' : '收藏链接'}
+              </Button>
               <Button variant="ghost" size="sm" type="button" onClick={() => onSaveToCloud(link)}>保存到网盘</Button>
               <Button variant="ghost" size="sm" type="button" onClick={() => onCopyLink(link)}>复制链接</Button>
             </div>
@@ -4093,15 +4399,6 @@ function StatusCard({ label, value, lastChecked }: { label: string; value: strin
   )
 }
 
-function ApiClientPreview() {
-  return (
-    <div className="api-preview">
-      <span>API Client</span>
-      <code>{api.example('health')}</code>
-    </div>
-  )
-}
-
 function statusLabel(value: string) {
   if (value === 'ok') return '正常'
   if (value === 'unknown') return '未知'
@@ -4138,6 +4435,7 @@ function themeModeLabel(mode: ThemeMode) {
 }
 
 function pageFromPath(pathname: string): PageKey {
+  if (pathname === '/app/favorite-resources' || pathname === '/app/favorite-links') return 'favorites'
   const matched = navItems.find((item) => item.path === pathname)
   if (!matched && pathname === '/') return 'search'
   return matched?.key ?? 'search'
@@ -4163,9 +4461,6 @@ function createApiClient() {
         throw new Error(await responseErrorMessage(response))
       }
       return responseJson<T>(response)
-    },
-    example(path: string) {
-      return `GET ${baseUrl || '<same-origin>'}/${path.replace(/^\//, '')}`
     },
   }
 }
@@ -4373,9 +4668,8 @@ function dtlMediaTypeLabel(type: DtlMediaType) {
 }
 
 function suggestedTargetPath(resource: ResourceCandidate) {
-  const library = resource.type === 'tv' ? 'TV' : resource.type === 'anime' ? 'Anime' : 'Movies'
   const year = resource.year ? ` (${resource.year})` : ''
-  return `${library}/${resource.normalized_title || resource.title}${year}`
+  return `Movies/${resource.normalized_title || resource.title}${year}`
 }
 
 async function responseErrorMessage(response: Response) {
