@@ -196,7 +196,7 @@ async def test_process_transfer_task_local_happy_path(db_session, tmp_path: Path
     payload = b"0123456789"
     (source_dir / "Movie.mkv").write_bytes(payload)
 
-    resource = Resource(id="res_local", title="本地电影", score=1)
+    resource = Resource(id="res_local", title="本地电影", normalized_title="本地电影")
     link = ResourceLink(id="link_local", resource_id=resource.id, provider="local", url="local://movie_share")
     task = TransferTask(
         id="task_local",
@@ -545,7 +545,7 @@ def _seed_dtl_task(
 
 
 def _seed_transfer_tasks(db_session, statuses: list[str], target_type: str = "local") -> None:
-    resource = Resource(id="res_worker", title="测试资源", score=1)
+    resource = Resource(id="res_worker", title="测试资源", normalized_title="测试资源")
     link = ResourceLink(id="link_worker", resource_id=resource.id, provider="local", url="local://share")
     db_session.add_all([resource, link])
     for index, status in enumerate(statuses):
@@ -564,7 +564,7 @@ def _seed_transfer_tasks(db_session, statuses: list[str], target_type: str = "lo
 
 
 def _seed_single_local_task(db_session) -> tuple[TransferTask, ResourceLink]:
-    resource = Resource(id=uuid_text("res"), title="本地电影", score=1)
+    resource = Resource(id=uuid_text("res"), title="本地电影", normalized_title="本地电影")
     link = ResourceLink(id=uuid_text("link"), resource_id=resource.id, provider="local", url="local://movie_share")
     task = TransferTask(
         id=uuid_text("task"),
@@ -587,7 +587,7 @@ def _seed_cleanup_task(
     file_status: str = "completed",
     cloud_staging_path: str = "/Sundarr/_staging/task_cleanup",
 ) -> tuple[TransferTask, LocalWriter, Path]:
-    resource = Resource(id="res_cleanup", title="清理测试", score=1)
+    resource = Resource(id="res_cleanup", title="清理测试", normalized_title="清理测试")
     link = ResourceLink(id="link_cleanup", resource_id=resource.id, provider="local", url="local://movie_share")
     task = TransferTask(
         id="task_cleanup",
@@ -700,7 +700,7 @@ async def test_process_transfer_task_honors_pause(db_session, tmp_path: Path) ->
     payload = b"0123456789"
     (source_dir / "Movie.mkv").write_bytes(payload)
 
-    resource = Resource(id="res_pause", title="暂停测试", score=1)
+    resource = Resource(id="res_pause", title="暂停测试", normalized_title="暂停测试")
     link = ResourceLink(id="link_pause", resource_id=resource.id, provider="local", url="local://movie_share")
     task = TransferTask(
         id="task_pause",
@@ -744,7 +744,7 @@ async def test_process_transfer_task_resumes_from_temp(db_session, tmp_path: Pat
     target_dir.mkdir(parents=True)
     (target_dir / "Movie.mkv.sundarr.downloading").write_bytes(payload[:4])
 
-    resource = Resource(id="res_resume", title="续传测试", score=1)
+    resource = Resource(id="res_resume", title="续传测试", normalized_title="续传测试")
     link = ResourceLink(id="link_resume", resource_id=resource.id, provider="local", url="local://movie_share")
     task = TransferTask(
         id="task_resume",

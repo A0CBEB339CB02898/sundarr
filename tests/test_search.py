@@ -5,9 +5,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from sundarr.app.main import create_app
+from sundarr.app.models import Resource, ResourceLink
 from sundarr.app.core.database import get_db
 from sundarr.app.parsers import extract_cloud_links
-from sundarr.app.schemas.search import RawSearchItem, SearchQuery
+from sundarr.app.schemas.search import RawSearchItem, ResourceFavoriteRequest, ResourceLinkFavoriteRequest, SearchQuery
 from sundarr.app.services.link_validator import LinkValidator
 from sundarr.app.services.resource_library_service import ResourceLibraryService
 from sundarr.app.services.search_service import SearchService
@@ -28,7 +29,20 @@ async def static_search(query: SearchQuery) -> list[RawSearchItem]:
             raw_url="https://example.invalid/static",
             raw_content="链接：https://pan.quark.cn/s/static 提取码：abcd",
             fetched_at=datetime.now(UTC),
-            metadata={"year": 2014, "type": "movie"},
+            metadata={"year": 2014},
+        )
+    ]
+
+
+async def metadata_sparse_search(query: SearchQuery) -> list[RawSearchItem]:
+    return [
+        RawSearchItem(
+            source_id="sparse",
+            source_type="code",
+            raw_title="银河护卫队",
+            raw_url="https://example.invalid/sparse",
+            raw_content="银河护卫队 2023 4K 链接：https://pan.quark.cn/s/sparse 提取码：efgh",
+            fetched_at=datetime.now(UTC),
         )
     ]
 
@@ -41,6 +55,10 @@ async def duplicate_search(query: SearchQuery) -> list[RawSearchItem]:
 
 def static_source() -> SourceModel:
     return SourceModel(id="static", name="静态源", description="测试用静态源。", homepage_url="https://example.invalid/static", search_function=static_search)
+
+
+def metadata_sparse_source() -> SourceModel:
+    return SourceModel(id="sparse", name="字段稀疏源", description="测试字段兜底提取。", homepage_url="https://example.invalid/sparse", search_function=metadata_sparse_search)
 
 
 def failing_source() -> SourceModel:
@@ -127,7 +145,10 @@ async def test_search_service_isolates_source_failure() -> None:
     response = await service.search(SearchQuery(keyword="星际穿越", year=2014))
 
     assert response.count == 1
+    assert response.results[0].year == 2014
+    assert response.results[0].links[0].name == "星际穿越 1080P"
     assert response.results[0].links[0].code == "abcd"
+    assert response.results[0].links[0].quality == "1080P"
     assert response.results[0].links[0].validation_status == "unknown"
     assert response.source_results[0].source_id == "failing"
     assert response.source_results[0].error is not None
@@ -143,6 +164,18 @@ async def test_search_service_dedupes_by_real_link() -> None:
     assert response.count == 1
     assert len(response.results[0].links) == 1
     assert {group.source_id: group.count for group in response.source_results} == {"static": 1, "duplicate": 1}
+
+
+@pytest.mark.anyio
+async def test_search_service_fills_year_quality_and_link_name_from_content() -> None:
+    service = SearchService(sources=[metadata_sparse_source()], validator=LinkValidator(enable_network=False))
+
+    response = await service.search(SearchQuery(keyword="银河护卫队"))
+
+    candidate = response.results[0]
+    assert candidate.year == 2023
+    assert candidate.links[0].quality == "4K"
+    assert candidate.links[0].name == "银河护卫队 4K"
 
 
 def test_search_api_returns_candidates(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -169,20 +202,48 @@ def test_search_api_returns_candidates(db_session: Session, monkeypatch: pytest.
     assert body["results"][0]["links"][0]["provider"] == "quark"
     assert body["source_results"][0]["source_id"] == "static"
     assert body["source_results"][0]["count"] == 1
+    assert db_session.query(Resource).count() == 0
+    assert db_session.query(ResourceLink).count() == 0
 
 
 @pytest.mark.anyio
-async def test_resource_library_persists_candidates(db_session: Session) -> None:
+async def test_resource_library_favorites_resource_and_link(db_session: Session) -> None:
     service = SearchService(sources=[static_source()], validator=LinkValidator(enable_network=False))
     library = ResourceLibraryService()
 
     response = await service.search(SearchQuery(keyword="星际穿越", year=2014))
-    library.save_candidates(db_session, response.results)
-    stored = library.get_resource(db_session, response.results[0].id)
+    candidate = response.results[0]
+    link = candidate.links[0]
 
-    assert stored is not None
-    assert stored.id == response.results[0].id
-    assert stored.links[0].code == "abcd"
+    stored_resource = library.favorite_resource(
+        db_session,
+        ResourceFavoriteRequest(
+            id=candidate.id,
+            title=candidate.title,
+            normalized_title=candidate.normalized_title,
+            original_title=candidate.original_title,
+            year=candidate.year,
+        ),
+    )
+    stored_link = library.favorite_link(
+        db_session,
+        ResourceLinkFavoriteRequest(
+            resource=ResourceFavoriteRequest(
+                id=candidate.id,
+                title=candidate.title,
+                normalized_title=candidate.normalized_title,
+                original_title=candidate.original_title,
+                year=candidate.year,
+            ),
+            link=link,
+        ),
+    )
+
+    assert stored_resource.is_favorited is True
+    assert stored_link.is_favorited is True
+    assert stored_link.name == "星际穿越 1080P"
+    assert stored_link.code == "abcd"
+    assert stored_link.quality == "1080P"
 
 
 def test_resource_api_reads_from_database(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -201,9 +262,131 @@ def test_resource_api_reads_from_database(db_session: Session, monkeypatch: pyte
     app.dependency_overrides[get_db] = override_get_db
     client = TestClient(app)
     search_response = client.get("/search", params={"q": "interstellar"})
-    resource_id = search_response.json()["results"][0]["id"]
+    candidate = search_response.json()["results"][0]
+    favorite_response = client.post(
+        "/resources/favorite",
+        json={
+            "id": candidate["id"],
+            "title": candidate["title"],
+            "normalized_title": candidate["normalized_title"],
+            "original_title": candidate["original_title"],
+            "year": candidate["year"],
+        },
+    )
+    assert favorite_response.status_code == 200
+    resource_id = candidate["id"]
 
     response = client.get(f"/resources/{resource_id}")
 
     assert response.status_code == 200
     assert response.json()["id"] == resource_id
+
+
+def test_resource_link_api_favorites_and_refresh(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    app = create_app()
+    import sundarr.app.api.search as search_api
+    import sundarr.app.services.resource_library_service as library_service_module
+
+    monkeypatch.setattr(
+        search_api,
+        "search_service",
+        SearchService(sources=[static_source()], validator=LinkValidator(enable_network=False)),
+    )
+
+    class StubValidationResult:
+        valid = True
+        status = "valid"
+        message = "ok"
+        checked_at = datetime.now(UTC)
+
+    async def fake_validate(provider: str, url: str):
+        return StubValidationResult()
+
+    monkeypatch.setattr(library_service_module.link_validator, "validate", fake_validate)
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    search_response = client.get("/search", params={"q": "interstellar"})
+    candidate = search_response.json()["results"][0]
+    link = candidate["links"][0]
+
+    favorite_response = client.post(
+        "/resource-links/favorite",
+        json={
+            "resource": {
+                "id": candidate["id"],
+                "title": candidate["title"],
+                "normalized_title": candidate["normalized_title"],
+                "original_title": candidate["original_title"],
+                "year": candidate["year"],
+            },
+            "link": link,
+        },
+    )
+
+    assert favorite_response.status_code == 200
+    assert favorite_response.json()["is_favorited"] is True
+
+    get_response = client.get(f"/resource-links/{link['id']}")
+    assert get_response.status_code == 200
+    assert get_response.json()["id"] == link["id"]
+
+    refresh_response = client.post(f"/resource-links/{link['id']}/refresh")
+    assert refresh_response.status_code == 200
+    assert refresh_response.json()["validation_status"] == "valid"
+
+
+@pytest.mark.anyio
+async def test_search_marks_favorited_resource_and_link(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    app = create_app()
+    import sundarr.app.api.search as search_api
+
+    service = SearchService(sources=[static_source()], validator=LinkValidator(enable_network=False))
+
+    monkeypatch.setattr(
+        search_api,
+        "search_service",
+        service,
+    )
+
+    library = ResourceLibraryService()
+    candidate = (await service.search(SearchQuery(keyword="星际穿越", year=2014))).results[0]
+    library.favorite_resource(
+        db_session,
+        ResourceFavoriteRequest(
+            id=candidate.id,
+            title=candidate.title,
+            normalized_title=candidate.normalized_title,
+            original_title=candidate.original_title,
+            year=candidate.year,
+        ),
+    )
+    library.favorite_link(
+        db_session,
+        ResourceLinkFavoriteRequest(
+            resource=ResourceFavoriteRequest(
+                id=candidate.id,
+                title=candidate.title,
+                normalized_title=candidate.normalized_title,
+                original_title=candidate.original_title,
+                year=candidate.year,
+            ),
+            link=candidate.links[0],
+        ),
+    )
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+
+    response = client.get("/search", params={"q": "interstellar", "year": 2014})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["results"][0]["is_favorited"] is True
+    assert body["results"][0]["links"][0]["is_favorited"] is True

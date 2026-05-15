@@ -18,7 +18,7 @@ def make_client(db_session: Session) -> TestClient:
 
 
 def seed_link(db_session: Session) -> ResourceLink:
-    resource = Resource(id="res_1", title="星际穿越", score=1)
+    resource = Resource(id="res_1", title="星际穿越", normalized_title="星际穿越")
     link = ResourceLink(
         id="link_1",
         resource_id=resource.id,
