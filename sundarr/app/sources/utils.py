@@ -1,0 +1,34 @@
+import re
+
+TITLE_TAG_PATTERN = re.compile(
+    r"\b(720p|1080p|2160p|4k|blu-?ray|web-?dl|remux|hdr|x26[45]|h\.26[45])\b",
+    re.IGNORECASE,
+)
+YEAR_PATTERN = re.compile(r"\b(19\d{2}|20\d{2})\b")
+
+
+def extract_year_from_text(text: str) -> int | None:
+    match = YEAR_PATTERN.search(text)
+    return int(match.group(1)) if match else None
+
+
+def extract_quality_from_text(*texts: str) -> str | None:
+    for text in texts:
+        match = TITLE_TAG_PATTERN.search(text)
+        if match:
+            raw = match.group(1).upper()
+            raw = raw.replace("BLURAY", "BluRay").replace("BLU-RAY", "BluRay")
+            return raw
+    return None
+
+
+def generate_link_name(title: str, quality: str | None) -> str:
+    if quality and quality.lower() not in title.lower():
+        return f"{title} {quality}"
+    return title
+
+
+def clean_title(raw_title: str) -> str:
+    title = TITLE_TAG_PATTERN.sub("", raw_title)
+    title = YEAR_PATTERN.sub("", title)
+    return " ".join(title.split())

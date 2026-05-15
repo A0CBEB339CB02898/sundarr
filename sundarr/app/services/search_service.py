@@ -15,9 +15,7 @@ from sundarr.app.schemas.search import (
 )
 from sundarr.app.services.link_validator import LinkValidator, link_validator
 from sundarr.app.sources import SourceModel, get_registered_sources
-
-TITLE_TAG_PATTERN = re.compile(r"\b(720p|1080p|2160p|4k|blu-?ray|web-?dl|remux|hdr|x26[45]|h\.26[45])\b", re.IGNORECASE)
-YEAR_PATTERN = re.compile(r"\b(19\d{2}|20\d{2})\b")
+from sundarr.app.sources.utils import clean_title, generate_link_name
 
 
 class SearchService:
@@ -83,7 +81,7 @@ class SearchService:
             links = [link for link in links if link.provider == query.result_type]
         if not links:
             return None
-        title = self._clean_title(item.raw_title)
+        title = clean_title(item.raw_title)
         year = self._extract_year(item, query)
         quality = item.metadata.get("quality") or self._extract_quality(item.raw_title, item.raw_content)
         link_name = self._extract_link_name(item, title, quality)
@@ -162,29 +160,24 @@ class SearchService:
             link.validation_message = result.message
             link.checked_at = result.checked_at
 
-    def _clean_title(self, raw_title: str) -> str:
-        title = TITLE_TAG_PATTERN.sub("", raw_title)
-        title = YEAR_PATTERN.sub("", title)
-        return " ".join(title.split())
-
     def _normalize_title(self, title: str) -> str:
         return re.sub(r"\W+", "", title).lower()
 
     def _extract_year(self, item: RawSearchItem, query: SearchQuery) -> int | None:
+        from sundarr.app.sources.utils import extract_year_from_text
+
         if isinstance(item.metadata.get("year"), int):
             return item.metadata["year"]
-        match = YEAR_PATTERN.search(item.raw_title)
-        if match:
-            return int(match.group(1))
-        match = YEAR_PATTERN.search(item.raw_content)
-        return int(match.group(1)) if match else query.year
+        match = extract_year_from_text(item.raw_title)
+        if match is not None:
+            return match
+        match = extract_year_from_text(item.raw_content)
+        return match if match is not None else query.year
 
     def _extract_quality(self, *texts: str) -> str | None:
-        for text in texts:
-            match = TITLE_TAG_PATTERN.search(text)
-            if match:
-                return match.group(1).upper().replace("BLURAY", "BluRay").replace("BLU-RAY", "BluRay")
-        return None
+        from sundarr.app.sources.utils import extract_quality_from_text
+
+        return extract_quality_from_text(*texts)
 
     def _extract_link_name(self, item: RawSearchItem, title: str, quality: str | None) -> str:
         for key in ("link_name", "name", "title"):
@@ -193,10 +186,8 @@ class SearchService:
                 name = value.strip()
                 break
         else:
-            name = self._clean_title(item.raw_title) or title
-        if quality and quality.lower() not in name.lower():
-            return f"{name} {quality}"
-        return name
+            name = clean_title(item.raw_title) or title
+        return generate_link_name(name, quality)
 
     def _stable_id(self, *parts: str | None) -> str:
         value = "|".join(part or "" for part in parts)

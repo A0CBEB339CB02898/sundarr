@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 from sundarr.app.parsers.link_extractor import LINK_PATTERNS
 from sundarr.app.schemas.search import RawSearchItem, SearchQuery
 from sundarr.app.sources.base import SourceTestEvent, SourceTestExecution
+from sundarr.app.sources.utils import extract_quality_from_text, extract_year_from_text
 
 
 class SeedHubSource:
@@ -139,14 +140,22 @@ class SeedHubSource:
     def _build_raw_item(self, detail_url: str, html: str, content: str) -> RawSearchItem | None:
         if not self._contains_supported_link(content):
             return None
+        raw_title = self._extract_title(html) or "SeedHub 搜索结果"
+        year = extract_year_from_text(raw_title)
+        quality = extract_quality_from_text(raw_title)
+        metadata: dict[str, object] = {"type": "unknown", "source": "seedhub"}
+        if year is not None:
+            metadata["year"] = year
+        if quality is not None:
+            metadata["quality"] = quality
         return RawSearchItem(
             source_id=self.id,
             source_type="code",
-            raw_title=self._extract_title(html) or "SeedHub 搜索结果",
+            raw_title=raw_title,
             raw_url=detail_url,
             raw_content=content,
             fetched_at=datetime.now(UTC),
-            metadata={"type": "unknown", "source": "seedhub"},
+            metadata=metadata,
         )
 
     def _build_detail_content(self, detail_url: str, html: str) -> str:
