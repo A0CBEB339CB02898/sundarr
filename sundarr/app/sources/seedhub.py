@@ -217,8 +217,11 @@ class SeedHubSource:
     def _extract_seedhub_download_links(self, html: str) -> list[str]:
         links: list[str] = []
         seen: set[str] = set()
-        for href in re.findall(r'href="(/link_start/\?(?:seed_id|redirect_to)=[^"<]*)"', html, flags=re.IGNORECASE):
-            link = unescape(href)
+        for href in re.findall(r'href="[^"]*link_start/\?(?:seed_id|redirect_to)=[^"<]*"', html, flags=re.IGNORECASE):
+            href = unescape(href)
+            # normalize to relative path if full URL
+            link = href[href.rfind('/link_start/'):] if '/link_start/' in href else href
+            link = link.rstrip('"')
             if link in seen:
                 continue
             seen.add(link)
@@ -236,7 +239,7 @@ class SeedHubSource:
     def _extract_per_link_metas(self, html: str) -> list[dict[str, object]]:
         metas: list[dict[str, object]] = []
         for li_match in re.finditer(
-            r'<li>\s*<a[^>]*title="([^"]*)"[^>]*href="/link_start/\?seed_id=(\d+)[^"]*"[^>]*>.*?</a>.*?</li>',
+            r'<li>\s*<a[^>]*title="([^"]*)"[^>]*href="[^"]*link_start/\?seed_id=(\d+)[^"]*"[^>]*>.*?</a>.*?</li>',
             html,
             re.DOTALL,
         ):
@@ -252,7 +255,7 @@ class SeedHubSource:
                 meta["published_at"] = published_at
             metas.append(meta)
         for li_match in re.finditer(
-            r'<li>\s*<a[^>]*title="([^"]*)"[^>]*data-link="([^"]*)"[^>]*href="/link_start/\?redirect_to=pan_id_(\d+)[^"]*"[^>]*>.*?</a>\s*</li>',
+            r'<li>\s*<a[^>]*title="([^"]*)"[^>]*data-link="([^"]*)"[^>]*href="[^"]*link_start/\?redirect_to=pan_id_(\d+)[^"]*"[^>]*>.*?</a>\s*</li>',
             html,
             re.DOTALL,
         ):
