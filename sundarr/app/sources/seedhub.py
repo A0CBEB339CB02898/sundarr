@@ -10,7 +10,7 @@ from urllib.request import Request, urlopen
 from sundarr.app.parsers.link_extractor import LINK_PATTERNS
 from sundarr.app.schemas.search import RawSearchItem, SearchQuery
 from sundarr.app.sources.base import SourceTestEvent, SourceTestExecution
-from sundarr.app.sources.utils import extract_quality_from_text, extract_year_from_text
+from sundarr.app.sources.utils import CN_QUALITY_PATTERN, extract_quality_from_text, extract_year_from_text
 
 
 class SeedHubSource:
@@ -158,6 +158,9 @@ class SeedHubSource:
             metadata["year"] = year
         if quality is not None:
             metadata["quality"] = quality
+        link_meta = self._extract_link_metadata(html)
+        if link_meta:
+            metadata["links"] = link_meta
         return RawSearchItem(
             source_id=self.id,
             source_type="code",
@@ -171,7 +174,7 @@ class SeedHubSource:
     def _build_detail_content(self, detail_url: str, html: str) -> str:
         parts = [self._strip_tags(html)]
         parts.extend(self._extract_direct_links(html))
-        for link in self._extract_seedhub_download_links(html)[: self.max_resolved_links_per_detail]:
+        for link in self._extract_seedhub_download_links(html):
             try:
                 resolved = self._resolve_seedhub_link(link)
             except (HTTPError, InvalidURL, URLError, TimeoutError, ValueError):
@@ -183,7 +186,7 @@ class SeedHubSource:
     async def _build_detail_content_async(self, detail_url: str, html: str) -> str:
         parts = [self._strip_tags(html)]
         parts.extend(self._extract_direct_links(html))
-        download_links = self._extract_seedhub_download_links(html)[: self.max_resolved_links_per_detail]
+        download_links = self._extract_seedhub_download_links(html)
         resolved_links = await asyncio.gather(
             *(asyncio.to_thread(self._resolve_seedhub_link, link) for link in download_links),
             return_exceptions=True,
@@ -229,6 +232,49 @@ class SeedHubSource:
             if text:
                 titles.append(text)
         return titles
+
+    def _extract_link_metadata(self, html: str) -> dict[str, dict[str, object]]:
+        text = self._strip_tags(html)
+        result: dict[str, dict[str, object]] = {}
+        url_pattern = re.compile(
+            r"(?:magnet:\?xt=urn:btih:[A-Za-z0-9]{32,40}[^\s<>'\"，。；、]*"
+            r"|https?://pan\.quark\.cn/s/[A-Za-z0-9_-]+"
+            r"|https?://(?:www\.)?(?:aliyundrive|alipan)\.com/s/[A-Za-z0-9_-]+"
+            r"|https?://pan\.baidu\.com/s/[A-Za-z0-9_-]+(?:\?[^\s<>'\"，。；、]*)?"
+            r"|https?://pan\.xunlei\.com/s/[A-Za-z0-9_-]+(?:\?[^\s<>'\"，。；、]*)?"
+            r"|https?://drive\.uc\.cn/s/[A-Za-z0-9_-]+(?:\?[^\s<>'\"，。；、]*)?"
+            r"|https?://(?:www\.)?(?:115|115cdn|anxia)\.com/s/[A-Za-z0-9_-]+(?:\?[^\s<>'\"，。；、]*)?"
+            r"|https?://(?:www\.)?(?:123684|123685|123912|123pan|123592)\.(?:com|cn)/s/[A-Za-z0-9_-]+(?:\?[^\s<>'\"，。；、]*)?"
+            r"|https?://cloud\.189\.cn/(?:t/[A-Za-z0-9]+|web/share\?code=[A-Za-z0-9]+)(?:[^\s<>'\"，。；、]*)?"
+            r"|thunder://[^\s<>'\"，。；、]+"
+            r"|ed2k://[^\s<>'\"，。；、]+)",
+            re.IGNORECASE,
+        )
+        for match in url_pattern.finditer(text):
+            url = match.group(0).rstrip(".,;，。；")
+            if url in result:
+                continue
+            start = max(0, match.start() - 200)
+            context = text[start:match.end() + 100]
+            quality = extract_quality_from_text(context)
+            if quality is None:
+                cn_match = CN_QUALITY_PATTERN.search(context)
+                if cn_match:
+                    quality = cn_match.group(1)
+            before_text = text[start:match.start()].strip()
+            name_candidates = [p for p in re.split(r"[\s【】\[\]{}，。,\.\n]+", before_text) if len(p) >= 2]
+            name = name_candidates[-1] if name_candidates else ""
+            date_match = re.search(r"(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})", context)
+            meta: dict[str, object] = {}
+            if name and name not in ("下载", "链接", "提取码"):
+                meta["name"] = name
+            if quality:
+                meta["quality"] = quality
+            if date_match:
+                meta["published_at"] = date_match.group(1)
+            if meta:
+                result[url] = meta
+        return result
 
     def _resolve_seedhub_link(self, link: str) -> str | None:
         html = self._fetch(urljoin(self.base_url, self._normalize_seedhub_download_link(link)))

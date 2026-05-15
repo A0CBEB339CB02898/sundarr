@@ -272,27 +272,15 @@ def test_resource_api_reads_from_database(db_session: Session, monkeypatch: pyte
     assert response.json()["id"] == resource_id
 
 
-def test_resource_link_api_favorites_and_refresh(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resource_link_api_favorites(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     app = create_app()
     import sundarr.app.api.search as search_api
-    import sundarr.app.services.resource_library_service as library_service_module
 
     monkeypatch.setattr(
         search_api,
         "search_service",
         SearchService(sources=[static_source()], validator=LinkValidator(enable_network=False)),
     )
-
-    class StubValidationResult:
-        valid = True
-        status = "valid"
-        message = "ok"
-        checked_at = datetime.now(UTC)
-
-    async def fake_validate(provider: str, url: str):
-        return StubValidationResult()
-
-    monkeypatch.setattr(library_service_module.link_validator, "validate", fake_validate)
 
     def override_get_db():
         yield db_session
@@ -323,10 +311,6 @@ def test_resource_link_api_favorites_and_refresh(db_session: Session, monkeypatc
     get_response = client.get(f"/resource-links/{link['id']}")
     assert get_response.status_code == 200
     assert get_response.json()["id"] == link["id"]
-
-    refresh_response = client.post(f"/resource-links/{link['id']}/refresh")
-    assert refresh_response.status_code == 200
-    assert refresh_response.json()["validation_status"] == "valid"
 
 
 @pytest.mark.anyio

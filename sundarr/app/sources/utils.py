@@ -4,6 +4,7 @@ TITLE_TAG_PATTERN = re.compile(
     r"\b(720p|1080p|2160p|4k|blu-?ray|web-?dl|remux|hdr|x26[45]|h\.26[45])\b",
     re.IGNORECASE,
 )
+CN_QUALITY_PATTERN = re.compile(r"\b(蓝光|高清|高码)\b")
 YEAR_PATTERN = re.compile(r"\b(19\d{2}|20\d{2})\b")
 
 
@@ -19,6 +20,9 @@ def extract_quality_from_text(*texts: str) -> str | None:
             raw = match.group(1).upper()
             raw = raw.replace("BLURAY", "BluRay").replace("BLU-RAY", "BluRay")
             return raw
+        match = CN_QUALITY_PATTERN.search(text)
+        if match:
+            return match.group(1)
     return None
 
 
