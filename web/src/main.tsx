@@ -2449,19 +2449,6 @@ function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | '
     }
   }
 
-  async function refreshLink(resource: ResourceCandidate, link: ResourceLinkResult) {
-    try {
-      const refreshed = await api.post<ResourceLinkResult>(`/resource-links/${encodeURIComponent(link.id)}/refresh`)
-      setResources((current) => current.map((item) => item.id === resource.id ? {
-        ...item,
-        links: item.links.map((entry) => entry.id === link.id ? refreshed : entry),
-      } : item))
-      showToast('success', '链接刷新完成。')
-    } catch (exc) {
-      showToast('error', exc instanceof Error ? exc.message : '刷新链接失败。')
-    }
-  }
-
   async function copyLink(link: ResourceLinkResult) {
     const text = link.code ? `${link.url} 提取码：${link.code}` : link.url
     try {
@@ -2511,10 +2498,7 @@ function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | '
   return (
     <section className="favorite-tab-panel" aria-labelledby="favorite-resources-title">
       <div className="sx-section-head">
-        <div>
-          <p className="ui-eyebrow">收藏资源</p>
-          <h3 id="favorite-resources-title">按媒体维度持续跟踪</h3>
-        </div>
+        <p className="ui-eyebrow">收藏资源</p>
         <span>{totalCount} 个资源</span>
       </div>
       {isLoading ? <UILoadingState message="正在读取收藏资源…" /> : null}
@@ -2571,7 +2555,6 @@ function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | '
                 onCopyLink={(link) => void copyLink(link)}
                 onFavoriteLink={(link) => void toggleFavoriteLink(resource, link)}
                 onFavoriteResource={() => void toggleFavoriteResource(resource)}
-                onRefreshLink={(link) => void refreshLink(resource, link)}
                 onRefreshResource={() => void refreshResource(resource)}
                 onSaveToCloud={() => showToast('info', '保存到网盘入口已预留。')}
                 resource={resource}
@@ -2609,16 +2592,6 @@ function FavoriteLinksPanel({ showToast }: { showToast: (type: 'success' | 'erro
     }
   }
 
-  async function refreshLink(link: ResourceLinkResult) {
-    try {
-      const refreshed = await api.post<ResourceLinkResult>(`/resource-links/${encodeURIComponent(link.id)}/refresh`)
-      setLinks((current) => current.map((item) => item.id === link.id ? refreshed : item))
-      showToast('success', '链接刷新完成。')
-    } catch (exc) {
-      showToast('error', exc instanceof Error ? exc.message : '刷新链接失败。')
-    }
-  }
-
   async function unfavoriteLink(link: ResourceLinkResult) {
     try {
       await api.post<{ ok: boolean }>(`/resource-links/${encodeURIComponent(link.id)}/unfavorite`)
@@ -2645,10 +2618,7 @@ function FavoriteLinksPanel({ showToast }: { showToast: (type: 'success' | 'erro
   return (
     <section className="favorite-tab-panel" aria-labelledby="favorite-links-title">
       <div className="sx-section-head">
-        <div>
-          <p className="ui-eyebrow">收藏链接</p>
-          <h3 id="favorite-links-title">保留具体分享版本</h3>
-        </div>
+        <p className="ui-eyebrow">收藏链接</p>
         <span>{totalCount} 条链接</span>
       </div>
       {isLoading ? <UILoadingState message="正在读取收藏链接…" /> : null}
@@ -2661,21 +2631,19 @@ function FavoriteLinksPanel({ showToast }: { showToast: (type: 'success' | 'erro
               {links.map((link) => (
                 <div className="link-row" key={link.id}>
                   <a href={link.url} target="_blank" rel="noreferrer">
-                    <strong>{link.name || link.url}</strong>
-                    <small>{[
-                      providerLabel(link.provider),
-                      link.quality,
-                      link.source_id,
-                      link.code ? `提取码：${link.code}` : '无提取码',
-                      link.name ? link.url : null,
-                      link.published_at ? formatDateTime(link.published_at) : null,
-                    ].filter(Boolean).join(' · ')}</small>
+                    <strong className="truncate-name">{link.name || link.url}</strong>
+                    <div className="link-meta">
+                      <span className="provider-badge">{providerLabel(link.provider)}</span>
+                      {link.quality ? <span>{link.quality}</span> : null}
+                      {link.code ? <span>提取码：{link.code}</span> : null}
+                      {link.published_at ? <span>{formatDate(link.published_at)}</span> : null}
+                    </div>
+                    <span className="link-url-text">{link.url}</span>
                   </a>
                   <StatusBadge tone={linkValidationTone(link.validation_status)}>
                     {validationLabel(link)}
                   </StatusBadge>
                   <div className="link-actions">
-                    <Button variant="ghost" size="sm" type="button" onClick={() => void refreshLink(link)}>刷新链接</Button>
                     <Button variant="secondary" size="sm" type="button" onClick={() => void unfavoriteLink(link)}>取消收藏</Button>
                     <Button variant="ghost" size="sm" type="button" onClick={() => void copyLink(link)}>复制链接</Button>
                   </div>
@@ -2941,7 +2909,6 @@ function ResourceCard({
   onCopyLink,
   onFavoriteLink,
   onFavoriteResource,
-  onRefreshLink,
   onRefreshResource,
   onSaveToCloud,
   resource,
@@ -2950,7 +2917,6 @@ function ResourceCard({
   onCopyLink: (link: ResourceLinkResult) => void
   onFavoriteLink: (link: ResourceLinkResult) => void
   onFavoriteResource: () => void
-  onRefreshLink?: (link: ResourceLinkResult) => void
   onRefreshResource?: () => void
   onSaveToCloud: (link: ResourceLinkResult) => void
   resource: ResourceCandidate
@@ -2981,23 +2947,19 @@ function ResourceCard({
         {links.map((link) => (
           <div className="link-row" key={link.id}>
             <a href={link.url} target="_blank" rel="noreferrer">
-              <strong>{link.name || link.url}</strong>
-              <small>
-                {[
-                  providerLabel(link.provider),
-                  link.quality,
-                  link.source_id,
-                  link.code ? `提取码：${link.code}` : '无提取码',
-                  link.name ? link.url : null,
-                  link.published_at ? formatDateTime(link.published_at) : null,
-                ].filter(Boolean).join(' · ')}
-              </small>
+              <strong className="truncate-name">{link.name || link.url}</strong>
+              <div className="link-meta">
+                <span className="provider-badge">{providerLabel(link.provider)}</span>
+                {link.quality ? <span>{link.quality}</span> : null}
+                {link.code ? <span>提取码：{link.code}</span> : null}
+                {link.published_at ? <span>{formatDate(link.published_at)}</span> : null}
+              </div>
+              <span className="link-url-text">{link.url}</span>
             </a>
             <StatusBadge tone={linkValidationTone(link.validation_status)}>
               {validationLabel(link)}
             </StatusBadge>
             <div className="link-actions">
-              {onRefreshLink ? <Button variant="ghost" size="sm" type="button" onClick={() => onRefreshLink(link)}>刷新链接</Button> : null}
               <Button variant={link.is_favorited ? 'secondary' : 'ghost'} size="sm" type="button" onClick={() => onFavoriteLink(link)}>
                 {link.is_favorited ? '已收藏链接' : '收藏链接'}
               </Button>
@@ -4930,6 +4892,12 @@ function formatBytes(value: number) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1)
   return `${(value / 1024 ** index).toFixed(index === 0 ? 0 : 2)} ${units[index]}`
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return d.toISOString().slice(0, 10)
 }
 
 function formatDateTime(value: string) {
