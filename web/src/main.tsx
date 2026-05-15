@@ -178,6 +178,8 @@ type StorageFormState = {
 
 type MediaType = 'movie' | 'tv' | 'anime' | 'unknown'
 
+type ViewMode = 'grid' | 'list'
+
 
 type SearchResponse = {
   query: string
@@ -194,6 +196,11 @@ type SourceSearchResult = {
   error: string | null
 }
 
+type FetchDetailRequest = {
+  source_id: string
+  detail_url: string
+}
+
 type ResourceCandidate = {
   id: string
   title: string
@@ -204,6 +211,7 @@ type ResourceCandidate = {
   source_url: string | null
   is_favorited: boolean
   favorited_at: string | null
+  has_more_links: boolean
   links: ResourceLinkResult[]
 }
 
@@ -2371,6 +2379,9 @@ function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | '
   const [activeProvider, setActiveProvider] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    (window.localStorage.getItem('sundarr.viewMode') as ViewMode) || 'list'
+  )
 
   useEffect(() => { void loadFavorites() }, [page, pageSize])
 
@@ -2483,6 +2494,7 @@ function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | '
       <div className="sx-section-head">
         <p className="ui-eyebrow">收藏资源</p>
         <span>{totalCount} 个资源</span>
+        <ViewToggle value={viewMode} onChange={(m) => { setViewMode(m); window.localStorage.setItem('sundarr.viewMode', m) }} />
       </div>
       {isLoading ? <UILoadingState message="正在读取收藏资源…" /> : null}
       {error ? <UIErrorState message="读取收藏资源失败" sub={error} /> : null}
@@ -2527,7 +2539,7 @@ function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | '
               ))}
             </div>
           ) : null}
-          <div className="sx-result-pane" role="tabpanel">
+          <div className={viewMode === 'grid' ? 'sx-results-grid' : 'sx-result-pane'} role="tabpanel">
             {activeTab && activeTab.results.length === 0 ? (
               <UIEmptyState message="该来源没有收藏资源" sub="切换到其它来源标签页查看。" />
             ) : null}
@@ -2541,6 +2553,8 @@ function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | '
                 onRefreshResource={() => void refreshResource(resource)}
                 onSaveToCloud={() => showToast('info', '保存到网盘入口已预留。')}
                 resource={resource}
+                showToast={showToast}
+                viewMode={viewMode}
               />
             ))}
           </div>
@@ -2650,6 +2664,9 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
   const [activeProvider, setActiveProvider] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    (window.localStorage.getItem('sundarr.viewMode') as ViewMode) || 'list'
+  )
 
   async function runSearch() {
     const keyword = form.q.trim()
@@ -2814,7 +2831,7 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
 
       {response ? (
         <Card emphasis="sunken" className="sx-results-card">
-          <div className="sx-section-head"><p className="ui-eyebrow">搜索结果</p><span>{response.count} 个去重结果</span></div>
+          <div className="sx-section-head"><p className="ui-eyebrow">搜索结果</p><span>{response.count} 个去重结果</span><ViewToggle value={viewMode} onChange={(m) => { setViewMode(m); window.localStorage.setItem('sundarr.viewMode', m) }} /></div>
           <div className="sx-result-tabs" role="tablist" aria-label="按媒体源查看搜索结果">
             {sourceTabs.map((tab) => (
               <button
@@ -2861,7 +2878,7 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
               ))}
             </div>
           ) : null}
-          <div className="sx-result-pane" role="tabpanel">
+          <div className={viewMode === 'grid' ? 'sx-results-grid' : 'sx-result-pane'} role="tabpanel">
             {activeTab && activeTab.results.length === 0 ? (
               <UIEmptyState message="没有搜索到结果" sub="可以换一个关键词或结果类型后重新搜索。" />
             ) : null}
@@ -2874,6 +2891,8 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
                 onFavoriteResource={() => void toggleFavoriteResource(resource)}
                 onSaveToCloud={saveToCloud}
                 resource={resource}
+                showToast={showToast}
+                viewMode={viewMode}
               />
             ))}
           </div>
@@ -2893,6 +2912,8 @@ function ResourceCard({
   onRefreshResource,
   onSaveToCloud,
   resource,
+  showToast,
+  viewMode,
 }: {
   activeProvider: string | null
   onCopyLink: (link: ResourceLinkResult) => void
@@ -2901,10 +2922,67 @@ function ResourceCard({
   onRefreshResource?: () => void
   onSaveToCloud: (link: ResourceLinkResult) => void
   resource: ResourceCandidate
+  showToast?: (type: 'success' | 'error' | 'info', message: string) => void
+  viewMode?: 'grid' | 'list'
 }) {
+  const [isLoadingLinks, setIsLoadingLinks] = useState(false)
+  const [localLinks, setLocalLinks] = useState<ResourceLinkResult[]>(resource.links)
+
   const links = activeProvider
-    ? resource.links.filter((link) => link.provider === activeProvider)
-    : resource.links
+    ? (localLinks.length > 0 ? localLinks : resource.links).filter((link) => link.provider === activeProvider)
+    : (localLinks.length > 0 ? localLinks : resource.links)
+
+  async function loadLinks() {
+    setIsLoadingLinks(true)
+    try {
+      if (!resource.source_url) {
+        if (showToast) showToast('error', '缺少详情链接地址。')
+        return
+      }
+      const result = await api.post<ResourceCandidate>('/search/detail', {
+        source_id: resource.source_id,
+        detail_url: resource.source_url as string,
+      })
+      setLocalLinks(result.links)
+    } catch (exc) {
+      if (showToast) showToast('error', '加载链接失败。')
+    } finally {
+      setIsLoadingLinks(false)
+    }
+  }
+
+  if (viewMode === 'grid') {
+    const linkCount = links.length
+    const placeholderLetter = (resource.title || '?')[0]
+    return (
+      <article className="sx-grid-card">
+        <div className="sx-grid-card-placeholder">{placeholderLetter}</div>
+        <div className="sx-grid-card-body">
+          <div className="sx-grid-card-title" title={resource.title}>
+            {resource.title}{resource.year ? ` (${resource.year})` : ''}
+          </div>
+          {resource.original_title && resource.original_title !== resource.title ? (
+            <div className="sx-grid-card-meta">{resource.original_title}</div>
+          ) : null}
+          <div className="sx-grid-card-source">
+            <span className="source-badge">{resource.source_id}</span>
+          </div>
+          <div className="sx-grid-card-actions">
+            <Button variant="ghost" size="sm" type="button" onClick={onFavoriteResource}>
+              {resource.is_favorited ? '★' : '☆'}
+            </Button>
+            {resource.has_more_links && localLinks.length === 0 ? (
+              <Button variant="secondary" size="sm" type="button" disabled={isLoadingLinks} onClick={() => void loadLinks()}>
+                {isLoadingLinks ? '…' : '加载链接'}
+              </Button>
+            ) : (
+              <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>{linkCount} 个链接</span>
+            )}
+          </div>
+        </div>
+      </article>
+    )
+  }
 
   return (
     <article className="resource-card">
@@ -2924,7 +3002,15 @@ function ResourceCard({
         </div>
       </div>
       <div className="link-list">
-        {links.length === 0 ? <UIEmptyState message="该候选资源没有可用链接" /> : null}
+        {resource.has_more_links && links.length === 0 ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-4)' }}>
+            <Button variant="secondary" type="button" disabled={isLoadingLinks} onClick={() => void loadLinks()}>
+              {isLoadingLinks ? '加载中…' : '加载链接'}
+            </Button>
+          </div>
+        ) : links.length === 0 ? (
+          <UIEmptyState message="该候选资源没有可用链接" />
+        ) : null}
         {links.map((link) => (
           <div className="link-row" key={link.id}>
             <a href={link.url} target="_blank" rel="noreferrer">
@@ -2951,6 +3037,19 @@ function ResourceCard({
         ))}
       </div>
     </article>
+  )
+}
+
+function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (mode: ViewMode) => void }) {
+  return (
+    <div className="view-toggle">
+      <button className={value === 'grid' ? 'active' : ''} onClick={() => onChange('grid')} aria-label="网格视图" type="button">
+        ⊞
+      </button>
+      <button className={value === 'list' ? 'active' : ''} onClick={() => onChange('list')} aria-label="列表视图" type="button">
+        ≡
+      </button>
+    </div>
   )
 }
 
