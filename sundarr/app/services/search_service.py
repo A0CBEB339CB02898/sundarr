@@ -27,6 +27,17 @@ class SearchService:
     def _get_sources(self) -> list[SourceModel]:
         return list(self.sources) if self.sources is not None else get_registered_sources()
 
+    async def fetch_detail(self, source_id: str, detail_url: str) -> ResourceCandidate | None:
+        sources = self._get_sources()
+        source = next((s for s in sources if s.id == source_id), None)
+        if source is None or source.fetch_detail_function is None:
+            return None
+        item = await source.fetch_detail_function(detail_url)
+        if item is None:
+            return None
+        candidate = self._normalize(item, SearchQuery(keyword="fetch_detail"))
+        return candidate
+
     async def search(self, query: SearchQuery) -> SearchResponse:
         sources = self._get_sources()
         raw_items_by_source, errors_by_source = await self._collect_raw_items(query)
@@ -77,8 +88,9 @@ class SearchService:
             return source.id, [], f"SEARCH_SOURCE_FAILED: {exc}"
 
     def _normalize(self, item: RawSearchItem, query: SearchQuery) -> ResourceCandidate | None:
+        has_more_links = item.metadata.get("has_more_links", False)
         links = extract_cloud_links(item.raw_content)
-        if not links:
+        if not links and not has_more_links:
             return None
         title = clean_title(item.raw_title)
         year = self._extract_year(item, query)
@@ -117,6 +129,7 @@ class SearchService:
             source_id=item.source_id,
             source_url=item.raw_url,
             links=result_links,
+            has_more_links=has_more_links,
         )
 
     def _dedupe(self, candidates: list[ResourceCandidate]) -> list[ResourceCandidate]:

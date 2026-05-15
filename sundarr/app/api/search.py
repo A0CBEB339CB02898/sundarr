@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
-from sundarr.app.schemas.search import SearchQuery, SearchResponse
+from sundarr.app.schemas.search import FetchDetailRequest, ResourceCandidate, SearchQuery, SearchResponse
 from sundarr.app.services.resource_library_service import resource_library_service
 from sundarr.app.services.search_service import search_service
 from sundarr.app.services.source_service import source_service
@@ -25,3 +25,11 @@ async def search(
     for source_result in response.source_results:
         resource_library_service.mark_favorites(db, source_result.results)
     return response
+
+
+@router.post("/search/detail", response_model=ResourceCandidate)
+async def fetch_detail(request: FetchDetailRequest) -> ResourceCandidate:
+    result = await search_service.fetch_detail(request.source_id, request.detail_url)
+    if result is None:
+        raise HTTPException(status_code=404, detail="无法获取该资源的详情。")
+    return result

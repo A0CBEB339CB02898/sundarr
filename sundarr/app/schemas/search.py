@@ -62,6 +62,7 @@ class ResourceCandidate(BaseModel):
     is_favorited: bool = False
     favorited_at: datetime | None = None
     links: list[ResourceLinkResult] = Field(default_factory=list)
+    has_more_links: bool = False
 
 
 class ResourceFavoriteRequest(BaseModel):
@@ -71,6 +72,11 @@ class ResourceFavoriteRequest(BaseModel):
     original_title: str | None = None
     year: int | None = None
     links: list[ResourceLinkResult] = Field(default_factory=list)
+
+
+class FetchDetailRequest(BaseModel):
+    source_id: str
+    detail_url: str
 
 
 class ResourceLinkFavoriteRequest(BaseModel):

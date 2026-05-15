@@ -12,6 +12,7 @@ def get_builtin_sources() -> list[SourceModel]:
             homepage_url=seedhub.homepage_url,
             search_function=seedhub.search,
             test_function=seedhub.test_search,
+            fetch_detail_function=seedhub.fetch_detail,
         )
     ]
 

@@ -26,9 +26,45 @@ class SeedHubSource:
 
     async def search(self, query: SearchQuery) -> list[RawSearchItem]:
         html = await asyncio.to_thread(self._fetch, self._search_url(query.keyword))
-        detail_urls = self._parse_detail_urls(html)
-        results = await asyncio.gather(*(self._fetch_detail_item(detail_url) for detail_url in detail_urls[: self.max_details]))
-        return [item for item in results if item is not None]
+        items: list[RawSearchItem] = []
+        seen: set[str] = set()
+        for title, href in re.findall(r'title="([^"]+)"[^>]*class="image"[^>]*href="(/movies/\d+)/?"', html, flags=re.IGNORECASE):
+            detail_url = self._normalize_detail_url(urljoin(self.base_url, unescape(href)))
+            if detail_url in seen:
+                continue
+            seen.add(detail_url)
+            raw_title = re.sub(r"<[^>]+>", "", unescape(title)).strip()
+            items.append(RawSearchItem(
+                source_id=self.id,
+                source_type="code",
+                raw_title=raw_title,
+                raw_url=detail_url,
+                raw_content="",
+                fetched_at=datetime.now(UTC),
+                metadata={"type": "unknown", "source": "seedhub", "has_more_links": True},
+            ))
+        for href in re.findall(r'href=["\']([^"\']+)["\']', html, flags=re.IGNORECASE):
+            if not self._looks_like_detail_href(href):
+                continue
+            detail_url = self._normalize_detail_url(urljoin(self.base_url, unescape(href)))
+            if detail_url in seen:
+                continue
+            seen.add(detail_url)
+            items.append(RawSearchItem(
+                source_id=self.id,
+                source_type="code",
+                raw_title="SeedHub 搜索结果",
+                raw_url=detail_url,
+                raw_content="",
+                fetched_at=datetime.now(UTC),
+                metadata={"type": "unknown", "source": "seedhub", "has_more_links": True},
+            ))
+        return items[:self.max_details]
+
+    async def fetch_detail(self, detail_url: str) -> RawSearchItem:
+        detail_html = await asyncio.to_thread(self._fetch, detail_url)
+        result = await self._parse_detail_async(detail_url, detail_html)
+        return result
 
     async def test_search(self, query: SearchQuery) -> SourceTestExecution:
         logs = [

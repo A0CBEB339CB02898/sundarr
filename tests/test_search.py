@@ -424,3 +424,46 @@ async def test_search_marks_favorited_resource_and_link(db_session: Session, mon
     body = response.json()
     assert body["results"][0]["is_favorited"] is True
     assert body["results"][0]["links"][0]["is_favorited"] is True
+
+
+def test_fetch_detail_api(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    app = create_app()
+    import sundarr.app.api.search as search_api
+
+    async def mock_fetch_detail(detail_url: str) -> RawSearchItem:
+        return RawSearchItem(
+            source_id="static",
+            source_type="code",
+            raw_title="星际穿越 2014 1080p",
+            raw_url=detail_url,
+            raw_content="链接：https://pan.quark.cn/s/static 提取码：abcd",
+            fetched_at=datetime.now(UTC),
+            metadata={"year": 2014},
+        )
+
+    src = SourceModel(
+        id="static",
+        name="静态源",
+        description="测试",
+        homepage_url="https://example.invalid",
+        search_function=static_search,
+        fetch_detail_function=mock_fetch_detail,
+    )
+
+    monkeypatch.setattr(
+        search_api,
+        "search_service",
+        SearchService(sources=[src], validator=LinkValidator(enable_network=False)),
+    )
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+
+    response = client.post("/search/detail", json={"source_id": "static", "detail_url": "https://example.invalid/detail/1"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["title"] == "星际穿越"
+    assert body["links"][0]["provider"] == "quark"
