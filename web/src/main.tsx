@@ -2546,7 +2546,7 @@ function FavoriteLinksPanel({ showToast }: { showToast: (type: 'success' | 'erro
               <div className="link-row" key={link.id}>
                 <a href={link.url} target="_blank" rel="noreferrer">
                   <strong>{link.name || link.url}</strong>
-                  <small>{[link.quality, link.code ? `提取码：${link.code}` : '无提取码', link.name ? link.url : null].filter(Boolean).join(' · ')}</small>
+                  <small>{[providerLabel(link.provider), link.quality, link.source_id, link.code ? `提取码：${link.code}` : '无提取码', link.name ? link.url : null].filter(Boolean).join(' · ')}</small>
                 </a>
                 <StatusBadge tone={linkValidationTone(link.validation_status)}>
                   {validationLabel(link)}
@@ -2836,7 +2836,13 @@ function ResourceCard({
   return (
     <article className="resource-card">
       <div className="resource-header">
-        <h3>{resource.title}</h3>
+        <div>
+          <h3>{resource.title}{resource.year ? ` (${resource.year})` : ''}</h3>
+          {resource.original_title && resource.original_title !== resource.title ? (
+            <p className="resource-original-title">{resource.original_title}</p>
+          ) : null}
+          <span className="source-badge">{resource.source_id}</span>
+        </div>
         <div className="resource-header-actions">
           {onRefreshResource ? <Button variant="ghost" size="sm" type="button" onClick={onRefreshResource}>刷新资源</Button> : null}
           <Button variant={resource.is_favorited ? 'secondary' : 'ghost'} size="sm" type="button" onClick={onFavoriteResource}>
@@ -2852,7 +2858,9 @@ function ResourceCard({
               <strong>{link.name || link.url}</strong>
               <small>
                 {[
+                  providerLabel(link.provider),
                   link.quality,
+                  link.source_id,
                   link.code ? `提取码：${link.code}` : '无提取码',
                   link.name ? link.url : null,
                 ].filter(Boolean).join(' · ')}
@@ -2872,7 +2880,6 @@ function ResourceCard({
           </div>
         ))}
       </div>
-      <p className="resource-source">来源 {resource.source_id}</p>
     </article>
   )
 }

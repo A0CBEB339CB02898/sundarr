@@ -877,6 +877,25 @@ h2 {
   letter-spacing: -0.3px;
 }
 
+.resource-original-title {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.source-badge {
+  display: inline-block;
+  margin-top: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+}
+
 .link-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -920,13 +939,6 @@ h2 {
 .link-row small,
 .selected-link-card p {
   overflow-wrap: anywhere;
-}
-
-.resource-source {
-  margin: 0;
-  color: var(--text-subtle);
-  font-size: 12px;
-  font-family: var(--font-mono);
 }
 
 .link-actions {
