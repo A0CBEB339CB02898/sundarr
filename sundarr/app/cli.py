@@ -212,6 +212,7 @@ def _stop_service(service: ManagedService, quiet: bool = False) -> bool:
     if _is_process_running(pid):
         if not _kill_process(pid):
             raise RuntimeError(f"{service.display_name} 旧进程 PID={pid} 清理失败，请手动结束后重试。")
+    service.pid_file.unlink(missing_ok=True)
     if not quiet:
         print(f"{service.display_name} 已停止。")
     return True
@@ -245,6 +246,7 @@ def _prepare_process(service: ManagedService, quiet: bool) -> bool:
     pid = _read_pid(service)
     if pid and _is_process_running(pid):
         if not _is_sundarr_process(pid):
+            service.pid_file.unlink(missing_ok=True)
             raise RuntimeError(f"{service.display_name} PID 文件指向非 Sundarr 进程 PID={pid}，请检查后重试。")
         if not quiet:
             print(f"{service.display_name} 旧进程仍在运行，准备清理 PID={pid}。")
