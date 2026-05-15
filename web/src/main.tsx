@@ -14,541 +14,70 @@ import {
   BrandLockup,
 } from './ui'
 import type { StatusTone } from './ui'
-
-type PageKey = 'search' | 'favorites' | 'transfers' | 'storage' | 'sources' | 'libraries' | 'remote-libraries' | 'status'
-type ThemeMode = 'light' | 'dark' | 'system'
-
-type NavItem = {
-  key: PageKey
-  path: string
-  label: string
-  description: string
-}
-
-type ComponentHealth = {
-  status: string
-  checked_at: string
-}
-
-type HealthResponse = {
-  status: string
-  database: string
-  redis: string
-  worker: string
-  checked_at: string
-  components: {
-    api: ComponentHealth
-    database: ComponentHealth
-    redis: ComponentHealth
-    worker: ComponentHealth
-  }
-}
-
-type TransferResponse = {
-  id: string
-  resource_id: string | null
-  link_id: string | null
-  status: TransferStatus
-  mode: string
-  cloud_staging_path: string | null
-  target_type: string
-  target_library: string | null
-  target_path: string
-  source_type: string | null
-  source_path: string | null
-  sync_seen_file_id: string | null
-  total_bytes: number
-  done_bytes: number
-  speed_bytes_per_sec: number
-  progress: number
-  current_file: string | null
-  error_code: string | null
-  error_message: string | null
-  retryable: boolean | null
-  retry_count: number
-  created_at: string | null
-  updated_at: string | null
-}
-
-type TransferLogResponse = {
-  id: string
-  task_id: string
-  level: string
-  event: string
-  message: string | null
-  data: Record<string, unknown> | null
-  created_at: string
-}
-
-type TransferListResponse = {
-  count: number
-  page: number
-  page_size: number
-  results: TransferResponse[]
-}
-
-type TransferStatus =
-  | 'pending'
-  | 'staging_to_cloud'
-  | 'cloud_ready'
-  | 'downloading'
-  | 'verifying'
-  | 'renaming'
-  | 'cleaning_cloud'
-  | 'cleaning_source'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-  | 'paused'
-
-type StorageConfigResponse = {
-  type: 'smb'
-  host: string
-  port: number
-  share: string
-  username: string
-  password_set: boolean
-  domain: string
-  base_path: string
-  libraries: Record<string, string>
-}
-
-type SmbConnectionResponse = {
-  id: string
-  name: string
-  enabled: boolean
-  host: string
-  port: number
-  share: string
-  username: string
-  password_set: boolean
-  domain: string
-  base_path: string
-  bound_local_libraries: string[]
-  bound_remote_libraries: string[]
-  last_test_ok: boolean | null
-  last_test_error_code: string | null
-  last_test_error_message: string | null
-  created_at: string | null
-  updated_at: string | null
-}
-
-type SmbConnectionListResponse = {
-  count: number
-  page: number
-  page_size: number
-  results: SmbConnectionResponse[]
-}
-
-type StorageConfigRequest = Omit<StorageConfigResponse, 'password_set'> & {
-  password: string | null
-}
-
-type StorageConfigTestResponse = {
-  ok: boolean
-  error_code: string | null
-  error_message: string | null
-}
-
-type StorageBrowseResponse = {
-  path: string
-  entries: StorageBrowseEntry[]
-}
-
-type StorageBrowseEntry = {
-  name: string
-  path: string
-  is_dir: boolean
-  size: number | null
-  modified_at: string | null
-}
-
-type StorageFormState = {
-  host: string
-  port: string
-  share: string
-  username: string
-  password: string
-  domain: string
-  base_path: string
-  library_movies: string
-  library_tv: string
-  library_anime: string
-}
-
-type MediaType = 'movie' | 'tv' | 'anime' | 'unknown'
-
-type ViewMode = 'grid' | 'list'
-
-
-type SearchResponse = {
-  query: string
-  count: number
-  results: ResourceCandidate[]
-  source_results: SourceSearchResult[]
-}
-
-type SourceSearchResult = {
-  source_id: string
-  source_name: string
-  count: number
-  results: ResourceCandidate[]
-  error: string | null
-}
-
-type FetchDetailRequest = {
-  source_id: string
-  detail_url: string
-}
-
-type ResourceCandidate = {
-  id: string
-  title: string
-  normalized_title: string
-  original_title: string | null
-  year: number | null
-  source_id: string
-  source_url: string | null
-  is_favorited: boolean
-  favorited_at: string | null
-  has_more_links: boolean
-  links: ResourceLinkResult[]
-}
-
-type ResourceLinkResult = {
-  id: string
-  provider: string
-  name: string | null
-  url: string
-  code: string | null
-  quality: string | null
-  valid: boolean | null
-  validation_status: 'unchecked' | 'checking' | 'valid' | 'invalid' | 'unknown' | 'error'
-  validation_message: string | null
-  checked_at: string | null
-  source_id: string | null
-  source_url: string | null
-  is_favorited: boolean
-  favorited_at: string | null
-  published_at: string | null
-}
-
-type ResourceFavoritesListResponse = {
-  count: number
-  page: number
-  page_size: number
-  results: ResourceCandidate[]
-}
-
-type ResourceFavoriteRequest = {
-  id: string
-  title: string
-  normalized_title: string
-  original_title: string | null
-  year: number | null
-}
-
-type ResourceLinkFavoriteRequest = {
-  resource: ResourceFavoriteRequest
-  link: ResourceLinkResult
-}
-
-type SearchFormState = {
-  q: string
-}
-
-type SourceResponse = {
-  id: string
-  name: string
-  description: string
-  homepage_url: string
-}
-
-type SourceListResponse = {
-  count: number
-  page: number
-  page_size: number
-  results: SourceResponse[]
-}
-
-type SourceTestResponse = {
-  ok: boolean
-  source_id: string
-  items: Record<string, unknown>[]
-  logs: SourceTestLog[]
-  error_code: string | null
-  error_message: string | null
-  tested_at: string
-}
-
-type SourceTestLog = {
-  step: string
-  status: string
-  message: string
-  data: Record<string, unknown>
-}
-
-type SourceTestFormState = {
-  keyword: string
-  limit: string
-}
-
-type MediaLibraryResponse = {
-  id: string
-  name: string
-  media_type: DtlMediaType
-  enabled: boolean
-  connection_id: string
-  base_path: string
-  bound_remote_libraries: string[]
-  last_test_ok: boolean | null
-  last_test_error_code: string | null
-  last_test_error_message: string | null
-  created_at: string | null
-  updated_at: string | null
-}
-
-type MediaLibraryListResponse = {
-  count: number
-  page: number
-  page_size: number
-  results: MediaLibraryResponse[]
-}
-
-type DtlMediaType = 'movie' | 'series' | 'unclassified'
-
-type DtlConfigResponse = {
-  delete_source_after_success: boolean
-  delete_empty_source_dirs: boolean
-  scan_interval_seconds: number
-  stable_seconds: number
-  unclassified_library_id: string
-}
-
-type DtlBindingResponse = {
-  id: string
-  name: string
-  enabled: boolean
-  media_type: DtlMediaType
-  source_connection_id: string
-  source_path: string
-  target_library_id: string
-  delete_source_after_success: boolean | null
-  delete_empty_source_dirs: boolean | null
-  created_at: string | null
-  updated_at: string | null
-}
-
-type DtlBindingListResponse = {
-  count: number
-  results: DtlBindingResponse[]
-}
-
-type DtlDiscoveredFileResponse = {
-  id: string
-  binding_id: string | null
-  source_fingerprint: string
-  source_path: string
-  source_size: number | null
-  source_mtime: string | null
-  status: string
-  task_id: string | null
-  created_at: string | null
-  updated_at: string | null
-}
-
-type DtlDiscoveredListResponse = {
-  count: number
-  results: DtlDiscoveredFileResponse[]
-}
-
-type DtlScanResponse = {
-  scanned_bindings: number
-  discovered_count: number
-  stable_count: number
-  results: DtlDiscoveredFileResponse[]
-}
-
-type DtlTaskCreateResponse = {
-  created_count: number
-  skipped_count: number
-  tasks: TransferResponse[]
-}
-
-type DtlBindingTestResponse = {
-  ok: boolean
-  source_ok: boolean
-  target_ok: boolean
-  error_code: string | null
-  error_message: string | null
-}
-
-type DtlBindingFormState = {
-  id: string
-  name: string
-  enabled: boolean
-  media_type: DtlMediaType
-  source_connection_id: string
-  source_path: string
-  target_library_id: string
-  delete_source_after_success: '' | 'true' | 'false'
-  delete_empty_source_dirs: '' | 'true' | 'false'
-}
-
-type DtlConfigFormState = {
-  delete_source_after_success: boolean
-  delete_empty_source_dirs: boolean
-  scan_interval_seconds: string
-  stable_seconds: string
-  unclassified_library_id: string
-}
-
-type SyncMediaType = 'movie' | 'series' | 'unclassified'
-
-type SyncConfigResponse = {
-  delete_source_after_success: boolean
-  delete_empty_source_dirs: boolean
-  scan_interval_seconds: number
-  stable_seconds: number
-  unclassified_library_id: string
-}
-
-type SyncBindingResponse = {
-  id: string
-  name: string
-  enabled: boolean
-  media_type: SyncMediaType
-  remote_library_id: string
-  local_library_id: string
-  delete_source_after_success: boolean | null
-  delete_empty_source_dirs: boolean | null
-  created_at: string | null
-  updated_at: string | null
-}
-
-type SyncBindingListResponse = {
-  count: number
-  results: SyncBindingResponse[]
-}
-
-type SyncDiscoveredFileResponse = {
-  id: string
-  binding_id: string | null
-  source_fingerprint: string
-  source_path: string
-  source_size: number | null
-  source_mtime: string | null
-  status: string
-  task_id: string | null
-  created_at: string | null
-  updated_at: string | null
-}
-
-type SyncDiscoveredListResponse = {
-  count: number
-  results: SyncDiscoveredFileResponse[]
-}
-
-type SyncScanResponse = {
-  scanned_bindings: number
-  discovered_count: number
-  stable_count: number
-  results: SyncDiscoveredFileResponse[]
-}
-
-type SyncTaskCreateResponse = {
-  created_count: number
-  skipped_count: number
-  tasks: TransferResponse[]
-}
-
-type SyncBindingTestResponse = {
-  ok: boolean
-  remote_ok: boolean
-  local_ok: boolean
-  error_code: string | null
-  error_message: string | null
-}
-
-type SyncBindingFormState = {
-  id: string
-  name: string
-  enabled: boolean
-  media_type: SyncMediaType
-  remote_library_id: string
-  local_library_id: string
-  delete_source_after_success: '' | 'true' | 'false'
-  delete_empty_source_dirs: '' | 'true' | 'false'
-}
-
-type SyncConfigFormState = {
-  delete_source_after_success: boolean
-  delete_empty_source_dirs: boolean
-  scan_interval_seconds: string
-  stable_seconds: string
-  unclassified_library_id: string
-}
-
-type RemoteMediaLibraryFormState = {
-  id: string
-  name: string
-  media_type: DtlMediaType
-  enabled: boolean
-  connection_id: string
-  base_path: string
-  target_library_id: string
-  scan_interval_seconds: string
-  stable_seconds: string
-  delete_source_after_success: '' | 'true' | 'false'
-  delete_empty_source_dirs: '' | 'true' | 'false'
-}
-
-type RemoteMediaLibraryResponse = {
-  id: string
-  name: string
-  media_type: DtlMediaType
-  enabled: boolean
-  connection_id: string
-  base_path: string
-  target_library_id: string | null
-  target_library_name: string | null
-  scan_interval_seconds: number
-  stable_seconds: number
-  delete_source_after_success: boolean | null
-  delete_empty_source_dirs: boolean | null
-  last_test_ok: boolean | null
-  last_test_error_code: string | null
-  last_test_error_message: string | null
-  created_at: string | null
-  updated_at: string | null
-}
-
-type RemoteMediaLibraryListResponse = {
-  count: number
-  page: number
-  page_size: number
-  results: RemoteMediaLibraryResponse[]
-}
-
-type MediaLibraryFormState = {
-  id: string
-  name: string
-  media_type: DtlMediaType
-  enabled: boolean
-  connection_id: string
-  base_path: string
-}
-
-const navItems: NavItem[] = [
-  { key: 'sources', path: '/app/sources', label: '媒体源', description: '管理已安装 Adapter' },
-  { key: 'search', path: '/app/search', label: '搜索', description: '搜索资源并创建搬运任务' },
-  { key: 'favorites', path: '/app/favorites', label: '收藏', description: '查看收藏资源和收藏链接' },
-  { key: 'storage', path: '/app/storage', label: '存储', description: '管理 SMB 配置和目录浏览' },
-  { key: 'libraries', path: '/app/libraries', label: '本地媒体库', description: '管理本地媒体库目录绑定' },
-  { key: 'remote-libraries', path: '/app/remote-libraries', label: '远程媒体库', description: '管理远程媒体库目录绑定' },
-  { key: 'transfers', path: '/app/transfers', label: '任务', description: '查看进度、日志、取消和重试' },
-  { key: 'status', path: '/app/status', label: '状态', description: '查看 API、Worker、数据库和 Redis' },
-]
+import type {
+  PageKey,
+  ThemeMode,
+  TransferResponse,
+  TransferStatus,
+  TransferLogResponse,
+  TransferListResponse,
+  SmbConnectionResponse,
+  SmbConnectionListResponse,
+  StorageBrowseResponse,
+  StorageBrowseEntry,
+  StorageConfigResponse,
+  StorageFormState,
+  StorageConfigRequest,
+  MediaType,
+  DtlMediaType,
+  MediaLibraryResponse,
+  MediaLibraryListResponse,
+  DtlConfigResponse,
+  DtlConfigFormState,
+  DtlBindingResponse,
+  DtlBindingListResponse,
+  DtlDiscoveredFileResponse,
+  DtlDiscoveredListResponse,
+  DtlScanResponse,
+  DtlTaskCreateResponse,
+  DtlBindingTestResponse,
+  DtlBindingFormState,
+  SyncMediaType,
+  SyncConfigResponse,
+  SyncConfigFormState,
+  SyncBindingResponse,
+  SyncBindingListResponse,
+  SyncDiscoveredFileResponse,
+  SyncDiscoveredListResponse,
+  SyncScanResponse,
+  SyncTaskCreateResponse,
+  SyncBindingTestResponse,
+  SyncBindingFormState,
+  RemoteMediaLibraryResponse,
+  RemoteMediaLibraryListResponse,
+  RemoteMediaLibraryFormState,
+  MediaLibraryFormState,
+  ResourceCandidate,
+  ResourceLinkResult,
+  SearchFormState,
+  SourceResponse,
+  SourceListResponse,
+  SourceTestResponse,
+  SourceTestLog,
+  SourceTestFormState,
+  ResourceFavoritesListResponse,
+  ResourceFavoriteRequest,
+  ResourceLinkFavoriteRequest,
+  ViewMode,
+  SearchResponse,
+  SourceSearchResult,
+  FetchDetailRequest,
+  HealthResponse,
+  ComponentHealth,
+  StorageConfigTestResponse,
+  NavItem,
+} from './types'
+import { navItems } from './types'
 
 const api = createApiClient()
 
@@ -560,7 +89,7 @@ function App() {
   const [transferTotalCount, setTransferTotalCount] = useState(0)
   const [transferPageSize, setTransferPageSize] = useState(20)
   const [transferError, setTransferError] = useState<string | null>(null)
-  const [isTransferPanelOpen, setIsTransferPanelOpen] = useState(true)
+  const [isTransferPanelOpen, setIsTransferPanelOpen] = useState(window.innerWidth > 860)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error' | 'info'; message: string; duration: number }[]>([])
   const TOAST_DURATION_MS = 4500
@@ -667,6 +196,7 @@ function App() {
       <header className="top-bar" role="banner">
         <BrandLockup compact />
         <div className="top-bar-actions">
+          <ThemeSwitcher mode={themeMode} onChange={setThemeMode} />
           <button
             className="icon-button"
             type="button"
