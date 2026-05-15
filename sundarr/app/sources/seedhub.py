@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import logging
 import re
 from datetime import UTC, datetime
@@ -338,7 +339,17 @@ class SeedHubSource:
             return links[0]
         decoded = unquote(html)
         links = self._extract_direct_links(decoded)
-        return links[0] if links else None
+        if links:
+            return links[0]
+        for match in re.finditer(r'''const\s+data\s*=\s*"([A-Za-z0-9+/=]+)"''', html):
+            try:
+                raw = base64.b64decode(match.group(1)).decode("utf-8", errors="replace")
+                links = self._extract_direct_links(raw)
+                if links:
+                    return links[0]
+            except Exception:
+                continue
+        return None
 
     def _normalize_seedhub_download_link(self, link: str) -> str:
         split = urlsplit(unescape(link))

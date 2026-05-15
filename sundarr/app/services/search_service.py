@@ -143,7 +143,7 @@ class SearchService:
                     continue
                 seen_links.add(link_key)
                 unique_links.append(link)
-            if not unique_links:
+            if not unique_links and not candidate.has_more_links:
                 continue
             candidate.links = unique_links
             key = (candidate.normalized_title, candidate.year)
