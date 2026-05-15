@@ -11,7 +11,6 @@ from sundarr.app.schemas.search import (
     SearchQuery,
     SearchResponse,
 )
-from sundarr.app.services.link_validator import link_validator
 from sundarr.app.services.search_service import search_service
 
 
@@ -169,19 +168,6 @@ class ResourceLibraryService:
         link = db.get(ResourceLink, link_id)
         return self._to_link_result(link) if link is not None else None
 
-    async def refresh_link(self, db: Session, link_id: str) -> ResourceLinkResult | None:
-        link = db.get(ResourceLink, link_id)
-        if link is None:
-            return None
-        result = await link_validator.validate(link.provider, link.url)
-        link.valid = result.valid
-        link.last_checked_at = result.checked_at
-        db.commit()
-        db.refresh(link)
-        refreshed = self._to_link_result(link)
-        refreshed.validation_status = result.status
-        refreshed.validation_message = result.message
-        return refreshed
 
     def _get_or_create_resource(self, db: Session, request: ResourceFavoriteRequest) -> Resource:
         resource = db.get(Resource, request.id)

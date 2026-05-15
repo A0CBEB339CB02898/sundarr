@@ -82,11 +82,3 @@ async def unfavorite_link(link_id: str, db: Session = Depends(get_db)) -> dict[s
     if not resource_library_service.unfavorite_link(db, link_id):
         raise HTTPException(status_code=404, detail="资源链接不存在。")
     return {"ok": True}
-
-
-@router.post("/resource-links/{link_id}/refresh", response_model=ResourceLinkResult)
-async def refresh_link(link_id: str, db: Session = Depends(get_db)) -> ResourceLinkResult:
-    link = await resource_library_service.refresh_link(db, link_id)
-    if link is None:
-        raise HTTPException(status_code=404, detail="资源链接不存在。")
-    return link
