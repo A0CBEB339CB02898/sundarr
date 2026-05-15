@@ -222,6 +222,14 @@ type ResourceLinkResult = {
   source_url: string | null
   is_favorited: boolean
   favorited_at: string | null
+  published_at: string | null
+}
+
+type ResourceFavoritesListResponse = {
+  count: number
+  page: number
+  page_size: number
+  results: ResourceCandidate[]
 }
 
 type ResourceFavoriteRequest = {
@@ -2362,16 +2370,23 @@ function FavoritesPanel({ showToast }: { showToast: (type: 'success' | 'error' |
 
 function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [resources, setResources] = useState<ResourceCandidate[]>([])
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [totalCount, setTotalCount] = useState(0)
+  const [activeSourceTab, setActiveSourceTab] = useState('all')
+  const [activeProvider, setActiveProvider] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => { void loadFavorites() }, [])
+  useEffect(() => { void loadFavorites() }, [page, pageSize])
 
   async function loadFavorites() {
     setIsLoading(true)
     setError(null)
     try {
-      setResources(await api.get<ResourceCandidate[]>('/resources/favorites'))
+      const result = await api.get<ResourceFavoritesListResponse>(`/resources/favorites?page=${page}&page_size=${pageSize}`)
+      setResources(result.results)
+      setTotalCount(result.count)
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : '无法读取收藏资源。')
     } finally {
@@ -2383,6 +2398,7 @@ function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | '
     try {
       await api.post<{ ok: boolean }>(`/resources/${encodeURIComponent(resource.id)}/unfavorite`)
       setResources((current) => current.filter((item) => item.id !== resource.id))
+      setTotalCount((c) => Math.max(0, c - 1))
       showToast('success', '已取消收藏资源。')
     } catch (exc) {
       showToast('error', exc instanceof Error ? exc.message : '取消收藏资源失败。')
@@ -2445,6 +2461,42 @@ function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | '
     }
   }
 
+  const sourceTabs = useMemo(() => {
+    const groups = new Map<string, { label: string; results: ResourceCandidate[] }>()
+    for (const r of resources) {
+      const existing = groups.get(r.source_id) || { label: r.source_id, results: [] }
+      existing.results.push(r)
+      groups.set(r.source_id, existing)
+    }
+    return [
+      { id: 'all', label: '全部', count: resources.length, results: resources },
+      ...Array.from(groups.entries()).map(([id, group]) => ({
+        id,
+        label: group.label,
+        count: group.results.length,
+        results: group.results,
+      })),
+    ]
+  }, [resources])
+
+  const activeTab = sourceTabs.find((t) => t.id === activeSourceTab) || sourceTabs[0]
+
+  const providerFilters = useMemo(() => {
+    if (!activeTab) return []
+    const providerSet = new Set<string>()
+    for (const r of activeTab.results) {
+      for (const link of r.links) {
+        providerSet.add(link.provider)
+      }
+    }
+    return Array.from(providerSet).map((id) => ({
+      id,
+      label: providerLabel(id),
+    }))
+  }, [activeTab])
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+
   return (
     <section className="favorite-tab-panel" aria-labelledby="favorite-resources-title">
       <div className="sx-section-head">
@@ -2452,27 +2504,71 @@ function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | '
           <p className="ui-eyebrow">收藏资源</p>
           <h3 id="favorite-resources-title">按媒体维度持续跟踪</h3>
         </div>
-        <span>{resources.length} 个资源</span>
+        <span>{totalCount} 个资源</span>
       </div>
       {isLoading ? <UILoadingState message="正在读取收藏资源…" /> : null}
       {error ? <UIErrorState message="读取收藏资源失败" sub={error} /> : null}
       {!isLoading && !error && resources.length === 0 ? <UIEmptyState message="还没有收藏资源" sub="先在搜索结果中收藏资源。" /> : null}
-      {!isLoading && !error ? (
-        <div className="favorite-resource-list">
-          {resources.map((resource) => (
-            <ResourceCard
-              key={resource.id}
-              activeProvider={null}
-              onCopyLink={(link) => void copyLink(link)}
-              onFavoriteLink={(link) => void toggleFavoriteLink(resource, link)}
-              onFavoriteResource={() => void toggleFavoriteResource(resource)}
-              onRefreshLink={(link) => void refreshLink(resource, link)}
-              onRefreshResource={() => void refreshResource(resource)}
-              onSaveToCloud={() => showToast('info', '保存到网盘入口已预留。')}
-              resource={resource}
-            />
-          ))}
-        </div>
+      {!isLoading && !error && resources.length > 0 ? (
+        <>
+          <div className="sx-result-tabs" role="tablist" aria-label="按媒体源查看收藏资源">
+            {sourceTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab?.id === tab.id}
+                data-active={activeTab?.id === tab.id || undefined}
+                onClick={() => { setActiveSourceTab(tab.id); setActiveProvider(null) }}
+              >
+                <span>{tab.label}</span>
+                <strong>{tab.count}</strong>
+              </button>
+            ))}
+          </div>
+          {providerFilters.length > 0 ? (
+            <div className="sx-provider-tabs" role="tablist" aria-label="按网盘类型过滤">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeProvider === null}
+                data-active={activeProvider === null || undefined}
+                onClick={() => setActiveProvider(null)}
+              >全部网盘</button>
+              {providerFilters.map((pf) => (
+                <button
+                  key={pf.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeProvider === pf.id}
+                  data-active={activeProvider === pf.id || undefined}
+                  onClick={() => setActiveProvider(pf.id)}
+                >
+                  <span>{pf.label}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="sx-result-pane" role="tabpanel">
+            {activeTab && activeTab.results.length === 0 ? (
+              <UIEmptyState message="该来源没有收藏资源" sub="切换到其它来源标签页查看。" />
+            ) : null}
+            {activeTab?.results.map((resource) => (
+              <ResourceCard
+                key={resource.id}
+                activeProvider={activeProvider}
+                onCopyLink={(link) => void copyLink(link)}
+                onFavoriteLink={(link) => void toggleFavoriteLink(resource, link)}
+                onFavoriteResource={() => void toggleFavoriteResource(resource)}
+                onRefreshLink={(link) => void refreshLink(resource, link)}
+                onRefreshResource={() => void refreshResource(resource)}
+                onSaveToCloud={() => showToast('info', '保存到网盘入口已预留。')}
+                resource={resource}
+              />
+            ))}
+          </div>
+          <PaginationControls page={page} totalPages={totalPages} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
+        </>
       ) : null}
     </section>
   )
@@ -2480,16 +2576,21 @@ function FavoriteResourcesPanel({ showToast }: { showToast: (type: 'success' | '
 
 function FavoriteLinksPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [links, setLinks] = useState<ResourceLinkResult[]>([])
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => { void loadFavorites() }, [])
+  useEffect(() => { void loadFavorites() }, [page, pageSize])
 
   async function loadFavorites() {
     setIsLoading(true)
     setError(null)
     try {
-      setLinks(await api.get<ResourceLinkResult[]>('/resource-links/favorites'))
+      const result = await api.get<{ count: number; page: number; page_size: number; results: ResourceLinkResult[] }>(`/resource-links/favorites?page=${page}&page_size=${pageSize}`)
+      setLinks(result.results)
+      setTotalCount(result.count)
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : '无法读取收藏链接。')
     } finally {
@@ -2511,6 +2612,7 @@ function FavoriteLinksPanel({ showToast }: { showToast: (type: 'success' | 'erro
     try {
       await api.post<{ ok: boolean }>(`/resource-links/${encodeURIComponent(link.id)}/unfavorite`)
       setLinks((current) => current.filter((item) => item.id !== link.id))
+      setTotalCount((c) => Math.max(0, c - 1))
       showToast('success', '已取消收藏链接。')
     } catch (exc) {
       showToast('error', exc instanceof Error ? exc.message : '取消收藏链接失败。')
@@ -2527,6 +2629,8 @@ function FavoriteLinksPanel({ showToast }: { showToast: (type: 'success' | 'erro
     }
   }
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+
   return (
     <section className="favorite-tab-panel" aria-labelledby="favorite-links-title">
       <div className="sx-section-head">
@@ -2534,32 +2638,42 @@ function FavoriteLinksPanel({ showToast }: { showToast: (type: 'success' | 'erro
           <p className="ui-eyebrow">收藏链接</p>
           <h3 id="favorite-links-title">保留具体分享版本</h3>
         </div>
-        <span>{links.length} 条链接</span>
+        <span>{totalCount} 条链接</span>
       </div>
       {isLoading ? <UILoadingState message="正在读取收藏链接…" /> : null}
       {error ? <UIErrorState message="读取收藏链接失败" sub={error} /> : null}
       {!isLoading && !error && links.length === 0 ? <UIEmptyState message="还没有收藏链接" sub="先在搜索结果中收藏具体链接。" /> : null}
       {!isLoading && !error && links.length > 0 ? (
-        <Card emphasis="sunken" className="favorite-link-card">
-          <div className="favorite-link-list">
-            {links.map((link) => (
-              <div className="link-row" key={link.id}>
-                <a href={link.url} target="_blank" rel="noreferrer">
-                  <strong>{link.name || link.url}</strong>
-                  <small>{[providerLabel(link.provider), link.quality, link.source_id, link.code ? `提取码：${link.code}` : '无提取码', link.name ? link.url : null].filter(Boolean).join(' · ')}</small>
-                </a>
-                <StatusBadge tone={linkValidationTone(link.validation_status)}>
-                  {validationLabel(link)}
-                </StatusBadge>
-                <div className="link-actions">
-                  <Button variant="ghost" size="sm" type="button" onClick={() => void refreshLink(link)}>刷新链接</Button>
-                  <Button variant="secondary" size="sm" type="button" onClick={() => void unfavoriteLink(link)}>取消收藏</Button>
-                  <Button variant="ghost" size="sm" type="button" onClick={() => void copyLink(link)}>复制链接</Button>
+        <>
+          <Card emphasis="sunken" className="favorite-link-card">
+            <div className="favorite-link-list">
+              {links.map((link) => (
+                <div className="link-row" key={link.id}>
+                  <a href={link.url} target="_blank" rel="noreferrer">
+                    <strong>{link.name || link.url}</strong>
+                    <small>{[
+                      providerLabel(link.provider),
+                      link.quality,
+                      link.source_id,
+                      link.code ? `提取码：${link.code}` : '无提取码',
+                      link.name ? link.url : null,
+                      link.published_at ? formatDateTime(link.published_at) : null,
+                    ].filter(Boolean).join(' · ')}</small>
+                  </a>
+                  <StatusBadge tone={linkValidationTone(link.validation_status)}>
+                    {validationLabel(link)}
+                  </StatusBadge>
+                  <div className="link-actions">
+                    <Button variant="ghost" size="sm" type="button" onClick={() => void refreshLink(link)}>刷新链接</Button>
+                    <Button variant="secondary" size="sm" type="button" onClick={() => void unfavoriteLink(link)}>取消收藏</Button>
+                    <Button variant="ghost" size="sm" type="button" onClick={() => void copyLink(link)}>复制链接</Button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+              ))}
+            </div>
+          </Card>
+          <PaginationControls page={page} totalPages={totalPages} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
+        </>
       ) : null}
     </section>
   )
@@ -2617,13 +2731,14 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
     showToast('info', `保存到网盘入口已预留：${providerLabel(link.provider)}。`)
   }
 
-  function resourceFavoritePayload(resource: ResourceCandidate): ResourceFavoriteRequest {
+  function resourceFavoritePayload(resource: ResourceCandidate): ResourceFavoriteRequest & { links: ResourceLinkResult[] } {
     return {
       id: resource.id,
       title: resource.title,
       normalized_title: resource.normalized_title,
       original_title: resource.original_title,
       year: resource.year,
+      links: resource.links,
     }
   }
 
@@ -2698,7 +2813,7 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
   const activeTab = sourceTabs.find((tab) => tab.id === activeResultTab) || sourceTabs[0]
 
   const providerFilters = useMemo(() => {
-    if (!activeTab || activeTab.id === 'all') return []
+    if (!activeTab) return []
     const providerSet = new Set<string>()
     for (const resource of activeTab.results) {
       for (const link of resource.links) {
@@ -2863,6 +2978,7 @@ function ResourceCard({
                   link.source_id,
                   link.code ? `提取码：${link.code}` : '无提取码',
                   link.name ? link.url : null,
+                  link.published_at ? formatDateTime(link.published_at) : null,
                 ].filter(Boolean).join(' · ')}
               </small>
             </a>
