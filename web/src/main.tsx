@@ -2761,12 +2761,13 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
   const sourceTabs = useMemo(() => {
     if (!response) return []
     return [
-      { id: 'all', label: '全部', count: response.count, results: response.results },
+      { id: 'all', label: '全部', count: response.count, results: response.results, error: null as string | null },
       ...response.source_results.map((group) => ({
         id: group.source_id,
         label: group.source_name,
         count: group.count,
         results: group.results,
+        error: group.error,
       })),
     ]
   }, [response])
@@ -2804,6 +2805,7 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
         <TextField helper="要搜索的片名、剧名或关键词。" label="关键词" onChange={(value) => updateField('q', value)} required value={form.q} />
         <div className="sx-form-actions">
           <Button variant="primary" disabled={isSearching} type="submit">{isSearching ? '搜索中…' : '搜索资源'}</Button>
+          {isSearching ? <span className="search-loading-dot" /> : null}
         </div>
       </form>
       </Card>
@@ -2812,7 +2814,6 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
 
       {response ? (
         <Card emphasis="sunken" className="sx-results-card">
-          {isSearching ? <UILoadingState message="正在聚合搜索候选资源…" /> : null}
           <div className="sx-section-head"><p className="ui-eyebrow">搜索结果</p><span>{response.count} 个去重结果</span></div>
           <div className="sx-result-tabs" role="tablist" aria-label="按媒体源查看搜索结果">
             {sourceTabs.map((tab) => (
@@ -2822,13 +2823,21 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
                 role="tab"
                 aria-selected={activeTab?.id === tab.id}
                 data-active={activeTab?.id === tab.id || undefined}
+                data-error={tab.error ? 'true' : undefined}
                 onClick={() => { setActiveResultTab(tab.id); setActiveProvider(null) }}
               >
                 <span>{tab.label}</span>
                 <strong>{tab.count}</strong>
+                {tab.error ? <span className="source-tab-error" title={tab.error}>!</span> : null}
               </button>
             ))}
           </div>
+          {activeTab && activeTab.error ? (
+            <div className="source-error-banner">
+              <span className="source-error-icon">!</span>
+              <span>{activeTab.label} 搜索失败：{activeTab.error}</span>
+            </div>
+          ) : null}
           {providerFilters.length > 0 ? (
             <div className="sx-provider-tabs" role="tablist" aria-label="按网盘类型过滤">
               <button
@@ -2869,8 +2878,6 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
             ))}
           </div>
         </Card>
-      ) : isSearching ? (
-        <UILoadingState message="正在聚合搜索候选资源…" />
       ) : null}
 
     </section>
