@@ -3,13 +3,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-ResultType = Literal["all", "magnet", "quark", "aliyun", "baidu", "xunlei", "unknown"]
 LinkValidationStatus = Literal["unchecked", "checking", "valid", "invalid", "unknown", "error"]
 
 
 class SearchQuery(BaseModel):
     keyword: str = Field(min_length=1)
-    result_type: ResultType = "all"
     year: int | None = None
     season: int | None = None
     episode: int | None = None

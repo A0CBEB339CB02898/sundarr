@@ -18,13 +18,16 @@ LEGACY_EXAMPLE_PATTERN = re.compile(r"https?://pan\.example\.invalid/s/[A-Za-z0-
 
 
 def extract_cloud_links(text: str) -> list[CloudLink]:
-    code_match = CODE_PATTERN.search(text)
-    code = code_match.group(1) if code_match else None
     links: list[CloudLink] = []
 
     for provider, pattern in LINK_PATTERNS.items():
         for match in pattern.finditer(text):
             url = match.group(0)
+            start = max(0, match.start() - 200)
+            end = min(len(text), match.end() + 200)
+            context = text[start:end]
+            code_match = CODE_PATTERN.search(context)
+            code = code_match.group(1) if code_match else None
             links.append(
                 CloudLink(
                     provider=provider,
@@ -36,10 +39,16 @@ def extract_cloud_links(text: str) -> list[CloudLink]:
             )
 
     for match in LEGACY_EXAMPLE_PATTERN.finditer(text):
+        url = match.group(0)
+        start = max(0, match.start() - 200)
+        end = min(len(text), match.end() + 200)
+        context = text[start:end]
+        code_match = CODE_PATTERN.search(context)
+        code = code_match.group(1) if code_match else None
         links.append(
             CloudLink(
                 provider="quark",
-                url=match.group(0),
+                url=url,
                 code=code,
                 raw_text=text,
                 confidence=0.5,

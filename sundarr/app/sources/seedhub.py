@@ -250,30 +250,39 @@ class SeedHubSource:
             r"|ed2k://[^\s<>'\"，。；、]+)",
             re.IGNORECASE,
         )
-        for match in url_pattern.finditer(text):
-            url = match.group(0).rstrip(".,;，。；")
-            if url in result:
+        code_pattern = re.compile(r"(?:提取码|密码|访问码|code)[:：\s]*[A-Za-z0-9]{2,12}", re.IGNORECASE)
+        segments = re.split(r"\n\s*\n|═══.*?═══|\n(?=【|❤|★|●|◎|○|■|□|◆|◇)", text)
+        for segment in segments:
+            segment = segment.strip()
+            if not segment:
                 continue
-            start = max(0, match.start() - 200)
-            context = text[start:match.end() + 100]
-            quality = extract_quality_from_text(context)
+            segment_urls = list(url_pattern.finditer(segment))
+            if not segment_urls:
+                continue
+            quality = extract_quality_from_text(segment)
             if quality is None:
-                cn_match = CN_QUALITY_PATTERN.search(context)
+                cn_match = CN_QUALITY_PATTERN.search(segment)
                 if cn_match:
                     quality = cn_match.group(1)
-            before_text = text[start:match.start()].strip()
-            name_candidates = [p for p in re.split(r"[\s【】\[\]{}，。,\.\n]+", before_text) if len(p) >= 2]
-            name = name_candidates[-1] if name_candidates else ""
-            date_match = re.search(r"(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})", context)
-            meta: dict[str, object] = {}
-            if name and name not in ("下载", "链接", "提取码"):
-                meta["name"] = name
-            if quality:
-                meta["quality"] = quality
-            if date_match:
-                meta["published_at"] = date_match.group(1)
-            if meta:
-                result[url] = meta
+            name_text = url_pattern.sub("", segment)
+            name_text = code_pattern.sub("", name_text)
+            name_text = re.sub(r"\s+", " ", name_text).strip()
+            name_text = name_text.rstrip(",;，。；")
+            date_match = re.search(r"(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})", segment)
+            for url_match in segment_urls:
+                url = url_match.group(0).rstrip(".,;，。；")
+                if url in result:
+                    continue
+                meta: dict[str, object] = {}
+                name = name_text.lstrip(".,;，。； ").strip()
+                if name and name not in ("下载", "链接", "提取码"):
+                    meta["name"] = name
+                if quality:
+                    meta["quality"] = quality
+                if date_match:
+                    meta["published_at"] = date_match.group(1)
+                if meta:
+                    result[url] = meta
         return result
 
     def _resolve_seedhub_link(self, link: str) -> str | None:

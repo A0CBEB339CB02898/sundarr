@@ -67,10 +67,10 @@ class SourceService:
             return None
         logs: list[SourceTestLog] = [
             SourceTestLog(step="prepare", status="ok", message="已读取搜索源定义。", data={"source_id": source.id}),
-            SourceTestLog(step="query", status="ok", message="已构造测试搜索请求。", data={"keyword": request.keyword, "result_type": request.result_type}),
+            SourceTestLog(step="query", status="ok", message="已构造测试搜索请求。", data={"keyword": request.keyword}),
         ]
         try:
-            query = SearchQuery(keyword=request.keyword, result_type=request.result_type, limit=request.limit)
+            query = SearchQuery(keyword=request.keyword, limit=request.limit)
             if source.test_function is not None:
                 execution = await source.test_function(query)
                 items = execution.items

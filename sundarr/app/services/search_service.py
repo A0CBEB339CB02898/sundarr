@@ -78,8 +78,6 @@ class SearchService:
 
     def _normalize(self, item: RawSearchItem, query: SearchQuery) -> ResourceCandidate | None:
         links = extract_cloud_links(item.raw_content)
-        if query.result_type != "all":
-            links = [link for link in links if link.provider == query.result_type]
         if not links:
             return None
         title = clean_title(item.raw_title)

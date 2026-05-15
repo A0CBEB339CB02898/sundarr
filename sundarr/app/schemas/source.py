@@ -19,7 +19,6 @@ class SourceListResponse(BaseModel):
 
 class SourceTestRequest(BaseModel):
     keyword: str = Field(default="星际穿越", min_length=1)
-    result_type: str = "all"
     limit: int = Field(default=5, ge=1, le=20)
 
 

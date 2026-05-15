@@ -159,7 +159,7 @@ async def test_search_service_isolates_source_failure() -> None:
 async def test_search_service_dedupes_by_real_link() -> None:
     service = SearchService(sources=[static_source(), duplicate_source()], validator=LinkValidator(enable_network=False))
 
-    response = await service.search(SearchQuery(keyword="星际穿越", result_type="quark"))
+    response = await service.search(SearchQuery(keyword="星际穿越"))
 
     assert response.count == 1
     assert len(response.results[0].links) == 1
@@ -194,7 +194,7 @@ def test_search_api_returns_candidates(db_session: Session, monkeypatch: pytest.
     app.dependency_overrides[get_db] = override_get_db
     client = TestClient(app)
 
-    response = client.get("/search", params={"q": "interstellar", "result_type": "quark", "year": 2014})
+    response = client.get("/search", params={"q": "interstellar", "year": 2014})
 
     assert response.status_code == 200
     body = response.json()
