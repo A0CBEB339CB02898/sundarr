@@ -1,11 +1,11 @@
 import re
 
 TITLE_TAG_PATTERN = re.compile(
-    r"\b(720p|1080p|2160p|4k|blu-?ray|web-?dl|remux|hdr|x26[45]|h\.26[45])\b",
+    r"(?<![a-zA-Z0-9])(720p|1080p|2160p|4k|blu-?ray|web-?dl|remux|hdr|x26[45]|h\.26[45])(?![a-zA-Z0-9])",
     re.IGNORECASE,
 )
-CN_QUALITY_PATTERN = re.compile(r"\b(蓝光|高清|高码)\b")
-YEAR_PATTERN = re.compile(r"\b(19\d{2}|20\d{2})\b")
+CN_QUALITY_PATTERN = re.compile(r"(?<![a-zA-Z0-9])(蓝光|高清|高码|无损|杜比|iNT组)(?![a-zA-Z0-9])")
+YEAR_PATTERN = re.compile(r"(?<![a-zA-Z0-9])(19\d{2}|20\d{2})(?![a-zA-Z0-9])")
 
 
 def extract_year_from_text(text: str) -> int | None:

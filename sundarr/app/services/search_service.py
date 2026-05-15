@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import re
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sundarr.app.parsers import extract_cloud_links
@@ -84,36 +84,29 @@ class SearchService:
         year = self._extract_year(item, query)
         quality = item.metadata.get("quality") or self._extract_quality(item.raw_title, item.raw_content)
         link_name = self._extract_link_name(item, title, quality)
-        link_meta_map = item.metadata.get("links", {})
+        link_metas: list = item.metadata.get("link_metas", [])
+        link_meta_iter = iter(link_metas) if isinstance(link_metas, list) else iter([])
         result_links: list[ResourceLinkResult] = []
         for link in links:
-            link_result = ResourceLinkResult(
-                id=self._stable_id(link.provider, self._normalize_url(link.url)),
-                provider=link.provider,
-                name=link_name,
-                url=link.url,
-                code=link.code,
-                quality=quality,
-                source_id=item.source_id,
-                source_url=item.raw_url,
-                published_at=item.published_at,
+            link_meta = next(link_meta_iter, None) if link_metas else None
+            per_meta = link_meta if isinstance(link_meta, dict) else None
+            per_name = (per_meta.get("name") if per_meta else None) or link_name
+            per_quality = (per_meta.get("quality") if per_meta else None) or quality
+            pub_at_str = (per_meta.get("published_at") if per_meta else None)
+            published_at = self._parse_published_at(pub_at_str) if isinstance(pub_at_str, str) else item.published_at
+            result_links.append(
+                ResourceLinkResult(
+                    id=self._stable_id(link.provider, self._normalize_url(link.url)),
+                    provider=link.provider,
+                    name=str(per_name) if per_name else link_name,
+                    url=link.url,
+                    code=link.code,
+                    quality=str(per_quality) if per_quality else quality,
+                    published_at=published_at,
+                    source_id=item.source_id,
+                    source_url=item.raw_url,
+                )
             )
-            if isinstance(link_meta_map, dict):
-                link_meta = link_meta_map.get(link.url)
-                if isinstance(link_meta, dict):
-                    if link_meta.get("name"):
-                        link_result.name = str(link_meta["name"])
-                    if link_meta.get("quality"):
-                        link_result.quality = str(link_meta["quality"])
-                    pub_at = link_meta.get("published_at")
-                    if isinstance(pub_at, str):
-                        try:
-                            link_result.published_at = datetime.fromisoformat(pub_at.replace(" ", "T"))
-                        except ValueError:
-                            pass
-                    elif isinstance(pub_at, datetime):
-                        link_result.published_at = pub_at
-            result_links.append(link_result)
 
         return ResourceCandidate(
             id=self._stable_id(title, str(year)),
@@ -219,6 +212,25 @@ class SearchService:
         query = urlencode(sorted(parse_qsl(split.query, keep_blank_values=True)))
         path = split.path.rstrip("/")
         return urlunsplit((split.scheme.lower(), split.netloc.lower(), path, query, ""))
+
+    def _parse_published_at(self, text: str) -> datetime | None:
+        text = text.strip()
+        try:
+            return datetime.fromisoformat(text.replace(" ", "T"))
+        except ValueError:
+            pass
+        now = datetime.now(timezone.utc)
+        if text == "今天":
+            return now
+        if text == "昨天":
+            return now - timedelta(days=1)
+        m = re.match(r"^(\d+)天前$", text)
+        if m:
+            return now - timedelta(days=int(m.group(1)))
+        m = re.match(r"^(\d+)月前$", text)
+        if m:
+            return now - timedelta(days=int(m.group(1)) * 30)
+        return None
 
 
 search_service = SearchService()

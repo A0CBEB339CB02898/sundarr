@@ -132,6 +132,66 @@ def test_seedhub_source_detects_supported_netdisk_links() -> None:
     assert source._contains_supported_link("123云盘 https://www.123pan.com/s/a-b")
 
 
+def test_seedhub_extract_per_link_metas() -> None:
+    source = SeedHubSource()
+    html = """
+    <html>
+      <body>
+        <h1>好东西</h1>
+        资源更新于: 2025-10-16 21:17
+        <ul class="seeds">
+          <li>
+            <a target="_blank" rel="nofollow"
+               title="好东西2025.蓝光修正版.1080p.BD国语中字.mp4[2.3G]"
+               href="/link_start/?seed_id=389328&amp;movie_title=好东西的磁力">
+               好东西2025.蓝光修正版.1080p.BD国语中字.mp4[2.3G]
+            </a>
+            / <code class="size">2.3G</code>
+            <code class="seed-feature">蓝光</code>
+            <code class="seed-feature">iNT组</code>
+            <span class="create-time" style="display:none;">2025-05-28 21:27</span>
+          </li>
+          <li>
+            <a target="_blank" rel="nofollow"
+               title="好东西2025.1080p.mp4[1.5G]"
+               href="/link_start/?seed_id=389329&amp;movie_title=好东西的磁力2">
+               好东西2025.1080p.mp4[1.5G]
+            </a>
+            / <code class="size">1.5G</code>
+            <code class="seed-feature">高清</code>
+            <span class="create-time" style="display:none;">2025-05-27 15:10</span>
+          </li>
+        </ul>
+        <ul class="pan-links">
+          <li>
+            <a target="_blank" rel="nofollow"
+               title="╔═══ 【好东西(2024)】【4K超清】【国语中字】... 【高码】 ═══╗ 昨天"
+               data-link="pan.quark.cn"
+               href="/link_start/?redirect_to=pan_id_175952&amp;movie_title=...">
+               ╔═══ 【好东西(2024)】【4K超清】... ═══╗ 昨天
+            </a>
+          </li>
+        </ul>
+      </body>
+    </html>
+    """
+
+    metas = source._extract_per_link_metas(html)
+
+    assert len(metas) == 3
+    # First: seed item
+    assert metas[0]["name"] == "好东西2025.蓝光修正版.1080p.BD国语中字.mp4[2.3G]"
+    assert metas[0]["quality"] == "蓝光 iNT组"
+    assert metas[0]["published_at"] == "2025-05-28 21:27"
+    # Second: seed item
+    assert metas[1]["name"] == "好东西2025.1080p.mp4[1.5G]"
+    assert metas[1]["quality"] == "高清"
+    assert metas[1]["published_at"] == "2025-05-27 15:10"
+    # Third: pan link
+    assert "4K" in metas[2]["name"]
+    assert metas[2]["quality"] == "4K"
+
+
 def test_extract_cloud_links_supports_more_netdisk_providers() -> None:
     links = extract_cloud_links("UC https://drive.uc.cn/s/abc 123 https://www.123pan.com/s/a-b 天翼 https://cloud.189.cn/t/ABC")
 

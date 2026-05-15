@@ -158,9 +158,9 @@ class SeedHubSource:
             metadata["year"] = year
         if quality is not None:
             metadata["quality"] = quality
-        link_meta = self._extract_link_metadata(html)
-        if link_meta:
-            metadata["links"] = link_meta
+        link_metas = self._extract_per_link_metas(html)
+        if link_metas:
+            metadata["link_metas"] = link_metas
         return RawSearchItem(
             source_id=self.id,
             source_type="code",
@@ -217,7 +217,7 @@ class SeedHubSource:
     def _extract_seedhub_download_links(self, html: str) -> list[str]:
         links: list[str] = []
         seen: set[str] = set()
-        for href in re.findall(r'href="(/link_start/\?redirect_to=pan_id_\d+[^"<]*)"', html, flags=re.IGNORECASE):
+        for href in re.findall(r'href="(/link_start/\?(?:seed_id|redirect_to)=[^"<]*)"', html, flags=re.IGNORECASE):
             link = unescape(href)
             if link in seen:
                 continue
@@ -233,57 +233,36 @@ class SeedHubSource:
                 titles.append(text)
         return titles
 
-    def _extract_link_metadata(self, html: str) -> dict[str, dict[str, object]]:
-        text = self._strip_tags(html)
-        result: dict[str, dict[str, object]] = {}
-        url_pattern = re.compile(
-            r"(?:magnet:\?xt=urn:btih:[A-Za-z0-9]{32,40}[^\s<>'\"，。；、]*"
-            r"|https?://pan\.quark\.cn/s/[A-Za-z0-9_-]+"
-            r"|https?://(?:www\.)?(?:aliyundrive|alipan)\.com/s/[A-Za-z0-9_-]+"
-            r"|https?://pan\.baidu\.com/s/[A-Za-z0-9_-]+(?:\?[^\s<>'\"，。；、]*)?"
-            r"|https?://pan\.xunlei\.com/s/[A-Za-z0-9_-]+(?:\?[^\s<>'\"，。；、]*)?"
-            r"|https?://drive\.uc\.cn/s/[A-Za-z0-9_-]+(?:\?[^\s<>'\"，。；、]*)?"
-            r"|https?://(?:www\.)?(?:115|115cdn|anxia)\.com/s/[A-Za-z0-9_-]+(?:\?[^\s<>'\"，。；、]*)?"
-            r"|https?://(?:www\.)?(?:123684|123685|123912|123pan|123592)\.(?:com|cn)/s/[A-Za-z0-9_-]+(?:\?[^\s<>'\"，。；、]*)?"
-            r"|https?://cloud\.189\.cn/(?:t/[A-Za-z0-9]+|web/share\?code=[A-Za-z0-9]+)(?:[^\s<>'\"，。；、]*)?"
-            r"|thunder://[^\s<>'\"，。；、]+"
-            r"|ed2k://[^\s<>'\"，。；、]+)",
-            re.IGNORECASE,
-        )
-        code_pattern = re.compile(r"(?:提取码|密码|访问码|code)[:：\s]*[A-Za-z0-9]{2,12}", re.IGNORECASE)
-        segments = re.split(r"\n\s*\n|═══.*?═══|\n(?=【|❤|★|●|◎|○|■|□|◆|◇)", text)
-        for segment in segments:
-            segment = segment.strip()
-            if not segment:
-                continue
-            segment_urls = list(url_pattern.finditer(segment))
-            if not segment_urls:
-                continue
-            quality = extract_quality_from_text(segment)
-            if quality is None:
-                cn_match = CN_QUALITY_PATTERN.search(segment)
-                if cn_match:
-                    quality = cn_match.group(1)
-            name_text = url_pattern.sub("", segment)
-            name_text = code_pattern.sub("", name_text)
-            name_text = re.sub(r"\s+", " ", name_text).strip()
-            name_text = name_text.rstrip(",;，。；")
-            date_match = re.search(r"(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})", segment)
-            for url_match in segment_urls:
-                url = url_match.group(0).rstrip(".,;，。；")
-                if url in result:
-                    continue
-                meta: dict[str, object] = {}
-                name = name_text.lstrip(".,;，。； ").strip()
-                if name and name not in ("下载", "链接", "提取码"):
-                    meta["name"] = name
-                if quality:
-                    meta["quality"] = quality
-                if date_match:
-                    meta["published_at"] = date_match.group(1)
-                if meta:
-                    result[url] = meta
-        return result
+    def _extract_per_link_metas(self, html: str) -> list[dict[str, object]]:
+        metas: list[dict[str, object]] = []
+        for li_match in re.finditer(
+            r'<li>\s*<a[^>]*title="([^"]*)"[^>]*href="/link_start/\?seed_id=(\d+)[^"]*"[^>]*>.*?</a>.*?</li>',
+            html,
+            re.DOTALL,
+        ):
+            title = unescape(li_match.group(1)).strip()
+            quality_tags = re.findall(r'<code class="seed-feature">([^<]+)</code>', li_match.group(0))
+            quality = " ".join(q.strip() for q in quality_tags) if quality_tags else None
+            time_match = re.search(r'<span class="create-time"[^>]*>([^<]+)</span>', li_match.group(0))
+            published_at = time_match.group(1).strip() if time_match else None
+            meta: dict[str, object] = {"name": title}
+            if quality:
+                meta["quality"] = quality
+            if published_at:
+                meta["published_at"] = published_at
+            metas.append(meta)
+        for li_match in re.finditer(
+            r'<li>\s*<a[^>]*title="([^"]*)"[^>]*data-link="([^"]*)"[^>]*href="/link_start/\?redirect_to=pan_id_(\d+)[^"]*"[^>]*>.*?</a>\s*</li>',
+            html,
+            re.DOTALL,
+        ):
+            title = unescape(li_match.group(1)).strip()
+            meta2: dict[str, object] = {"name": title}
+            quality = extract_quality_from_text(title)
+            if quality:
+                meta2["quality"] = quality
+            metas.append(meta2)
+        return metas
 
     def _resolve_seedhub_link(self, link: str) -> str | None:
         html = self._fetch(urljoin(self.base_url, self._normalize_seedhub_download_link(link)))
@@ -296,7 +275,7 @@ class SeedHubSource:
 
     def _normalize_seedhub_download_link(self, link: str) -> str:
         split = urlsplit(unescape(link))
-        query = [(key, value) for key, value in parse_qsl(split.query, keep_blank_values=True) if key == "redirect_to"]
+        query = [(key, value) for key, value in parse_qsl(split.query, keep_blank_values=True) if key in ("redirect_to", "seed_id")]
         return urlunsplit((split.scheme, split.netloc, split.path, urlencode(query), split.fragment))
 
     def _contains_supported_link(self, text: str) -> bool:
