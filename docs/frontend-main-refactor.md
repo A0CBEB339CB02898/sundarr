@@ -112,18 +112,20 @@ main.tsx      ← 依赖 App.tsx
 
 | 步骤 | 状态 | 提交 |
 |------|------|------|
-| 创建目录结构 + 文档 | 待开始 | — |
-| 提取 types/ | 待开始 | — |
-| 提取 utils/ | 待开始 | — |
-| 提取 api/client.ts | 待开始 | — |
-| 提取 components/ | 待开始 | — |
-| 提取 StatusPage | 待开始 | — |
-| 提取 SourcesPage | 待开始 | — |
-| 提取 TransfersPage | 待开始 | — |
-| 提取 StoragePage | 待开始 | — |
-| 提取 SearchPage | 待开始 | — |
-| 提取 FavoritesPage | 待开始 | — |
-| 提取 LibrariesPage | 待开始 | — |
-| 提取 RemoteLibrariesPage | 待开始 | — |
-| 提取 App.tsx + 精简 main.tsx | 待开始 | — |
-| 最终验证 | 待开始 | — |
+| 创建目录结构 + 文档 | ✅ 完成 | b41f39d |
+| 提取 types/ | ✅ 完成 | b471f42 |
+| 提取 utils/ + api/client.ts | ✅ 完成 | bbb0c17 |
+| 提取 components/ | ✅ 完成 | bf6bc48 |
+| 提取所有 pages/ + App.tsx + 精简 main.tsx | ✅ 完成 | 见最终提交 |
+| 构建验证 | ✅ 通过 | JS 301.72 kB 不变 |
+
+## 最终结果
+
+| 指标 | 重构前 | 重构后 |
+|------|--------|--------|
+| `main.tsx` 行数 | 5005 | 9 |
+| 文件总数 | 13 | 57 |
+| 最大文件行数 | 5005 | < 800 |
+| 目录数 | 1 (ui/) | 6 (types/ api/ components/ pages/ utils/ ui/) |
+| JS bundle | 301.72 kB | 301.72 kB（不变） |
+| CSS bundle | 75.10 kB | 75.10 kB（不变） |
