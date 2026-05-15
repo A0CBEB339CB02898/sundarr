@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 from datetime import UTC, datetime
 from html import unescape
@@ -11,6 +12,18 @@ from sundarr.app.parsers.link_extractor import LINK_PATTERNS
 from sundarr.app.schemas.search import RawSearchItem, SearchQuery
 from sundarr.app.sources.base import SourceTestEvent, SourceTestExecution
 from sundarr.app.sources.utils import CN_QUALITY_PATTERN, extract_quality_from_text, extract_year_from_text
+
+_logger = logging.getLogger("sundarr.sources.seedhub")
+
+try:
+    import cloudscraper
+
+    _scraper = cloudscraper.create_scraper()
+    _has_cloudscraper = True
+except ImportError:
+    _scraper = None
+    _has_cloudscraper = False
+    _logger.warning("cloudscraper 未安装，将使用 urllib 裸请求，可能被 Cloudflare 拦截。")
 
 
 class SeedHubSource:
@@ -26,6 +39,7 @@ class SeedHubSource:
 
     async def search(self, query: SearchQuery) -> list[RawSearchItem]:
         html = await asyncio.to_thread(self._fetch, self._search_url(query.keyword))
+        _logger.info("搜索列表页返回 %d bytes", len(html))
         items: list[RawSearchItem] = []
         seen: set[str] = set()
         for title, href in re.findall(r'title="([^"]+)"[^>]*class="image"[^>]*href="(/movies/\d+)/?"', html, flags=re.IGNORECASE):
@@ -59,6 +73,7 @@ class SeedHubSource:
                 fetched_at=datetime.now(UTC),
                 metadata={"type": "unknown", "source": "seedhub", "has_more_links": True},
             ))
+        _logger.info("搜索列表页解析到 %d 个候选项（实际返回 %d）", len(items), min(len(items), self.max_details))
         return items[:self.max_details]
 
     async def fetch_detail(self, detail_url: str) -> RawSearchItem:
@@ -122,6 +137,17 @@ class SeedHubSource:
         return f"{self.base_url}/s/{quote(keyword)}/"
 
     def _fetch(self, url: str) -> str:
+        _logger.debug("请求种子页面: %s", url)
+        if _has_cloudscraper:
+            try:
+                response = _scraper.get(url, timeout=self.timeout_seconds)
+                response.raise_for_status()
+                charset = response.encoding or "utf-8"
+                text = response.text
+                _logger.debug("cloudscraper 请求成功: %d bytes", len(text))
+                return text
+            except Exception as exc:
+                _logger.warning("cloudscraper 请求失败 (%s)，回落至 urllib。", exc)
         request = Request(
             url,
             headers={
@@ -131,7 +157,9 @@ class SeedHubSource:
         )
         with urlopen(request, timeout=self.timeout_seconds) as response:
             charset = response.headers.get_content_charset() or "utf-8"
-            return response.read().decode(charset, errors="replace")
+            text = response.read().decode(charset, errors="replace")
+            _logger.debug("urllib 请求成功: %d bytes", len(text))
+            return text
 
     def _parse_detail_urls(self, html: str) -> list[str]:
         urls: list[str] = []
