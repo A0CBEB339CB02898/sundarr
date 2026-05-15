@@ -143,6 +143,15 @@ Phase 9 是下一步优先任务，用于统一术语、代码路径和维护边
 前端设计系统基线文档位于 docs/16-design-system.md，在 Phase 7.8 Web Console UI Polish 中落地。
 前端视觉基调：暖色操作台风格，强调色为 terracotta（暗色 #d97642 / 亮色 #b05623），字体 Inter + JetBrains Mono，支持亮色 / 暗色 / 跟随系统三种主题。
 本地 CLI 启动时 PID 文件必须指向真实 API / Web / Worker 服务进程，不使用日志包装进程改变 PID 语义；Docker Compose 模式日志默认走 stdout/stderr，由 Docker logging driver 控制大小。
+搜索结果默认不写入 Resource / ResourceLink；只有用户主动收藏资源或收藏资源链接时才入库。
+收藏是独立业务模块，Web Console 只保留一个收藏入口；资源收藏和资源链接收藏是收藏模块下的两类对象，不作为两个独立模块展示。
+Resource 表示“这是什么资源”，ResourceLink 表示“这个资源的一个具体链接/版本”。
+ResourceLink 可单独收藏；单独收藏链接时写入最小 Resource 父记录，但 Resource 本身不一定收藏。
+ResourceLink.name 用于展示具体链接名称，可来自搜索源链接标题，缺失时由资源标题和 quality 兜底生成。
+quality 属于 ResourceLink，不属于 Resource；type 获取不稳定，不纳入最小 Resource 模型。
+Resource / ResourceLink 收藏库不是 /search 的替代数据源；用户搜索时始终实时调用 Source Adapter，并附加收藏标记。
+当前创建任务不依赖 Resource / ResourceLink，任务事实来源仍是远程媒体库扫描结果。
+risk_level 和 visibility 不纳入 ResourceLink MVP 最小模型。
 ```
 
 ---

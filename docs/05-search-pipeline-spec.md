@@ -1,6 +1,6 @@
 # 搜索处理管线规范
 
-本文档定义从多源搜索到资源库入库的统一处理流程。
+本文档定义从多源实时搜索到标准化候选结果、收藏标记和前端展示的统一处理流程。
 
 ---
 
@@ -20,7 +20,7 @@ SearchQuery
 -> Deduper
 -> Link Validator
 -> Ranker
--> Resource Library
+-> Favorite Marker
 -> API Response
 ```
 
@@ -131,17 +131,38 @@ MVP 使用规则推断 media_type 和 target library。
 title
 normalized_title
 original_title
-type
 year
-season
-episodes
+links
+is_favorited
+```
+
+ResourceCandidate 只表示实时搜索候选资源，不默认入库。
+
+Link 级字段：
+
+```text
+id
+provider
+name
+url
+code
 quality
-language
-subtitle
+valid
+validation_status
+validation_message
+checked_at
 source_id
 source_url
-links
-score
+is_favorited
+```
+
+规则：
+
+```text
+quality 属于具体 ResourceLink，表示该链接的版本/画质标签，不属于 Resource。
+name 属于具体 ResourceLink，用于前端展示该链接对应的资源版本名称；无法从源站精确获取时，可由资源标题和 quality 兜底生成。
+type 获取不稳定，不作为 MVP 最小搜索结果字段。
+score / explanation 只属于搜索排序内部过程，不作为前端主展示或持久化事实字段。
 ```
 
 ---
@@ -155,12 +176,8 @@ Deduper 负责合并同一媒体资源的多个来源或版本。
 ```text
 normalized_title
 year
-type
-season
-episodes
 provider url
 quality
-size_bytes
 ```
 
 MVP 可以使用启发式规则，不引入复杂推荐算法。
@@ -172,6 +189,23 @@ MVP 可以使用启发式规则，不引入复杂推荐算法。
 同一真实链接只保留一次，标题可任选较早或评分较高的结果展示。
 不同 quality 可作为同一资源的不同候选 link。
 无法高置信合并时保留为独立候选。
+```
+
+持久化边界：
+
+```text
+/search 只做实时搜索与聚合，不自动写入 resources / resource_links。
+只有用户主动收藏资源或收藏链接时，才写入 Resource / ResourceLink。
+实时搜索结果返回前可以查询收藏库，为 ResourceCandidate / ResourceLinkResult 附加 is_favorited 标记。
+收藏库不作为 /search 的替代数据源；用户点击搜索时始终调用 Source Adapter。
+```
+
+收藏刷新策略：
+
+```text
+收藏资源刷新：基于 title / original_title / year 重新触发实时搜索，返回最新候选结果供用户选择。
+收藏链接刷新：只重新检测该链接的 valid / checked_at，不重新搜索所有媒体源。
+刷新必须由用户显式触发，MVP 不做后台自动刷新。
 ```
 
 ---
@@ -230,25 +264,25 @@ ranker 输出 score 和 explanation。
 
 ---
 
-## 8. Resource Library 入库
+## 8. 收藏标记与入库边界
 
-Search Service 必须把搜索结果沉淀到 Resource Library。
+Search Service 不把搜索结果自动沉淀到 Resource Library。
 
-入库对象：
+收藏库写入只发生在用户动作中：
 
 ```text
-resources
-resource_links
-transfer history relation if needed later
+用户收藏资源 -> upsert resources，并设置 favorited_at。
+用户收藏链接 -> upsert 最小 resources 父记录，upsert resource_links，并设置 link.favorited_at。
+用户取消收藏资源 -> 清空 resource.favorited_at；如无收藏链接引用，后续可清理。
+用户取消收藏链接 -> 删除 resource_links 或清空 link.favorited_at；MVP 建议直接删除该收藏链接记录。
 ```
 
-规则：
+搜索返回前可以读取收藏库：
 
 ```text
-同一 link 不重复插入。
-资源重复时更新 updated_at 和 score。
-保留 source_id 和 source_url。
-不要把搜索缓存当作资源库事实来源。
+按 normalized_title / original_title / year 标记 ResourceCandidate.is_favorited。
+按 provider + normalized(url) 标记 ResourceLinkResult.is_favorited。
+收藏库只提供标记，不替代实时搜索源结果。
 ```
 
 ---
@@ -265,7 +299,7 @@ Redis 可用于搜索缓存。
 失败 source 熔断 5 分钟
 ```
 
-缓存不替代 PostgreSQL 资源库。
+缓存不替代 Source Adapter 实时搜索，也不替代收藏库。
 
 ---
 
@@ -280,6 +314,7 @@ RawSearchItem 可转 ResourceCandidate。
 可提取至少一种 provider 链接。
 可基础去重。
 可基础排序。
-搜索结果可入库。
-API 返回结果包含 candidate explanation 或 score 字段。
+搜索结果默认不自动入库。
+API 返回结果可标记资源和链接是否已收藏。
+用户主动收藏资源或链接后，可在收藏库中读取。
 ```

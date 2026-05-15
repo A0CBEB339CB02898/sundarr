@@ -90,7 +90,15 @@ test endpoint 接收 keyword / result_type / limit，返回 RawSearchItem 预览
 ## 4. Search
 
 ```http
-GET /search?q=interstellar&type=movie&year=2014
+GET /search?q=interstellar&year=2014
+```
+
+规则：
+
+```text
+/search 永远实时调用已注册 Source Adapter，不直接用收藏库代替搜索结果。
+/search 默认不把结果写入 resources / resource_links。
+返回结果可附带收藏标记，用于前端展示“已收藏资源 / 已收藏链接”。
 ```
 
 响应：
@@ -104,18 +112,21 @@ GET /search?q=interstellar&type=movie&year=2014
       "id": "res_001",
       "title": "星际穿越",
       "original_title": "Interstellar",
-      "type": "movie",
       "year": 2014,
-      "quality": "1080p",
-      "score": 0.94,
-      "explanation": "Title and year matched",
+      "is_favorited": true,
       "links": [
         {
           "id": "link_001",
           "provider": "quark",
+          "name": "星际穿越 1080p WEB-DL",
+          "url": "https://example.invalid/share/abc",
           "code": null,
+          "quality": "1080p WEB-DL",
           "valid": true,
-          "risk_level": "unknown"
+          "last_checked_at": "2026-05-10T12:34:56.789Z",
+          "source_id": "seedhub",
+          "source_url": "https://example.invalid/item/1",
+          "is_favorited": false
         }
       ]
     }
@@ -134,14 +145,121 @@ GET /search?q=interstellar&type=movie&year=2014
 
 ---
 
-## 5. Resources
+## 5. Favorites
+
+收藏是独立业务模块。Resource 和 ResourceLink 是收藏模块管理的两类对象：Resource 表示“这是什么资源”，ResourceLink 表示“这个资源的一个具体链接/版本”。Web Console 应作为单个“收藏”模块展示，并在模块内区分资源收藏和链接收藏。
+
+当前 API 为保持资源对象边界和已有调用兼容，仍保留 `/resources/*` 与 `/resource-links/*` 两组端点。它们同属收藏模块，不代表两个独立产品模块。
+
+### 5.1 Resource Favorites
 
 ```http
-GET /resources
+GET /resources/favorites
 GET /resources/{resource_id}
+POST /resources/favorite
+POST /resources/{resource_id}/unfavorite
+POST /resources/{resource_id}/refresh
 ```
 
-资源详情必须包含 links，但不得返回敏感 provider 凭据。
+规则：
+
+```text
+resources 只保存用户主动收藏的资源，或收藏链接时创建的最小父级资源记录。
+搜索结果不自动入库。
+favorited_at 为空的 Resource 仅作为 ResourceLink 父记录，不出现在收藏资源列表中。
+资源刷新会基于 title / original_title / year 重新调用 Source Adapter 搜索，不直接从旧库数据返回。
+```
+
+收藏资源请求：
+
+```json
+{
+  "id": "res_001",
+  "title": "星际穿越",
+  "normalized_title": "interstellar",
+  "original_title": "Interstellar",
+  "year": 2014
+}
+```
+
+资源响应：
+
+```json
+{
+  "id": "res_001",
+  "title": "星际穿越",
+  "normalized_title": "interstellar",
+  "original_title": "Interstellar",
+  "year": 2014,
+  "favorited_at": "2026-05-10T12:34:56.789Z",
+  "links": []
+}
+```
+
+---
+
+## 5.2 Resource Link Favorites
+
+```http
+GET /resource-links/favorites
+GET /resource-links/{link_id}
+POST /resource-links/favorite
+POST /resource-links/{link_id}/unfavorite
+POST /resource-links/{link_id}/refresh
+```
+
+规则：
+
+```text
+resource_links 只保存用户主动收藏的资源链接。
+ResourceLink 可单独收藏；单独收藏链接时必须同时 upsert 一个最小 Resource 父记录。
+链接刷新只重新检测该链接的 valid / last_checked_at，不重新搜索全部媒体源。
+```
+
+收藏链接请求：
+
+```json
+{
+  "resource": {
+    "id": "res_001",
+    "title": "星际穿越",
+    "normalized_title": "interstellar",
+    "original_title": "Interstellar",
+    "year": 2014
+  },
+  "link": {
+    "id": "link_001",
+    "provider": "quark",
+    "name": "星际穿越 1080p WEB-DL",
+    "url": "https://example.invalid/share/abc",
+    "code": null,
+    "quality": "1080p WEB-DL",
+    "valid": true,
+    "last_checked_at": "2026-05-10T12:34:56.789Z",
+    "source_id": "seedhub",
+    "source_url": "https://example.invalid/item/1"
+  }
+}
+```
+
+链接响应：
+
+```json
+{
+  "id": "link_001",
+  "resource_id": "res_001",
+  "provider": "quark",
+  "name": "星际穿越 1080p WEB-DL",
+  "url": "https://example.invalid/share/abc",
+  "code": null,
+  "quality": "1080p WEB-DL",
+  "valid": true,
+  "last_checked_at": "2026-05-10T12:34:56.789Z",
+  "source_id": "seedhub",
+  "source_url": "https://example.invalid/item/1",
+  "favorited_at": "2026-05-10T12:35:00.000Z"
+}
+```
 
 ---
 

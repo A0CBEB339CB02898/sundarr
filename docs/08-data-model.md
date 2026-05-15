@@ -50,35 +50,56 @@ Web Console 不允许创建、编辑、删除搜索源，也不在数据库中�
 
 ## 3. resources
 
-用途：保存标准化媒体资源。
+用途：保存用户主动收藏过的标准化媒体资源，或作为用户收藏资源链接时的最小父级资源记录。
+
+Resource 与 ResourceLink 同属收藏模块。产品层面只暴露一个收藏入口，资源收藏和资源链接收藏只是收藏模块下的两类对象。
+
+边界：
+
+```text
+搜索结果默认不写入 resources。
+只有用户主动收藏资源，或用户收藏资源链接时需要创建父级 Resource，才写入 resources。
+创建传输任务当前不依赖 Resource / ResourceLink；任务事实来源仍是远程媒体库扫描结果。
+Resource 表示“这是什么资源”，不表示某个具体网盘链接或版本。
+质量、版本、网盘类型、提取码和链接有效性属于 ResourceLink。
+```
 
 字段：
 
 ```text
 id TEXT PRIMARY KEY
 title TEXT NOT NULL
-normalized_title TEXT
+normalized_title TEXT NOT NULL
 original_title TEXT
-type TEXT
 year INTEGER
-season INTEGER
-episodes TEXT
-quality TEXT
-language TEXT
-subtitle TEXT
-description TEXT
-poster TEXT
-score REAL NOT NULL DEFAULT 0
-metadata_json JSONB
+favorited_at TIMESTAMP
 created_at TIMESTAMP NOT NULL
 updated_at TIMESTAMP NOT NULL
+```
+
+字段说明：
+
+```text
+favorited_at 为空表示该 Resource 只是为了某个已收藏 ResourceLink 存在，本身未被收藏。
+favorited_at 非空表示用户已收藏该 Resource。
+normalized_title 用于搜索结果与已收藏资源匹配，给实时搜索结果打“已收藏”标记。
+year 只作为弱辅助字段；获取不到时可为空，不作为必填条件。
 ```
 
 ---
 
 ## 4. resource_links
 
-用途：保存资源对应的网盘链接。
+用途：保存用户主动收藏过的具体资源链接。
+
+边界：
+
+```text
+搜索结果默认不写入 resource_links。
+只有用户主动收藏某条链接，才写入 resource_links。
+ResourceLink 表示“这个资源的一个具体可用链接/版本”。
+ResourceLink 可以单独收藏；单独收藏链接时必须同时写入一个最小 Resource 父记录。
+```
 
 字段：
 
@@ -86,16 +107,27 @@ updated_at TIMESTAMP NOT NULL
 id TEXT PRIMARY KEY
 resource_id TEXT NOT NULL
 provider TEXT NOT NULL
+name TEXT
 url TEXT NOT NULL
 code TEXT
+quality TEXT
+valid BOOLEAN
+last_checked_at TIMESTAMP
 source_id TEXT
 source_url TEXT
-valid BOOLEAN
-risk_level TEXT NOT NULL DEFAULT 'unknown'
-visibility TEXT NOT NULL DEFAULT 'unknown'
-last_checked_at TIMESTAMP
+favorited_at TIMESTAMP NOT NULL
 created_at TIMESTAMP NOT NULL
 updated_at TIMESTAMP NOT NULL
+```
+
+字段说明：
+
+```text
+quality 是该具体链接的版本/画质标签，例如 1080p、4K、WEB-DL、BluRay，不属于 Resource。
+name 是该具体链接的展示名称，可来自搜索源链接标题，也可由资源标题和 quality 兜底生成。
+valid / last_checked_at 来自链接检测结果，可通过手动刷新更新。
+source_id / source_url 用于追踪该链接来自哪个搜索源和源页面。
+risk_level / visibility 不纳入 MVP 最小模型。
 ```
 
 建议索引：
@@ -144,7 +176,9 @@ completed_at TIMESTAMP
 
 状态见 `docs/07-transfer-state-machine.md`。
 
-`link_id` 对搜索资源搬运任务必填；对同步任务可为空。
+`resource_id` / `link_id` 不作为当前传输任务创建的必需字段；当前任务创建事实来源是远程媒体库扫描结果。
+
+后续如增加“从收藏链接创建任务”，可在创建任务时把收藏链接信息快照进任务，并选择性关联 `resource_id` / `link_id`。
 
 `source_type`、`source_path`、`source_config_snapshot` 和 `sync_seen_file_id` 用于记录同步来源。`storage_config_snapshot` 用于判断任务是否使用旧 SMB 配置。历史 `ingest_seen_file_id` 字段已由 Phase 9 迁移为 `sync_seen_file_id`。
 

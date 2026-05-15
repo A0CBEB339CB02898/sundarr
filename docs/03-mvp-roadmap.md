@@ -54,6 +54,7 @@ Phase 7 Web Console: 已完成。
 Phase 7.8 Web Console UI Polish: 已完成，来自 Phase 0-7 手动验收反馈；应在 Phase 8 前优先处理前端体验问题。
 Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需手动集成验收。
 Phase 9 Module Refactoring: 进行中；已新增远程媒体库和同步绑定，仍需清理旧 Download To Local / Ingest 残留并统一 Worker 处理路径。
+Phase 9.5 Resource Favorites Refactoring: 待开始；目标是将 Resource / ResourceLink 收缩为收藏模型，移除搜索自动入库，为外部搜索源仓库接入整理搜索源代码边界。
 Phase 10 Real Site Source Adapters: 未开始，目标是实现外部 Git 搜索源仓库加载框架和至少一个真实源。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
 Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档，后续单独实现。
@@ -154,7 +155,9 @@ Alembic 初始迁移存在，并可通过离线迁移校验。
 
 ## Phase 2: Search And Resource Library
 
-目标：实现多源搜索框架和资源库入库。
+> 历史阶段说明：Phase 2 初版包含“搜索结果入库”。该方向已在 Phase 9.5 调整为“搜索实时返回，用户主动收藏资源或资源链接时才入库”。本节保留历史验收背景，后续实现以 `docs/05-search-pipeline-spec.md`、`docs/08-data-model.md` 和 `docs/09-api-contract.md` 的最新边界为准。
+
+目标：实现多源搜索框架和资源候选结果标准化。
 
 交付物：
 
@@ -169,7 +172,7 @@ normalizer
 deduper
 ranker
 GET /search
-GET /resources/{id}
+资源/资源链接收藏接口（由 Phase 9.5 收缩重构）
 ```
 
 验收标准：
@@ -178,7 +181,8 @@ GET /resources/{id}
 一个 source 失败不影响整体搜索。
 RawSearchItem 输出格式统一。
 可以从文本中提取至少一种 provider 链接。
-搜索结果可以入库。
+搜索结果可标准化为 ResourceCandidate / ResourceLinkResult。
+用户主动收藏后可写入资源/资源链接收藏库。
 重复资源可基础合并。
 ```
 
@@ -188,8 +192,8 @@ RawSearchItem 输出格式统一。
 SourceModel / SearchQuery / RawSearchItem 已落地。
 至少一个示例 source 可通过 /search 返回候选结果。
 Cloud Link Extractor 至少支持一个 provider 的链接和提取码识别。
-搜索结果可持久化到 resources / resource_links。
-/resources/{id} 可从数据库读取资源详情。
+搜索结果默认不自动持久化到 resources / resource_links。
+收藏模块可从数据库读取资源收藏和资源链接收藏详情。
 source 失败隔离有测试覆盖。
 pytest 通过。
 工作区已提交或明确说明不提交原因。

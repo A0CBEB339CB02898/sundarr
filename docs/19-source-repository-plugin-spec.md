@@ -74,6 +74,62 @@ SearchService 不需要 repo_url、commit、加载错误或更新状态。
 保持 SourceModel 轻量可以兼容现有 SeedHub 和搜索管线。
 ```
 
+### 3.1 Adapter 输出边界
+
+外部搜索源 Adapter 不直接产出数据库模型，也不负责收藏或入库。
+
+Adapter 只负责产出搜索原始项：
+
+```text
+RawSearchItem
+  source_id
+  source_type
+  raw_title
+  raw_url
+  raw_content
+  published_at
+  fetched_at
+  metadata
+```
+
+Sundarr Core 负责：
+
+```text
+RawSearchItem -> ResourceCandidate / ResourceLinkResult 标准化
+ResourceCandidate / ResourceLinkResult 聚合、去重、链接检测
+查询收藏库，为实时搜索结果附加 is_favorited 标记
+用户主动收藏时，才写入 Resource / ResourceLink
+```
+
+禁止 Adapter：
+
+```text
+直接访问数据库。
+直接创建 Resource / ResourceLink。
+直接读取或修改收藏状态。
+直接创建 TransferTask。
+```
+
+### 3.2 Resource / ResourceLink 抽象边界
+
+后续资源抽象层采用以下边界：
+
+```text
+Resource 表示“这是什么资源”，用于用户收藏资源和作为收藏链接的父记录。
+ResourceLink 表示“这个资源的一个具体链接/版本”，用于用户收藏链接。
+/search 永远实时调用 Source Adapter，不用收藏库替代搜索。
+收藏库只用于收藏列表、收藏详情、刷新收藏项，以及给实时搜索结果打已收藏标记。
+```
+
+该边界用于保证外部搜索源仓库接入后：
+
+```text
+Adapter SDK 不依赖数据库表结构。
+外部源代码不需要知道收藏功能。
+SearchService 可以在内置源和外部源之间保持统一管线。
+资源收藏与搜索源加载生命周期解耦。
+```
+
 ---
 
 ## 4. 外部仓库结构
@@ -250,6 +306,26 @@ fetch 不等于应用更新。
 ```
 
 现有 `SearchService` 不需要感知仓库、commit 或加载错误。
+
+### 6.5.1 搜索源代码整理前置要求
+
+在实现 Git Source Repository 模式前，先整理 Core 内部搜索源相关代码：
+
+```text
+保持 SourceModel 作为 Adapter API v1 的最小运行时协议。
+保持 Source Adapter 只返回 RawSearchItem，不返回 ORM 模型。
+把 ResourceCandidate / ResourceLinkResult 标准化逻辑留在 Core 搜索管线。
+把收藏状态标记逻辑放在 Core 服务层，不放进 Adapter。
+移除 /search 自动保存候选结果到资源库的行为。
+```
+
+验收要求：
+
+```text
+SearchService 调用内置源和未来外部源的方式一致。
+Adapter 不感知 Resource / ResourceLink 是否入库。
+收藏资源 / 收藏链接功能可以在不修改 Adapter 的情况下工作。
+```
 
 ### 6.6 改造 SourceService 和 Web Console
 

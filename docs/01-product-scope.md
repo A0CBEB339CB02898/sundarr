@@ -42,6 +42,7 @@ OpenList 替代品
 ```text
 用户在 Web Console 搜索媒体资源。
 Sundarr 从多个已配置来源聚合搜索结果。
+用户可以在收藏模块中收藏资源，或收藏某条具体资源链接。
 用户选择候选资源和目标媒体库。
 用户手动将资源保存到网盘。
 NAS 或挂载服务将网盘远程挂载为目录，并通过 SMB 暴露给 Sundarr。
@@ -66,7 +67,7 @@ PostgreSQL 持久化
 Redis 缓存和实时进度辅助
 多源 Source Adapter 框架
 Cloud Link Extractor
-Resource Library
+收藏模块，统一管理资源收藏和资源链接收藏
 Mock/Local Cloud Provider
 远程媒体库同步到本地媒体库规范
 本地媒体库管理，支持创建 movie / series / unclassified 等本地媒体库
@@ -97,6 +98,8 @@ MVP 包含轻量 Web Console。
 ```text
 搜索资源
 展示候选结果
+收藏模块
+在收藏模块中查看资源收藏和资源链接收藏
 查看资源详情
 管理已安装搜索源
 查看和修改多个 SMB 连接
@@ -159,6 +162,10 @@ cookie/token/password 不写入日志
 ## 6. 媒体源范围
 
 多源即时搜索是核心能力。Sundarr 要做的是从真实媒体网站即时搜索资源，而不是要求用户维护本地资源表。
+
+搜索结果默认不入库。用户主动收藏资源或收藏某条具体链接时，才写入资源收藏库。
+
+收藏库不是 `/search` 的替代数据源。用户点击搜索时，系统始终实时调用 Source Adapter，并在返回结果中标记哪些资源或链接已收藏。
 
 媒体源近期主线：
 

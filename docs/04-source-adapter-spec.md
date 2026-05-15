@@ -49,8 +49,11 @@ Source Adapter
   -> Normalizer
   -> Deduper
   -> Ranker
-  -> Resource Library
+  -> Favorite Marker
+  -> API Response
 ```
+
+Source Adapter 不直接读写 Resource / ResourceLink。搜索结果默认不入库，只有用户主动收藏资源或链接时才进入收藏库。
 
 ---
 
