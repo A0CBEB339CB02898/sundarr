@@ -14,8 +14,11 @@ from sundarr.app.sources.base import SourceModel
 
 
 class SourceService:
+    def _get_registered_sources(self) -> list[SourceModel]:
+        return get_registered_sources()
+
     def sync_registered_sources(self, db: Session) -> int:
-        registered = get_registered_sources()
+        registered = self._get_registered_sources()
         registered_ids = {source.id for source in registered}
         changed = 0
         for source in registered:
@@ -59,7 +62,7 @@ class SourceService:
         return self._row_to_response(row)
 
     async def test_source(self, source_id: str, request: SourceTestRequest) -> SourceTestResponse | None:
-        source = next((item for item in get_registered_sources() if item.id == source_id), None)
+        source = next((item for item in self._get_registered_sources() if item.id == source_id), None)
         if source is None:
             return None
         logs: list[SourceTestLog] = [
@@ -104,9 +107,5 @@ class SourceService:
             description=source.description,
             homepage_url=source.homepage_url,
         )
-
-    def _registered_to_response(self, source: SourceModel) -> SourceResponse:
-        return SourceResponse(id=source.id, name=source.name, description=source.description, homepage_url=source.homepage_url)
-
 
 source_service = SourceService()

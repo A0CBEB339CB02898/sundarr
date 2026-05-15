@@ -5,7 +5,8 @@ import psycopg
 from alembic import command
 from alembic.config import Config
 from psycopg import sql
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -32,6 +33,7 @@ def initialize_database() -> None:
     print(f"数据库配置：{redact_url_password(database_url)}")
     create_database_if_missing(database_url)
     run_migrations()
+    ensure_runtime_schema(database_url)
     seed_default_settings(database_url)
     seed_registered_sources(database_url)
 
@@ -101,6 +103,48 @@ def seed_default_settings_for_session(session: Session) -> int:
 
 def seed_registered_sources_for_session(session: Session) -> int:
     return source_service.sync_registered_sources(session)
+
+
+def ensure_runtime_schema(database_url: str) -> None:
+    engine = create_engine(database_url, pool_pre_ping=True)
+    try:
+        ensure_runtime_schema_for_engine(engine)
+    finally:
+        engine.dispose()
+
+
+def ensure_runtime_schema_for_engine(engine: Engine) -> None:
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    statements: list[str] = []
+
+    if "resources" in table_names:
+        columns = {column["name"] for column in inspector.get_columns("resources")}
+        if "favorited_at" not in columns:
+            statements.append(_add_column_sql(engine, "resources", "favorited_at", "TIMESTAMP"))
+
+    if "resource_links" in table_names:
+        columns = {column["name"] for column in inspector.get_columns("resource_links")}
+        if "name" not in columns:
+            statements.append(_add_column_sql(engine, "resource_links", "name", "TEXT"))
+        if "quality" not in columns:
+            statements.append(_add_column_sql(engine, "resource_links", "quality", "TEXT"))
+        if "favorited_at" not in columns:
+            statements.append(_add_column_sql(engine, "resource_links", "favorited_at", "TIMESTAMP"))
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+    print(f"运行时 schema 已自修复：补齐 {len(statements)} 个字段。")
+
+
+def _add_column_sql(engine: Engine, table_name: str, column_name: str, column_type: str) -> str:
+    if engine.dialect.name == "postgresql":
+        return f'ALTER TABLE "{table_name}" ADD COLUMN IF NOT EXISTS "{column_name}" {column_type}'
+    return f'ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}'
 
 
 def _build_maintenance_url(database_url: str) -> str:

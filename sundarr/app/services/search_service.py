@@ -16,29 +16,33 @@ from sundarr.app.schemas.search import (
 from sundarr.app.services.link_validator import LinkValidator, link_validator
 from sundarr.app.sources import SourceModel, get_registered_sources
 
-TITLE_TAG_PATTERN = re.compile(r"\b(720p|1080p|2160p|4k|bluray|web-dl)\b", re.IGNORECASE)
+TITLE_TAG_PATTERN = re.compile(r"\b(720p|1080p|2160p|4k|blu-?ray|web-?dl|remux|hdr|x26[45]|h\.26[45])\b", re.IGNORECASE)
 YEAR_PATTERN = re.compile(r"\b(19\d{2}|20\d{2})\b")
 
 
 class SearchService:
     def __init__(self, sources: Iterable[SourceModel] | None = None, validator: LinkValidator | None = None) -> None:
-        self.sources = list(sources) if sources is not None else get_registered_sources()
+        self.sources = list(sources) if sources is not None else None
         self.validator = validator or link_validator
 
+    def _get_sources(self) -> list[SourceModel]:
+        return list(self.sources) if self.sources is not None else get_registered_sources()
+
     async def search(self, query: SearchQuery) -> SearchResponse:
+        sources = self._get_sources()
         raw_items_by_source, errors_by_source = await self._collect_raw_items(query)
         raw_items = [item for group in raw_items_by_source.values() for item in group]
         candidates = [candidate for item in raw_items if (candidate := self._normalize(item, query)) is not None]
         deduped = self._dedupe(candidates)
-        ranked = sorted(deduped, key=lambda item: item.score, reverse=True)[: query.limit]
+        ranked = sorted(deduped, key=lambda item: self._score_candidate(item, query), reverse=True)[: query.limit]
         source_results = []
-        for source in self.sources:
+        for source in sources:
             source_candidates = [
                 candidate
                 for item in raw_items_by_source.get(source.id, [])
                 if (candidate := self._normalize(item, query)) is not None
             ]
-            source_ranked = sorted(self._dedupe(source_candidates), key=lambda item: item.score, reverse=True)[: query.limit]
+            source_ranked = sorted(self._dedupe(source_candidates), key=lambda item: self._score_candidate(item, query), reverse=True)[: query.limit]
             source_results.append(
                 SourceSearchResult(
                     source_id=source.id,
@@ -52,8 +56,9 @@ class SearchService:
         return SearchResponse(query=query.keyword, count=len(ranked), results=ranked, source_results=source_results)
 
     async def _collect_raw_items(self, query: SearchQuery) -> tuple[dict[str, list[RawSearchItem]], dict[str, str]]:
+        sources = self._get_sources()
         results = await asyncio.gather(
-            *(self._safe_search(source, query) for source in self.sources),
+            *(self._safe_search(source, query) for source in sources),
             return_exceptions=False,
         )
         items_by_source: dict[str, list[RawSearchItem]] = {}
@@ -80,43 +85,35 @@ class SearchService:
             return None
         title = self._clean_title(item.raw_title)
         year = self._extract_year(item, query)
-        media_type = item.metadata.get("type") or query.type
-        quality = item.metadata.get("quality") or self._extract_quality(item.raw_title)
+        quality = item.metadata.get("quality") or self._extract_quality(item.raw_title, item.raw_content)
+        link_name = self._extract_link_name(item, title, quality)
         result_links = [
             ResourceLinkResult(
                 id=self._stable_id(link.provider, self._normalize_url(link.url)),
                 provider=link.provider,
+                name=link_name,
                 url=link.url,
                 code=link.code,
+                quality=quality,
+                source_id=item.source_id,
+                source_url=item.raw_url,
             )
             for link in links
         ]
 
-        score = 0.4
-        if query.keyword.lower() in item.raw_title.lower():
-            score += 0.3
-        if year and query.year == year:
-            score += 0.1
-        if result_links:
-            score += 0.2
-
         return ResourceCandidate(
-            id=self._stable_id(title, str(year), item.source_id),
+            id=self._stable_id(title, str(year)),
             title=title,
             normalized_title=self._normalize_title(title),
             original_title=item.raw_title,
-            type=media_type,
             year=year,
-            quality=quality,
-            score=round(score, 4),
-            explanation="基于标题、年份和链接可用性生成基础评分。",
             source_id=item.source_id,
             source_url=item.raw_url,
             links=result_links,
         )
 
     def _dedupe(self, candidates: list[ResourceCandidate]) -> list[ResourceCandidate]:
-        merged: dict[tuple[str, int | None, str], ResourceCandidate] = {}
+        merged: dict[tuple[str, int | None], ResourceCandidate] = {}
         seen_links: set[str] = set()
         for candidate in candidates:
             unique_links: list[ResourceLinkResult] = []
@@ -129,14 +126,24 @@ class SearchService:
             if not unique_links:
                 continue
             candidate.links = unique_links
-            key = (candidate.normalized_title, candidate.year, candidate.type)
+            key = (candidate.normalized_title, candidate.year)
             existing = merged.get(key)
             if existing is None:
                 merged[key] = candidate
                 continue
             existing.links.extend(candidate.links)
-            existing.score = max(existing.score, candidate.score)
         return list(merged.values())
+
+    def _score_candidate(self, candidate: ResourceCandidate, query: SearchQuery) -> float:
+        score = 0.4
+        title_text = candidate.original_title or candidate.title
+        if query.keyword.lower() in title_text.lower():
+            score += 0.3
+        if candidate.year and query.year == candidate.year:
+            score += 0.1
+        if candidate.links:
+            score += 0.2
+        return round(score, 4)
 
     async def _validate_links(self, candidates: list[ResourceCandidate]) -> None:
         links = [link for candidate in candidates for link in candidate.links]
@@ -167,11 +174,29 @@ class SearchService:
         if isinstance(item.metadata.get("year"), int):
             return item.metadata["year"]
         match = YEAR_PATTERN.search(item.raw_title)
+        if match:
+            return int(match.group(1))
+        match = YEAR_PATTERN.search(item.raw_content)
         return int(match.group(1)) if match else query.year
 
-    def _extract_quality(self, raw_title: str) -> str | None:
-        match = TITLE_TAG_PATTERN.search(raw_title)
-        return match.group(1) if match else None
+    def _extract_quality(self, *texts: str) -> str | None:
+        for text in texts:
+            match = TITLE_TAG_PATTERN.search(text)
+            if match:
+                return match.group(1).upper().replace("BLURAY", "BluRay").replace("BLU-RAY", "BluRay")
+        return None
+
+    def _extract_link_name(self, item: RawSearchItem, title: str, quality: str | None) -> str:
+        for key in ("link_name", "name", "title"):
+            value = item.metadata.get(key)
+            if isinstance(value, str) and value.strip():
+                name = value.strip()
+                break
+        else:
+            name = self._clean_title(item.raw_title) or title
+        if quality and quality.lower() not in name.lower():
+            return f"{name} {quality}"
+        return name
 
     def _stable_id(self, *parts: str | None) -> str:
         value = "|".join(part or "" for part in parts)

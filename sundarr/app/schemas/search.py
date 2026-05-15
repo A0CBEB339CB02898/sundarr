@@ -3,14 +3,12 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-MediaType = Literal["movie", "tv", "anime", "unknown"]
 ResultType = Literal["all", "magnet", "quark", "aliyun", "baidu", "xunlei", "unknown"]
 LinkValidationStatus = Literal["unchecked", "checking", "valid", "invalid", "unknown", "error"]
 
 
 class SearchQuery(BaseModel):
     keyword: str = Field(min_length=1)
-    type: MediaType = "unknown"
     result_type: ResultType = "all"
     year: int | None = None
     season: int | None = None
@@ -40,13 +38,18 @@ class CloudLink(BaseModel):
 class ResourceLinkResult(BaseModel):
     id: str
     provider: str
+    name: str | None = None
     url: str
     code: str | None = None
+    quality: str | None = None
     valid: bool | None = None
-    risk_level: str = "unknown"
     validation_status: LinkValidationStatus = "unchecked"
     validation_message: str | None = None
     checked_at: datetime | None = None
+    source_id: str | None = None
+    source_url: str | None = None
+    is_favorited: bool = False
+    favorited_at: datetime | None = None
 
 
 class ResourceCandidate(BaseModel):
@@ -54,14 +57,25 @@ class ResourceCandidate(BaseModel):
     title: str
     normalized_title: str
     original_title: str | None = None
-    type: MediaType = "unknown"
     year: int | None = None
-    quality: str | None = None
-    score: float = 0
-    explanation: str
     source_id: str
     source_url: str | None = None
+    is_favorited: bool = False
+    favorited_at: datetime | None = None
     links: list[ResourceLinkResult] = Field(default_factory=list)
+
+
+class ResourceFavoriteRequest(BaseModel):
+    id: str
+    title: str
+    normalized_title: str
+    original_title: str | None = None
+    year: int | None = None
+
+
+class ResourceLinkFavoriteRequest(BaseModel):
+    resource: ResourceFavoriteRequest
+    link: ResourceLinkResult
 
 
 class SourceSearchResult(BaseModel):
