@@ -177,7 +177,7 @@ type StorageFormState = {
 }
 
 type MediaType = 'movie' | 'tv' | 'anime' | 'unknown'
-type ResultType = 'all' | 'magnet' | 'quark' | 'aliyun' | 'baidu' | 'xunlei' | 'unknown'
+
 
 type SearchResponse = {
   query: string
@@ -247,7 +247,6 @@ type ResourceLinkFavoriteRequest = {
 
 type SearchFormState = {
   q: string
-  result_type: ResultType
 }
 
 type SourceResponse = {
@@ -283,7 +282,6 @@ type SourceTestLog = {
 
 type SourceTestFormState = {
   keyword: string
-  result_type: ResultType
   limit: string
 }
 
@@ -609,12 +607,12 @@ function App() {
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
       const target = e.target as HTMLElement
-      if (target.getAttribute('role') === 'tab') {
+      if (target.closest('[role="tablist"] button') || target.closest('.sx-result-tabs button') || target.closest('.sx-provider-tabs button') || target.closest('.favorite-module-tabs button')) {
         e.preventDefault()
       }
     }
-    document.addEventListener('mousedown', onMouseDown)
-    return () => document.removeEventListener('mousedown', onMouseDown)
+    document.addEventListener('mousedown', onMouseDown, true)
+    return () => document.removeEventListener('mousedown', onMouseDown, true)
   }, [])
 
   async function loadTransfers(nextPage = transferPage) {
@@ -1995,13 +1993,13 @@ function SourcesPanel() {
   }
 
   function getTestForm(sourceId: string): SourceTestFormState {
-    return testForms[sourceId] || { keyword: '星际穿越', result_type: 'all', limit: '5' }
+    return testForms[sourceId] || { keyword: '星际穿越', limit: '5' }
   }
 
   function updateTestForm(sourceId: string, patch: Partial<SourceTestFormState>) {
     setTestForms((prev) => ({
       ...prev,
-      [sourceId]: { ...(prev[sourceId] || { keyword: '星际穿越', result_type: 'all', limit: '5' }), ...patch },
+      [sourceId]: { ...(prev[sourceId] || { keyword: '星际穿越', limit: '5' }), ...patch },
     }))
   }
 
@@ -2031,7 +2029,6 @@ function SourcesPanel() {
         `/sources/${encodeURIComponent(source.id)}/test`,
         {
           keyword,
-          result_type: form.result_type,
           limit: Math.max(1, Math.min(20, Number(form.limit) || 5)),
         },
       )
@@ -2253,20 +2250,6 @@ function SourceDetailModal({
                   onChange={(event) => onTestFormChange({ keyword: event.target.value })}
                   placeholder="例如：星际穿越"
                 />
-              </label>
-              <label>
-                <span>结果类型</span>
-                <select
-                  value={testForm.result_type}
-                  onChange={(event) => onTestFormChange({ result_type: event.target.value as ResultType })}
-                >
-                  <option value="all">全部</option>
-                  <option value="magnet">磁力</option>
-                  <option value="quark">夸克网盘</option>
-                  <option value="aliyun">阿里网盘</option>
-                  <option value="baidu">百度网盘</option>
-                  <option value="xunlei">迅雷网盘</option>
-                </select>
               </label>
               <label>
                 <span>预览数</span>
@@ -2661,7 +2644,6 @@ function FavoriteLinksPanel({ showToast }: { showToast: (type: 'success' | 'erro
 function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [form, setForm] = useState<SearchFormState>({
     q: '',
-    result_type: 'all',
   })
   const [response, setResponse] = useState<SearchResponse | null>(null)
   const [activeResultTab, setActiveResultTab] = useState('all')
@@ -2679,7 +2661,7 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
     setIsSearching(true)
     setError(null)
     try {
-      const params = new URLSearchParams({ q: keyword, result_type: form.result_type, limit: '20' })
+      const params = new URLSearchParams({ q: keyword, limit: '20' })
       const result = await api.get<SearchResponse>(`/search?${params.toString()}`)
       setResponse(result)
       setActiveResultTab('all')
@@ -2820,27 +2802,17 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
       <Card className="sx-search-card">
       <form className="sx-form" onSubmit={(event) => { event.preventDefault(); void runSearch() }}>
         <TextField helper="要搜索的片名、剧名或关键词。" label="关键词" onChange={(value) => updateField('q', value)} required value={form.q} />
-        <Field label="结果类型" helper="按链接类型过滤；默认展示全部可识别链接。">
-          <select onChange={(event) => updateField('result_type', event.target.value)} value={form.result_type}>
-            <option value="all">全部</option>
-            <option value="magnet">磁力</option>
-            <option value="quark">夸克网盘</option>
-            <option value="aliyun">阿里网盘</option>
-            <option value="baidu">百度网盘</option>
-            <option value="xunlei">迅雷网盘</option>
-          </select>
-        </Field>
         <div className="sx-form-actions">
           <Button variant="primary" disabled={isSearching} type="submit">{isSearching ? '搜索中…' : '搜索资源'}</Button>
         </div>
       </form>
       </Card>
 
-      {isSearching ? <UILoadingState message="正在聚合搜索候选资源…" /> : null}
       {error ? <UIErrorState message="搜索失败" sub={error} /> : null}
 
       {response ? (
         <Card emphasis="sunken" className="sx-results-card">
+          {isSearching ? <UILoadingState message="正在聚合搜索候选资源…" /> : null}
           <div className="sx-section-head"><p className="ui-eyebrow">搜索结果</p><span>{response.count} 个去重结果</span></div>
           <div className="sx-result-tabs" role="tablist" aria-label="按媒体源查看搜索结果">
             {sourceTabs.map((tab) => (
@@ -2897,6 +2869,8 @@ function SearchPanel({ showToast }: { showToast: (type: 'success' | 'error' | 'i
             ))}
           </div>
         </Card>
+      ) : isSearching ? (
+        <UILoadingState message="正在聚合搜索候选资源…" />
       ) : null}
 
     </section>
@@ -4733,6 +4707,7 @@ function providerLabel(provider: string) {
     aliyun: '阿里网盘',
     baidu: '百度网盘',
     xunlei: '迅雷网盘',
+    uc: 'UC网盘',
     unknown: '未知链接',
   }
   return labels[provider] || provider
