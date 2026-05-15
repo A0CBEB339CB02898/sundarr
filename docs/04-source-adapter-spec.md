@@ -158,6 +158,35 @@ fetched_at 必填。
 metadata 可保存 source 特有信息，但后续管线不能依赖特定 source 的 metadata 才能工作。
 ```
 
+### 4.1 metadata 约定 key
+
+Adapter 可以（推荐但不强制）在 metadata 中填写以下 key，Core 会优先使用，缺失时自动 fallback 到正则提取：
+
+| key | 类型 | 含义 | Core 行为 |
+|---|---|---|---|
+| `year` | int | 发行年份 | 有则直接用，无则从 raw_title / raw_content 正则提取 |
+| `quality` | str | 画质/版本标签 (如 1080p、4K、BluRay) | 同上 |
+| `link_name` | str | 某条具体链接的展示名称 | 有则直接用，无则由资源标题 + quality 兜底生成 |
+| `type` | str | 保留字段，暂不处理 | 当前忽略 |
+
+示例（Adapter 从页面特定元素提取后写入）：
+
+```python
+metadata = {"source": "example"}
+year = extract_year_from_text(page_title)  # 从 <h1> 提取
+if year:
+    metadata["year"] = year
+quality = extract_quality_from_text(download_area_text)
+if quality:
+    metadata["quality"] = quality
+```
+
+Core 已提供 `sundarr.app.sources.utils` 工具函数供 Adapter 复用：
+
+```python
+from sundarr.app.sources.utils import extract_year_from_text, extract_quality_from_text
+```
+
 ---
 
 ## 5. SourceModel 接口

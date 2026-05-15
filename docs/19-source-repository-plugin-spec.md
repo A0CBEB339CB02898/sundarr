@@ -92,6 +92,16 @@ RawSearchItem
   metadata
 ```
 
+Adapter 可在 `metadata` 中填写约定 key 以提供结构化信息（可选，不强制）：
+
+```text
+year       → int，发行年份
+quality    → str，画质/版本标签
+link_name  → str，具体链接的展示名称
+```
+
+Core 优先读取这些 key，缺失时自动 fallback 到正则提取。详见 `docs/04-source-adapter-spec.md` 第 4.1 节。
+
 Sundarr Core 负责：
 
 ```text
