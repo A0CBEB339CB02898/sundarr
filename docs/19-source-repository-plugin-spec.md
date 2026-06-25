@@ -241,35 +241,36 @@ RawSearchItem.source_id 必须与 SourceModel.id 一致。
 
 ### 6.1 新增配置模型
 
-新增 `SourceRepositoryConfig`：
+已实现为通用插件系统模型（`sundarr/app/models/plugin.py`）：
 
 ```text
-id
-name
-repo_url
-branch
-current_commit
-previous_commit
-auto_update
-enabled
-last_checked_at
-last_loaded_at
-last_error
+PluginRepository — 插件仓库配置（原 SourceRepositoryConfig）
+  id, name, repo_url, branch, current_commit, previous_commit
+  auto_update, enabled, status (pending/loaded/error)
+  last_error, last_checked_at, last_loaded_at
+
+PluginConfig — 插件运行时配置
+  id, plugin_id, plugin_type, config_data (JSON)
+  enabled, status (active/disabled/error), repository_id
+
+PluginLog — 插件日志
+  id, plugin_id, level, message, details (JSON), timestamp
 ```
 
-配置可以保存到 settings 或后续独立表。MVP 初版可先支持一个仓库。
+迁移：`0008_create_plugin_tables.py`
 
 ### 6.2 新增仓库管理器
 
-新增 `SourceRepositoryManager`：
+已实现为 `PluginManager`（`sundarr/app/plugins/manager.py`）：
 
 ```text
-clone_repo
-fetch_repo
-checkout_commit
-get_current_commit
-check_updates
-rollback
+add_repository          — 添加仓库并触发克隆
+load_all_repositories   — 加载所有已启用仓库
+update_repository       — 更新仓库配置和 commit
+rollback_repository     — 回滚到 previous_commit
+enable_plugin / disable_plugin
+get_plugin_config / update_plugin_config
+remove_repository       — 删除仓库及关联插件
 ```
 
 规则：
@@ -295,18 +296,25 @@ fetch 不等于应用更新。
 
 ### 6.4 新增加载器
 
-新增 `SourceLoader`：
+已实现为 `PluginLoader`（`sundarr/app/plugins/loader.py`）：
 
 ```text
-把搜索源目录加入受控 import 范围。
+从本地缓存目录读取仓库清单。
 加载 entry 指向的函数。
-调用 get_source() 或 get_sources()。
-校验 SourceModel。
-生成 LoadedSource。
+校验 PluginType 和必要接口。
+生成 LoadedPlugin。
 记录加载失败原因。
 ```
 
 ### 6.5 改造注册入口
+
+已实现为 `PluginRegistry`（`sundarr/app/plugins/registry.py`）：
+
+```text
+register_builtin / register_external
+get_plugin / get_plugins_by_type / get_all_plugins
+unregister / clear
+```
 
 `sundarr.app.sources.registry.get_registered_sources()` 保持返回 `list[SourceModel]`，来源改为：
 
@@ -417,12 +425,18 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
 
 ## 9. 当前交付状态
 
-截至本文档创建时：
+截至 2026-06-25：
 
 ```text
-已在上层目录创建 sundarr-sources 独立项目模板。
-已包含 README、LICENSE、pyproject.toml、仓库清单、示例源和开发文档。
-Sundarr Core 尚未实现 Git 仓库加载器。
-当前 SourceModel 可作为 Adapter API v1 保留。
-后续实现应优先保持 SearchService 兼容，不破坏现有内置源。
+已实现通用插件框架：
+  PluginRepository / PluginConfig / PluginLog 数据模型（迁移 0008）
+  plugins/ 模块：base.py (PluginType, LoadedPlugin)、registry.py、manager.py、loader.py
+  /plugins API（仓库 CRUD、插件列表/详情/启用/禁用/配置、统计、加载全部）
+  tests/test_plugin_system.py
+
+待实现：
+  外部 Git 仓库 clone/fetch/checkout 真实调用（当前为占位逻辑）
+  清单解析器（sundarr_sources.toml / source.toml）
+  真实搜索源 Adapter 接入（首个：SeedHubSource 从内建迁移到外部仓库）
+  Web Console 插件管理页面
 ```

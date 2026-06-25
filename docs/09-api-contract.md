@@ -587,7 +587,100 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 
 ---
 
-## 9. 错误码
+## 9. Plugins
+
+### 9.1 GET /plugins/repositories
+
+列出所有插件仓库配置。
+
+响应：
+
+```json
+[
+  {
+    "id": "repo_1",
+    "name": "搜索源仓库",
+    "repo_url": "https://github.com/example/sources.git",
+    "branch": "main",
+    "current_commit": "abc123",
+    "auto_update": false,
+    "enabled": true,
+    "status": "loaded",
+    "last_error": null,
+    "last_checked_at": "2026-06-25T10:00:00Z",
+    "last_loaded_at": "2026-06-25T10:00:00Z"
+  }
+]
+```
+
+### 9.2 POST /plugins/repositories
+
+添加新的插件仓库。
+
+请求：
+
+```json
+{
+  "name": "搜索源仓库",
+  "repo_url": "https://github.com/example/sources.git",
+  "branch": "main"
+}
+```
+
+### 9.3 PUT /plugins/repositories/{repo_id}
+
+更新插件仓库配置。
+
+### 9.4 POST /plugins/repositories/{repo_id}/rollback
+
+回滚仓库到 previous_commit。
+
+### 9.5 DELETE /plugins/repositories/{repo_id}
+
+删除插件仓库及其关联插件配置。
+
+### 9.6 GET /plugins/plugins
+
+列出所有已加载插件，支持 `?type=source_adapter` 过滤。
+
+### 9.7 GET /plugins/plugins/{plugin_id}
+
+获取单个插件详情。
+
+### 9.8 PUT /plugins/plugins/{plugin_id}/config
+
+更新插件配置。
+
+### 9.9 POST /plugins/plugins/{plugin_id}/enable
+
+启用插件。
+
+### 9.10 POST /plugins/plugins/{plugin_id}/disable
+
+禁用插件。
+
+### 9.11 GET /plugins/stats
+
+返回插件统计。
+
+响应：
+
+```json
+{
+  "total": 5,
+  "enabled": 4,
+  "builtin": 2,
+  "external": 3
+}
+```
+
+### 9.12 POST /plugins/load-all
+
+加载所有已启用仓库的插件。
+
+---
+
+## 10. 错误码
 
 MVP 错误码：
 
@@ -624,11 +717,16 @@ SYNC_UNCLASSIFIED_REQUIRED
 SMB_CONNECTION_NOT_FOUND
 MEDIA_LIBRARY_NOT_FOUND
 MEDIA_LIBRARY_UNCLASSIFIED_REQUIRED
+PLUGIN_REPOSITORY_NOT_FOUND
+PLUGIN_REPOSITORY_DUPLICATE
+PLUGIN_LOAD_FAILED
+PLUGIN_NOT_FOUND
+PLUGIN_CONFIG_INVALID
 ```
 
 ---
 
-## 10. 验收标准
+## 11. 验收标准
 
 API 完成时必须满足：
 

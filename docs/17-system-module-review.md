@@ -97,20 +97,35 @@ Worker 定时扫描启用的远程媒体库，发现稳定文件后创建下载�
 提供 Worker 启停控制。
 ```
 
-### 1.8 模块关系图
+### 1.8 插件系统
+
+职责：管理外部插件仓库和搜索源 Adapter 的加载、注册和生命周期。
+
+```text
+插件仓库通过 Git URL 配置，系统 clone/fetch 到本地缓存。
+从已锁定 commit 加载搜索源 Adapter，不默认执行远程最新代码。
+内建搜索源（如 SeedHub）通过内建注册机制加载。
+插件配置独立存储，支持启用/禁用和参数管理。
+插件日志记录加载和运行时事件，供诊断使用。
+```
+
+关联：插件系统为媒体源模块提供 Adapter 加载能力，搜索模块通过源注册表调用已加载的 Adapter。
+
+### 1.9 模块关系图
 
 ```text
 ┌─────────────┐    ┌──────────────┐
 │   媒体源    │───>│     搜索     │
 │ (Source     │    │ (Search      │
 │  Adapter)   │    │  Service)    │
-└─────────────┘    └──────┬───────┘
-                          │
-                          ▼
-                   ┌──────────────┐
-                   │   资源库     │
-                   │ (Resource)   │
-                   └──────────────┘
+└──────▲──────┘    └──────┬───────┘
+       │                  │
+       │                  ▼
+┌──────┴──────┐    ┌──────────────┐
+│  插件系统   │    │   资源库     │
+│ (Plugin     │    │ (Resource)   │
+│  Registry)  │    └──────────────┘
+└─────────────┘
 
 ┌─────────────┐
 │  存储管理   │
@@ -156,7 +171,7 @@ sundarr/app/
 │   ├── media_library.py           # MediaLibrary              ✓ 已实现（本地）
 │   ├── remote_media_library.py    # RemoteMediaLibrary        ✓ 已实现
 │   ├── sync.py                    # SyncBinding, SyncSeenFile ✓ 已实现
-│   └── download_to_local.py       # 历史 Binding, SeenFile    ✗ 旧模块，待删除
+│   └── plugin.py                  # PluginRepository 等       ✓ 已实现
 ├── services/                      # 业务逻辑
 │   ├── search_service.py          # 搜索聚合                  ✓ 已实现
 │   ├── resource_library_service.py # 资源管理                 ✓ 已实现
@@ -165,7 +180,6 @@ sundarr/app/
 │   ├── media_library_service.py   # 本地媒体库管理            ✓ 已实现
 │   ├── remote_media_library_service.py # 远程媒体库管理       ✓ 已实现
 │   ├── sync_service.py            # 同步绑定+扫描+任务创建    ✓ 已实现
-│   ├── download_to_local_service.py # 历史同步实现            ✗ 旧模块，待删除
 │   └── source_service.py          # 搜索源目录同步和测试      ✓ 已实现
 ├── api/                           # API 路由
 │   ├── search.py                  # 搜索                      ✓
@@ -175,7 +189,7 @@ sundarr/app/
 │   ├── media_libraries.py         # 本地媒体库                ✓
 │   ├── remote_media_libraries.py  # 远程媒体库                ✓
 │   ├── sync.py                    # 同步绑定                  ✓
-│   ├── download_to_local.py       # 历史同步 API              ✗ 旧，待删除
+│   ├── plugins.py                 # 插件仓库和插件管理        ✓ 已实现
 │   ├── sources.py                 # 媒体源                    ✓
 │   └── health.py                  # 健康检查                  ✓
 ├── storage/                       # 存储抽象
@@ -189,6 +203,11 @@ sundarr/app/
 │   ├── base.py                    # SourceModel               ✓
 │   ├── registry.py                # Adapter 注册入口          ✓
 │   └── seedhub.py                 # 首个真实搜索源            ✓
+├── plugins/                       # 插件系统框架
+│   ├── base.py                    # PluginType, LoadedPlugin  ✓ 已实现
+│   ├── registry.py                # 插件注册表                ✓ 已实现
+│   ├── manager.py                 # 插件仓库和生命周期管理    ✓ 已实现
+│   └── loader.py                  # 插件加载器                ✓ 已实现
 └── parsers/
     └── link_extractor.py          # 网盘链接提取              ✓
 ```
@@ -220,52 +239,33 @@ sundarr/app/
 
 ## 3. 已知问题
 
-### 3.1 历史 Download To Local / Ingest 模块仍有残留
+### 3.1 历史 Download To Local / Ingest 模块残留 — 已解决
 
-| 文件 | 状态 |
-|---|---|
-| `models/download_to_local.py` | 旧，已被 `models/sync.py` 替代 |
-| `services/download_to_local_service.py` | 旧，已被 `sync_service.py` 替代 |
-| `api/download_to_local.py` | 旧，已被 `api/sync.py` 和 `api/remote_media_libraries.py` 替代 |
-| `worker.py` process_dtl_task | 历史命名，需统一为 process_sync_task |
-| Web Console 旧 ingest / download-to-local 代码 | 旧，需统一到 `/app/remote-libraries` 和 `/app/sync` |
+Phase 9 已删除所有旧 DTL 模块文件，Worker 统一为 `process_sync_task`。
 
-**问题**：文档和代码命名不统一，后续维护容易误判主链路。
+### 3.2 旧 storage.smb 兼容入口 — 已解决
 
-### 3.2 旧 storage.smb 兼容入口仍需清理
+旧 `storage_config_service` 已删除，统一使用 `smb_connections` 表。
 
-| 模块 | 存储方式 | 用途 |
-|---|---|---|
-| `storage_config_service.py` | `settings` 表 `storage.smb` | 旧单连接，JSON 存储 |
-| `smb_connection_service.py` | `smb_connections` 表 | 新多连接，独立表 |
+### 3.3 Worker 历史处理路径命名 — 已解决
 
-**问题**：旧 `storage.smb` 仍可写入，新功能用 `smb_connections`，两套中断逻辑各自独立。
+`process_dtl_task` 已统一为 `process_sync_task`，所有 `dtl_` 前缀函数、常量和事件已重命名。
 
-### 3.3 Worker 仍有历史处理路径命名
+### 3.4 TransferTask 字段和 mode — 已解决
 
-```python
-process_transfer_task()   # mode=copy，CloudProvider -> StorageWriter（测试/可选扩展）
-process_dtl_task()        # 历史命名，实际承担远程媒体库同步
-目标：process_sync_task() # mode=sync，SMB -> SMB
-```
+`sync_seen_file_id` 和 `binding_id` 已就位。日志事件已统一为 `sync_` 前缀。
 
-`process_dtl_task` 名称仍带历史阶段语义，应统一为 `process_sync_task`。
+### 3.5 TransferTask 没有直接关联 binding_id — 已解决
 
-### 3.4 `TransferTask` 字段和 mode 仍需统一
+`binding_id` 字段已添加到 TransferTask 模型。
 
-`sync_seen_file_id` 已作为目标字段引入，但任务 `mode`、日志事件和部分代码命名仍带 `download_to_local` / `dtl` 历史语义。
+### 3.6 远程媒体库模型旧残留 — 已解决
 
-### 3.5 TransferTask 没有直接关联 binding_id
+旧 `download_to_local` 代码已全部删除，远程媒体库和同步绑定已统一。
 
-任务创建时把 SMB 配置快照存入 JSON，但没有记录来源 binding_id。
+### 3.7 媒体库命名
 
-### 3.6 远程媒体库模型已引入，旧文档和代码残留仍需收口
-
-当前已引入 `RemoteMediaLibrary`，但旧 `download_to_local` 代码和文档残留仍需清理。
-
-### 3.7 媒体库命名不清晰
-
-当前 `MediaLibrary` 只代表本地媒体库，但名字没有区分本地/远程。
+`MediaLibrary` 代表本地媒体库，`RemoteMediaLibrary` 代表远程媒体库，当前命名已足够区分。
 
 ---
 

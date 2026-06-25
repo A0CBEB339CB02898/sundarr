@@ -55,7 +55,7 @@ Phase 7.8 Web Console UI Polish: 已完成，来自 Phase 0-7 手动验收反馈
 Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需手动集成验收。
 Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一为 process_sync_task 同步路径，远程媒体库和同步绑定已就位。
 Phase 9.5 Resource Favorites Refactoring: 下一步优先任务；目标是将 Resource / ResourceLink 收缩为收藏模型，移除搜索自动入库，为外部搜索源仓库接入整理搜索源代码边界。
-Phase 10 Real Site Source Adapters: 未开始，目标是实现外部 Git 搜索源仓库加载框架和至少一个真实源。
+Phase 10 Real Site Source Adapters: 进行中；已实现插件框架（PluginRepository/PluginConfig/PluginLog 模型、plugins/ 框架含 base/loader/manager/registry、/plugins API），下一步为外部 Git 仓库 clone/fetch 和真实搜索源 Adapter 接入。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
 Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档，后续单独实现。
 ```

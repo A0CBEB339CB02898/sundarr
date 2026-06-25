@@ -443,7 +443,89 @@ status 至少包含 discovered / stable / queued / downloading / completed / fai
 目录型资源可用目录路径和聚合 size/mtime 生成 fingerprint。
 ```
 
-## 14. 验收标准
+## 14. plugin_repositories
+
+用途：存储外部 Git 插件仓库配置，用于加载搜索源 Adapter 等外部插件。
+
+字段：
+
+```text
+id TEXT PRIMARY KEY
+name TEXT NOT NULL
+repo_url TEXT NOT NULL UNIQUE
+branch TEXT NOT NULL DEFAULT 'main'
+current_commit TEXT
+previous_commit TEXT
+auto_update BOOLEAN NOT NULL DEFAULT FALSE
+enabled BOOLEAN NOT NULL DEFAULT TRUE
+status TEXT NOT NULL DEFAULT 'pending'
+last_error TEXT
+last_checked_at TIMESTAMP
+last_loaded_at TIMESTAMP
+created_at TIMESTAMP NOT NULL
+updated_at TIMESTAMP NOT NULL
+```
+
+规则：
+
+```text
+status 至少包含 pending / loaded / error。
+current_commit 锁定当前使用的 commit，系统从本地缓存中的已锁定 commit 加载。
+previous_commit 保留上一个 commit 用于回滚。
+auto_update 为 false 时不自动拉取远程更新。
+```
+
+## 15. plugin_configs
+
+用途：存储已加载插件的运行时配置。
+
+字段：
+
+```text
+id TEXT PRIMARY KEY
+plugin_id TEXT NOT NULL UNIQUE
+plugin_type TEXT NOT NULL
+config_data TEXT NOT NULL DEFAULT '{}'
+enabled BOOLEAN NOT NULL DEFAULT TRUE
+status TEXT NOT NULL DEFAULT 'active'
+repository_id TEXT REFERENCES plugin_repositories(id)
+created_at TIMESTAMP NOT NULL
+updated_at TIMESTAMP NOT NULL
+```
+
+规则：
+
+```text
+plugin_id 为插件唯一标识，来自搜索源 Adapter 注册。
+plugin_type 标识插件类型（如 source_adapter）。
+config_data 存储 JSON 格式的插件配置。
+repository_id 关联来源仓库，内建插件可为 NULL。
+```
+
+## 16. plugin_logs
+
+用途：记录插件运行时日志，供诊断和错误排查。
+
+字段：
+
+```text
+id TEXT PRIMARY KEY
+plugin_id TEXT NOT NULL
+level TEXT NOT NULL
+message TEXT NOT NULL
+details TEXT
+timestamp TIMESTAMP NOT NULL
+```
+
+规则：
+
+```text
+level 至少包含 info / warn / error / debug。
+details 存储 JSON 格式的附加上下文。
+日志不包含敏感凭据。
+```
+
+## 17. 验收标准
 
 数据模型完成时必须满足：
 
