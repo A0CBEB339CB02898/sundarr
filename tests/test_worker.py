@@ -6,8 +6,6 @@ import pytest
 from sundarr.app.cloud import LocalCloudProvider
 from sundarr.app.cloud.base import CloudFile
 from sundarr.app.models import (
-    DownloadToLocalBinding,
-    DownloadToLocalSeenFile,
     MediaLibrary,
     RemoteMediaLibrary,
     Resource,
@@ -27,7 +25,7 @@ from sundarr.app.worker import (
     cleanup_cloud_staging,
     load_local_runtime_config,
     load_worker_settings,
-    process_dtl_task,
+    process_sync_task,
     process_transfer_task,
     recover_running_tasks,
 )
@@ -373,16 +371,16 @@ async def test_process_transfer_task_marks_target_exists_and_keeps_temp(db_sessi
 
 
 @pytest.mark.anyio
-async def test_process_dtl_task_local_writers_happy_path(db_session, tmp_path: Path) -> None:
+async def test_process_sync_task_local_writers_happy_path(db_session, tmp_path: Path) -> None:
     source_root = tmp_path / "source"
     target_root = tmp_path / "target"
     source_file = source_root / "CloudMovie" / "Movie.mkv"
     payload = b"0123456789"
     source_file.parent.mkdir(parents=True)
     source_file.write_bytes(payload)
-    task = _seed_dtl_task(db_session, size=len(payload))
+    task = _seed_sync_task(db_session, size=len(payload))
 
-    await process_dtl_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
+    await process_sync_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
 
     db_session.refresh(task)
     assert task.status == "completed", f"Task failed: {task.error_code} - {task.error_message}"
@@ -394,22 +392,22 @@ async def test_process_dtl_task_local_writers_happy_path(db_session, tmp_path: P
     assert db_session.get(SyncSeenFile, "seen_dtl").status == "completed"
     assert db_session.query(TransferFile).filter(TransferFile.task_id == task.id).one().status == "completed"
     assert {log.event for log in db_session.query(TransferLog).all()} >= {
-        "dtl_copy_started",
-        "dtl_transfer_completed",
-        "dtl_source_cleanup_completed",
+        "sync_copy_started",
+        "sync_transfer_completed",
+        "sync_source_cleanup_completed",
     }
 
 
 @pytest.mark.anyio
-async def test_process_dtl_task_failure_keeps_source_and_downloading(db_session, tmp_path: Path) -> None:
+async def test_process_sync_task_failure_keeps_source_and_downloading(db_session, tmp_path: Path) -> None:
     source_root = tmp_path / "source"
     target_root = tmp_path / "target"
     source_file = source_root / "CloudMovie" / "Movie.mkv"
     source_file.parent.mkdir(parents=True)
     source_file.write_bytes(b"1234")
-    task = _seed_dtl_task(db_session, source_path="CloudMovie/Movie.mkv", target_path="Movies/CloudMovie/Movie.mkv", size=4)
+    task = _seed_sync_task(db_session, source_path="CloudMovie/Movie.mkv", target_path="Movies/CloudMovie/Movie.mkv", size=4)
 
-    await process_dtl_task(db_session, task, LocalWriter(source_root), WrongSizeWriter(target_root))
+    await process_sync_task(db_session, task, LocalWriter(source_root), WrongSizeWriter(target_root))
 
     db_session.refresh(task)
     assert task.status == "failed"
@@ -419,12 +417,12 @@ async def test_process_dtl_task_failure_keeps_source_and_downloading(db_session,
 
 
 @pytest.mark.anyio
-async def test_process_dtl_task_cancelled_keeps_status(db_session, tmp_path: Path) -> None:
-    task = _seed_dtl_task(db_session)
+async def test_process_sync_task_cancelled_keeps_status(db_session, tmp_path: Path) -> None:
+    task = _seed_sync_task(db_session)
     task.status = "cancelled"
     db_session.commit()
 
-    await process_dtl_task(db_session, task, LocalWriter(tmp_path / "source"), LocalWriter(tmp_path / "target"))
+    await process_sync_task(db_session, task, LocalWriter(tmp_path / "source"), LocalWriter(tmp_path / "target"))
 
     db_session.refresh(task)
     assert task.status == "cancelled"
@@ -433,23 +431,23 @@ async def test_process_dtl_task_cancelled_keeps_status(db_session, tmp_path: Pat
 
 
 @pytest.mark.anyio
-async def test_process_dtl_task_no_delete_source_when_disabled(db_session, tmp_path: Path) -> None:
+async def test_process_sync_task_no_delete_source_when_disabled(db_session, tmp_path: Path) -> None:
     source_root = tmp_path / "source"
     target_root = tmp_path / "target"
     source_file = source_root / "CloudMovie" / "Movie.mkv"
     payload = b"0123456789"
     source_file.parent.mkdir(parents=True)
     source_file.write_bytes(payload)
-    task = _seed_dtl_task(db_session, size=len(payload), delete_source=False)
+    task = _seed_sync_task(db_session, size=len(payload), delete_source=False)
 
-    await process_dtl_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
+    await process_sync_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
 
     db_session.refresh(task)
     assert task.status == "completed"
     assert source_file.exists()
 
 
-def _seed_dtl_task(
+def _seed_sync_task(
     db_session,
     source_path: str = "CloudMovie/Movie.mkv",
     target_path: str = "Movies/CloudMovie/Movie.mkv",
@@ -787,7 +785,7 @@ async def test_process_transfer_task_resumes_from_temp(db_session, tmp_path: Pat
 
 
 @pytest.mark.anyio
-async def test_process_dtl_task_resumes_from_temp(db_session, tmp_path: Path) -> None:
+async def test_process_sync_task_resumes_from_temp(db_session, tmp_path: Path) -> None:
     source_root = tmp_path / "source"
     target_root = tmp_path / "target"
     source_file = source_root / "CloudMovie" / "Movie.mkv"
@@ -798,24 +796,24 @@ async def test_process_dtl_task_resumes_from_temp(db_session, tmp_path: Path) ->
     target_dir.mkdir(parents=True)
     (target_dir / "Movie.mkv.sundarr.downloading").write_bytes(payload[:4])
 
-    task = _seed_dtl_task(db_session, size=len(payload))
+    task = _seed_sync_task(db_session, size=len(payload))
     transfer_file = db_session.query(TransferFile).filter(TransferFile.task_id == task.id).one()
     transfer_file.done_bytes = 4
     task.done_bytes = 4
     db_session.commit()
 
-    await process_dtl_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
+    await process_sync_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
 
     db_session.refresh(task)
     assert task.status == "completed"
     assert task.done_bytes == len(payload)
     assert (target_root / "Movies" / "CloudMovie" / "Movie.mkv").read_bytes() == payload
     events = {log.event for log in db_session.query(TransferLog).all()}
-    assert "dtl_copy_resumed" in events
+    assert "sync_copy_resumed" in events
 
 
 @pytest.mark.anyio
-async def test_process_dtl_task_truncates_oversized_temp(db_session, tmp_path: Path) -> None:
+async def test_process_sync_task_truncates_oversized_temp(db_session, tmp_path: Path) -> None:
     source_root = tmp_path / "source"
     target_root = tmp_path / "target"
     source_file = source_root / "CloudMovie" / "Movie.mkv"
@@ -827,9 +825,9 @@ async def test_process_dtl_task_truncates_oversized_temp(db_session, tmp_path: P
     target_dir.mkdir(parents=True)
     (target_dir / "Movie.mkv.sundarr.downloading").write_bytes(b"XXXX" * 10)
 
-    task = _seed_dtl_task(db_session, size=len(payload))
+    task = _seed_sync_task(db_session, size=len(payload))
 
-    await process_dtl_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
+    await process_sync_task(db_session, task, LocalWriter(source_root), LocalWriter(target_root))
 
     db_session.refresh(task)
     assert task.status == "completed"

@@ -10,8 +10,6 @@ from sqlalchemy.orm import Session
 from sundarr.app.cloud import CloudProvider, LocalCloudProvider
 from sundarr.app.core.database import get_session_factory
 from sundarr.app.models import (
-    DownloadToLocalBinding,
-    DownloadToLocalSeenFile,
     MediaLibrary,
     RemoteMediaLibrary,
     ResourceLink,
@@ -33,9 +31,9 @@ DTL_CONFIG_KEY = "download_to_local.config"
 DEFAULT_WORKER_ENABLED = True
 DEFAULT_WORKER_CONCURRENCY = 2
 WORKER_RECOVERY_ERROR_CODE = "WORKER_RECOVERY_REQUIRED"
-DEFAULT_DTL_DELETE_SOURCE = True
-DEFAULT_DTL_DELETE_EMPTY_DIRS = True
-DTL_CHUNK_SIZE = 1024 * 1024
+DEFAULT_SYNC_DELETE_SOURCE = True
+DEFAULT_SYNC_DELETE_EMPTY_DIRS = True
+SYNC_CHUNK_SIZE = 1024 * 1024
 RUNNING_TASK_STATUSES = {
     "staging_to_cloud",
     "cloud_ready",
@@ -274,7 +272,7 @@ async def process_claimed_tasks(
             if task.status == "cancelled":
                 continue
             if task.mode == "download_to_local":
-                await process_dtl_task(session, task)
+                await process_sync_task(session, task)
                 continue
             if local_runtime is None or not task.link_id:
                 continue
@@ -430,7 +428,7 @@ async def _process_transfer_task(
     return task
 
 
-async def process_dtl_task(
+async def process_sync_task(
     session: Session,
     task: TransferTask,
     source_writer: StorageWriter | None = None,
@@ -439,7 +437,7 @@ async def process_dtl_task(
     if task.status == "cancelled":
         return task
     try:
-        return await _process_dtl_task(session, task, source_writer, target_writer)
+        return await _process_sync_task(session, task, source_writer, target_writer)
     except TaskCancelled:
         tw = target_writer or SmbWriter(SmbConfig.from_dict(task.storage_config_snapshot or {}))
         await _cleanup_downloading_files(session, task, tw)
@@ -454,7 +452,7 @@ async def process_dtl_task(
         return task
 
 
-async def _process_dtl_task(
+async def _process_sync_task(
     session: Session,
     task: TransferTask,
     source_writer: StorageWriter | None,
@@ -463,11 +461,11 @@ async def _process_dtl_task(
     if task.mode != "download_to_local" or task.source_type != "smb" or task.target_type != "smb":
         raise ValueError("WORKER_UNSUPPORTED_TASK")
     if not task.source_path:
-        raise ValueError("DTL_SOURCE_PATH_INVALID")
+        raise ValueError("SYNC_SOURCE_PATH_INVALID")
 
     source_writer = source_writer or SmbWriter(SmbConfig.from_dict(task.source_config_snapshot or {}))
     target_writer = target_writer or SmbWriter(SmbConfig.from_dict(task.storage_config_snapshot or {}))
-    transfer_file = _get_or_create_dtl_file(session, task)
+    transfer_file = _get_or_create_sync_file(session, task)
     _check_task_state(session, task)
 
     # Resume: reconcile temp file size with DB counters.
@@ -488,7 +486,7 @@ async def _process_dtl_task(
     task.status = "downloading"
     task.speed_bytes_per_sec = 0
     transfer_file.status = "downloading"
-    resume_log_event = "dtl_copy_resumed" if existing_temp_size > 0 else "dtl_copy_started"
+    resume_log_event = "sync_copy_resumed" if existing_temp_size > 0 else "sync_copy_started"
     resume_log_message = (
         f"从断点 {existing_temp_size} 字节继续下载。" if existing_temp_size > 0 else "开始从 SMB 来源下载到本地媒体库。"
     )
@@ -501,7 +499,7 @@ async def _process_dtl_task(
         with await target_writer.open_append(transfer_file.temp_path) as output_file:
             while True:
                 _check_task_state(session, task)
-                chunk = input_file.read(DTL_CHUNK_SIZE)
+                chunk = input_file.read(SYNC_CHUNK_SIZE)
                 if not chunk:
                     break
                 output_file.write(chunk)
@@ -529,18 +527,18 @@ async def _process_dtl_task(
     transfer_file.status = "completed"
     task.status = "completed"
     task.completed_at = datetime.now(UTC)
-    _mark_dtl_seen_file_completed(session, task)
-    _add_log(session, task.id, "info", "dtl_transfer_completed", "下载到本地已完成。")
+    _mark_sync_seen_file_completed(session, task)
+    _add_log(session, task.id, "info", "sync_transfer_completed", "下载到本地已完成。")
     session.commit()
 
-    await cleanup_dtl_source(session, task, source_writer)
+    await cleanup_sync_source(session, task, source_writer)
     return task
 
 
-async def cleanup_dtl_source(session: Session, task: TransferTask, source_writer: StorageWriter) -> bool:
+async def cleanup_sync_source(session: Session, task: TransferTask, source_writer: StorageWriter) -> bool:
     if task.status != "completed" or not task.source_path:
         return False
-    delete_source, delete_empty_dirs = _load_dtl_cleanup_options(session, task)
+    delete_source, delete_empty_dirs = _load_sync_cleanup_options(session, task)
     if not delete_source:
         return False
 
@@ -552,26 +550,26 @@ async def cleanup_dtl_source(session: Session, task: TransferTask, source_writer
             await _remove_empty_source_dirs(source_writer, task.source_path)
     except Exception as exc:
         task.status = "completed"
-        task.error_code = "DTL_SOURCE_DELETE_FAILED"
-        task.error_message = str(exc) or "DTL_SOURCE_DELETE_FAILED"
+        task.error_code = "SYNC_SOURCE_DELETE_FAILED"
+        task.error_message = str(exc) or "SYNC_SOURCE_DELETE_FAILED"
         task.retryable = True
         _add_log(
             session,
             task.id,
             "error",
-            "dtl_source_cleanup_failed",
+            "sync_source_cleanup_failed",
             f"来源文件清理失败：{task.error_message}",
         )
         session.commit()
         return False
 
     task.status = "completed"
-    _add_log(session, task.id, "info", "dtl_source_cleanup_completed", "来源文件和空目录已清理。")
+    _add_log(session, task.id, "info", "sync_source_cleanup_completed", "来源文件和空目录已清理。")
     session.commit()
     return True
 
 
-def _mark_dtl_seen_file_completed(session: Session, task: TransferTask) -> None:
+def _mark_sync_seen_file_completed(session: Session, task: TransferTask) -> None:
     if not task.sync_seen_file_id:
         return
     seen = session.get(SyncSeenFile, task.sync_seen_file_id)
@@ -579,9 +577,9 @@ def _mark_dtl_seen_file_completed(session: Session, task: TransferTask) -> None:
         seen.status = "completed"
 
 
-def _load_dtl_cleanup_options(session: Session, task: TransferTask) -> tuple[bool, bool]:
-    delete_source = DEFAULT_DTL_DELETE_SOURCE
-    delete_empty_dirs = DEFAULT_DTL_DELETE_EMPTY_DIRS
+def _load_sync_cleanup_options(session: Session, task: TransferTask) -> tuple[bool, bool]:
+    delete_source = DEFAULT_SYNC_DELETE_SOURCE
+    delete_empty_dirs = DEFAULT_SYNC_DELETE_EMPTY_DIRS
 
     binding = _get_sync_binding_for_task(session, task)
     if binding is not None:
@@ -601,12 +599,12 @@ def _get_sync_binding_for_task(session: Session, task: TransferTask) -> SyncBind
     return session.get(SyncBinding, seen.binding_id)
 
 
-def _get_or_create_dtl_file(session: Session, task: TransferTask) -> TransferFile:
+def _get_or_create_sync_file(session: Session, task: TransferTask) -> TransferFile:
     transfer_file = session.query(TransferFile).filter(TransferFile.task_id == task.id).one_or_none()
     if transfer_file is not None:
         return transfer_file
     if not task.source_path:
-        raise ValueError("DTL_SOURCE_PATH_INVALID")
+        raise ValueError("SYNC_SOURCE_PATH_INVALID")
     transfer_file = TransferFile(
         id=uuid4().hex,
         task_id=task.id,
@@ -744,7 +742,7 @@ def _is_retryable_error(error_code: str) -> bool:
         "SMB_WRITE_FAILED",
         "WORKER_TRANSFER_FAILED",
         "INGEST_SOURCE_DELETE_FAILED",
-        "DTL_SOURCE_DELETE_FAILED",
+        "SYNC_SOURCE_DELETE_FAILED",
     }
 
 

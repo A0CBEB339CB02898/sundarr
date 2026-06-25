@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from redis import Redis
 from sqlalchemy import text
 
-from sundarr.app.api.download_to_local import router as download_to_local_router
+
 from sundarr.app.api.health import router as health_router
 from sundarr.app.api.media_libraries import router as media_libraries_router
 from sundarr.app.api.remote_media_libraries import router as remote_media_libraries_router
@@ -61,7 +61,6 @@ def create_app() -> FastAPI:
     app.include_router(media_libraries_router)
     app.include_router(remote_media_libraries_router)
     app.include_router(sync_router)
-    app.include_router(download_to_local_router)
     app.include_router(transfers_router)
     return app
 
