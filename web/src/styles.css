@@ -219,6 +219,7 @@ button:disabled {
   background: var(--surface-1);
   color: var(--text);
   padding: 28px;
+  overflow-y: auto;
 }
 
 .brand {
@@ -1275,23 +1276,32 @@ h2 {
     grid-template-columns: 1fr;
   }
 
-  .utility-bar {
-    top: 58px;
-    right: 12px;
+  .top-bar {
+    padding: 8px var(--space-2);
   }
-
-  .utility-bar .theme-switcher {
-    padding: 2px;
+  .top-bar .brand-mark {
+    width: 26px;
+    height: 26px;
   }
-
-  .utility-bar .theme-button {
+  .top-bar .brand-wordmark {
+    width: 70px;
+  }
+  .top-bar .theme-button {
+    width: 24px;
+    height: 24px;
+  }
+  .top-bar .theme-button svg {
+    width: 12px;
+    height: 12px;
+  }
+  .icon-button {
     width: 30px;
     height: 30px;
   }
 
   .content-shell,
   .panel {
-    padding: 20px;
+    padding: 12px;
   }
 }
 
@@ -1540,8 +1550,8 @@ h2 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
+    padding: 10px var(--space-3);
     background: var(--surface-1);
     border-bottom: 1px solid var(--hairline);
     position: sticky;
@@ -1549,14 +1559,14 @@ h2 {
     z-index: 20;
   }
   .top-bar .brand {
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
   .top-bar .brand-mark {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
   }
   .top-bar .brand-wordmark {
-    width: 92px;
+    width: 80px;
   }
   .top-bar-actions {
     display: inline-flex;
@@ -1566,8 +1576,8 @@ h2 {
   .icon-button {
     display: inline-grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
     border: 1px solid var(--hairline);
     border-radius: var(--radius-md);
     background: var(--surface-1);
@@ -1579,8 +1589,38 @@ h2 {
     background: var(--surface-2);
   }
   .icon-button svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Top-bar 内的主题切换器 */
+  .top-bar .theme-switcher {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    box-shadow: none;
+  }
+  .top-bar .theme-switcher > span {
+    display: none;
+  }
+  .top-bar .theme-switcher > div {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--surface-sunken);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-pill);
+  }
+  .top-bar .theme-button {
+    width: 26px;
+    height: 26px;
+  }
+  .top-bar .theme-button svg {
+    width: 13px;
+    height: 13px;
   }
 
   .sidebar {
@@ -1591,6 +1631,7 @@ h2 {
     transform: translateX(-100%);
     transition: transform var(--motion-slow) var(--ease-out);
     box-shadow: var(--shadow-lg);
+    padding: 20px;
   }
   .sidebar[data-open="true"] {
     transform: translateX(0);
@@ -1612,26 +1653,11 @@ h2 {
   }
 
   .content-shell {
-    padding: var(--space-4);
-    padding-right: var(--space-4);
-    padding-top: var(--space-5);
+    padding: 14px;
   }
 
   .utility-bar {
-    top: 9px;
-    right: 64px;
-    z-index: 36;
-  }
-
-  .utility-bar .theme-switcher {
-    padding: 2px;
-    border-radius: var(--radius-pill);
-    background: var(--surface-sunken);
-  }
-
-  .utility-bar .theme-button {
-    width: 30px;
-    height: 30px;
+    display: none;
   }
 }
 
@@ -2966,7 +2992,7 @@ h2 {
   font-size: 13px;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 640px) {
   .sx-overview-head,
   .sc-overview-head,
   .rm-overview-head,
@@ -4733,4 +4759,46 @@ h2 {
 .view-toggle button.active {
   background: var(--surface-sunken);
   color: var(--text);
+}
+
+/* ── 移动端面板页眉紧凑化（使用高特异性选择器） ── */
+@media (max-width: 1023px) {
+  /* 覆盖 .ui-card 默认 padding: 24px */
+  .sx-page .sx-overview,
+  .sc-page .sc-overview,
+  .rm-page .rm-overview,
+  .st-page .st-overview {
+    padding: 16px;
+  }
+  /* 覆盖 overview-head 默认 gap: 24px */
+  .sx-page .sx-overview-head,
+  .sc-page .sc-overview-head,
+  .rm-page .rm-overview-head,
+  .st-page .st-overview-head,
+  .tx-page .tx-overview-head,
+  .sg-page .sg-overview-head,
+  .lb-page .lb-overview-head {
+    gap: 12px;
+  }
+  /* 覆盖 h2 默认字号 */
+  .sx-page .sx-overview-head h2,
+  .sc-page .sc-overview-head h2,
+  .rm-page .rm-overview-head h2,
+  .st-page .st-overview-head h2,
+  .tx-page .tx-overview-head h2,
+  .sg-page .sg-overview-head h2,
+  .lb-page .lb-overview-head h2 {
+    font-size: 20px;
+  }
+  /* 缩小说明文字 */
+  .sx-page .sx-overview-lead,
+  .sc-page .sc-overview-lead,
+  .rm-page .rm-overview-lead,
+  .st-page .st-overview-lead,
+  .tx-page .tx-overview-lead,
+  .sg-page .sg-overview-lead,
+  .lb-page .lb-overview-lead {
+    margin-top: 2px;
+    font-size: 13px;
+  }
 }
