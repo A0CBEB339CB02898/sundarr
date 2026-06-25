@@ -53,8 +53,8 @@ Phase 6 Cleanup And Recovery: 已完成，Phase 6.1 到 Phase 6.5 均已完成�
 Phase 7 Web Console: 已完成。
 Phase 7.8 Web Console UI Polish: 已完成，来自 Phase 0-7 手动验收反馈；应在 Phase 8 前优先处理前端体验问题。
 Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需手动集成验收。
-Phase 9 Module Refactoring: 进行中；已新增远程媒体库和同步绑定，仍需清理旧 Download To Local / Ingest 残留并统一 Worker 处理路径。
-Phase 9.5 Resource Favorites Refactoring: 待开始；目标是将 Resource / ResourceLink 收缩为收藏模型，移除搜索自动入库，为外部搜索源仓库接入整理搜索源代码边界。
+Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一为 process_sync_task 同步路径，远程媒体库和同步绑定已就位。
+Phase 9.5 Resource Favorites Refactoring: 下一步优先任务；目标是将 Resource / ResourceLink 收缩为收藏模型，移除搜索自动入库，为外部搜索源仓库接入整理搜索源代码边界。
 Phase 10 Real Site Source Adapters: 未开始，目标是实现外部 Git 搜索源仓库加载框架和至少一个真实源。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
 Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档，后续单独实现。
