@@ -16,6 +16,7 @@ from sqlalchemy import text
 
 from sundarr.app.api.health import router as health_router
 from sundarr.app.api.media_libraries import router as media_libraries_router
+from sundarr.app.api.plugins import router as plugins_router
 from sundarr.app.api.remote_media_libraries import router as remote_media_libraries_router
 from sundarr.app.api.resources import router as resources_router
 from sundarr.app.api.search import router as search_router
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(remote_media_libraries_router)
     app.include_router(sync_router)
     app.include_router(transfers_router)
+    app.include_router(plugins_router)
     return app
 
 

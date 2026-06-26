@@ -1,0 +1,22 @@
+# 插件清单示例
+# 参考：docs/20-plugin-manifest-spec.md
+
+id = "my-source"
+name = "我的搜索源"
+version = "1.0.0"
+plugin_type = "source"
+description = "这是一个示例搜索源插件，用于演示如何创建自定义搜索源"
+author = "Sundarr Team"
+homepage_url = "https://github.com/sundarr/my-source"
+adapter_api_version = "1.0"
+entry = "my_source.adapter:create_source"
+
+# 依赖的其他插件（可选）
+dependencies = []
+
+# 配置字段声明
+[config_schema]
+api_key = { type = "string", required = true, label = "API Key", secret = true, placeholder = "请输入 API Key" }
+timeout = { type = "integer", default = 30, label = "超时时间（秒）", min = 1, max = 300 }
+base_url = { type = "string", default = "https://api.example.com", label = "API 基础 URL" }
+enable_proxy = { type = "boolean", default = false, label = "启用代理" }

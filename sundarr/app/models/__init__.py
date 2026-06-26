@@ -1,4 +1,5 @@
 from sundarr.app.models.media_library import MediaLibrary
+from sundarr.app.models.plugin import PluginConfig, PluginLog, PluginRepository
 from sundarr.app.models.remote_media_library import RemoteMediaLibrary
 from sundarr.app.models.resource import Resource, ResourceLink
 from sundarr.app.models.setting import Setting
@@ -9,6 +10,9 @@ from sundarr.app.models.transfer import TransferFile, TransferLog, TransferTask
 
 __all__ = [
     "MediaLibrary",
+    "PluginConfig",
+    "PluginLog",
+    "PluginRepository",
     "RemoteMediaLibrary",
     "Resource",
     "ResourceLink",
