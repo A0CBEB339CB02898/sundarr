@@ -122,6 +122,23 @@ async def delete_smb_connection(
         raise _smb_connection_error(exc) from exc
 
 
+@router.get("/storage/smb-connections/pool/stats")
+async def get_connection_pool_stats() -> dict:
+    """
+    获取连接池统计信息
+
+    Returns:
+        连接池统计信息
+    """
+    from sundarr.app.storage import smb_connection_pool
+
+    stats = await smb_connection_pool.get_connection_stats()
+    return {
+        "ok": True,
+        "stats": stats,
+    }
+
+
 def _smb_connection_error(exc: ValueError) -> HTTPException:
     error_code = str(exc)
     messages = {

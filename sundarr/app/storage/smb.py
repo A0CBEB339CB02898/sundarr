@@ -1,8 +1,12 @@
+import asyncio
 import hashlib
+import logging
 from dataclasses import dataclass, field
 from typing import Any, BinaryIO
 
 from sundarr.app.storage.base import StorageWriter
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -31,158 +35,243 @@ class SmbConfig:
 
 
 class SmbStorageError(ValueError):
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(self, code: str, message: str, original_error: Exception = None) -> None:
         super().__init__(code)
         self.code = code
         self.message = message
+        self.original_error = original_error
+
+    def __str__(self) -> str:
+        if self.original_error:
+            return f"{self.code}: {self.message} (caused by: {self.original_error})"
+        return f"{self.code}: {self.message}"
 
 
 class SmbWriter(StorageWriter):
     name = "smb"
 
-    def __init__(self, config: SmbConfig) -> None:
+    def __init__(self, config: SmbConfig, connection_pool=None) -> None:
         self.config = config
         self._base_parts = self._safe_parts(config.base_path)
+        self._connection_pool = connection_pool
+        self._retry_count = 0
+        self._max_retries = 3
+
+    async def _execute_with_retry(self, operation_name: str, operation):
+        """
+        执行操作并支持重试
+
+        Args:
+            operation_name: 操作名称
+            operation: 操作函数
+
+        Returns:
+            操作结果
+        """
+        last_error = None
+        for attempt in range(self._max_retries):
+            try:
+                result = await operation()
+                # 成功后重置重试计数
+                self._retry_count = 0
+                return result
+            except Exception as e:
+                last_error = e
+                self._retry_count += 1
+                logger.warning(
+                    f"SMB 操作失败 (attempt {attempt + 1}/{self._max_retries}): "
+                    f"{operation_name} - {e}"
+                )
+
+                # 如果有连接池，标记连接为错误
+                if self._connection_pool:
+                    await self._connection_pool.mark_connection_error(self.config, self)
+
+                # 如果是最后一次尝试，抛出异常
+                if attempt == self._max_retries - 1:
+                    raise
+
+                # 等待一段时间后重试
+                await asyncio.sleep(1 * (attempt + 1))
+
+        # 这里不应该到达，但为了安全起见
+        raise last_error
 
     async def exists(self, path: str) -> bool:
-        smbclient = self._require_smbclient()
-        try:
-            return smbclient.path.exists(self._build_unc_path(path))
-        except Exception as exc:
-            self._raise_smb_error(exc)
+        async def _exists():
+            smbclient = self._require_smbclient()
+            try:
+                return smbclient.path.exists(self._build_unc_path(path))
+            except Exception as exc:
+                self._raise_smb_error(exc)
+
+        return await self._execute_with_retry("exists", _exists)
 
     async def size(self, path: str) -> int:
-        smbclient = self._require_smbclient()
-        target = self._build_unc_path(path)
-        try:
-            if not smbclient.path.exists(target):
-                raise ValueError("STORAGE_PATH_NOT_FOUND")
-            return int(smbclient.stat(target).st_size)
-        except ValueError:
-            raise
-        except Exception as exc:
-            self._raise_smb_error(exc)
+        async def _size():
+            smbclient = self._require_smbclient()
+            target = self._build_unc_path(path)
+            try:
+                if not smbclient.path.exists(target):
+                    raise ValueError("STORAGE_PATH_NOT_FOUND")
+                return int(smbclient.stat(target).st_size)
+            except ValueError:
+                raise
+            except Exception as exc:
+                self._raise_smb_error(exc)
+
+        return await self._execute_with_retry("size", _size)
 
     async def mkdirs(self, path: str) -> None:
-        smbclient = self._require_smbclient()
-        try:
-            smbclient.makedirs(self._build_unc_path(path), exist_ok=True)
-        except Exception as exc:
-            raise ValueError("SMB_WRITE_FAILED") from exc
+        async def _mkdirs():
+            smbclient = self._require_smbclient()
+            try:
+                smbclient.makedirs(self._build_unc_path(path), exist_ok=True)
+            except Exception as exc:
+                raise ValueError("SMB_WRITE_FAILED") from exc
+
+        return await self._execute_with_retry("mkdirs", _mkdirs)
 
     async def open_append(self, path: str) -> BinaryIO:
-        smbclient = self._require_smbclient()
-        target = self._build_unc_path(path)
-        parent = target.rsplit("\\", 1)[0]
-        try:
-            smbclient.makedirs(parent, exist_ok=True)
-            return smbclient.open_file(target, mode="ab")
-        except Exception as exc:
-            raise ValueError("SMB_WRITE_FAILED") from exc
+        async def _open_append():
+            smbclient = self._require_smbclient()
+            target = self._build_unc_path(path)
+            parent = target.rsplit("\\", 1)[0]
+            try:
+                smbclient.makedirs(parent, exist_ok=True)
+                return smbclient.open_file(target, mode="ab")
+            except Exception as exc:
+                raise ValueError("SMB_WRITE_FAILED") from exc
+
+        return await self._execute_with_retry("open_append", _open_append)
 
     async def open_read(self, path: str, offset: int = 0) -> BinaryIO:
-        smbclient = self._require_smbclient()
-        try:
-            handle = smbclient.open_file(self._build_unc_path(path), mode="rb")
-        except Exception as exc:
-            self._raise_smb_error(exc)
-            raise  # pragma: no cover - _raise_smb_error always raises
-        if offset:
+        async def _open_read():
+            smbclient = self._require_smbclient()
             try:
-                handle.seek(offset)
+                handle = smbclient.open_file(self._build_unc_path(path), mode="rb")
             except Exception as exc:
-                handle.close()
                 self._raise_smb_error(exc)
-                raise  # pragma: no cover
-        return handle
+                raise  # pragma: no cover - _raise_smb_error always raises
+            if offset:
+                try:
+                    handle.seek(offset)
+                except Exception as exc:
+                    handle.close()
+                    self._raise_smb_error(exc)
+                    raise  # pragma: no cover
+            return handle
+
+        return await self._execute_with_retry("open_read", _open_read)
 
     async def truncate(self, path: str, size: int = 0) -> None:
-        smbclient = self._require_smbclient()
-        target = self._build_unc_path(path)
-        try:
-            if not smbclient.path.exists(target):
-                return
-            with smbclient.open_file(target, mode="r+b") as handle:
-                handle.truncate(max(0, int(size)))
-        except Exception as exc:
-            raise ValueError("SMB_WRITE_FAILED") from exc
+        async def _truncate():
+            smbclient = self._require_smbclient()
+            target = self._build_unc_path(path)
+            try:
+                if not smbclient.path.exists(target):
+                    return
+                with smbclient.open_file(target, mode="r+b") as handle:
+                    handle.truncate(max(0, int(size)))
+            except Exception as exc:
+                raise ValueError("SMB_WRITE_FAILED") from exc
+
+        return await self._execute_with_retry("truncate", _truncate)
 
     async def checksum_md5(self, path: str) -> str:
-        digest = hashlib.md5(usedforsecurity=False)
-        try:
-            with await self.open_read(path) as handle:
-                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                    digest.update(chunk)
-        except ValueError:
-            raise
-        except Exception as exc:
-            self._raise_smb_error(exc)
-        return digest.hexdigest()
+        async def _checksum_md5():
+            digest = hashlib.md5(usedforsecurity=False)
+            try:
+                with await self.open_read(path) as handle:
+                    for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                        digest.update(chunk)
+            except ValueError:
+                raise
+            except Exception as exc:
+                self._raise_smb_error(exc)
+            return digest.hexdigest()
+
+        return await self._execute_with_retry("checksum_md5", _checksum_md5)
 
     async def rename(self, src: str, dst: str) -> None:
-        smbclient = self._require_smbclient()
-        source = self._build_unc_path(src)
-        target = self._build_unc_path(dst)
-        try:
-            if smbclient.path.exists(target):
-                raise ValueError("TARGET_EXISTS")
-            smbclient.rename(source, target)
-        except ValueError:
-            raise
-        except Exception as exc:
-            raise ValueError("SMB_RENAME_FAILED") from exc
+        async def _rename():
+            smbclient = self._require_smbclient()
+            source = self._build_unc_path(src)
+            target = self._build_unc_path(dst)
+            try:
+                if smbclient.path.exists(target):
+                    raise ValueError("TARGET_EXISTS")
+                smbclient.rename(source, target)
+            except ValueError:
+                raise
+            except Exception as exc:
+                raise ValueError("SMB_RENAME_FAILED") from exc
+
+        return await self._execute_with_retry("rename", _rename)
 
     async def remove(self, path: str) -> None:
-        parts = self._safe_parts(path)
-        if not parts:
-            raise ValueError("STORAGE_REMOVE_ROOT_FORBIDDEN")
-        smbclient = self._require_smbclient()
-        target = self._build_unc_path(path)
-        try:
-            if smbclient.path.isdir(target):
-                smbclient.rmdir(target)
-            elif smbclient.path.exists(target):
-                smbclient.remove(target)
-        except Exception as exc:
-            raise ValueError("SMB_WRITE_FAILED") from exc
+        async def _remove():
+            parts = self._safe_parts(path)
+            if not parts:
+                raise ValueError("STORAGE_REMOVE_ROOT_FORBIDDEN")
+            smbclient = self._require_smbclient()
+            target = self._build_unc_path(path)
+            try:
+                if smbclient.path.isdir(target):
+                    smbclient.rmdir(target)
+                elif smbclient.path.exists(target):
+                    smbclient.remove(target)
+            except Exception as exc:
+                raise ValueError("SMB_WRITE_FAILED") from exc
+
+        return await self._execute_with_retry("remove", _remove)
 
     async def remove_empty_dir(self, path: str) -> None:
-        parts = self._safe_parts(path)
-        if not parts:
-            raise ValueError("STORAGE_REMOVE_ROOT_FORBIDDEN")
-        smbclient = self._require_smbclient()
-        try:
-            smbclient.rmdir(self._build_unc_path(path))
-        except Exception as exc:
-            self._raise_smb_error(exc)
+        async def _remove_empty_dir():
+            parts = self._safe_parts(path)
+            if not parts:
+                raise ValueError("STORAGE_REMOVE_ROOT_FORBIDDEN")
+            smbclient = self._require_smbclient()
+            try:
+                smbclient.rmdir(self._build_unc_path(path))
+            except Exception as exc:
+                self._raise_smb_error(exc)
+
+        return await self._execute_with_retry("remove_empty_dir", _remove_empty_dir)
 
     async def list_dir(self, path: str) -> list[dict[str, object]]:
-        target = self._build_unc_path(path)
-        smbclient = self._require_smbclient()
-        entries: list[dict[str, object]] = []
-        try:
-            for entry in smbclient.scandir(target):
-                stat = entry.stat()
-                child_path = "/".join([*self._safe_parts(path), entry.name])
-                entries.append(
-                    {
-                        "name": entry.name,
-                        "path": child_path,
-                        "is_dir": entry.is_dir(),
-                        "size": None if entry.is_dir() else int(stat.st_size),
-                        "modified_at": str(getattr(stat, "st_mtime", "")) or None,
-                    }
-                )
-        except Exception as exc:
-            self._raise_smb_error(exc)
-        return entries
+        async def _list_dir():
+            target = self._build_unc_path(path)
+            smbclient = self._require_smbclient()
+            entries: list[dict[str, object]] = []
+            try:
+                for entry in smbclient.scandir(target):
+                    stat = entry.stat()
+                    child_path = "/".join([*self._safe_parts(path), entry.name])
+                    entries.append(
+                        {
+                            "name": entry.name,
+                            "path": child_path,
+                            "is_dir": entry.is_dir(),
+                            "size": None if entry.is_dir() else int(stat.st_size),
+                            "modified_at": str(getattr(stat, "st_mtime", "")) or None,
+                        }
+                    )
+            except Exception as exc:
+                self._raise_smb_error(exc)
+            return entries
+
+        return await self._execute_with_retry("list_dir", _list_dir)
 
     async def test_connection(self) -> None:
-        smbclient = self._require_smbclient()
-        try:
-            smbclient.listdir(self._build_unc_path(""))
-        except Exception as exc:
-            self._raise_smb_error(exc)
+        async def _test_connection():
+            smbclient = self._require_smbclient()
+            try:
+                smbclient.listdir(self._build_unc_path(""))
+            except Exception as exc:
+                self._raise_smb_error(exc)
+
+        return await self._execute_with_retry("test_connection", _test_connection)
 
     def _build_unc_path(self, path: str) -> str:
         parts = [*self._base_parts, *self._safe_parts(path)]
@@ -223,7 +312,7 @@ class SmbWriter(StorageWriter):
 
     def _raise_smb_error(self, exc: Exception) -> None:
         code, message = self._classify_smb_error(exc)
-        raise SmbStorageError(code, message) from exc
+        raise SmbStorageError(code, message, original_error=exc) from exc
 
     def _classify_smb_error(self, exc: Exception) -> tuple[str, str]:
         text = f"{type(exc).__name__}: {exc}"

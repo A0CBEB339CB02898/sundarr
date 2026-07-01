@@ -13,7 +13,7 @@ from sundarr.app.schemas.smb_connection import (
     SmbConnectionTestResponse,
     SmbConnectionUpdateRequest,
 )
-from sundarr.app.storage import SmbConfig, SmbWriter
+from sundarr.app.storage import SmbConfig, SmbWriter, smb_connection_pool
 from sundarr.app.storage.smb import SmbStorageError
 
 RUNNING_TRANSFER_STATUSES = {
@@ -28,6 +28,9 @@ RUNNING_TRANSFER_STATUSES = {
 
 
 class SmbConnectionService:
+    def __init__(self):
+        self.connection_pool = smb_connection_pool
+
     def list_connections(self, db: Session, page: int = 1, page_size: int = 20) -> SmbConnectionListResponse:
         query = db.query(SmbConnection).order_by(SmbConnection.created_at, SmbConnection.id)
         count = query.count()
@@ -163,7 +166,9 @@ class SmbConnectionService:
             "base_path": request.base_path,
         }
         config = SmbConfig.from_dict(config_dict)
-        writer = SmbWriter(config)
+
+        # 使用连接池获取连接
+        writer = await self.connection_pool.get_connection(config)
         entries = await writer.list_dir(path)
         return SmbBrowseResponse(
             connection_id="new",
@@ -176,7 +181,9 @@ class SmbConnectionService:
         if conn is None:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
         config = SmbConfig.from_dict(self._conn_to_full_dict(conn))
-        writer = SmbWriter(config)
+
+        # 使用连接池获取连接
+        writer = await self.connection_pool.get_connection(config)
         entries = await writer.list_dir(path)
         return SmbBrowseResponse(
             connection_id=connection_id,
@@ -187,13 +194,22 @@ class SmbConnectionService:
     async def _test_with_config(self, config_dict: dict[str, Any]) -> SmbConnectionTestResponse:
         try:
             self._validate_base_path(config_dict.get("base_path", "/"))
-            writer = SmbWriter(SmbConfig.from_dict(config_dict))
-            await writer.test_connection()
+            config = SmbConfig.from_dict(config_dict)
+
+            # 使用连接池测试连接
+            is_ok = await self.connection_pool.test_connection(config)
+            if is_ok:
+                return SmbConnectionTestResponse(ok=True)
+            else:
+                return SmbConnectionTestResponse(
+                    ok=False,
+                    error_code="SMB_TEST_FAILED",
+                    error_message="SMB 连接测试失败",
+                )
         except SmbStorageError as exc:
             return SmbConnectionTestResponse(ok=False, error_code=exc.code, error_message=exc.message)
         except ValueError as exc:
             return SmbConnectionTestResponse(ok=False, error_code=str(exc), error_message=self._message_for_error(str(exc)))
-        return SmbConnectionTestResponse(ok=True)
 
     def _set_enabled(self, db: Session, connection_id: str, enabled: bool) -> SmbConnectionResponse:
         conn = db.get(SmbConnection, connection_id)
