@@ -369,23 +369,20 @@ class PluginManager:
             raise ValueError(f"仓库不存在：{repo_id}")
 
         # 从注册中心注销插件
-        # 这里需要找到该仓库加载的所有插件并注销
-        # 简化实现：只注销当前 commit 对应的插件
+        # 重新加载以获取该仓库的所有插件 ID（可能是多个）
         if repo.current_commit:
-            # 尝试加载插件以获取 ID
             try:
                 loaded = plugin_loader.load_from_repo(
                     repo_url=repo.repo_url,
                     branch=repo.branch,
                     commit=repo.current_commit,
                 )
-                plugin_registry.unregister(loaded.manifest.id)
-
-                # 删除插件配置
-                session.query(PluginConfig).filter(
-                    PluginConfig.plugin_id == loaded.manifest.id
-                ).delete()
-
+                loaded_list = loaded if isinstance(loaded, list) else [loaded]
+                for plugin in loaded_list:
+                    plugin_registry.unregister(plugin.manifest.id)
+                    session.query(PluginConfig).filter(
+                        PluginConfig.plugin_id == plugin.manifest.id
+                    ).delete()
             except Exception:
                 pass
 
@@ -405,9 +402,12 @@ class PluginManager:
         branch: str = "main",
         name: Optional[str] = None,
         auto_update: bool = False,
-    ) -> LoadedPlugin:
+    ) -> LoadedPlugin | list[LoadedPlugin]:
         """
         添加新仓库
+
+        如果仓库加载返回多个插件（例如聚合了多个搜索源），
+        会逐个注册到注册中心。
 
         Args:
             session: 数据库会话
@@ -417,7 +417,7 @@ class PluginManager:
             auto_update: 是否自动更新
 
         Returns:
-            加载的插件实例
+            加载的插件实例或实例列表
         """
         from ..models.plugin import PluginRepository
 
@@ -431,15 +431,19 @@ class PluginManager:
             branch=branch,
         )
 
-        # 注册到注册中心
-        plugin_registry.register_external(loaded)
+        # 统一为列表，方便后续处理
+        loaded_list = loaded if isinstance(loaded, list) else [loaded]
 
-        # 保存到数据库
+        # 注册到注册中心
+        for plugin in loaded_list:
+            plugin_registry.register_external(plugin)
+
+        primary = loaded_list[0]
         repo = PluginRepository(
             name=name,
             repo_url=repo_url,
             branch=branch,
-            current_commit=loaded.commit_hash,
+            current_commit=primary.commit_hash,
             auto_update=auto_update,
             enabled=True,
             status="loaded",
@@ -447,7 +451,7 @@ class PluginManager:
         session.add(repo)
         session.commit()
 
-        logger.info(f"仓库已添加：{name} ({repo_url})")
+        logger.info(f"仓库已添加：{name} ({repo_url})，含 {len(loaded_list)} 个插件")
         return loaded
 
 

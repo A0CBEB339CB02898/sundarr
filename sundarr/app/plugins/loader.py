@@ -1,4 +1,4 @@
-"""
+﻿"""
 插件加载器
 
 负责从 Git 仓库加载插件，支持锁定 commit、错误隔离。
@@ -68,9 +68,12 @@ class PluginLoader:
         repo_url: str,
         branch: str = "main",
         commit: Optional[str] = None,
-    ) -> LoadedPlugin:
+    ) -> LoadedPlugin | list[LoadedPlugin]:
         """
         从 Git 仓库加载插件
+
+        对于 SOURCE 类型且入口函数返回 list[SourceModel] 的仓库，
+        会自动展开为多个 LoadedPlugin，每个 SourceModel 一个。
 
         Args:
             repo_url: Git 仓库 URL
@@ -78,7 +81,7 @@ class PluginLoader:
             commit: 指定的 commit hash（如果为 None 则使用最新）
 
         Returns:
-            已加载的插件实例
+            单个已加载插件实例，或展开后的插件列表
 
         Raises:
             ValueError: 如果仓库不在允许列表中
@@ -112,13 +115,42 @@ class PluginLoader:
             repo_path=str(repo_path),
         )
 
+        # 对于 SOURCE 类型返回 list 的仓库，展开为多个独立插件
+        if manifest.plugin_type == PluginType.SOURCE and isinstance(instance, list):
+            expanded: list[LoadedPlugin] = []
+            for source in instance:
+                source_manifest = PluginManifest(
+                    id=source.id,
+                    name=source.name,
+                    version=manifest.version,
+                    plugin_type=PluginType.SOURCE,
+                    description=source.description,
+                    author=manifest.author,
+                    homepage_url=source.homepage_url,
+                    adapter_api_version=manifest.adapter_api_version,
+                    entry=manifest.entry,
+                    config_schema=manifest.config_schema,
+                )
+                expanded.append(LoadedPlugin(
+                    manifest=source_manifest,
+                    module=module,
+                    instance=source,
+                    status="loaded",
+                    commit_hash=actual_commit,
+                    repo_path=str(repo_path),
+                ))
+            logger.info(
+                f"插件仓库加载成功：{manifest.name} ({manifest.id})，展开 {len(expanded)} 个搜索源"
+            )
+            return expanded
+
         logger.info(f"插件加载成功：{manifest.name} ({manifest.id})")
         return loaded
 
     def load_from_local(
         self,
         local_path: Path,
-    ) -> LoadedPlugin:
+    ) -> LoadedPlugin | list[LoadedPlugin]:
         """
         从本地目录加载插件
 
@@ -128,7 +160,7 @@ class PluginLoader:
             local_path: 本地插件目录路径
 
         Returns:
-            已加载的插件实例
+            单个已加载插件实例，或展开后的插件列表
 
         Raises:
             FileNotFoundError: 如果插件清单文件不存在
@@ -153,6 +185,34 @@ class PluginLoader:
             status="loaded",
             repo_path=str(local_path),
         )
+
+        # 对于 SOURCE 类型返回 list 的仓库，展开为多个独立插件
+        if manifest.plugin_type == PluginType.SOURCE and isinstance(instance, list):
+            expanded: list[LoadedPlugin] = []
+            for source in instance:
+                source_manifest = PluginManifest(
+                    id=source.id,
+                    name=source.name,
+                    version=manifest.version,
+                    plugin_type=PluginType.SOURCE,
+                    description=source.description,
+                    author=manifest.author,
+                    homepage_url=source.homepage_url,
+                    adapter_api_version=manifest.adapter_api_version,
+                    entry=manifest.entry,
+                    config_schema=manifest.config_schema,
+                )
+                expanded.append(LoadedPlugin(
+                    manifest=source_manifest,
+                    module=module,
+                    instance=source,
+                    status="loaded",
+                    repo_path=str(local_path),
+                ))
+            logger.info(
+                f"本地插件加载成功：{manifest.name} ({manifest.id})，展开 {len(expanded)} 个搜索源"
+            )
+            return expanded
 
         logger.info(f"插件加载成功：{manifest.name} ({manifest.id})")
         return loaded
@@ -319,7 +379,7 @@ class PluginLoader:
             instance = entry_func()
 
             # 验证实例类型
-            self._validate_instance(instance, manifest.plugin_type)
+            instance = self._normalize_instance(instance, manifest.plugin_type)
 
             return module, instance
 
@@ -332,29 +392,37 @@ class PluginLoader:
             if str(repo_path) in sys.path:
                 sys.path.remove(str(repo_path))
 
-    def _validate_instance(self, instance: Any, plugin_type: PluginType) -> None:
+    def _normalize_instance(self, instance: Any, plugin_type: PluginType) -> Any:
         """
-        验证插件实例是否符合其类型的接口规范
+        校验并规范化插件实例。
 
         Args:
             instance: 插件实例
             plugin_type: 插件类型
 
-        Raises:
-            TypeError: 如果实例类型不匹配
+        Returns:
+            规范化后的实例（SOURCE 类型统一为 list[SourceModel]）
         """
-        # 基本验证：实例不能为 None
+
+        if plugin_type == PluginType.SOURCE:
+            from ..sources.base import SourceModel
+
+            if isinstance(instance, SourceModel):
+                return [instance]
+            if isinstance(instance, list):
+                if not all(isinstance(item, SourceModel) for item in instance):
+                    raise TypeError("SOURCE 插件返回的列表必须全部为 SourceModel 实例")
+                return instance
+            raise TypeError(
+                f"SOURCE 插件入口函数必须返回 SourceModel 或 list[SourceModel]，"
+                f"实际返回 {type(instance).__name__}"
+            )
+
         if instance is None:
             raise TypeError("插件实例不能为 None")
 
-        # 对于 Source 类型，验证是否为 SourceModel 或返回 SourceModel 的 callable
-        if plugin_type == PluginType.SOURCE:
-            # SourceModel 是 frozen dataclass，直接检查类型
-            # 这里只做基本检查，具体验证在使用时进行
-            pass
+        return instance
 
-        # 对于其他类型，后续阶段再实现具体验证
-        # 当前阶段只做基本检查
 
     def update_repo(
         self,
