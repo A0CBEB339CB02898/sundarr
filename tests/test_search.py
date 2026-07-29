@@ -13,7 +13,6 @@ from sundarr.app.services.link_validator import LinkValidator
 from sundarr.app.services.resource_library_service import ResourceLibraryService
 from sundarr.app.services.search_service import SearchService
 from sundarr.app.sources import SourceModel
-from sundarr.app.sources.seedhub import SeedHubSource
 
 
 async def failing_search(query: SearchQuery) -> list[RawSearchItem]:
@@ -75,121 +74,6 @@ def test_extract_cloud_links_with_code() -> None:
     assert len(links) == 1
     assert links[0].provider == "quark"
     assert links[0].code == "1234"
-
-
-def test_seedhub_source_parses_detail_html() -> None:
-    source = SeedHubSource()
-    source._resolve_seedhub_link = lambda _link: "https://pan.quark.cn/s/resolved"  # type: ignore[method-assign]
-    item = source._parse_detail(
-        "https://seedhub.cc/detail/1",
-        """
-        <html>
-          <head><title>测试电影 2024 - SeedHub</title></head>
-          <body>
-            <a href="magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567">磁力</a>
-            <p>夸克：https://pan.quark.cn/s/example 提取码：abcd</p>
-            <a data-link="quark" title="资源" href="/link_start/?redirect_to=pan_id_1&amp;movie_title=x">下载</a>
-          </body>
-        </html>
-        """,
-    )
-
-    assert item is not None
-    assert item.raw_title == "测试电影 2024"
-    assert "pan.quark.cn" in item.raw_content
-
-
-def test_seedhub_source_uses_real_search_route() -> None:
-    source = SeedHubSource()
-
-    assert source._search_url("怪奇物语") == "https://www.seedhub.cc/s/%E6%80%AA%E5%A5%87%E7%89%A9%E8%AF%AD/"
-
-
-def test_seedhub_source_parses_movie_cards() -> None:
-    source = SeedHubSource()
-    html = '''
-      <a title="怪奇物语" class="image" href="/movies/119254/">封面</a>
-      <a title="重复" class="image" href="/movies/119254/">封面</a>
-      <a title="别的" class="image" href="/movies/1754/">封面</a>
-    '''
-
-    assert source._parse_detail_urls(html) == [
-        "https://www.seedhub.cc/movies/119254/",
-        "https://www.seedhub.cc/movies/1754/",
-    ]
-
-
-def test_seedhub_source_normalizes_redirect_link() -> None:
-    source = SeedHubSource()
-
-    assert source._normalize_seedhub_download_link("/link_start/?redirect_to=pan_id_1&movie_title=怪奇物语 4K") == "/link_start/?redirect_to=pan_id_1"
-
-
-def test_seedhub_source_detects_supported_netdisk_links() -> None:
-    source = SeedHubSource()
-
-    assert "https://115.com/s/abc123" in source._extract_direct_links("115 https://115.com/s/abc123")
-    assert source._contains_supported_link("123云盘 https://www.123pan.com/s/a-b")
-
-
-def test_seedhub_extract_per_link_metas() -> None:
-    source = SeedHubSource()
-    html = """
-    <html>
-      <body>
-        <h1>好东西</h1>
-        资源更新于: 2025-10-16 21:17
-        <ul class="seeds">
-          <li>
-            <a target="_blank" rel="nofollow"
-               title="好东西2025.蓝光修正版.1080p.BD国语中字.mp4[2.3G]"
-               href="/link_start/?seed_id=389328&amp;movie_title=好东西的磁力">
-               好东西2025.蓝光修正版.1080p.BD国语中字.mp4[2.3G]
-            </a>
-            / <code class="size">2.3G</code>
-            <code class="seed-feature">蓝光</code>
-            <code class="seed-feature">iNT组</code>
-            <span class="create-time" style="display:none;">2025-05-28 21:27</span>
-          </li>
-          <li>
-            <a target="_blank" rel="nofollow"
-               title="好东西2025.1080p.mp4[1.5G]"
-               href="/link_start/?seed_id=389329&amp;movie_title=好东西的磁力2">
-               好东西2025.1080p.mp4[1.5G]
-            </a>
-            / <code class="size">1.5G</code>
-            <code class="seed-feature">高清</code>
-            <span class="create-time" style="display:none;">2025-05-27 15:10</span>
-          </li>
-        </ul>
-        <ul class="pan-links">
-          <li>
-            <a target="_blank" rel="nofollow"
-               title="╔═══ 【好东西(2024)】【4K超清】【国语中字】... 【高码】 ═══╗ 昨天"
-               data-link="pan.quark.cn"
-               href="/link_start/?redirect_to=pan_id_175952&amp;movie_title=...">
-               ╔═══ 【好东西(2024)】【4K超清】... ═══╗ 昨天
-            </a>
-          </li>
-        </ul>
-      </body>
-    </html>
-    """
-
-    metas = source._extract_per_link_metas(html)
-
-    assert len(metas) == 3
-    # First: seed item
-    assert metas[0]["name"] == "好东西2025.蓝光修正版.1080p.BD国语中字.mp4[2.3G]"
-    assert metas[0]["quality"] == "蓝光 iNT组"
-    assert metas[0]["published_at"] == "2025-05-28 21:27"
-    # Second: seed item
-    assert metas[1]["name"] == "好东西2025.1080p.mp4[1.5G]"
-    assert metas[1]["quality"] == "高清"
-    assert metas[1]["published_at"] == "2025-05-27 15:10"
-    # Third: pan link
-    assert "4K" in metas[2]["name"]
-    assert metas[2]["quality"] == "4K"
 
 
 def test_extract_cloud_links_supports_more_netdisk_providers() -> None:

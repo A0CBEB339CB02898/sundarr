@@ -1,7 +1,7 @@
 """
 搜索源注册中心
 
-管理所有搜索源，包括内置源和外部插件源。
+管理所有搜索源。当前无内置搜索源，全部通过外部插件仓库加载。
 """
 
 import logging
@@ -10,30 +10,18 @@ from typing import List
 from sundarr.app.plugins.base import PluginType
 from sundarr.app.plugins.registry import plugin_registry
 from sundarr.app.sources.base import SourceModel
-from sundarr.app.sources.seedhub import SeedHubSource
 
 logger = logging.getLogger(__name__)
 
 
 def get_builtin_sources() -> List[SourceModel]:
     """
-    获取内置搜索源
+    获取内置源。当前无内置搜索源。
 
     Returns:
         内置搜索源列表
     """
-    seedhub = SeedHubSource()
-    return [
-        SourceModel(
-            id=seedhub.id,
-            name=seedhub.name,
-            description=seedhub.description,
-            homepage_url=seedhub.homepage_url,
-            search_function=seedhub.search,
-            test_function=seedhub.test_search,
-            fetch_detail_function=seedhub.fetch_detail,
-        )
-    ]
+    return []
 
 
 def get_external_sources() -> List[SourceModel]:
@@ -79,7 +67,7 @@ def get_external_sources() -> List[SourceModel]:
 
 def get_registered_sources() -> List[SourceModel]:
     """
-    获取所有已注册的搜索源（内置 + 外部）
+    获取所有已注册的搜索源（当前全部来自外部插件）
 
     合并内置源和外部插件源，并检查 ID 冲突。
 
@@ -106,13 +94,10 @@ def get_registered_sources() -> List[SourceModel]:
 def get_source_by_id(source_id: str) -> SourceModel:
     """
     根据 ID 获取搜索源
-
     Args:
         source_id: 搜索源 ID
-
     Returns:
         搜索源实例
-
     Raises:
         ValueError: 如果搜索源不存在
     """
@@ -126,7 +111,6 @@ def get_source_by_id(source_id: str) -> SourceModel:
 def list_source_ids() -> List[str]:
     """
     获取所有搜索源 ID
-
     Returns:
         搜索源 ID 列表
     """

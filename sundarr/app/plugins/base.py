@@ -15,7 +15,7 @@ class PluginType(str, Enum):
     插件类型枚举
 
     每种类型对应一种特定的功能扩展点：
-    - SOURCE: 搜索源插件（如 SeedHub、Bilibili 等）
+    - SOURCE: 搜索源插件（如影视资源站、Bilibili 等）
     - CLOUD_PROVIDER: 网盘 Provider 插件（如夸克、阿里云盘等）
     - NOTIFICATION: 通知渠道插件（如钉钉、飞书等）
     - CRAWLER: 爬虫插件（如豆瓣监控等）

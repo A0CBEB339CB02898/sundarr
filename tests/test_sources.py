@@ -14,7 +14,7 @@ from sundarr.app.sources import SourceModel
 async def static_search(query: SearchQuery) -> list[RawSearchItem]:
     return [
         RawSearchItem(
-            source_id="seedhub",
+            source_id="legacy",
             source_type="code",
             raw_title=f"{query.keyword} 测试结果",
             raw_url="https://example.invalid/source",
@@ -40,13 +40,13 @@ def test_sources_are_listed_from_code_registry(db_session: Session) -> None:
 
     list_response = client.get("/sources")
     assert list_response.status_code == 200
-    assert list_response.json()["count"] == 1
+    assert list_response.json()["count"] == 0
     assert list_response.json()["page"] == 1
     assert list_response.json()["page_size"] == 20
-    assert list_response.json()["results"][0]["id"] == "seedhub"
-    assert {item["id"] for item in list_response.json()["results"]} == {"seedhub"}
-    assert set(list_response.json()["results"][0]) == {"id", "name", "description", "homepage_url"}
+    # ????????????????
+    assert list_response.json()["results"] == []
     assert db_session.get(Source, "legacy") is None
+
 
 
 def test_source_mutation_endpoints_are_removed(db_session: Session) -> None:
@@ -58,10 +58,10 @@ def test_source_mutation_endpoints_are_removed(db_session: Session) -> None:
     )
     assert create_response.status_code == 405
 
-    update_response = client.post("/sources/seedhub/update", json={"name": "不应修改"})
+    update_response = client.post("/sources/legacy/update", json={"name": "不应修改"})
     assert update_response.status_code == 404
 
-    disable_response = client.post("/sources/seedhub/disable")
+    disable_response = client.post("/sources/legacy/disable")
     assert disable_response.status_code == 404
 
 
@@ -73,8 +73,8 @@ def test_source_test_returns_registered_source_preview(db_session: Session, monk
         "get_registered_sources",
         lambda: [
             SourceModel(
-                id="seedhub",
-                name="SeedHub",
+                id="legacy",
+                name="Legacy",
                 description="测试源",
                 homepage_url="https://example.invalid",
                 search_function=static_search,
@@ -83,12 +83,12 @@ def test_source_test_returns_registered_source_preview(db_session: Session, monk
     )
     client = make_client(db_session)
 
-    response = client.post("/sources/seedhub/test", json={"keyword": "星际穿越", "result_type": "quark", "limit": 3})
+    response = client.post("/sources/legacy/test", json={"keyword": "星际穿越", "result_type": "quark", "limit": 3})
 
     assert response.status_code == 200
     body = response.json()
     assert body["ok"] is True
-    assert body["items"][0]["source_id"] == "seedhub"
+    assert body["items"][0]["source_id"] == "legacy"
     assert [log["step"] for log in body["logs"]] == ["prepare", "query", "search", "preview"]
 
 
