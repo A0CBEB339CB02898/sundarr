@@ -56,7 +56,7 @@ Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需�
 Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一为 process_sync_task 同步路径，远程媒体库和同步绑定已就位。
 Phase 9.5 Resource Favorites Refactoring: 已完成；Resource / ResourceLink 已收缩为收藏模型，搜索默认不入库，Web Console 使用单一收藏入口。
 Phase 10.0 Quality Baseline Closure: 已完成；当前默认 pytest 204 项通过，前端构建、Alembic 链路和连续两轮 CLI 启停冒烟通过。
-Phase 10.1 Media Discovery Center: 当前优先、尚未实现；先完成媒体身份、数据来源、持久化和信息架构设计，再实现筛选、热门、分类、详情、关注列表和发现型海报墙。
+Phase 10.1 Media Discovery Center: 当前优先、尚未实现；媒体身份、数据来源和 A+ 持久化边界已确认，当前继续确认信息架构，再实现筛选、热门、分类、详情、关注列表和发现型海报墙。
 Phase 10.2 Plugin Activation Runtime Completion: 生命周期内核和 8 项测试已完成；Phase 10.1 先恢复目录与想看插件所需的最小能力，之后收口候选健康检查、原子切换和启动自动加载。
 Phase 10.3 External Source End-to-End: Phase 10.2 后执行，完成仓库管理和真实源验收。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
@@ -1312,7 +1312,7 @@ sundarr start -> health -> stop 连续执行两次通过，端口和 PID 文件�
 不做本地媒体库海报墙。
 不做播放器和观影进度。
 不做完整本地媒体管理。
-媒体身份已经确认使用内部 UUID + 多外部 ID；TMDb 和豆瓣目录均使用 CATALOG_PROVIDER，豆瓣想看使用 WATCHLIST_PROVIDER；持久化、缓存和任务关联仍需逐项确认。
+媒体身份已经确认使用内部 UUID + 多外部 ID；TMDb 和豆瓣目录均使用 CATALOG_PROVIDER，豆瓣想看使用 WATCHLIST_PROVIDER；持久化采用核心身份与最小快照入 PostgreSQL、易变目录详情入 Redis 的 A+ 策略；任务关联仍需确认。
 ```
 
 插件运行边界：

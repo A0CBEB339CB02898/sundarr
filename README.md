@@ -210,6 +210,8 @@ Sundarr 采用暖色操作台风格设计：
 
 媒体发现中心计划使用 TMDb 作为主目录、豆瓣目录作为可选补充，两者均以 `CATALOG_PROVIDER` 插件接入；豆瓣想看使用独立 `WATCHLIST_PROVIDER` 插件，由 Core 调度。外部服务不可用时必须支持缓存或明确降级。
 
+媒体发现数据采用 A+ 策略：PostgreSQL 保存 `MediaSubject` 身份、外部 ID、最小展示快照和用户状态；Redis 缓存易变详情、评分、榜单和搜索结果。缓存丢失不会丢失收藏或关注，Provider 故障时可以退化为最小卡片。
+
 **Phase 11 未开始**：稳定 AI Tool API 完成后，可提供可选 Cordis / DeepSeek Harness 桥接插件。Sundarr Core 保持 Python + FastAPI，不改为 Cordis/Node.js 运行时。
 
 ## 不做的事情

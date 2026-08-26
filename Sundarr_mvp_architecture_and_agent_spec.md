@@ -74,6 +74,8 @@ Phase 12：Cloud Direct Download，非 MVP、非近期主线。
 
 媒体发现中心 MVP 以 TMDb 作为主 `CATALOG_PROVIDER`，豆瓣目录作为可选补充 `CATALOG_PROVIDER`；豆瓣想看使用独立 `WATCHLIST_PROVIDER` 并由 Core 调度。豆瓣能力失败不得阻断目录浏览和搜索。
 
+媒体发现采用 A+ 数据策略：PostgreSQL 保存 `MediaSubject` 规范身份、外部 ID、最小展示快照和用户状态；Redis 缓存可重建的目录详情、评分、图片信息和发现列表。缓存丢失不得造成身份或用户状态丢失。
+
 ## 不做事项
 
 ```text

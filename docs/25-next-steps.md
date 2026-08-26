@@ -11,8 +11,8 @@
 ```text
 1. 已确认媒体身份使用内部 UUID + 多个外部平台 ID
 2. 已确认 TMDb 与豆瓣目录使用 CATALOG_PROVIDER，豆瓣想看使用 WATCHLIST_PROVIDER
-3. 当前确认发现数据的持久化和缓存边界
-4. 页面信息架构、筛选项和详情入口
+3. 已确认 A+：核心身份和最小快照持久化，易变目录详情缓存
+4. 当前确认页面信息架构、筛选项和详情入口
 5. MediaSubject、ResourceOffer、Artifact 与任务的关系
 6. 最小 API 和 Web Console 验收范围
 ```
@@ -24,6 +24,8 @@
 TMDb 负责 MVP 的目录、搜索、筛选、热门、分类、详情和海报。
 豆瓣目录作为可选补充 CATALOG_PROVIDER，失败不得阻断媒体发现中心。
 豆瓣想看是独立 WATCHLIST_PROVIDER，由 Core 调度。
+PostgreSQL 保存 MediaSubject 身份、外部 ID、最小展示快照和用户状态。
+Redis 缓存详情、评分、图片信息、搜索、热门和分类；缓存清空不得丢失用户状态。
 提供筛选、热门、分类、详情、关注列表和发现型海报墙。
 不做本地媒体库海报墙。
 不做播放器和观影进度。

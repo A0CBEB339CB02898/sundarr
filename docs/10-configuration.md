@@ -108,6 +108,8 @@ Compose 部署中 API / Worker 默认使用固定内部服务名连接 PostgreSQ
 Compose 阶段的 .env 只用于部署级 secret 和必要端口覆盖，不保存 SMB、source、worker 并发、staging root 等业务配置。
 ```
 
+媒体发现缓存即使配置 Redis volume，也只能视为可重建数据。Redis 重启、淘汰或主动清空后，`MediaSubject` 身份、外部 ID、最小展示快照和用户关注状态必须仍可从 PostgreSQL 恢复。
+
 首次启动数据库初始化策略：
 
 ```text
@@ -356,6 +358,8 @@ Phase 10.1 后，候选更新失败时 current_commit 和旧 PluginActivation �
 WATCHLIST_PROVIDER 只保存连接参数和读取配置；调度周期、同步游标和重试状态由 Core 管理。
 数据库、settings 和 Web Console 不保存可执行 Python 代码。
 ```
+
+目录缓存配置后续至少区分搜索/热门/分类的短期缓存、详情的较长期缓存和失败负缓存。具体 TTL 尚未确认；配置必须设置安全默认值，不能要求用户理解每个 Provider 的内部端点。
 
 ---
 

@@ -27,6 +27,8 @@ Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连�
 
 媒体发现的数据来源与插件分类已确认：TMDb 是主 `CATALOG_PROVIDER`，豆瓣目录是可选补充 `CATALOG_PROVIDER`，豆瓣想看是独立 `WATCHLIST_PROVIDER`。同一豆瓣仓库可以交付两个独立插件实例；具体方法签名尚未设计，代码尚未实现。
 
+媒体发现持久化边界已确认采用 A+：PostgreSQL 保存规范身份、外部 ID、最小展示快照和用户状态，Redis 保存可重建目录详情和列表缓存。该数据模型尚未实现。
+
 ---
 
 ## 2. 已实现能力

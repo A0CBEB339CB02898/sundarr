@@ -80,22 +80,35 @@ WATCHLIST_PROVIDER 的同步游标、重试和调度状态由 Core 持久化。
 ```text
 id UUID
 media_type
-title
-original_title
-year
+canonical_title
+release_year
 external_ids
+last_known_poster_url
+snapshot_source
+snapshot_updated_at
 created_at
 updated_at
+```
+
+持久化边界：
+
+```text
+PostgreSQL 永久保存上述规范身份和最小展示快照。
+关注、想看及其他用户产生的长期状态必须关联 MediaSubject 持久化。
+Redis 缓存 overview、cast、genres、provider_ratings、images、搜索、热门、分类和插件原始响应。
+评分值必须与 provider、fetched_at 一起缓存，不存在无来源的合并评分。
+MVP 只保存最后可用海报 URL，不保存海报二进制文件。
+Provider 请求失败或返回空值时，不得把已知最小快照字段覆盖为空。
 ```
 
 尚待确认：
 
 ```text
 external_ids 使用独立关联表还是 JSONB。
-目录元数据哪些字段持久化、哪些字段只缓存。
 MediaSubject 与现有 Resource / ResourceLink 的关系。
 剧集、季、集的层级模型。
-目录元数据的缓存时效和降级策略。
+目录缓存的具体 TTL、缓存键和刷新抖动策略。
+最小快照字段来源采用整组来源还是字段级来源。
 ```
 
 ---

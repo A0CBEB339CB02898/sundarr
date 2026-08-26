@@ -72,6 +72,7 @@ MVP 不做：
 - 规范媒体实体使用 Sundarr 内部 UUID，并可绑定多个外部平台 ID；不使用单一目录平台 ID 作为主键。
 - 媒体发现中心以 TMDb 作为 MVP 主目录数据提供方，豆瓣目录作为可选补充；两者均通过 `CATALOG_PROVIDER` 插件接入。
 - 豆瓣想看通过独立 `WATCHLIST_PROVIDER` 插件接入，由 Core 调度，不能成为发现中心可用性的单点依赖。
+- 媒体发现采用 A+ 数据策略：PostgreSQL 保存规范身份、外部 ID、最小展示快照和用户状态；易变目录详情、榜单和搜索结果只作为可过期缓存。
 
 ## Product Tone
 

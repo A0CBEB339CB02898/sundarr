@@ -121,6 +121,11 @@ cleanup LIFO 顺序、幂等和失败隔离
 同一仓库中的 douban-catalog 与 douban-watchlist 必须分别测试启用、禁用、失败和配置错误。
 豆瓣补充失败时 TMDb 主目录仍可返回；想看同步失败时不得影响目录查询。
 WATCHLIST_PROVIDER 测试使用固定 fixture 和 Core 持久游标，不启动插件自有永久轮询。
+Redis 清空后 MediaSubject、外部 ID、最小展示快照和用户状态仍存在。
+目录缓存覆盖命中、未命中、过期和 Provider 超时路径。
+Provider 失败时返回最小展示快照并标记降级，不以 null 覆盖已知字段。
+没有缓存或快照时返回明确错误，不伪造目录详情。
+TMDb 与豆瓣评分保持独立来源和抓取时间。
 ```
 
 Git Source Repository 模式测试原则：

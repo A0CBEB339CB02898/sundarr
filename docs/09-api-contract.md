@@ -684,6 +684,19 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 
 加载所有已启用仓库的插件。
 
+### 9.13 媒体发现响应缓存语义（Phase 10.1 计划）
+
+媒体发现 API 的具体路由尚待页面信息架构确认，但响应必须遵守：
+
+```text
+不直接返回 CATALOG_PROVIDER 私有原始响应。
+目录字段携带可判断来源和更新时间的信息。
+使用 PostgreSQL 最小展示快照降级时标记 degraded=true。
+Redis 缓存命中与否不能改变 MediaSubject.id。
+Provider 失败时不得用 null 覆盖已知规范标题、年份或最后可用海报地址。
+没有缓存、没有最小快照且 Provider 不可用时返回明确错误。
+```
+
 ---
 
 ## 10. 错误码
