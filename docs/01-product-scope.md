@@ -185,7 +185,7 @@ Phase 0-7 已覆盖：
 
 ```text
 Source Adapter 抽象
-Source Adapter 注册和首个 SeedHubSource
+外部 Source Adapter 注册框架和首个 SeedHub 插件验收
 Search Pipeline
 sources 管理 API
 Web Console Sources 页面
@@ -304,4 +304,28 @@ rclone driver
 OpenList 可选后端
 Prometheus metrics
 OpenTelemetry tracing
+```
+
+---
+
+## 10. 插件运行时与 Cordis 边界
+
+已确认：
+
+```text
+Sundarr Core 保持 Python + FastAPI，不迁移到 Cordis / Node.js。
+当前 Source Adapter 继续使用 Python 运行时协议。
+插件系统借鉴 Cordis 的显式能力依赖、Activation、可逆副作用清理、候选加载和原子切换语义。
+Cordis 启发的生命周期层不替代 PostgreSQL 任务事实来源、Alembic 迁移、Redis、SMB 连接池或 Worker 状态机。
+Phase 11 AI Friendly API 稳定后，可提供可选 Cordis / DeepSeek Harness 桥接插件。
+桥接插件只调用公开 Sundarr API，不直接访问数据库、SMB 凭据、NAS 文件或 Worker 内部对象。
+```
+
+当前阶段不做：
+
+```text
+使用 Cordis 重写 Sundarr 后端。
+把 React Web Console 改造成 Cordis UI 插件树。
+同时维护 Python 和 TypeScript 两套 Source Adapter SDK。
+把 Cordis 当作外部插件代码沙箱；外部插件仍属于用户显式信任代码。
 ```

@@ -36,7 +36,7 @@ LocalWriter
 
 ## 1.1 当前实现边界
 
-截至 2026-05-06，Phase 4 当前实现边界如下：
+截至 2026-08-26，当前实现边界如下：
 
 ```text
 StorageWriter 接口已落地。
@@ -44,13 +44,14 @@ LocalWriter 已支持 exists / size / mkdirs / open_append / open_read / rename 
 SmbWriter 使用 smbprotocol 包提供的 smbclient 高层接口。
 SmbWriter 已实现 UNC 路径构造、安全路径防护、连接测试、目录浏览、写入、size、rename 的调用边界。
 自动化测试不连接真实 SMB 服务器。
-POST /storage/config/test 会尝试真实 SMB 连接和根路径访问。
-GET /storage/browse 已接入 SmbWriter.list_dir，真实 SMB 不可达时返回 SMB_CONNECT_FAILED。
+POST /storage/smb-connections/{id}/test 会尝试真实 SMB 连接和根路径访问。
+GET /storage/smb-connections/{id}/browse 已接入 SmbWriter.list_dir，真实 SMB 不可达时返回具体 SMB 错误。
+SMB 连接池、自动重试和池统计已实现；连接测试会保留 `SmbStorageError` 的具体错误码。
 STORAGE_CONFIG_CHANGED 中断运行中 SMB 任务的数据库状态规则已有测试覆盖。
 真实 SMB 环境已完成连接、目录浏览、创建目录、写入 .downloading、size、rename 和清理测试文件的手动验收。
 ```
 
-因此 Phase 4 Storage Writer 已满足当前停止条件。后续 Phase 5 可以在该写入抽象上实现 Transfer Worker 主链路。
+因此 Phase 4 Storage Writer 已完成。真实 source SMB -> target SMB 的完整同步仍需发布前手动集成验收。
 
 ---
 
@@ -264,19 +265,22 @@ retryable = true
 Storage 相关 API：
 
 ```text
-GET  /storage/config
-POST /storage/config/save
-POST /storage/config/test
-GET  /storage/browse?path=Movies
+GET  /storage/smb-connections
+POST /storage/smb-connections/create
+GET  /storage/smb-connections/{connection_id}
+POST /storage/smb-connections/{connection_id}/update
+POST /storage/smb-connections/{connection_id}/test
+GET  /storage/smb-connections/{connection_id}/browse?path=Movies
+GET  /storage/smb-connections/pool/stats
 ```
 
 规则：
 
 ```text
-GET 不返回 password 明文。
-POST /storage/config/save 中 password 为空表示保留旧值。
-POST /storage/config/test 会验证配置结构、路径合法性，并尝试真实 SMB 连接和根路径访问。
-GET /storage/browse 只能浏览允许范围内路径。
+响应不返回 password 明文。
+update 中 password 为空表示保留旧值。
+test 会验证配置结构、路径合法性，并尝试真实 SMB 连接和根路径访问。
+browse 只能浏览连接 base_path 允许范围内路径。
 ```
 
 ---

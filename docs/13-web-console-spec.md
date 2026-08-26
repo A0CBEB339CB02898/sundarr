@@ -28,6 +28,7 @@ Web Console 是核心控制台，不是完整媒体库 UI。
 搜索资源
 选择候选资源
 管理媒体源配置
+管理资源和资源链接收藏
 管理多个 SMB 连接
 浏览 SMB 目录
 管理媒体库
@@ -67,15 +68,17 @@ MVP Web Console 不做：
 MVP 页面：
 
 ```text
+/app/sources           已安装媒体源列表和测试
 /app/search            搜索和候选资源
+/app/favorites         收藏资源和收藏链接
 /app/transfers         完整任务列表和任务详情
 /app/storage           SMB 连接列表、连接测试、目录浏览
 /app/libraries         本地媒体库管理
 /app/remote-libraries  远程媒体库管理
-/app/sync              同步绑定管理
-/app/sources           媒体源配置
 /app/status            API / Worker / DB / Redis 状态摘要
 ```
+
+当前没有独立 `/app/sync` 页面；同步绑定和扫描操作由远程媒体库页面承载。Phase 10.2 将增加插件仓库管理入口，但不会提供 Python 代码编辑器。
 
 Web Console 页面路由使用 `/app/*` 前缀，避免与 FastAPI API 路由 `/search`、`/sources`、`/storage`、`/transfers`、`/health` 在 Vite dev proxy 下冲突。
 
@@ -214,10 +217,6 @@ SMB 连接测试必须由后端执行，验证后端运行环境到 SMB 服务�
 API：
 
 ```text
-GET  /storage/config
-POST /storage/config/save
-POST /storage/config/test
-GET  /storage/browse
 GET  /storage/smb-connections
 POST /storage/smb-connections/create
 POST /storage/smb-connections/{connection_id}/update
@@ -300,6 +299,7 @@ POST /media-libraries/{library_id}/test
 查看已安装搜索源
 测试 source 搜索
 查看测试搜索步骤日志和 RawSearchItem 预览
+Phase 10.2：管理可信 Git 插件仓库、锁定 commit、检查更新、应用更新、回滚和诊断
 ```
 
 限制：
@@ -310,10 +310,10 @@ POST /media-libraries/{library_id}/test
 不在配置或数据库中保存可执行 Python 代码。
 不支持通过 Web Console 配置复杂网站爬虫。
 不要求用户维护本地文档/表格作为主要媒体源。
-不允许通过 Web Console 创建、编辑、启用或禁用搜索源；搜索源由 Source Adapter 代码定义。
+不允许通过 Web Console 创建或编辑搜索源代码；搜索源由 Source Adapter 代码定义。Web Console 可以管理已安装 Adapter 的启用、禁用、参数和测试。
 ```
 
-说明：Sources 页面是已安装搜索源的列表和测试入口。真实媒体源通过 Source Adapter 逐站点实现。
+说明：当前 Sources 页面是已安装搜索源的列表和测试入口。插件仓库管理页面属于 Phase 10.2，尚未实现。
 
 页面规则：
 
@@ -364,7 +364,7 @@ Status 页面只显示摘要，不做复杂监控系统。
 
 ## 10. 历史页面命名
 
-说明：Phase 8 “下载到本地”是历史阶段命名，当前 Web Console 规范统一为“远程媒体库同步到本地媒体库”。历史 `/app/download-to-local` 页面能力应收口到 `/app/remote-libraries` 和 `/app/sync`。
+说明：Phase 8 “下载到本地”是历史阶段命名，当前 Web Console 规范统一为“远程媒体库同步到本地媒体库”。历史 `/app/download-to-local` 和规划中的独立 `/app/sync` 能力已收口到 `/app/remote-libraries`。
 
 历史能力对应关系：
 

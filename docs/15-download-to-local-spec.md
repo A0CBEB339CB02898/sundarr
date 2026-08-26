@@ -2,6 +2,8 @@
 
 本文档定义 Sundarr Phase 8 历史“下载到本地”能力的当前规范命名：远程媒体库同步到本地媒体库。该能力从已挂载的网盘 SMB 目录读取内容，并同步到本地 SMB 媒体库目录。
 
+状态：模型、API、Web Console、扫描、任务创建和 Worker 自动化路径已实现；真实 source SMB -> target SMB 完整流程是发布前手动验收门。
+
 ---
 
 ## 1. 背景
@@ -269,7 +271,6 @@ binding 覆盖 > 全局默认
 
 ```text
 /app/remote-libraries
-/app/sync
 ```
 
 页面能力：

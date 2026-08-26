@@ -34,7 +34,7 @@ import Logo from '@/assets/brand/logo.svg?react';
 ### 文档内（Markdown）
 
 ```markdown
-![Sundarr](./assets/brand/logo.svg)
+![Sundarr](./logo.svg)
 ```
 
 ### HTML 内嵌（SVG symbol）

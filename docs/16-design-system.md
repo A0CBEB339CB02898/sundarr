@@ -1,6 +1,6 @@
 # 16 · Sundarr Design System
 
-> Status: v0.1 (spec frozen, visual rework happens in a follow-up PR).
+> Status: v0.1 baseline implemented;后续改动必须保持现有 token、三主题和暖色操作台原则。
 > Scope: the entire web console (`/web`) — every page, every state, three theme modes.
 > Inspired by [Linear](https://github.com/VoltAgent/awesome-design-md/blob/main/design-md/linear.app/DESIGN.md) (surface ladder, single-accent discipline), [Warp](https://github.com/VoltAgent/awesome-design-md/blob/main/design-md/warp/DESIGN.md) (warm-not-cold dark, cream text, editorial micro-labels), and [VoltAgent](https://github.com/VoltAgent/awesome-design-md/blob/main/design-md/voltagent/DESIGN.md) (border-weight-as-elevation, mono-as-credibility). Tokens, hierarchy, and component recipes below are Sundarr-original; nothing is copied verbatim. Content rephrased for compliance with licensing restrictions.
 

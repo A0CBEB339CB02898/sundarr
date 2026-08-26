@@ -115,12 +115,13 @@ sundarr/
 
 | 路由 | 功能 | 说明 |
 |---|---|---|
-| `/app/search` | 搜索资源 | 多源搜索并创建搬运任务 |
+| `/app/search` | 搜索资源 | 实时调用外部 Adapter 并收藏候选结果 |
+| `/app/favorites` | 收藏 | 统一管理收藏资源和收藏链接 |
 | `/app/transfers` | 任务管理 | 查询任务、查看日志、取消和重试 |
 | `/app/storage` | 存储配置 | 管理 SMB 配置、测试连接、目录浏览 |
 | `/app/libraries` | 本地媒体库 | 管理 movie / series / unclassified 目录绑定 |
 | `/app/remote-libraries` | 远程媒体库 | 管理远程媒体库目录绑定 |
-| `/app/sources` | 媒体源 | 管理配置型和文档/表格型媒体源 |
+| `/app/sources` | 媒体源 | 查看和测试已安装的外部 Source Adapter |
 | `/app/status` | 系统状态 | 查看 API、Worker、PostgreSQL 和 Redis 状态 |
 
 ## CLI 命令
@@ -198,11 +199,13 @@ Sundarr 采用暖色操作台风格设计：
 
 ## 当前状态
 
-**Phase 0-8 已完成**：项目骨架、持久化模型、搜索框架、云存储、SMB 写入、任务管理、Web Console、远程同步。
+**Phase 0-9.5 已完成**：项目骨架、持久化模型、搜索与收藏、SMB 写入、任务管理、Web Console、远程媒体库同步和模块重构已经落地。
 
-**Phase 9 进行中**：模块重构，统一术语和代码路径。
+**Phase 10.0 已完成**：默认 pytest、Alembic 迁移链、Windows 真实服务 PID 语义和 SMB 错误码均已收口；当前基线为后端 196 项测试通过、前端生产构建通过、API / Web / Worker 连续两轮启停冒烟通过。
 
-**Phase 10-11 规划中**：真实媒体源适配器、AI 友好 API。
+**Phase 10 进行中**：Core 已移除内置真实站点，搜索源统一来自外部 Python 插件仓库；插件模型、加载器、注册中心和管理 API 已存在，仍需完成启动自动加载、Activation 生命周期、Web Console 仓库管理和首个外部 SeedHub 端到端验收。
+
+**Phase 11 未开始**：稳定 AI Tool API 完成后，可提供可选 Cordis / DeepSeek Harness 桥接插件。Sundarr Core 保持 Python + FastAPI，不改为 Cordis/Node.js 运行时。
 
 ## 不做的事情
 

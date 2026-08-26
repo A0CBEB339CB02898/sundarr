@@ -1,5 +1,7 @@
 # 前端 main.tsx 拆分重构
 
+状态：历史实施记录；该重构已完成，当前入口为 `web/src/main.tsx`，页面和组件已拆分到对应目录。
+
 ## 原因
 
 `web/src/main.tsx` 为单文件 SPA，5005 行，包含 8 个页面模块、60+ 类型定义、30+ 工具函数全部混在一个文件中，无标准 React 项目目录结构（无 pages/、components/、api/、types/、utils/），严重偏离 React 最佳实践，已不可维护。

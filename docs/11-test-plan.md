@@ -104,6 +104,10 @@ source failure isolation
 外部搜索源仓库加载失败隔离
 外部搜索源 id 冲突处理
 外部搜索源 commit 锁定和回滚
+PluginActivation 候选加载和原子切换
+cleanup LIFO 顺序、幂等和失败隔离
+依赖缺失时不执行插件入口
+更新失败时旧 Activation 继续工作
 ```
 
 真实媒体源测试原则：
@@ -137,7 +141,9 @@ multiple links in one text
 normalization basics
 dedupe basics
 rank score exists
-resource persistence
+搜索结果默认不持久化
+收藏资源和收藏链接持久化
+实时搜索结果收藏标记
 ```
 
 ---
@@ -171,9 +177,9 @@ Storage config 已覆盖 password 不回显、空 password 保留、路径校验
 允许补充单独的手动真实 SMB 测试脚本或命令，用于开发者本机验证：
 
 ```text
-POST /storage/config/save 保存真实 SMB 配置。
-POST /storage/config/test 验证连接。
-GET /storage/browse 浏览测试目录。
+POST /storage/smb-connections/create 保存真实 SMB 测试连接。
+POST /storage/smb-connections/{id}/test 验证连接。
+GET /storage/smb-connections/{id}/browse 浏览测试目录。
 后续 Worker 完成后，用 /SundarrManualTest 验证 .downloading、size、rename。
 ```
 
@@ -228,11 +234,11 @@ SMB connection password 不回显                                     已覆盖 
 媒体库只能引用 SMB connection 和本地目录                              已覆盖 (test_media_libraries.py)
 媒体库至少覆盖 movie / series / unclassified                        已覆盖 (test_media_libraries.py)
 同步 binding 只能引用远程媒体库和本地媒体库                          已覆盖 (test_sync.py)
-来源路径 traversal 防护                                              已覆盖 (test_download_to_local.py)
+来源路径 traversal 防护                                              已覆盖 (test_sync.py)
 媒体库目标路径 traversal 防护                                        已覆盖 (test_media_libraries.py)
 文件稳定性判断                                                       已覆盖 (test_sync.py)
 目录型资源稳定性判断                                                  待覆盖
-binding 匹配 movie / series                                         已覆盖 (test_download_to_local.py)
+binding 匹配 movie / series                                         已覆盖 (test_sync.py)
 binding 不明确时进入 unclassified 本地媒体库                          待覆盖
 SMB source -> SMB target 的 Worker 任务领取规则                    已覆盖 (test_worker.py)
 LocalWriter 替身覆盖 source -> target 的下载成功路径                 已覆盖 (test_worker.py)
@@ -258,10 +264,6 @@ GET /resources/{id}
 POST /transfers
 GET /transfers
 GET /transfers/{id}
-GET /storage/config
-POST /storage/config/save
-POST /storage/config/test
-GET /storage/browse
 GET /storage/smb-connections
 POST /storage/smb-connections/create
 GET /media-libraries
@@ -297,6 +299,8 @@ STORAGE_CONFIG_CHANGED 提示可显示
 远程媒体库页面不显示 SMB password 明文
 同步页面绑定目标为本地媒体库，不重复配置目标 SMB 凭据
 远程媒体库页面可手动触发扫描
+收藏页面可切换资源收藏和链接收藏
+插件仓库管理页可新增、检查更新、应用、回滚和查看诊断（Phase 10.2）
 亮色 / 暗色 / 跟随系统主题可切换
 移动端布局可读可操作
 ```
@@ -306,8 +310,8 @@ Phase 0-7 手动验收结论：
 ```text
 SMB 连接和目录读取通过。
 health 状态查询通过。
-真实媒体源搜索未通过，因为当前未实现真实网站代码型 Adapter。
-真实任务进度未验收，因为当前没有真实下载到本地任务。
+Phase 0-7 时真实媒体源搜索未通过；截至 2026-08-26，SeedHub 已移到外部仓库，但 Core 尚未配置仓库和完成端到端验收。
+真实 SMB 任务进度仍需专用测试目录手动验收。
 任务展示需要从单任务查询补充为任务列表和全局浮动任务面板。
 页面布局、移动端响应式和主题模式纳入 Phase 7.8。
 ```
@@ -335,3 +339,20 @@ pytest 可运行。
 真实挂载目录下载到本地通过手动集成验收验证。
 关键误删保护有测试。
 ```
+
+---
+
+## 10. 当前质量基线状态
+
+截至 2026-08-26：
+
+```text
+前端 npm run build 通过。
+API / Web / Worker 启动和 /health 冒烟通过。
+默认 pytest：196 passed，无需预启动 API、无需 --ignore、无需真实网络。
+Alembic heads/current：唯一 head 为 0008，当前数据库位于 0008。
+API / Web / Worker 连续两轮 start / status / health / stop 冒烟通过。
+API / Web PID 文件与监听进程一致；停止后测试端口、PID 文件和服务进程无残留。
+```
+
+Phase 10.0 已完成。后续交付必须维持默认 pytest 无预启动 API、无 `--ignore`、无真实网络即可全绿的基线。

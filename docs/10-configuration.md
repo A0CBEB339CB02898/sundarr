@@ -130,7 +130,7 @@ Sundarr 本地启动会自动检查数据库状态，在目标数据库不存在
 包括：
 
 ```text
-storage.smb_connections
+smb_connections 表
 cloud.local.staging_root
 sync 全局配置
 sync bindings
@@ -144,10 +144,10 @@ source configuration
 
 运行时配置可以由 Web Console 修改。
 
-开发阶段也可以直接通过 API 写入运行时配置：
+开发阶段也可以直接通过 API 创建 SMB connection：
 
 ```http
-POST /storage/config/save
+POST /storage/smb-connections/create
 ```
 
 不建议直接手工修改数据库，除非是在排查 settings 表持久化问题。
@@ -170,7 +170,7 @@ Docker Compose 日志限制应通过 Compose `logging` 配置完成，例如 `ma
 
 ## 4. SMB 配置
 
-SMB 配置支持多个连接。新功能必须使用 SMB connection 表或等价 API；旧 `storage.smb` 属于 Phase 9 待清理兼容入口。
+SMB 配置支持多个连接。新功能必须使用 SMB connection 表或等价 API；旧 `storage.smb` 兼容入口已在 Phase 9 删除。
 
 SMB connection 配置结构：
 
@@ -216,9 +216,12 @@ base_path: Sundarr 可写入的共享内相对根路径，例如 / 或 /SundarrM
 可以通过 FastAPI `/docs` 或命令行提交配置。示例：
 
 ```bash
-curl -X POST http://localhost:8080/storage/config/save \
+curl -X POST http://localhost:8080/storage/smb-connections/create \
   -H "Content-Type: application/json" \
   -d '{
+    "id": "manual_test",
+    "name": "手动测试",
+    "enabled": true,
     "host": "nas.example.invalid",
     "port": 445,
     "share": "media",
@@ -251,7 +254,7 @@ MVP 不开放 worker process 数量配置。后续如需多个 Worker 进程，�
 
 ## 6. 远程媒体库同步配置
 
-远程媒体库同步配置保存到数据库 settings 表、media_libraries 表、remote_media_libraries 表和 sync_bindings 表。`download_to_local` 相关配置名属于历史实现，Phase 9 需继续清理。
+远程媒体库同步配置保存到数据库 settings 表、media_libraries 表、remote_media_libraries 表和 sync_bindings 表。`download_to_local` 仅保留少量历史默认配置 key，业务模型和 API 已统一为 remote media library / sync；该默认 key 清理由配置迁移单独处理，不能重新引入旧模块。
 
 全局配置建议：
 
@@ -322,7 +325,7 @@ Web Console 可管理：
 
 真实网站 Source Adapter 通过 Python 代码实现和部署，不通过前端在线编辑。MVP 不通过 Web Console 管理 base_url、timeout、rate_limit、user_agent 等 Adapter 参数，不保存可执行 Python 代码。
 
-后续支持 Git Source Repository 模式时，系统可以保存搜索源仓库配置，但仍不得保存可执行 Python 代码。
+Git Source Repository 模式已进入 Phase 10：系统保存仓库配置和锁定 commit，但仍不得保存可执行 Python 代码。
 
 仓库配置字段建议：
 
@@ -346,6 +349,8 @@ current_commit 是实际执行的锁定版本。
 fetch 远程更新不等于应用更新。
 默认不自动切换到远程最新 commit。
 更新失败时必须保留 previous_commit 以便回滚。
+Phase 10.1 后，候选更新失败时 current_commit 和旧 PluginActivation 都必须保持不变。
+启动只加载 enabled 仓库的 current_commit，不自动 fetch 或切换到远程最新版本。
 数据库、settings 和 Web Console 不保存可执行 Python 代码。
 ```
 

@@ -381,7 +381,7 @@ target_library_id 不为空时，系统会维护同 id 的同步绑定用于扫�
 
 ## 12. sync_bindings
 
-状态：已实现（由历史 download_to_local 结构重构而来，Phase 9 继续清理旧命名残留）。
+状态：已实现（由历史 download_to_local 结构重构而来，当前模型命名已统一）。
 
 用途：保存远程媒体库到本地媒体库的同步规则。
 
@@ -416,7 +416,7 @@ delete_empty_source_dirs 为空时使用全局默认。
 
 ## 13. sync_seen_files
 
-状态：已实现（由历史 download_to_local_seen_files 重构而来，Phase 9 继续清理旧命名残留）。
+状态：已实现（由历史 download_to_local_seen_files 重构而来，当前模型命名已统一）。
 
 用途：记录已扫描或已处理的远程媒体库来源文件，避免重复同步到本地媒体库。
 
@@ -445,7 +445,7 @@ status 至少包含 discovered / stable / queued / downloading / completed / fai
 
 ## 14. plugin_repositories
 
-用途：存储外部 Git 插件仓库配置，用于加载搜索源 Adapter 等外部插件。
+用途：存储外部可信 Git 插件仓库配置。当前实际用途是加载 SOURCE Adapter。
 
 字段：
 
@@ -497,10 +497,12 @@ updated_at TIMESTAMP NOT NULL
 
 ```text
 plugin_id 为插件唯一标识，来自搜索源 Adapter 注册。
-plugin_type 标识插件类型（如 source_adapter）。
+plugin_type 标识插件类型（当前使用 source）。
 config_data 存储 JSON 格式的插件配置。
-repository_id 关联来源仓库，内建插件可为 NULL。
+repository_id 关联来源仓库；当前真实 Source 全部来自外部仓库。
 ```
+
+`PluginActivation` 是进程内运行时对象，不新增为任务事实表。Repository/Config 保存声明和期望状态，Activation 诊断通过运行时 API 暴露，不能把内存状态误写成跨进程事实来源。
 
 ## 16. plugin_logs
 

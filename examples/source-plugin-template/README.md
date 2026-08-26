@@ -27,15 +27,15 @@ source-plugin-template/
 
 ### 1. 安装插件
 
-将插件目录复制到 `~/.sundarr/plugins/repos/` 目录下，或者在 Web Console 中添加 Git 仓库地址。
+开发测试可使用 `PluginLoader.load_from_local()` 加载目录；正式使用通过 `/plugins/repositories` 配置可信 Git 仓库。Web Console 仓库管理页面属于 Phase 10.2，当前尚未完成。
 
 ### 2. 配置插件
 
-在 Web Console 中配置插件参数（如 API Key、Cookie 等）。
+当前可通过插件 API 配置参数。Web Console 动态配置表单属于 Phase 10.2。
 
 ### 3. 使用插件
 
-插件会自动注册到 Sundarr，可以在搜索页面使用。
+当前需要显式调用插件加载 API；启动自动加载 locked current_commit 属于 Phase 10.1。
 
 ## 开发指南
 
@@ -116,6 +116,8 @@ async def test_search(query: str) -> List[SourceTestEvent]:
 3. **日志记录**：使用标准日志记录关键操作
 4. **配置验证**：在启动时验证配置参数
 5. **测试覆盖**：编写完整的测试用例
+6. **无导入副作用**：测试和插件 import 阶段不得访问实时网络或创建长期资源
+7. **可清理资源**：Phase 10.1 后，长期连接和注册必须绑定 PluginActivation cleanup
 
 ## 示例代码
 

@@ -218,16 +218,16 @@ Sundarr API / Worker：SUNDARR_REDIS_URL=redis://:change_me@redis:6379/0
 
 本地默认使用 LocalWriter 进行自动化测试。
 
-SmbWriter 可通过 Web Console 或 API 测试连接：
+SmbWriter 可通过 Web Console 或多连接 API 测试连接：
 
 ```text
-POST /storage/config/test
+POST /storage/smb-connections/{connection_id}/test
 ```
 
-如果准备了真实 SMB 环境，当前应通过运行时配置写入，而不是写入 `.env`：
+如果准备了真实 SMB 环境，应通过 Web Console 或多连接 API 写入，而不是写入 `.env`：
 
 ```http
-POST /storage/config/save
+POST /storage/smb-connections/create
 ```
 
 推荐使用 FastAPI 调试页面：
@@ -255,7 +255,7 @@ http://localhost:8080/docs
 }
 ```
 
-`.env.example` 只保留 PostgreSQL / Redis bootstrap 连接信息。SMB 配置事实来源是数据库 `settings` 表中的 `storage.smb`，应通过 Web Console 或 `POST /storage/config/save` 修改。真实 `.env` 不要提交。
+`.env.example` 只保留 PostgreSQL / Redis bootstrap 连接信息。SMB 配置事实来源是 `smb_connections` 表，应通过 Web Console 或 `/storage/smb-connections` API 修改。旧 `settings.storage.smb` 主链路已删除。真实 `.env` 不要提交。
 
 ---
 
@@ -277,6 +277,16 @@ npm run build
 ```
 
 具体命令以后续 package 配置为准。
+
+Phase 10.0 质量门要求直接执行上述默认 pytest，不允许用 `--ignore` 绕过测试收集问题。
+
+---
+
+## 8.1 外部搜索源开发
+
+Core 当前没有内置真实站点 Source。开发测试可使用 `examples/source-plugin-template/` 和 `PluginLoader.load_from_local()`；正式运行通过 `/plugins/repositories` 配置可信 Git 仓库并锁定 commit。
+
+当前启动流程尚不会自动加载仓库，Phase 10.1 完成前需要显式调用 `/plugins/load-all`。没有配置仓库时 `/search` 返回空结果属于“未配置搜索能力”，不是 API 启动失败。
 
 ---
 

@@ -74,6 +74,45 @@ Node.js 可用于前端工程，但不作为 MVP 主后端。
 
 ---
 
+## ADR-001.1: Python 插件运行时采用 Cordis 启发的生命周期语义
+
+状态：已确认。
+
+决策：
+
+```text
+Sundarr 不引入 Cordis 包，也不把 Core 改写为 Node.js / TypeScript。
+插件运行时在 Python 中实现 PluginContext、能力依赖、PluginActivation 和清理栈。
+插件更新采用“候选加载 -> 配置校验 -> 健康检查 -> 原子切换 -> 释放旧 Activation”。
+候选加载失败时继续保留旧 Activation；禁用、回滚和仓库删除必须释放该插件注册的 Source、连接、定时器和其他副作用。
+```
+
+理由：
+
+```text
+Cordis 的显式服务依赖和可逆副作用适合 Sundarr 的动态 Source Adapter 生命周期。
+Sundarr 的持久任务、数据库事务、SMB 流式搬运和跨进程状态不适合迁移到进程内 TypeScript 插件框架。
+保留 Python 可以复用现有 FastAPI、SQLAlchemy、smbprotocol、Worker 和测试资产。
+```
+
+约束：
+
+```text
+PluginActivation 只管理插件进程内资源，不是任务状态事实来源。
+外部 Python 插件是用户信任代码；生命周期管理不等于安全沙箱。
+插件只能通过 PluginContext 暴露的稳定能力访问 Core，不直接依赖数据库 Session、Worker 私有函数或全局单例。
+第一阶段只对 SOURCE 插件落地；其他 PluginType 仍是远期扩展点。
+```
+
+参考思想来源：
+
+```text
+https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.md
+https://github.com/cordiverse/paper
+```
+
+---
+
 ## ADR-002: 使用 FastAPI 作为 API 后端
 
 状态：已确认。
@@ -483,4 +522,12 @@ AI 不直接抓网页。
 AI 不直接操作 NAS。
 AI 只调用 Sundarr API。
 Sundarr API 负责搜索、候选解释、创建任务和查询状态。
+```
+
+配套决策：
+
+```text
+AI Friendly API 稳定后，可以新增可选 Cordis / DeepSeek Harness 桥接插件。
+桥接插件是 Sundarr 的外部客户端，只通过公开 HTTP API 注册 search_media、收藏和任务状态等工具。
+桥接插件不得直接加载 Sundarr Python 插件、访问数据库或操作 SMB。
 ```

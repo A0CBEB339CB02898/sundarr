@@ -25,9 +25,9 @@ Source Adapter 必须满足：
 
 ```text
 搜索源统一由 Source Adapter 代码定义，不再由用户通过 Web Console 创建 configurable / document source。
-每个真实搜索源通常使用一个 Python 文件实现。
+每个真实搜索源通常在外部可信 Git 插件仓库中使用一个 Python Adapter 模块实现。
 Search Service 只调度统一接口，不写具体站点规则。
-当前第一个真实搜索源为 `SeedHubSource`，参考 seedhub-cli 的 `/s/{keyword}/` 列表搜索、`/movies/{id}/` 详情页解析和 `/link_start/` 跳转页链接解析方式。
+SeedHub 已从 Sundarr Core 移出，作为首个外部 Source Adapter 验证目标。
 Sources 页面以列表展示已安装搜索源，详情弹窗提供测试入口和步骤日志。
 ```
 
@@ -221,7 +221,7 @@ Adapter 不负责下载或转存。
 
 ## 6. Source 注册方式
 
-Source Adapter 事实来源是代码：
+Source Adapter 事实来源是外部仓库中锁定 commit 的代码，Core 注册入口是：
 
 ```text
 sundarr/app/sources/registry.py
@@ -238,34 +238,30 @@ search_function
 test_function
 ```
 
-注册示例：
+外部插件入口示例：
 
 ```python
 from sundarr.app.sources.base import SourceModel
-from sundarr.app.sources.seedhub import SeedHubSource
 
 
-def get_registered_sources():
-    seedhub = SeedHubSource()
-    return [
-        SourceModel(
-            id=seedhub.id,
-            name=seedhub.name,
-            description=seedhub.description,
-            homepage_url=seedhub.homepage_url,
-            search_function=seedhub.search,
-            test_function=seedhub.test_search,
-        )
-    ]
+def create_source() -> SourceModel:
+    return SourceModel(
+        id="example",
+        name="示例源",
+        description="外部搜索源示例。",
+        homepage_url="https://example.invalid",
+        search_function=search,
+        test_function=test_search,
+    )
 ```
 
-搜索源不通过数据库启用、禁用或保存合规说明、错误状态、信任等级等旧配置字段。`sources` 表仅作为代码 Adapter 的目录表，由项目初始化或 API 读取时同步 `id`、`name`、`description`、`homepage_url`，不得保存可执行代码或用户可编辑的爬虫规则。
+`sources` 表仅作为已加载 Adapter 的目录表，保存展示、启停和测试状态；仓库地址、锁定 commit 和插件配置由插件表管理。任何表都不得保存可执行代码或用户可编辑的爬虫规则。
 
 不得在数据库、配置文件或 Web Console 中保存可执行 Python 代码。
 
 ### 6.1 外部 Git 搜索源仓库
 
-后续真实搜索源支持放入独立 Git 仓库，由 Sundarr Core 受控加载。
+真实搜索源统一放入独立 Git 仓库，由 Sundarr Core 受控加载。
 
 设计原则：
 
@@ -283,15 +279,16 @@ Sundarr 只保存仓库地址、分支和锁定 commit。
 
 外部仓库接入不把来源、commit、加载状态和配置 schema 直接塞入 `SourceModel`。
 
-后续模型分层：
+模型分层：
 
 ```text
 SourceManifest：来自外部仓库清单，描述搜索源声明。
 LoadedSource：系统加载结果，描述来源、commit、状态、错误和 SourceModel。
+PluginActivation：具体 commit 的运行实例，描述依赖、提供能力和可逆清理栈。
 SourceModel：SearchService 调用的最小运行时执行协议。
 ```
 
-当前 `SourceModel` 继续作为 Adapter API v1 的执行接口，以兼容现有搜索管线和内置源。
+当前 `SourceModel` 继续作为 Adapter API v1 的执行接口。Core 当前没有内置真实站点源。
 
 ---
 

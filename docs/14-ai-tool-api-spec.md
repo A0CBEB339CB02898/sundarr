@@ -1,6 +1,6 @@
 # AI Tool API 规范
 
-本文档定义 Sundarr 后续作为 AI / Agent 可调用 media search tool 的接口方向。该能力已后移到下载到本地之后的后续阶段。
+本文档定义 Phase 11 Sundarr 作为 AI / Agent 可调用 media search tool 的接口方向。该阶段在 Phase 10 外部搜索源和真实 SMB 发布门之后执行。
 
 ---
 
@@ -142,4 +142,25 @@ AI 可查询任务状态。
 AI 可取消和重试任务。
 AI 不需要直接访问网页、网盘或 SMB。
 响应包含足够的解释字段和用户确认信号。
+```
+
+---
+
+## 8. 可选 Cordis / DeepSeek Harness 桥接
+
+Phase 11 API 稳定后可以提供独立 TypeScript 桥接插件：
+
+```text
+Cordis / DeepSeek Harness plugin
+  -> Sundarr HTTP AI Tool API
+  -> Search / Favorites / Transfers
+```
+
+边界：
+
+```text
+桥接插件不进入 Sundarr Core。
+不加载 Sundarr Python Source Adapter。
+不访问 Sundarr 数据库、SMB 凭据、NAS 文件或 Worker 内部对象。
+Cordis 只管理 Agent 侧工具注册、依赖和卸载清理。
 ```

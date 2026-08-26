@@ -138,8 +138,13 @@ Web Console 是核心控制台，不做完整媒体库 UI。
 远程媒体库绑定 SMB 连接下的远程目录（如网盘挂载目录）。
 本地媒体库绑定 SMB 连接下的本地 NAS 目录。
 同步绑定连接：远程媒体库（来源） -> 本地媒体库（目标）。
-Phase 9 模块重构：删除 Ingest 模块和旧 storage_config_service，新增远程媒体库模型，重构同步绑定。
-Phase 9 是下一步优先任务，用于统一术语、代码路径和维护边界。
+Phase 9 模块重构已完成：已删除 Ingest 模块和旧 storage_config_service，新增远程媒体库模型并统一同步绑定。
+Phase 9.5 收藏模型重构已完成：搜索默认不入库，资源和资源链接仅在用户主动收藏时持久化。
+Phase 10.0 质量基线收口已完成；当前优先任务是 Phase 10.1 Python 插件生命周期，然后完成 Phase 10.2 外部搜索源仓库闭环。
+Sundarr Core 继续使用 Python + FastAPI，不引入 Cordis 或 Node.js 作为后端运行时。
+Python 插件系统采用 Cordis 启发的生命周期语义：显式能力依赖、Activation、可逆清理、候选加载、健康检查、原子切换和失败回滚。
+该设计只借鉴 Cordis 的组合思想，不依赖 Cordis 包，不把持久任务状态、数据库事务或 SMB Worker 交给插件运行时。
+Phase 11 AI Friendly API 完成后，可以提供可选的 Cordis / DeepSeek Harness 桥接插件；桥接插件只调用 Sundarr API，不直接访问数据库、SMB 或 Worker 内部对象。
 前端设计系统基线文档位于 docs/16-design-system.md，在 Phase 7.8 Web Console UI Polish 中落地。
 前端视觉基调：暖色操作台风格，强调色为 terracotta（暗色 #d97642 / 亮色 #b05623），字体 Inter + JetBrains Mono，支持亮色 / 暗色 / 跟随系统三种主题。
 本地 CLI 启动时 PID 文件必须指向真实 API / Web / Worker 服务进程，不使用日志包装进程改变 PID 语义；Docker Compose 模式日志默认走 stdout/stderr，由 Docker logging driver 控制大小。
@@ -240,11 +245,13 @@ Phase 7: Web Console
 Phase 7.8: Web Console UI Polish
 Phase 8: Download To Local
 Phase 9: Module Refactoring
+Phase 9.5: Resource Favorites Refactoring
+Phase 10.0: Quality Baseline Closure
 Phase 10: Real Site Source Adapters
 Phase 11: AI Friendly API
 ```
 
-Phase 12 Cloud Direct Download 不包含在 MVP 中，仅作为后续高级功能保留规格文档。
+Phase 12 Cloud Direct Download 不包含在 MVP 中，仅作为后续高级功能保留规格文档；Alist、真实网盘 Provider 和直链下载均不是当前或近期主线。
 
 不得提前实现后续阶段的大型功能，除非当前阶段验收需要或用户明确要求。
 

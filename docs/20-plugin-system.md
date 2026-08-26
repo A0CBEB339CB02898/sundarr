@@ -1,201 +1,221 @@
-# Sundarr 插件系统
+# Python 插件系统与 Activation Runtime
 
-## 概述
+本文档定义 Sundarr 插件系统的当前实现、目标生命周期和边界。更新时间：2026-08-26。
 
-Sundarr 插件系统提供统一的插件注册、发现和管理机制，支持多种插件类型，帮助用户扩展 Sundarr 的功能。
+---
 
-### 支持的插件类型
+## 1. 当前范围
 
-- **Source (搜索源)**: 扩展 Sundarr 的搜索能力，支持从多个网站搜索资源
-- **Cloud Provider (网盘 Provider)**: 支持从不同网盘下载资源
-- **Notification (通知渠道)**: 支持通过不同渠道发送通知
-- **Crawler (爬虫)**: 支持监控外部数据源（如豆瓣想看列表）
-- **Link Validator (链接验证器)**: 验证资源链接的有效性
-- **Link Extractor (链接提取器)**: 从网页中提取资源链接
-- **Task Processor (任务处理器)**: 处理不同类型的任务
+当前必须完成的插件类型只有：
 
-## 快速开始
-
-### 1. 安装插件
-
-#### 方式一：从 Git 仓库安装（推荐）
-
-在 Web Console 中添加插件仓库地址：
-
-1. 进入 **插件管理** 页面
-2. 点击 **添加仓库**
-3. 输入 Git 仓库 URL 和分支名称
-4. 点击 **确定**
-
-#### 方式二：从本地目录安装
-
-将插件目录复制到 `~/.sundarr/plugins/repos/` 目录下。
-
-### 2. 配置插件
-
-1. 在 **插件管理** 页面找到已安装的插件
-2. 点击 **配置**
-3. 填写配置参数
-4. 点击 **保存**
-
-### 3. 使用插件
-
-配置完成后，插件会自动注册到 Sundarr，可以在相应功能中使用。
-
-## 插件管理
-
-### Web Console 管理
-
-Sundarr 提供了专业的 Web Console 来管理插件：
-
-- **插件仓库管理**: 添加、更新、回滚、删除插件仓库
-- **插件列表**: 查看所有已安装的插件及其状态
-- **插件配置**: 配置插件的运行参数
-- **插件统计**: 查看插件的使用情况
-
-### API 管理
-
-Sundarr 提供了完整的 API 来管理插件：
-
-```
-# 获取所有插件
-GET /plugins/plugins
-
-# 获取插件详情
-GET /plugins/plugins/{plugin_id}
-
-# 添加插件仓库
-POST /plugins/repositories
-
-# 更新插件仓库
-PUT /plugins/repositories/{repo_id}
-
-# 启用插件
-POST /plugins/plugins/{plugin_id}/enable
-
-# 禁用插件
-POST /plugins/plugins/{plugin_id}/disable
-
-# 更新插件配置
-PUT /plugins/plugins/{plugin_id}/config
+```text
+SOURCE — 外部真实搜索源 Adapter。
 ```
 
-## 插件开发
+`CLOUD_PROVIDER`、`NOTIFICATION`、`CRAWLER`、`LINK_VALIDATOR`、`LINK_EXTRACTOR` 和 `TASK_PROCESSOR` 可以保留枚举或设计扩展点，但不代表已经实现，更不属于近期主线。
 
-### 开发流程
+插件代码使用 Python。Sundarr 不依赖 Cordis 包，不运行 Node.js 插件宿主。
 
-1. 创建插件目录结构
-2. 编写插件清单文件 `sundarr_plugin.toml`
-3. 实现插件功能
-4. 测试插件
-5. 发布插件
+---
 
-### 目录结构
+## 2. 已实现组件
 
-```
-my-plugin/
-├── sundarr_plugin.toml      # 插件清单
-├── my_plugin/
-│   ├── __init__.py
-│   └── adapter.py           # 插件实现
-├── README.md                # 使用说明
-└── tests/
-    └── test_adapter.py      # 测试文件
+```text
+PluginRepository / PluginConfig / PluginLog 数据模型
+PluginManifest / LoadedPlugin / PluginType
+PluginLoader：Git clone、fetch、checkout、清单解析和 Python entry 加载
+PluginManager：仓库新增、加载、更新、回滚、删除、配置和启停
+PluginRegistry：运行时注册、查询和注销
+/plugins API
+SOURCE 入口返回 SourceModel 或 list[SourceModel]
 ```
 
-### 插件清单格式
+当前缺口：
 
-插件清单文件 `sundarr_plugin.toml` 定义了插件的元数据和配置：
-
-```toml
-id = "my-plugin"
-name = "我的插件"
-version = "1.0.0"
-plugin_type = "source"  # 插件类型：source, cloud_provider, notification 等
-description = "这是一个示例插件"
-author = "Your Name"
-homepage_url = "https://github.com/yourname/my-plugin"
-adapter_api_version = "1.0"
-entry = "my_plugin.adapter:create_plugin"
-
-[config_schema]
-api_key = { type = "string", required = true, label = "API Key", secret = true }
-timeout = { type = "integer", default = 30, label = "超时时间（秒）" }
+```text
+启动时未自动加载数据库中的 enabled 仓库。
+没有 PluginActivation 和统一清理栈。
+更新过程会直接操作当前注册中心，不是候选验证后的原子切换。
+多 Source 仓库的部分 API 响应仍按单 LoadedPlugin 处理。
+Web Console 没有仓库管理页面。
+当前默认数据库没有仓库，运行时搜索源为 0。
 ```
 
-### 配置字段类型
+---
 
-支持的配置字段类型：
+## 3. Cordis 启发的运行时模型
 
-- `string`: 字符串
-- `integer`: 整数
-- `boolean`: 布尔值
-- `select`: 下拉选择（需要 `options` 字段）
-- `password`: 密码输入（显示为 ***）
+Cordis 在本项目中是设计思想来源，不是运行时依赖。
 
-### 开发示例
+### 3.1 PluginContext
 
-参考 `examples/source-plugin-template/` 目录中的示例代码。
+`PluginContext` 是插件访问 Core 能力的唯一入口。第一阶段至少提供：
 
-## 最佳实践
+```text
+logger
+http_client 或受控 HTTP client factory
+plugin_config
+register_source(source) -> cleanup callback
+register_cleanup(callback)
+```
 
-1. **错误处理**: 所有函数都应该有完善的错误处理
-2. **超时设置**: 网络请求应该设置合理的超时时间
-3. **日志记录**: 使用标准日志记录关键操作
-4. **配置验证**: 在启动时验证配置参数
-5. **测试覆盖**: 编写完整的测试用例
+禁止通过 Context 暴露：
 
-## 故障排查
+```text
+任意数据库 Session
+SMB 密码或全量敏感配置
+Worker 私有函数
+全局任务状态机可写对象
+```
 
-### 插件加载失败
+### 3.2 能力依赖
 
-如果插件加载失败，请检查：
+插件可以声明：
 
-1. 插件清单文件 `sundarr_plugin.toml` 是否正确
-2. 插件入口函数是否正确
-3. 依赖项是否已安装
-4. 配置参数是否正确
+```text
+requires — 激活前必须存在的能力。
+provides — 激活成功后提供的能力。
+```
 
-### 插件运行错误
+SOURCE v1 默认要求 `source_registry`，可选要求受控 `http_client`。依赖不满足时不得执行插件入口。
 
-如果插件运行出错，请查看：
+### 3.3 PluginActivation
 
-1. 日志文件中的错误信息
-2. Web Console 中的插件状态
-3. 插件配置是否正确
+Activation 是一次具体插件版本的运行实例：
 
-### 插件冲突
+```text
+plugin_id
+repository_id
+commit_hash
+manifest
+instance
+status
+provided_capabilities
+cleanup_callbacks
+error
+activated_at
+```
 
-如果插件 ID 冲突，请修改插件清单中的 `id` 字段。
+推荐状态：
 
-## 常见问题
+```text
+candidate -> validating -> active
+candidate/validating -> failed
+active -> disposing -> disposed
+依赖缺失 -> waiting
+```
 
-### Q: 如何更新插件？
+状态名称最终以代码和数据模型评审为准，但不得把 repository 的下载状态与 Activation 运行状态混为一谈。
 
-A: 在 Web Console 中进入插件管理页面，找到要更新的插件仓库，点击 **更新**。
+### 3.4 可逆清理
 
-### Q: 如何回滚插件？
+插件通过 Context 产生的注册和资源必须返回清理函数。Activation 在以下场景按 LIFO 顺序执行一次清理：
 
-A: 在 Web Console 中进入插件管理页面，找到要回滚的插件仓库，点击 **回滚**。
+```text
+disable
+update 成功切换后
+rollback 成功切换后
+remove_repository
+应用关闭
+依赖能力撤回
+```
 
-### Q: 如何禁用插件？
+cleanup 失败应记录日志并继续清理剩余资源，不能恢复已经完成的旧副作用。
 
-A: 在 Web Console 中进入插件管理页面，找到要禁用的插件，点击 **禁用**。
+### 3.5 候选加载和原子切换
 
-### Q: 如何删除插件？
+```text
+fetch 远程信息
+checkout 明确 commit 到本地缓存
+构建 candidate Activation
+解析和校验 manifest/config/requires
+加载 Python entry
+执行插件健康测试
+准备提供能力但不覆盖 active
+原子替换 registry 映射
+释放旧 Activation
+提交 current_commit / previous_commit 和状态
+```
 
-A: 在 Web Console 中进入插件管理页面，找到要删除的插件仓库，点击 **删除**。
+候选失败时：
 
-## 参考文档
+```text
+旧 active Activation 继续工作。
+current_commit 不切换。
+候选副作用全部清理。
+错误写入 PluginLog / repository last_error。
+```
 
-- [插件清单规范](docs/20-plugin-manifest-spec.md)
-- [插件 API 文档](docs/21-plugin-api-spec.md)
-- [插件开发指南](docs/22-plugin-development-guide.md)
+---
 
-## 示例插件
+## 4. 启动顺序
 
-- [搜索源插件模板](examples/source-plugin-template/)
-- [夸克网盘插件](examples/quark-provider/)
-- [阿里云盘插件](examples/aliyun-provider/)
-- [钉钉通知插件](examples/dingtalk-notification/)
-- [飞书通知插件](examples/feishu-notification/)
+```text
+加载 bootstrap 配置
+连接数据库并执行 Alembic
+初始化 Core 能力
+读取 enabled PluginRepository
+从本地缓存加载每个 current_commit
+激活成功插件
+同步 sources 目录表
+启动对外 API ready 状态
+```
+
+约束：
+
+```text
+启动时不自动 fetch 或执行远程最新 commit。
+单个插件失败不阻止 API 启动。
+没有 Source 时 API 可以健康启动，但 /health 或插件诊断必须能表达“搜索能力未配置”。
+```
+
+---
+
+## 5. 进程边界
+
+API 和 Worker 是不同进程，各自需要明确的插件能力：
+
+```text
+API 进程需要 SOURCE 插件执行搜索。
+Worker 当前不需要加载 SOURCE 插件。
+未来若出现 Worker 插件，必须单独定义跨进程配置和状态恢复，不能复用内存 Activation 假装共享。
+```
+
+---
+
+## 6. 安全边界
+
+```text
+外部 Python 插件是用户显式信任代码。
+锁定 commit 提供可追踪性，不提供沙箱隔离。
+数据库和 Web Console 不保存、上传或编辑可执行 Python 代码。
+插件日志必须脱敏。
+仓库路径、manifest 路径和 entry module 必须有越界保护。
+```
+
+如果未来需要运行不可信插件，应使用独立进程/容器和 RPC 协议另行设计，不能把 PluginContext 当安全边界。
+
+---
+
+## 7. 验收标准
+
+```text
+默认 pytest 覆盖 Activation 成功、失败、清理顺序、重复清理和原子切换。
+更新失败时旧 Source 仍可被 SearchService 调用。
+禁用、删除和回滚后 registry 与数据库状态一致。
+重启只加载 locked current_commit。
+一个仓库返回多个 Source 时全部注册、展示和清理。
+插件失败不影响 /health 和其他插件。
+```
+
+---
+
+## 8. 与 Cordis / DeepSeek Harness 的关系
+
+Phase 11 后可以维护独立的 TypeScript 桥接插件：
+
+```text
+Cordis / DeepSeek Harness plugin -> Sundarr AI Tool HTTP API
+```
+
+该桥接不进入 Sundarr Core，不与 Python PluginActivation 共用进程，也不访问数据库、SMB 或 Worker 内部对象。

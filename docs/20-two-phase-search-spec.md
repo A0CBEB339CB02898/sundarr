@@ -1,5 +1,7 @@
 # 两阶段搜索架构改造规范
 
+状态：Core `fetch_detail` 协议、API 和 Web Console 交互已实现；SeedHub 实现已移至外部插件仓库，等待 Phase 10.2 端到端验收。
+
 ## 1. 目标
 
 将搜索从"一次拉取全部详情"改为"两阶段按需加载"，减少对搜索源（尤其是 SeedHub）的无意义请求压力。
@@ -139,9 +141,10 @@ Response: ResourceCandidate（含 links）
 ### 5.1 SourceModel（`sundarr/app/sources/base.py`）
 - 新增 `fetch_detail_function: FetchDetailFunction | None = None`
 
-### 5.2 SeedHub（`sundarr/app/sources/seedhub.py`）
-- `search()` 移除详情页抓取：只解析搜索页返回电影列表
-- 新增 `fetch_detail(detail_url: str) -> RawSearchItem`：抓详情页 + 解析链接
+### 5.2 SeedHub（外部 `sundarr-sources` 插件）
+- Core 已支持两阶段 `SourceModel.fetch_detail_function`。
+- SeedHub 的 `search()` 和 `fetch_detail()` 实现属于外部搜索源仓库，不再位于 Sundarr Core。
+- 外部 SeedHub 必须用离线 fixture 覆盖列表页、详情页和跳转链接解析。
 
 ### 5.3 SearchService（`sundarr/app/services/search_service.py`）
 - `search()` 只做轻量搜索

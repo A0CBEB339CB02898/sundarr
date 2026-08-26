@@ -25,7 +25,7 @@ MVP 的目标是先跑通端到端闭环：
 ```text
 先后端闭环，后前端完善。
 CloudProvider 保留为可选扩展，近期不做真实网盘直接下载。
-下一阶段主线是 Phase 9 模块重构，统一远程媒体库同步到本地媒体库的命名和实现路径。
+Phase 10.0 质量基线已收口；当前推进 Phase 10 Python 插件生命周期和外部搜索源仓库闭环。
 真实挂载目录下载到本地通过手动集成验收验证。
 先规则和用户确认，后模型辅助。
 先核心控制台，后完整媒体库 UI。
@@ -39,7 +39,7 @@ CloudProvider 保留为可选扩展，近期不做真实网盘直接下载。
 
 ## 当前实现状态
 
-截至 2026-05-07，本项目阶段状态如下：
+截至 2026-08-26，本项目阶段状态如下：
 
 ```text
 Phase 0 Project Skeleton: 已完成。
@@ -47,20 +47,21 @@ Phase 1 Persistence Models: 已完成。
 Phase 2 Search And Resource Library: 已完成。
 Phase 3 Cloud Staging: 已完成。
 Phase 4 Storage Writer: 已收口，已完成 LocalWriter、Storage 配置 API、目录浏览 API、STORAGE_CONFIG_CHANGED 中断规则、SmbWriter 安全边界和真实 SMB 连接、目录浏览、写入、size、rename 手动验收。
-启动与配置精简：已确认 sundarr start/restart 管理 API + Web，自动执行数据库初始化/迁移、默认 settings seed 和前端依赖安装；Phase 5 实现 Worker 时必须同步纳入完整项目启停。
-Phase 5 Transfer Worker: 已完成当前 MVP 本地 Worker 主链路，Phase 5.1 到 Phase 5.5 均已完成；真实网盘和 SMB 搬运主链路尚未实现。
+启动与配置精简：sundarr start/restart/stop/status 已管理 API + Web + Worker，并自动执行数据库初始化/迁移、默认 settings seed 和前端依赖安装；Windows PID 文件已指向真实 API / Web / Worker 服务进程。
+Phase 5 Transfer Worker: 已完成当前 MVP Worker 主链路，Phase 5.1 到 Phase 5.5 均已完成。
 Phase 6 Cleanup And Recovery: 已完成，Phase 6.1 到 Phase 6.5 均已完成。
 Phase 7 Web Console: 已完成。
-Phase 7.8 Web Console UI Polish: 已完成，来自 Phase 0-7 手动验收反馈；应在 Phase 8 前优先处理前端体验问题。
+Phase 7.8 Web Console UI Polish: 已完成。
 Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需手动集成验收。
 Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一为 process_sync_task 同步路径，远程媒体库和同步绑定已就位。
-Phase 9.5 Resource Favorites Refactoring: 下一步优先任务；目标是将 Resource / ResourceLink 收缩为收藏模型，移除搜索自动入库，为外部搜索源仓库接入整理搜索源代码边界。
-Phase 10 Real Site Source Adapters: 进行中；已实现插件框架（PluginRepository/PluginConfig/PluginLog 模型、plugins/ 框架含 base/loader/manager/registry、/plugins API），下一步为外部 Git 仓库 clone/fetch 和真实搜索源 Adapter 接入。
+Phase 9.5 Resource Favorites Refactoring: 已完成；Resource / ResourceLink 已收缩为收藏模型，搜索默认不入库，Web Console 使用单一收藏入口。
+Phase 10.0 Quality Baseline Closure: 已完成；默认 pytest 196 项通过，前端构建、Alembic 链路和连续两轮 CLI 启停冒烟通过。
+Phase 10 Real Site Source Adapters: 进行中；已实现 Python 插件框架、Git clone/fetch/checkout、SOURCE 列表展开和 SeedHub 外移，待完成 Cordis 启发的 Activation 生命周期、启动自动加载、Web Console 仓库管理和真实源端到端验收。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
 Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档，后续单独实现。
 ```
 
-Phase 4 已满足停止条件，后续可以正式进入 Phase 5。Phase 5 实现 Worker 时，必须同步将 Worker 纳入 `sundarr start / restart / stop / status`。
+Phase 0-10.0 已完成。后续插件交付必须持续保持该质量基线。
 
 ---
 
@@ -849,20 +850,21 @@ pytest 通过。
 
 ```text
 /app/storage 页面
-GET /storage/config
-POST /storage/config/save
-POST /storage/config/test
-GET /storage/browse
+GET /storage/smb-connections
+POST /storage/smb-connections/create
+POST /storage/smb-connections/{id}/update
+POST /storage/smb-connections/{id}/test
+GET /storage/smb-connections/{id}/browse
 password 不回显明文
 password 留空保留旧值
-library 路径配置最小表单
+多个 SMB 连接列表和目录浏览
 ```
 
 验收标准：
 
 ```text
-用户可以查看 SMB 配置摘要。
-用户可以保存配置并测试连接。
+用户可以查看多个 SMB 连接摘要。
+用户可以创建、更新、启停并测试连接。
 用户可以浏览允许范围内的目录。
 保存配置导致任务中断时有 STORAGE_CONFIG_CHANGED 提示。
 ```
@@ -1167,7 +1169,7 @@ pytest 通过。
 确认 TransferTask.sync_seen_file_id 为唯一 seen file 字段
 TransferTask 增加 binding_id 字段
 统一 Worker 处理路径（收口 process_dtl_task 为 process_sync_task）
-更新 Web Console（/app/remote-libraries、/app/sync）
+更新 Web Console（远程媒体库和同步操作统一收口到 /app/remote-libraries）
 ```
 
 验收标准：
@@ -1204,6 +1206,9 @@ Source Adapter SDK 完整化
 代码型 Adapter 插件加载机制
 外部 Git 搜索源仓库配置
 SourceManifest / LoadedSource / SourceModel 分层
+PluginContext / PluginActivation 生命周期
+requires / provides 显式能力依赖
+候选加载、健康检查、原子切换和可逆清理
 仓库 clone / fetch / checkout / rollback
 current_commit 锁定和更新检查
 统一 HTTP client
@@ -1222,6 +1227,15 @@ Web Console 已安装 Adapter 管理
 Web Console 搜索源仓库检查更新、应用更新、回滚和加载诊断
 ```
 
+运行时边界：
+
+```text
+Core 保持 Python + FastAPI，不依赖 Cordis 包或 Node.js 插件宿主。
+只借鉴 Cordis 的显式依赖、Activation 和副作用回收语义。
+PluginActivation 只管理进程内插件资源，不替代 PostgreSQL、Redis、Worker 或 SMB 状态。
+SOURCE 是当前唯一必须端到端完成的插件类型；Cloud Provider、通知和爬虫不是近期主线。
+```
+
 验收标准：
 
 ```text
@@ -1233,6 +1247,8 @@ Adapter 可以解析搜索结果和必要的详情页。
 每个 Adapter 有超时、限流、错误记录和测试 fixture。
 Web Console 可以查看、测试 Adapter 并查看最后错误。
 Web Console 可以查看外部仓库 current_commit、加载成功列表和加载失败原因。
+应用重启后会从数据库读取已启用仓库，只加载锁定 current_commit，并在加载后同步 sources 目录表。
+插件更新失败时旧 Activation 继续提供服务；禁用、回滚和删除会释放已注册能力。
 ```
 
 停止条件：
@@ -1248,9 +1264,61 @@ pytest 通过。
 不承诺通用在线文档读取。
 ```
 
-### Phase 9.x: Document Site Generalization Experiment
+### Phase 10.0: Quality Baseline Closure
 
-状态：后续实验，不作为 Phase 9 主线阻塞项。
+状态：已完成。
+
+交付物：
+
+```text
+把 tests/test_search_api.py 移出默认 pytest 收集或改为隔离测试。
+为异步 SMB 连接池测试配置正确执行方式。
+保留 SmbStorageError 具体错误码，不降级为 SMB_TEST_FAILED。
+修复并提交插件迁移的 down_revision 链。
+Windows PID 文件指向真实 API / Web / Worker 服务进程。
+统一 README、路线图、插件规格和历史汇总文档状态。
+```
+
+停止条件：
+
+```text
+原始 python -m pytest 全部通过，不使用 --ignore。
+npm run build 通过。
+alembic heads/current/upgrade head 通过。
+sundarr start -> health -> stop 连续执行两次通过，端口和 PID 文件无残留。
+```
+
+### Phase 10.1: Python Plugin Activation Runtime
+
+状态：当前执行。
+
+交付物：
+
+```text
+PluginContext：向插件暴露受控日志、HTTP、配置等能力。
+PluginActivation：记录插件实例、状态、commit 和 LIFO cleanup callbacks。
+requires / provides：显式声明能力依赖和提供能力。
+候选 Activation 通过校验和健康测试后原子替换旧 Activation。
+加载、禁用、更新、回滚、仓库删除均有确定的清理语义。
+启动时只加载数据库中已启用仓库的 current_commit。
+```
+
+### Phase 10.2: External Source End-to-End
+
+状态：Phase 10.1 后执行。
+
+交付物：
+
+```text
+sundarr-sources 仓库配置和锁定 commit。
+SeedHub 外部 Source Adapter fixture、测试和手动实时验收。
+Web Console 仓库新增、检查更新、应用更新、回滚、测试和诊断。
+重启恢复搜索源和 sources 目录同步。
+```
+
+### Phase 10.x: Document Site Generalization Experiment
+
+状态：后续实验，不作为 Phase 10 主线阻塞项。
 
 目标：验证文档型网站是否存在可通用读取模式。
 
@@ -1284,6 +1352,7 @@ stable tool-like endpoints
 candidate explanation fields
 default target library mapping
 low confidence confirmation fields
+可选 Cordis / DeepSeek Harness HTTP 桥接插件
 ```
 
 验收标准：
@@ -1294,6 +1363,7 @@ AI 可以获取资源详情。
 AI 可以创建 transfer task。
 AI 可以查询任务状态。
 AI 不需要直接抓网页或操作 NAS。
+Cordis / DeepSeek Harness 桥接插件只调用公开 Sundarr API，不访问数据库、SMB 或 Worker 内部对象。
 ```
 
 停止条件：

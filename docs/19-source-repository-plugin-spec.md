@@ -1,6 +1,6 @@
 # 外部搜索源仓库接入规范
 
-本文档定义 Sundarr 后续接入外部 Git 搜索源仓库的目标架构、改造步骤和验收标准。
+本文档定义 Sundarr 正在实施的外部 Git 搜索源仓库架构、生命周期和验收标准。
 
 ---
 
@@ -52,7 +52,7 @@ Web Console 在线编辑 Source Adapter。
 
 ## 3. 模型分层
 
-外部仓库接入不直接扩展当前 `SourceModel` 承载所有信息，而是分三层：
+外部仓库接入不直接扩展当前 `SourceModel` 承载所有信息。持久声明、加载结果、运行 Activation 和执行协议分层：
 
 ```text
 SourceManifest
@@ -60,6 +60,9 @@ SourceManifest
 
 LoadedSource
   系统加载后的结果，描述来源仓库、commit、路径、加载状态、错误和 SourceModel。
+
+PluginActivation
+  具体 commit 的运行实例，描述依赖、提供能力、状态、错误和可逆清理栈。
 
 SourceModel
   SearchService 真正调用的最小执行接口，只包含 id、展示字段和 search/test 函数。
@@ -319,7 +322,6 @@ unregister / clear
 `sundarr.app.sources.registry.get_registered_sources()` 保持返回 `list[SourceModel]`，来源改为：
 
 ```text
-内置源
 外部仓库加载成功的源
 ```
 
@@ -374,6 +376,39 @@ Web Console 后续页面：
 测试搜索
 ```
 
+### 6.7 Plugin Activation Runtime
+
+Sundarr Core 保持 Python，不依赖 Cordis 包。运行时借鉴 Cordis 的生命周期语义：
+
+```text
+PluginContext 暴露受控能力。
+requires / provides 表达显式能力依赖。
+PluginActivation 跟踪候选或 active 插件及 LIFO cleanup callbacks。
+新 commit 先候选加载、配置校验和健康测试。
+候选成功后原子替换旧 Activation。
+候选失败时旧 Activation 和 current_commit 保持不变。
+disable / rollback / remove / shutdown 必须释放插件副作用。
+```
+
+边界：
+
+```text
+Activation 只管理 API 进程内 Source 插件资源。
+不替代 PostgreSQL、Redis、Alembic、Worker 状态机或 SMB 连接池。
+外部 Python 插件仍是用户信任代码，不是沙箱代码。
+```
+
+### 6.8 启动恢复
+
+```text
+完成数据库迁移和 Core 服务初始化。
+读取 enabled PluginRepository。
+只从本地缓存加载数据库记录的 current_commit。
+逐个创建 Activation，失败隔离。
+激活完成后同步 sources 目录表。
+启动时不自动 fetch 或执行远程最新代码。
+```
+
 ---
 
 ## 7. 安全策略
@@ -416,6 +451,9 @@ Web Console 后续页面：
 SearchService 可聚合外部搜索源结果。
 SourceService 可测试外部搜索源。
 更新失败时可回滚 previous_commit。
+更新失败时旧 Activation 继续工作，候选副作用全部清理。
+禁用、回滚、删除和关闭时 cleanup 只执行一次。
+应用重启后自动恢复 locked current_commit，再同步 sources 目录表。
 数据库和配置不保存可执行 Python 代码。
 默认不自动执行远程最新 commit。
 pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和搜索聚合。
@@ -425,18 +463,25 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
 
 ## 9. 当前交付状态
 
-截至 2026-06-25：
+截至 2026-08-26：
 
 ```text
 已实现通用插件框架：
   PluginRepository / PluginConfig / PluginLog 数据模型（迁移 0008）
   plugins/ 模块：base.py (PluginType, LoadedPlugin)、registry.py、manager.py、loader.py
   /plugins API（仓库 CRUD、插件列表/详情/启用/禁用/配置、统计、加载全部）
+  Git clone / fetch / checkout 基础实现
+  SOURCE 入口返回 SourceModel 或 list[SourceModel] 并展开注册
+  SeedHub 已从 Sundarr Core 移出
   tests/test_plugin_system.py
 
+已完成：
+  Phase 10.0 默认测试、迁移链、SMB 错误码和 Windows PID 质量收口
+
 待实现：
-  外部 Git 仓库 clone/fetch/checkout 真实调用（当前为占位逻辑）
-  清单解析器（sundarr_sources.toml / source.toml）
-  真实搜索源 Adapter 接入（首个：SeedHubSource 从内建迁移到外部仓库）
+  PluginContext / PluginActivation / cleanup / 原子切换
+  启动自动加载 enabled 仓库的 locked current_commit
+  多 Source 仓库所有 API 路径兼容
+  外部 SeedHub 仓库配置、fixture 和端到端验收
   Web Console 插件管理页面
 ```

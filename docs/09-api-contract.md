@@ -419,10 +419,6 @@ Phase 6.5: GET /transfers/{task_id}/logs
 状态：已实现（含多 SMB connection API）。
 
 ```http
-GET  /storage/config
-POST /storage/config/save
-POST /storage/config/test
-GET  /storage/browse?path=Movies
 GET  /storage/smb-connections
 POST /storage/smb-connections/create
 GET  /storage/smb-connections/{connection_id}
@@ -431,29 +427,32 @@ POST /storage/smb-connections/{connection_id}/enable
 POST /storage/smb-connections/{connection_id}/disable
 POST /storage/smb-connections/{connection_id}/test
 POST /storage/smb-connections/{connection_id}/test-new
+POST /storage/smb-connections/test-new
+POST /storage/smb-connections/browse-new
 GET  /storage/smb-connections/{connection_id}/browse?path=Movies
+POST /storage/smb-connections/{connection_id}/delete
+GET  /storage/smb-connections/pool/stats
 ```
 
 规则：
 
 ```text
 GET 不返回 password 明文，只返回 password_set。
-POST /storage/config/save 保存后热加载 SMB 配置。
-POST /storage/config/save 中 password 为空表示保留旧 password。
+创建或更新后热加载对应 SMB connection。
+update 中 password 为空表示保留旧 password。
 SMB 配置修改必须中断旧配置运行中任务。
-GET /storage/browse 只能浏览允许范围。
-POST /storage/config/test 会验证配置结构、路径合法性，并尝试真实 SMB 连接和根路径访问。
+GET /storage/smb-connections/{connection_id}/browse 只能浏览允许范围。
 POST /storage/smb-connections/{connection_id}/test 会记录最近一次测试结果。
 POST /storage/smb-connections/{connection_id}/test-new 使用编辑表单中的当前配置测试，不覆盖数据库配置。
 最近一次测试明确失败的 SMB connection 不能启用，也不能作为同步任务的有效连接使用。
-新功能优先使用多 SMB connection API；旧 storage/config API 可作为默认连接兼容入口，后续收口时再移除。
+旧 storage/config API 已删除；所有调用必须使用多 SMB connection API。
 ```
 
 ---
 
 ## 8. Remote Media Library Sync
 
-远程媒体库同步 API 用于管理“远程媒体库 -> 本地媒体库”的同步规则，并触发扫描和任务创建。`download-to-local` API 属于历史实现命名，Phase 9 需要继续清理。
+远程媒体库同步 API 用于管理“远程媒体库 -> 本地媒体库”的同步规则，并触发扫描和任务创建。历史 `download-to-local` API 已删除。
 
 媒体库 API 用于创建 movie / series / unclassified 等本地 NAS 逻辑媒体库，并将媒体库绑定到 Storage 模块中已配置的 SMB connection 和目录。
 
@@ -641,7 +640,7 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 
 ### 9.6 GET /plugins/plugins
 
-列出所有已加载插件，支持 `?type=source_adapter` 过滤。
+列出所有已加载插件，支持 `?plugin_type=source` 和 `?include_disabled=true` 过滤。
 
 ### 9.7 GET /plugins/plugins/{plugin_id}
 
@@ -667,10 +666,13 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 
 ```json
 {
-  "total": 5,
-  "enabled": 4,
-  "builtin": 2,
-  "external": 3
+  "total": 1,
+  "builtin": 0,
+  "external": 1,
+  "loaded": 1,
+  "error": 0,
+  "disabled": 0,
+  "source": 1
 }
 ```
 

@@ -1,447 +1,129 @@
-# Sundarr 插件系统实施总结报告
+# Sundarr 当前实施总结
 
-## 概述
+本文档是当前实现状态的派生摘要。阶段事实来源以 `docs/03-mvp-roadmap.md` 为准，插件运行时事实来源以 `docs/20-plugin-system.md` 为准。
 
-本报告总结了 Sundarr 插件系统的实施情况，包括已实现的功能、待完成的工作和下一步计划。
+更新时间：2026-08-26。
 
-## 已实现的功能
+---
 
-### 1. 插件框架基础架构 ✅
+## 1. 当前结论
 
-**文件**: `sundarr/app/plugins/`
-
-- **base.py**: 插件基础抽象，定义了 PluginType、PluginManifest、LoadedPlugin 等核心数据结构
-- **registry.py**: 统一插件注册中心，支持按类型、ID 查询插件
-- **loader.py**: 插件加载器，支持从 Git 仓库和本地目录加载插件
-- **manager.py**: 插件生命周期管理，包括加载、卸载、启用、禁用等
-
-**特性**:
-- 支持多种插件类型（Source、CloudProvider、Notification、Crawler 等）
-- 统一的注册和发现机制
-- 错误隔离（单个插件失败不影响系统）
-- 支持锁定 commit、版本管理
-
-### 2. 插件数据库模型 ✅
-
-**文件**: `sundarr/app/models/plugin.py`
-
-- **PluginRepository**: 插件仓库配置表
-- **PluginConfig**: 插件配置表
-- **PluginLog**: 插件日志表
-
-**迁移文件**: `migrations/versions/0008_create_plugin_tables.py`
-
-### 3. 插件管理 API ✅
-
-**文件**: `sundarr/app/api/plugins.py`
-
-提供完整的 RESTful API：
-- 插件仓库管理（CRUD）
-- 插件列表和详情查询
-- 插件配置管理
-- 插件启用/禁用
-- 插件统计信息
-
-**Schema 文件**: `sundarr/app/schemas/plugin.py`
-
-### 4. 改造 sources/registry.py ✅
-
-**文件**: `sundarr/app/sources/registry.py`
-
-- 支持外部插件源
-- 合并内置源和外部源
-- 检查 ID 冲突
-- 错误处理和日志记录
-
-### 5. 参考插件模板 ✅
-
-**目录**: `examples/source-plugin-template/`
-
-- 完整的搜索源插件示例
-- 插件清单文件示例
-- 适配器实现示例
-- 测试文件示例
-- 使用说明文档
-
-### 6. 测试验证 ✅
-
-**文件**: `tests/test_plugin_system.py`
-
-- 插件注册中心测试
-- 插件类型测试
-- 插件清单测试
-- 已加载插件测试
-- 多插件管理测试
-
-**结果**: 所有测试通过 ✅
-
-### 7. 文档 ✅
-
-**文件**:
-- `docs/20-plugin-system.md`: 插件系统概述
-- `docs/20-plugin-manifest-spec.md`: 插件清单规范
-- `docs/21-plugin-api-spec.md`: 插件 API 文档
-- `docs/22-plugin-development-guide.md`: 插件开发指南
-- `examples/source-plugin-template/README.md`: 示例插件说明
-
-## 待完成的工作
-
-### 阶段 1（2-3 个月）：最小实现 + 可扩展框架
-
-#### 1.1 搭建插件框架 ✅
-- [x] 创建插件基础架构
-- [x] 实现 PluginRegistry
-- [x] 实现 PluginLoader
-- [x] 实现 PluginManager
-- [x] 创建插件数据库模型
-- [x] 创建插件表迁移
-
-#### 1.2 Source Adapter 插件系统 ✅
-- [x] 改造 sources/registry.py 支持插件
-- [x] 创建参考插件模板
-- [x] 实现插件管理 API
-- [x] 创建插件清单规范文档
-
-#### 1.3 Cloud Provider 插件系统 ⏳
-- [ ] 创建 CloudProviderPlugin 接口
-- [ ] 实现夸克网盘插件
-- [ ] 实现阿里云盘插件
-- [ ] 集成直链下载功能
-
-#### 1.4 Web Console 插件管理 ⏳
-- [ ] 创建插件管理前端页面
-- [ ] 实现动态配置表单生成
-- [ ] 添加插件管理导航
-
-#### 1.5 集成测试和优化 ⏳
-- [ ] 单元测试
-- [ ] 集成测试
-- [ ] 性能优化
-- [ ] 文档完善
-
-### 阶段 2（2-3 个月）：通知和豆瓣监控
-
-#### 2.1 通知渠道插件 ⏳
-- [ ] 创建 NotificationPlugin 接口
-- [ ] 实现钉钉通知插件
-- [ ] 实现飞书通知插件
-- [ ] 实现企业微信通知插件
-
-#### 2.2 豆瓣监控功能 ⏳
-- [ ] 创建 CrawlerPlugin 接口
-- [ ] 实现豆瓣监控插件
-- [ ] 自动搜索和下载
-- [ ] 定期扫描和同步
-
-#### 2.3 更多网盘支持 ⏳
-- [ ] 实现百度网盘插件
-- [ ] 实现 115 网盘插件
-- [ ] 实现 UC 网盘插件
-
-### 阶段 3（2-3 个月）：高级功能
-
-#### 3.1 更多通知渠道 ⏳
-- [ ] 实现邮件通知插件
-- [ ] 实现 Webhook 通知插件
-
-#### 3.2 智能调度 ⏳
-- [ ] 测试网盘连接速度
-- [ ] 自动选择最快网盘
-- [ ] 支持备用网盘切换
-
-#### 3.3 历史记录和统计 ⏳
-- [ ] 下载历史记录
-- [ ] 网盘使用统计
-- [ ] 任务成功率统计
-- [ ] 导出功能
-
-## 技术架构
-
-### 插件系统架构
-
-```
-┌─────────────────────────────────────────────┐
-│           Web Console (Frontend)              │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐    │
-│  │ 插件管理 │ │ 配置表单 │ │ 动态页面 │    │
-│  └──────────┘ └──────────┘ └──────────┘    │
-└─────────────────────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────────┐
-│           Plugin System Core                 │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐    │
-│  │ Registry │ │ Loader   │ │ Manager  │    │
-│  └──────────┘ └──────────┘ └──────────┘    │
-└─────────────────────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────────┐
-│           Plugin Types                       │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐│
-│  │ Source │ │ Cloud  │ │ Notify │ │Crawler ││
-│  │ Adapter│ │Provider│ │ Channel│ │        ││
-│  └────────┘ └────────┘ └────────┘ └────────┘│
-└─────────────────────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────────┐
-│           External Plugins                   │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐│
-│  │SeedHub │ │ Quark  │ │DingTalk│ │ Douban ││
-│  │        │ │        │ │        │ │        ││
-│  └────────┘ └────────┘ └────────┘ └────────┘│
-└─────────────────────────────────────────────┘
+```text
+Phase 0-9.5 已完成。
+Phase 10.0 质量基线收口已完成。
+Phase 10 外部真实搜索源进行中。
+Phase 11 AI Friendly API 未开始。
+Phase 12 Cloud Direct Download 非 MVP、非近期主线。
 ```
 
-### 关键技术决策
+Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连接、本地/远程媒体库、同步绑定、任务状态机、搜索管线和收藏模块。Core 内已无真实站点 Adapter；搜索源统一从用户信任的外部 Python 插件仓库加载。
 
-1. **采用渐进式实现**：先跑通核心流程，再逐步拓展
-2. **分层架构**：Manifest → Loaded → Model，关注点分离
-3. **统一注册机制**：所有插件类型使用相同的注册和发现机制
-4. **受控加载**：进程内 import，锁定 commit，错误隔离
-5. **配置驱动**：基于 schema 自动生成 UI，保持一致性
+---
 
-## 代码统计
+## 2. 已实现能力
 
-### 新增文件
+### 2.1 Core
 
-- `sundarr/app/plugins/__init__.py`
-- `sundarr/app/plugins/base.py`
-- `sundarr/app/plugins/registry.py`
-- `sundarr/app/plugins/loader.py`
-- `sundarr/app/plugins/manager.py`
-- `sundarr/app/models/plugin.py`
-- `sundarr/app/api/plugins.py`
-- `sundarr/app/schemas/plugin.py`
-- `migrations/versions/0008_create_plugin_tables.py`
-- `tests/test_plugin_system.py`
-- `examples/source-plugin-template/` (多个文件)
-- `docs/20-plugin-system.md`
-- `docs/20-plugin-manifest-spec.md`
-- `docs/21-plugin-api-spec.md`
-- `docs/22-plugin-development-guide.md`
-
-### 修改文件
-
-- `sundarr/app/models/__init__.py` - 添加插件模型导入
-- `sundarr/app/main.py` - 添加插件路由
-- `sundarr/app/sources/registry.py` - 支持外部插件源
-
-### 代码行数
-
-- 新增代码：约 2000 行
-- 修改代码：约 50 行
-- 文档：约 5000 行
-
-## 测试结果
-
-### 插件系统测试
-
-```
-==================================================
-插件系统测试
-==================================================
-
-测试插件类型...
-[OK] 插件类型测试通过
-
-测试插件清单...
-[OK] 插件清单测试通过
-
-测试已加载插件...
-[OK] 已加载插件测试通过
-
-测试插件注册中心...
-[OK] 插件注册中心测试通过
-
-测试多插件管理...
-[OK] 多插件管理测试通过
-
-==================================================
-[OK] 所有测试通过
-==================================================
+```text
+FastAPI API 与 OpenAPI 文档
+React + Vite Web Console
+PostgreSQL + SQLAlchemy + Alembic
+Redis 健康检查和辅助能力
+sundarr start / restart / stop / status
+API / Web / Worker 三进程管理
 ```
 
-### 示例插件测试
+### 2.2 远程媒体库同步
 
-```
-==================================================
-示例搜索源插件测试
-==================================================
-
-测试创建搜索源实例...
-[OK] 创建搜索源实例测试通过
-
-测试搜索函数...
-[OK] 搜索函数测试通过
-
-测试详情函数...
-[OK] 详情函数测试通过
-
-测试测试搜索函数...
-[OK] 测试搜索函数测试通过
-
-==================================================
-[OK] 所有测试通过
-==================================================
+```text
+多个 SMB 连接及连接测试、目录浏览
+SMB 连接池、重试和错误恢复基础
+本地媒体库和远程媒体库目录绑定
+SyncBinding、扫描、稳定性判断和任务创建
+.downloading、size 校验、rename、失败恢复
+成功后按配置删除源文件和空目录
 ```
 
-## 下一步计划
+真实 SMB 环境的完整端到端同步仍属于发布前手动集成验收项。
 
-### 短期（1-2 周）
+### 2.3 搜索和收藏
 
-1. **完善插件管理前端页面**
-   - 创建插件管理页面
-   - 实现插件仓库管理界面
-   - 实现插件配置管理界面
+```text
+SourceModel / RawSearchItem / Search Pipeline
+多源并行、失败隔离、标准化、去重、排序和链接检测
+搜索结果默认不持久化
+收藏资源和收藏资源链接
+实时搜索结果附加收藏标记
+Web Console 单一收藏入口
+```
 
-2. **实现 CloudProviderPlugin 接口**
-   - 定义云盘 Provider 接口
-   - 实现夸克网盘插件
-   - 实现阿里云盘插件
+### 2.4 Python 插件框架
 
-3. **集成测试**
-   - 测试插件加载流程
-   - 测试插件配置管理
-   - 测试插件搜索功能
+```text
+PluginRepository / PluginConfig / PluginLog
+PluginLoader / PluginManager / PluginRegistry
+Git clone / fetch / checkout 基础能力
+锁定 current_commit、更新和回滚 API
+SOURCE 插件入口返回 SourceModel 或 list[SourceModel]
+SeedHub 已从 Core 移出
+```
 
-### 中期（1-3 个月）
+---
 
-1. **实现通知渠道插件**
-   - 钉钉通知插件
-   - 飞书通知插件
-   - 企业微信通知插件
+## 3. 尚未闭环的能力
 
-2. **实现豆瓣监控功能**
-   - 创建 CrawlerPlugin 接口
-   - 实现豆瓣监控插件
-   - 自动搜索和下载
+```text
+应用启动不会自动加载已配置插件仓库。
+插件更新没有完整候选 Activation 和原子切换语义。
+Web Console 没有插件仓库新增、更新、回滚和诊断页面。
+当前环境未配置插件仓库，运行时搜索源为 0。
+外部 SeedHub 尚未完成 Core 侧端到端验收。
+Docker Compose 未在当前 Windows 环境实跑。
+```
 
-3. **完善文档和示例**
-   - 更多插件示例
-   - 详细的开发教程
-   - 常见问题解答
+---
 
-### 长期（3-6 个月）
+## 4. 2026-08-26 验证结果
 
-1. **实现高级功能**
-   - 智能调度
-   - 历史记录和统计
-   - 更多网盘支持
+```text
+前端 npm run build：通过。
+API / Web / Worker 进程级启动：通过。
+GET /health：API、PostgreSQL、Redis、Worker 全部 ok。
+GET /docs 和 Web /app/search：HTTP 200。
+停止后测试端口释放：通过。
+默认 pytest：196 passed。
+前端 npm run build：通过。
+Alembic heads/current：唯一 head 和当前版本均为 0008。
+连续两轮 CLI 冒烟：API / Web / Worker 启动、health、PID 对齐、停止清理均通过。
+Docker Compose：当前机器未安装 Docker，未执行运行验收。
+```
 
-2. **性能优化**
-   - 插件懒加载
-   - 并发加载优化
-   - 缓存机制
+---
 
-3. **生态建设**
-   - 插件市场
-   - 插件评分和评论
-   - 插件审核流程
+## 5. 已确认的新架构方向
 
-## 风险评估
+Sundarr 不使用 Cordis 重写后端。Python 插件系统借鉴 Cordis 的以下语义：
 
-### 已识别风险
+```text
+PluginContext：向插件暴露稳定、受控的能力。
+requires / provides：显式声明依赖和提供能力。
+PluginActivation：跟踪插件实例、状态、commit 和清理栈。
+可逆副作用：卸载时按 LIFO 顺序释放注册、连接和定时器。
+候选加载：新版本先加载和测试，不直接覆盖旧版本。
+原子切换：候选通过后再替换旧 Activation。
+失败回滚：候选失败时旧版本继续工作。
+```
 
-1. **插件加载失败影响系统**
-   - 缓解措施：错误隔离，单个插件失败不影响系统
-   - 状态：已实现 ✅
+该生命周期不替代 PostgreSQL 任务事实来源、Worker 状态机、Redis、Alembic 或 SMB 连接池。
 
-2. **网盘 API 变化**
-   - 缓解措施：插件化设计，易于更新
-   - 状态：待实现
+Phase 11 完成后，可以提供可选 Cordis / DeepSeek Harness 桥接插件；桥接插件只调用公开 Sundarr HTTP API。
 
-3. **豆瓣反爬**
-   - 缓解措施：合理的请求频率，支持代理
-   - 状态：待实现
+---
 
-4. **通知渠道 API 变化**
-   - 缓解措施：插件化设计，易于更新
-   - 状态：待实现
+## 6. 当前工作区说明
 
-## 总结
-
-### 已完成的工作
-
-- ✅ 搭建了完整的插件框架基础架构
-- ✅ 实现了统一的插件注册、发现和管理机制
-- ✅ 创建了插件数据库模型和迁移文件
-- ✅ 实现了插件管理 API
-- ✅ 改造了现有的 sources/registry.py 支持插件
-- ✅ 创建了参考插件模板和完整文档
-- ✅ 编写了测试用例并验证通过
-
-### 关键成果
-
-1. **可扩展框架**：为后续功能预留了扩展点
-2. **渐进式实现**：每个阶段都有可用的产品
-3. **插件化设计**：易于维护和更新
-4. **完整文档**：为开发者提供了详细的指南
-
-### 与 T3FAP 的对比
-
-| 功能 | T3FAP | Sundarr（当前） | Sundarr（完成阶段 2 后） |
-|------|-------|----------------|------------------------|
-| 多源搜索 | ✅ | ✅ | ✅ |
-| 网盘支持 | ✅ | ⏳ | ✅ |
-| 通知渠道 | ✅ | ⏳ | ✅ |
-| 豆瓣监控 | ❌ | ⏳ | ✅ |
-| Web Console | ❌ | ✅ | ✅ |
-| 插件系统 | ✅ | ✅ | ✅ |
-
-### 下一步行动
-
-1. **立即开始**：实现 CloudProviderPlugin 接口和夸克网盘插件
-2. **优先级**：网盘支持 > 通知渠道 > 豆瓣监控
-3. **时间规划**：预计 2-3 个月完成阶段 1
-
-## 附录
-
-### 文件清单
-
-**核心代码**:
-- `sundarr/app/plugins/__init__.py`
-- `sundarr/app/plugins/base.py`
-- `sundarr/app/plugins/registry.py`
-- `sundarr/app/plugins/loader.py`
-- `sundarr/app/plugins/manager.py`
-- `sundarr/app/models/plugin.py`
-- `sundarr/app/api/plugins.py`
-- `sundarr/app/schemas/plugin.py`
-
-**迁移文件**:
-- `migrations/versions/0008_create_plugin_tables.py`
-
-**测试文件**:
-- `tests/test_plugin_system.py`
-
-**示例文件**:
-- `examples/source-plugin-template/` (多个文件)
-
-**文档**:
-- `docs/20-plugin-system.md`
-- `docs/20-plugin-manifest-spec.md`
-- `docs/21-plugin-api-spec.md`
-- `docs/22-plugin-development-guide.md`
-
-### 测试覆盖
-
-- 插件注册中心测试 ✅
-- 插件类型测试 ✅
-- 插件清单测试 ✅
-- 已加载插件测试 ✅
-- 多插件管理测试 ✅
-- 示例插件测试 ✅
-
-### 性能指标
-
-- 插件加载时间：< 1 秒
-- 插件查询时间：< 10 毫秒
-- 内存占用：< 10 MB（10 个插件）
-
-### 代码质量
-
-- 代码覆盖率：待统计
-- 静态代码分析：待执行
-- 代码审查：已完成
+```text
+master 与 origin/master 同步。
+migrations/versions/0008_create_plugin_tables.py 有用户未提交的 down_revision 修复。
+在测试全绿前不得自动提交代码修复。
+```
