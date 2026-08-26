@@ -41,8 +41,9 @@
 ```text
 Phase 0-9.5 已完成。
 Phase 10.0 质量基线收口已完成。
-Phase 10.1 Python Plugin Activation Runtime 当前执行。
-Phase 10.2 外部 Source 和 Web Console 仓库管理完成 Phase 10。
+Phase 10.1 媒体发现中心当前优先，属于 MVP。
+Phase 10.2 Python Plugin Activation Runtime Completion 在发现中心最小闭环后恢复。
+Phase 10.3 外部 Source 和 Web Console 仓库管理完成 Phase 10。
 Phase 11 AI Friendly API 未开始。
 Phase 12 Cloud Direct Download 非 MVP、非近期主线。
 ```

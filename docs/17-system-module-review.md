@@ -163,8 +163,9 @@ README、历史汇总和部分规格曾存在状态漂移，已在本轮统一�
 
 ```text
 Phase 10.0：已完成质量基线收口。
-Phase 10.1：当前执行 Python Plugin Activation Runtime。
-Phase 10.2：外部 SeedHub 和 Web Console 仓库管理闭环。
+Phase 10.1：当前优先实现媒体发现中心。
+Phase 10.2：恢复并完成 Python Plugin Activation Runtime。
+Phase 10.3：外部 SeedHub 和 Web Console 仓库管理闭环。
 发布前：真实 SMB 同步手动验收。
 Phase 11：AI Friendly API 和可选 Cordis / DeepSeek Harness HTTP 桥接。
 ```

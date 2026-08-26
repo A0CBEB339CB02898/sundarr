@@ -11,10 +11,12 @@
 ```text
 Phase 0-9.5 已完成。
 Phase 10.0 质量基线收口已完成。
-Phase 10 外部真实搜索源进行中。
+Phase 10.1 媒体发现中心当前优先、尚未实现。
+Phase 10.2 插件生命周期剩余工作已在稳定节点暂停。
+Phase 10.3 外部真实搜索源随后执行。
 Phase 11 AI Friendly API 未开始。
 Phase 12 Cloud Direct Download 非 MVP、非近期主线。
-媒体发现中心已进入核心产品范围但尚未排期；当前尚未实现。
+媒体发现中心已进入当前 MVP 并成为当前优先任务；当前尚未实现。
 ```
 
 Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连接、本地/远程媒体库、同步绑定、任务状态机、搜索管线和收藏模块。Core 内已无真实站点 Adapter；搜索源统一从用户信任的外部 Python 插件仓库加载。

@@ -63,8 +63,9 @@ Phase 11 提供稳定 AI Tool API。之后可以开发独立 Cordis / DeepSeek H
 ```text
 Phase 0-9.5：已完成。
 Phase 10.0：已完成，质量基线已恢复。
-Phase 10.1：当前执行，Python Plugin Activation Runtime。
-Phase 10.2：外部 Source 和 Web Console 仓库管理闭环。
+Phase 10.1：当前优先，媒体发现中心。
+Phase 10.2：恢复并完成 Python Plugin Activation Runtime。
+Phase 10.3：外部 Source 和 Web Console 仓库管理闭环。
 Phase 11：AI Friendly API。
 Phase 12：Cloud Direct Download，非 MVP、非近期主线。
 ```

@@ -29,7 +29,7 @@ Sundarr 是为 Homelab 打造的媒体发现与远程媒体库同步工具。它
 ## Core Jobs
 
 - 聚合多个媒体源的搜索结果。
-- 提供带筛选、热门、分类、详情和海报展示的媒体发现中心；该能力已进入核心产品范围，实施阶段仍待确认。
+- 提供带筛选、热门、分类、详情、关注列表和海报展示的媒体发现中心；该能力已进入当前 MVP。
 - 管理已安装 Source Adapter 的启用、禁用、参数、测试和错误状态。
 - 管理多个 SMB 连接，并通过后端测试连接和目录访问。
 - 创建本地媒体库，例如 movie / series / unclassified。
@@ -41,7 +41,7 @@ Sundarr 是为 Homelab 打造的媒体发现与远程媒体库同步工具。它
 
 ## MVP Boundary
 
-MVP 必须跑通“远程媒体库同步到本地媒体库”的最小可用闭环。MVP 包含 FastAPI 后端、React + Vite Web Console、PostgreSQL、Redis、Source Adapter 框架、Resource Library、应用内 SmbWriter、Transfer Worker、任务控制和轻量状态页。
+MVP 必须跑通“媒体发现”和“远程媒体库同步到本地媒体库”两条核心闭环。MVP 包含媒体发现中心、FastAPI 后端、React + Vite Web Console、PostgreSQL、Redis、Source Adapter 框架、Resource Library、应用内 SmbWriter、Transfer Worker、任务控制和状态页。
 
 MVP 不做：
 
@@ -64,11 +64,11 @@ MVP 不做：
 - 修改 SMB 配置会中断使用旧配置的运行中任务，任务进入 failed，错误码为 `STORAGE_CONFIG_CHANGED`，`retryable=true`。
 - `Phase 8 “下载到本地”` 是历史阶段命名；当前规范统一为“远程媒体库同步到本地媒体库”。
 - `Phase 9 Module Refactoring` 和 `Phase 9.5 Resource Favorites Refactoring` 已完成。
-- `Phase 10.0 Quality Baseline Closure` 已完成；当前优先任务是 Python 插件生命周期和外部搜索源仓库闭环。
+- `Phase 10.0 Quality Baseline Closure` 已完成；当前优先任务是媒体发现中心。Python 插件生命周期在已通过测试的稳定节点暂停，后续恢复。
 - Sundarr Core 保持 Python + FastAPI；只借鉴 Cordis 的显式依赖、Activation、可逆清理和原子切换语义，不引入 Cordis 作为核心运行时。
 - `Phase 11 AI Friendly API` 完成后可提供可选 Cordis / DeepSeek Harness 桥接插件，桥接层只通过 HTTP API 调用 Sundarr。
 - `Phase 12 Cloud Direct Download` 不包含在 MVP 中，仅作为后续高级功能保留规格文档。
-- 媒体发现中心属于核心产品范围，但不等于本地媒体库 UI；当前尚未确认纳入 MVP 还是后续阶段。
+- 媒体发现中心属于当前 MVP，但不等于本地媒体库 UI。
 
 ## Product Tone
 

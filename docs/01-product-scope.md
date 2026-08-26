@@ -68,6 +68,7 @@ React + Vite 轻量 Web Console
 PostgreSQL 持久化
 Redis 缓存和实时进度辅助
 多源 Source Adapter 框架
+媒体发现中心，支持筛选、热门、分类、详情、关注列表和发现型海报墙
 Cloud Link Extractor
 收藏模块，统一管理资源收藏和资源链接收藏
 Mock/Local Cloud Provider
@@ -89,7 +90,7 @@ Cloud Provider / cloud staging 保留为可选扩展和测试抽象
 媒体源配置管理
 ```
 
-媒体发现中心已经纳入核心产品范围，但尚未确认进入当前 MVP 还是后续阶段；在阶段决策确认前，不把它标记为当前已实现或当前 MVP 验收项。
+媒体发现中心已经纳入当前 MVP 和当前优先任务，但仍处于设计阶段，不得标记为已实现。
 
 ---
 
@@ -101,6 +102,8 @@ MVP 包含轻量 Web Console。
 
 ```text
 搜索资源
+通过筛选、热门、分类、关注列表和海报展示发现媒体
+查看媒体详情
 展示候选结果
 收藏模块
 在收藏模块中查看资源收藏和资源链接收藏

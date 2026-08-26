@@ -1,6 +1,6 @@
 # Sundarr 当前实施路线
 
-本文档把 `docs/03-mvp-roadmap.md` 的阶段计划转换为当前可执行交付顺序。更新时间：2026-08-26。
+本文档把 `docs/03-mvp-roadmap.md` 的阶段计划转换为当前可执行交付顺序。更新时间：2026-08-27。
 
 ---
 
@@ -8,8 +8,8 @@
 
 ```text
 保持 Python + FastAPI Core，不切换到 Cordis / Node.js 后端。
-先恢复可信质量基线，再扩展插件功能。
-先完成 SOURCE 插件闭环，不提前实现 Cloud Provider、通知或爬虫插件。
+可信质量基线已经恢复。
+当前先完成媒体发现中心，再恢复 SOURCE 插件闭环。
 先自动化和本地替身验收，再执行真实 SMB / 真实站点手动验收。
 Phase 11 API 稳定后才开发可选 Cordis / DeepSeek Harness 桥接。
 Cloud Direct Download、Alist 和真实网盘 Provider 不属于 MVP 或近期主线。
@@ -44,48 +44,71 @@ PID 文件、端口和子进程均无残留。
 
 ---
 
-## 里程碑 B：Phase 10.1 Python Plugin Activation Runtime
+## 里程碑 B：Phase 10.1 媒体发现中心
 
-状态：当前执行；B1 和 B3 的生命周期内核已完成。
+状态：当前优先，处于逐项设计阶段。
 
 任务：
 
 ```text
-B1 已定义 PluginContext、PluginActivation、ActivationStatus。
-B2 manifest 增加可选 requires / provides，未知能力加载失败但不影响 API。
-B3 已实现通用 cleanup callback、同步/异步 LIFO、失败续跑和并发幂等释放；Source 注册动作待接入。
-B4 新 commit 先创建候选 Activation 并运行配置校验和健康测试。
-B5 候选成功后原子替换；失败时旧 Activation 保持 active。
-B6 disable / rollback / remove_repository 释放旧 Activation。
-B7 应用启动时读取数据库，只加载 enabled 仓库的 current_commit。
-B8 插件加载完成后同步 sources 目录表。
+B1 确认媒体身份模型和外部 ID 策略。
+B2 确认目录、热门、分类、详情和关注列表的数据提供方。
+B3 确认媒体发现数据的持久化和缓存边界。
+B4 确认发现页面信息架构、筛选项和详情入口。
+B5 确认 MediaSubject、ResourceOffer、Artifact 与任务的关联。
+B6 实现最小 API、Web Console 和测试闭环。
 ```
 
 验收门：
 
 ```text
-单插件加载失败不影响 API 和其他插件。
-依赖缺失插件处于 waiting/error，不执行 apply。
-更新失败时旧 Source 仍可搜索。
-禁用或删除后 Source 从运行时注册中心消失且 cleanup 只执行一次。
-重启后锁定 commit 自动恢复，不自动执行远程最新 commit。
+用户可以浏览热门和分类资源。
+用户可以按确认的条件筛选并查看媒体详情。
+用户可以从媒体条目查找候选资源。
+关注列表入口按确认的数据来源工作。
+页面不是本地媒体库 UI，不提供播放和观影进度。
 ```
 
 ---
 
-## 里程碑 C：Phase 10.2 外部搜索源端到端
+## 里程碑 C：Phase 10.2 Python Plugin Activation Runtime Completion
 
-状态：B 完成后执行。
+状态：生命周期内核已完成；剩余工作在 B 最小闭环后恢复。
 
 任务：
 
 ```text
-C1 配置 sundarr-sources 仓库和锁定 commit。
-C2 补齐 SeedHub 外部 Adapter fixture 和离线测试。
-C3 修复单仓库多 Source 的新增、更新、回滚和 API 响应。
-C4 Web Console 增加仓库列表、新增、检查更新、应用、回滚和诊断。
-C5 Web Console 保留已安装 Adapter 启用、禁用、配置、测试和错误查看。
-C6 执行一次显式实时 SeedHub 手动集成验收。
+C1 已定义 PluginContext、PluginActivation、ActivationStatus。
+C2 manifest 增加可选 requires / provides。
+C3 已实现通用 cleanup callback、LIFO、失败续跑和并发幂等释放。
+C4 接入 Source 注册动作、候选配置校验和健康测试。
+C5 实现原子替换、失败保留旧 Activation 和确定清理语义。
+C6 启动时加载 enabled 仓库的 locked current_commit。
+```
+
+验收门：
+
+```text
+单插件失败不影响 API 和其他插件。
+更新失败时旧 Source 仍可搜索。
+禁用或删除后 cleanup 只执行一次。
+重启后锁定 commit 自动恢复。
+```
+
+---
+
+## 里程碑 D：Phase 10.3 外部搜索源端到端
+
+状态：C 完成后执行。
+
+任务：
+
+```text
+D1 配置 sundarr-sources 仓库和锁定 commit。
+D2 补齐 SeedHub 外部 Adapter fixture 和离线测试。
+D3 修复单仓库多 Source 的新增、更新、回滚和 API 响应。
+D4 Web Console 增加仓库管理和诊断。
+D5 执行显式实时 SeedHub 手动集成验收。
 ```
 
 验收门：
@@ -100,33 +123,33 @@ C6 执行一次显式实时 SeedHub 手动集成验收。
 
 ---
 
-## 里程碑 D：真实 SMB 同步发布门
+## 里程碑 E：真实 SMB 同步发布门
 
-状态：C 前后均可准备，但必须在 MVP 发布前完成。
+状态：D 前后均可准备，但必须在 MVP 发布前完成。
 
 任务：
 
 ```text
-D1 使用专用测试目录完成 SMB source -> SMB target。
-D2 验证 .downloading、size、rename 和目录结构。
-D3 验证断线重试、错误码、目标冲突和重复扫描。
-D4 验证成功后删除源文件/空目录和失败时保留源文件。
-D5 记录手动验收结果，不把真实凭据写入仓库。
+E1 使用专用测试目录完成 SMB source -> SMB target。
+E2 验证 .downloading、size、rename 和目录结构。
+E3 验证断线重试、错误码、目标冲突和重复扫描。
+E4 验证成功后删除源文件/空目录和失败时保留源文件。
+E5 记录手动验收结果，不把真实凭据写入仓库。
 ```
 
 ---
 
-## 里程碑 E：Phase 11 AI Friendly API
+## 里程碑 F：Phase 11 AI Friendly API
 
-状态：A-D 稳定后执行。
+状态：A-E 稳定后执行。
 
 任务：
 
 ```text
-E1 固化 search_media / favorite / transfer / status 工具契约。
-E2 增加 user_action_required、候选解释和幂等规则。
-E3 发布 OpenAPI/tool schema 和调用示例。
-E4 开发可选 Cordis / DeepSeek Harness 桥接插件。
+F1 固化 search_media / favorite / transfer / status 工具契约。
+F2 增加 user_action_required、候选解释和幂等规则。
+F3 发布 OpenAPI/tool schema 和调用示例。
+F4 开发可选 Cordis / DeepSeek Harness 桥接插件。
 ```
 
 Cordis 桥接边界：
@@ -149,11 +172,3 @@ Alist 集成
 通知渠道插件
 完整本地媒体库 UI、本地媒体库海报墙、播放器和观影进度
 ```
-
-## 已进入产品范围、待确认实施阶段
-
-```text
-媒体发现中心：筛选、热门、分类、详情、关注列表和发现型海报墙
-```
-
-该模块不等于本地媒体库 UI；数据提供方、持久化边界和实施阶段将在后续设计决策中确认。

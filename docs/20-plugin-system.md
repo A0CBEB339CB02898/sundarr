@@ -33,7 +33,7 @@ PluginActivation / ActivationStatus：依赖等待、候选校验、激活、失
 SOURCE 入口返回 SourceModel 或 list[SourceModel]
 ```
 
-当前缺口：
+当前缺口（Phase 10.2 在媒体发现中心最小闭环后恢复）：
 
 ```text
 启动时未自动加载数据库中的 enabled 仓库。

@@ -25,7 +25,7 @@ MVP 的目标是先跑通端到端闭环：
 ```text
 先后端闭环，后前端完善。
 CloudProvider 保留为可选扩展，近期不做真实网盘直接下载。
-Phase 10.0 质量基线已收口；当前推进 Phase 10 Python 插件生命周期和外部搜索源仓库闭环。
+Phase 10.0 质量基线已收口；当前优先完成 Phase 10.1 媒体发现中心，随后恢复插件生命周期和外部搜索源仓库闭环。
 真实挂载目录下载到本地通过手动集成验收验证。
 先规则和用户确认，后模型辅助。
 先核心控制台，后媒体发现中心；不建设完整本地媒体库 UI。
@@ -56,10 +56,12 @@ Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需�
 Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一为 process_sync_task 同步路径，远程媒体库和同步绑定已就位。
 Phase 9.5 Resource Favorites Refactoring: 已完成；Resource / ResourceLink 已收缩为收藏模型，搜索默认不入库，Web Console 使用单一收藏入口。
 Phase 10.0 Quality Baseline Closure: 已完成；当前默认 pytest 204 项通过，前端构建、Alembic 链路和连续两轮 CLI 启停冒烟通过。
-Phase 10 Real Site Source Adapters: 进行中；已实现 Python 插件框架、Git clone/fetch/checkout、SOURCE 列表展开、SeedHub 外移和 Activation 生命周期内核，待完成 manifest 能力声明、Source 注册动作、候选健康检查、原子切换、启动自动加载、Web Console 仓库管理和真实源端到端验收。
+Phase 10.1 Media Discovery Center: 当前优先、尚未实现；先完成媒体身份、数据来源、持久化和信息架构设计，再实现筛选、热门、分类、详情、关注列表和发现型海报墙。
+Phase 10.2 Plugin Activation Runtime Completion: 已在稳定节点暂停；生命周期内核和 8 项测试已完成，待恢复 manifest 能力声明、Source 注册动作、候选健康检查、原子切换和启动自动加载。
+Phase 10.3 External Source End-to-End: Phase 10.2 后执行，完成仓库管理和真实源验收。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
 Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档，后续单独实现。
-媒体发现中心：已纳入核心产品范围，实施阶段尚待确认；范围包括筛选、热门、分类、详情、关注列表和发现型海报墙，不包括本地媒体库海报墙、播放或观影进度。
+媒体发现中心：已纳入当前 MVP 和当前优先任务；不包括本地媒体库海报墙、播放或观影进度。
 ```
 
 Phase 0-10.0 已完成。后续插件交付必须持续保持该质量基线。
@@ -1289,9 +1291,33 @@ alembic heads/current/upgrade head 通过。
 sundarr start -> health -> stop 连续执行两次通过，端口和 PID 文件无残留。
 ```
 
-### Phase 10.1: Python Plugin Activation Runtime
+### Phase 10.1: Media Discovery Center
 
-状态：当前执行。
+状态：当前优先，处于逐项设计阶段，尚未实现。
+
+范围：
+
+```text
+带筛选条件的媒体搜索
+热门资源和分类资源
+发现型海报墙
+媒体详情
+关注列表入口
+从媒体条目继续查找候选资源
+```
+
+边界：
+
+```text
+不做本地媒体库海报墙。
+不做播放器和观影进度。
+不做完整本地媒体管理。
+媒体身份、数据提供方、持久化和任务关联仍需逐项确认。
+```
+
+### Phase 10.2: Python Plugin Activation Runtime Completion
+
+状态：生命周期内核首个单元已完成；因媒体发现中心进入当前 MVP，剩余工作暂停，Phase 10.1 最小闭环后恢复。
 
 当前进度：生命周期内核首个单元已完成，已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放。候选健康检查、注册中心原子切换、manifest `requires/provides` 和启动自动激活仍待实现。
 
@@ -1306,9 +1332,9 @@ requires / provides：显式声明能力依赖和提供能力。
 启动时只加载数据库中已启用仓库的 current_commit。
 ```
 
-### Phase 10.2: External Source End-to-End
+### Phase 10.3: External Source End-to-End
 
-状态：Phase 10.1 后执行。
+状态：Phase 10.2 后执行。
 
 交付物：
 
