@@ -52,11 +52,12 @@ PID 文件、端口和子进程均无残留。
 
 ```text
 B1 已确认媒体身份使用内部 UUID，并绑定多个外部平台 ID。
-B2 已确认 TMDb 提供目录、搜索、热门、分类和详情；豆瓣想看作为可选独立接入。
+B2 已确认 TMDb 和豆瓣目录使用 CATALOG_PROVIDER，豆瓣想看使用独立 WATCHLIST_PROVIDER，调度由 Core 管理。
 B3 确认媒体发现数据的持久化和缓存边界。
 B4 确认发现页面信息架构、筛选项和详情入口。
 B5 确认 MediaSubject、ResourceOffer、Artifact 与任务的关联。
 B6 实现最小 API、Web Console 和测试闭环。
+B7 在 Phase 10.1 恢复目录和想看插件所需的最小加载、注册和健康检查能力。
 ```
 
 验收门：

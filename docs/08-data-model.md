@@ -66,10 +66,13 @@ MediaSubject.id 使用 Sundarr 内部 UUID。
 数据来源规则：
 
 ```text
-TMDb 是 MVP 主目录数据提供方。
-豆瓣想看是可选独立接入，用于产生用户关注条目。
+TMDb 是 MVP 主目录数据提供方，以 CATALOG_PROVIDER 插件接入。
+豆瓣目录是可选补充数据提供方，同样以 CATALOG_PROVIDER 插件接入。
+豆瓣想看以独立 WATCHLIST_PROVIDER 插件接入，用于产生用户关注条目。
+WATCHLIST_PROVIDER 的同步游标、重试和调度状态由 Core 持久化。
 所有外部响应先映射到 Sundarr 内部发现模型，再进入匹配、缓存或持久化流程。
 外部平台的私有响应结构不得成为 Core 数据模型或 API 契约。
+不同目录提供方的评分、来源 ID 和更新时间必须保留来源，不能静默覆盖。
 ```
 
 概念字段：
@@ -494,7 +497,7 @@ status 至少包含 discovered / stable / queued / downloading / completed / fai
 
 ## 14. plugin_repositories
 
-用途：存储外部可信 Git 插件仓库配置。当前实际用途是加载 SOURCE Adapter。
+用途：存储外部可信 Git 插件仓库配置。当前已实现用途是加载 SOURCE Adapter；Phase 10.1 扩展到 CATALOG_PROVIDER 和 WATCHLIST_PROVIDER。
 
 字段：
 
@@ -545,10 +548,10 @@ updated_at TIMESTAMP NOT NULL
 规则：
 
 ```text
-plugin_id 为插件唯一标识，来自搜索源 Adapter 注册。
-plugin_type 标识插件类型（当前使用 source）。
+plugin_id 为插件实例唯一标识，来自仓库清单。
+plugin_type 标识插件实例的主类型；当前已实现 source，Phase 10.1 新增 catalog_provider 和 watchlist_provider。
 config_data 存储 JSON 格式的插件配置。
-repository_id 关联来源仓库；当前真实 Source 全部来自外部仓库。
+repository_id 关联来源仓库；一个仓库可以声明多个不同类型的插件实例。
 ```
 
 `PluginActivation` 是进程内运行时对象，不新增为任务事实表。Repository/Config 保存声明和期望状态，Activation 诊断通过运行时 API 暴露，不能把内存状态误写成跨进程事实来源。

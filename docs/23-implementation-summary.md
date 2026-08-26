@@ -12,7 +12,7 @@
 Phase 0-9.5 已完成。
 Phase 10.0 质量基线收口已完成。
 Phase 10.1 媒体发现中心当前优先、尚未实现。
-Phase 10.2 插件生命周期剩余工作已在稳定节点暂停。
+Phase 10.1 将恢复目录和想看插件所需的最小加载、注册和健康检查；Phase 10.2 继续完成热更新、原子切换和失败回滚。
 Phase 10.3 外部真实搜索源随后执行。
 Phase 11 AI Friendly API 未开始。
 Phase 12 Cloud Direct Download 非 MVP、非近期主线。
@@ -25,7 +25,7 @@ Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连�
 
 媒体身份已确认使用 Sundarr 内部 UUID 的 `MediaSubject`，并允许同时绑定多个外部平台 ID；具体表结构尚未实现。
 
-媒体发现的数据来源已确认：TMDb 作为 MVP 主目录，豆瓣想看作为可选独立接入。二者的具体插件能力契约仍待确认，尚未进入实现。
+媒体发现的数据来源与插件分类已确认：TMDb 是主 `CATALOG_PROVIDER`，豆瓣目录是可选补充 `CATALOG_PROVIDER`，豆瓣想看是独立 `WATCHLIST_PROVIDER`。同一豆瓣仓库可以交付两个独立插件实例；具体方法签名尚未设计，代码尚未实现。
 
 ---
 
@@ -89,6 +89,7 @@ SeedHub 已从 Core 移出
 Web Console 没有插件仓库新增、更新、回滚和诊断页面。
 当前环境未配置插件仓库，运行时搜索源为 0。
 外部 SeedHub 尚未完成 Core 侧端到端验收。
+CATALOG_PROVIDER / WATCHLIST_PROVIDER 尚未加入代码枚举、加载器和注册中心。
 Docker Compose 未在当前 Windows 环境实跑。
 ```
 

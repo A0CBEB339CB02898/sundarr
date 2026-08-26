@@ -290,6 +290,8 @@ SourceModel：SearchService 调用的最小运行时执行协议。
 
 当前 `SourceModel` 继续作为 Adapter API v1 的执行接口。Core 当前没有内置真实站点源。
 
+命名边界：`SOURCE` 只搜索具体资源链接并产出 `RawSearchItem`。影片目录搜索属于 `CATALOG_PROVIDER`，外部想看列表属于 `WATCHLIST_PROVIDER`；后二者不得伪装成 `SourceModel` 接入资源搜索管线。
+
 ---
 
 ## 7. 错误隔离

@@ -640,7 +640,7 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 
 ### 9.6 GET /plugins/plugins
 
-列出所有已加载插件，支持 `?plugin_type=source` 和 `?include_disabled=true` 过滤。
+列出所有已加载插件，支持 `?plugin_type=source` 和 `?include_disabled=true` 过滤。Phase 10.1 增加 `catalog_provider` 与 `watchlist_provider` 过滤值；同一仓库交付的不同插件实例必须分别返回状态、配置和最后错误。
 
 ### 9.7 GET /plugins/plugins/{plugin_id}
 
@@ -672,9 +672,13 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
   "loaded": 1,
   "error": 0,
   "disabled": 0,
-  "source": 1
+  "source": 1,
+  "catalog_provider": 0,
+  "watchlist_provider": 0
 }
 ```
+
+当前实现只返回已有类型；新增统计字段随 Phase 10.1 类型实现落地，不得在实现前伪造已加载数量。
 
 ### 9.12 POST /plugins/load-all
 

@@ -52,6 +52,15 @@ Web Console 在线编辑 Source Adapter。
 
 ## 3. 模型分层
 
+仓库与插件实例不是一对一关系。一个外部仓库可以声明多个插件实例，例如同一个豆瓣仓库可以交付：
+
+```text
+douban-catalog    -> PluginType.CATALOG_PROVIDER
+douban-watchlist  -> PluginType.WATCHLIST_PROVIDER
+```
+
+两个实例必须具有独立配置、启用状态、健康检查和错误状态。每个实例保留一个主 `PluginType`，`provides` 用于声明该类型下的细粒度能力。当前文档后续以已实现的 `SOURCE` 仓库链路为主；Phase 10.1 复用通用仓库与 Activation 基础设施接入另外两种类型。
+
 外部仓库接入不直接扩展当前 `SourceModel` 承载所有信息。持久声明、加载结果、运行 Activation 和执行协议分层：
 
 ```text
@@ -393,9 +402,18 @@ disable / rollback / remove / shutdown 必须释放插件副作用。
 边界：
 
 ```text
-Activation 只管理 API 进程内 Source 插件资源。
+Activation 只管理 API 进程内插件资源。
 不替代 PostgreSQL、Redis、Alembic、Worker 状态机或 SMB 连接池。
 外部 Python 插件仍是用户信任代码，不是沙箱代码。
+```
+
+媒体发现扩展边界：
+
+```text
+SOURCE 产出具体资源链接候选。
+CATALOG_PROVIDER 产出规范化前的媒体目录候选。
+WATCHLIST_PROVIDER 读取外部列表项，由 Core 负责定时调度、游标、重试和持久状态。
+插件不得自行把长期同步循环作为 Activation 内定时器运行。
 ```
 
 ### 6.8 启动恢复
@@ -479,7 +497,9 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
   Phase 10.0 默认测试、迁移链、SMB 错误码和 Windows PID 质量收口
 
 待实现：
-  PluginContext / PluginActivation / cleanup / 原子切换
+  CATALOG_PROVIDER / WATCHLIST_PROVIDER 类型与最小执行契约
+  Phase 10.1 所需的最小插件加载、注册和健康检查
+  完整候选切换、cleanup 和原子切换闭环
   启动自动加载 enabled 仓库的 locked current_commit
   多 Source 仓库所有 API 路径兼容
   外部 SeedHub 仓库配置、fixture 和端到端验收

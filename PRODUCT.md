@@ -64,13 +64,14 @@ MVP 不做：
 - 修改 SMB 配置会中断使用旧配置的运行中任务，任务进入 failed，错误码为 `STORAGE_CONFIG_CHANGED`，`retryable=true`。
 - `Phase 8 “下载到本地”` 是历史阶段命名；当前规范统一为“远程媒体库同步到本地媒体库”。
 - `Phase 9 Module Refactoring` 和 `Phase 9.5 Resource Favorites Refactoring` 已完成。
-- `Phase 10.0 Quality Baseline Closure` 已完成；当前优先任务是媒体发现中心。Python 插件生命周期在已通过测试的稳定节点暂停，后续恢复。
+- `Phase 10.0 Quality Baseline Closure` 已完成；当前优先任务是媒体发现中心。Phase 10.1 恢复目录和想看插件所需的最小运行时，完整插件生命周期闭环后续完成。
 - Sundarr Core 保持 Python + FastAPI；只借鉴 Cordis 的显式依赖、Activation、可逆清理和原子切换语义，不引入 Cordis 作为核心运行时。
 - `Phase 11 AI Friendly API` 完成后可提供可选 Cordis / DeepSeek Harness 桥接插件，桥接层只通过 HTTP API 调用 Sundarr。
 - `Phase 12 Cloud Direct Download` 不包含在 MVP 中，仅作为后续高级功能保留规格文档。
 - 媒体发现中心属于当前 MVP，但不等于本地媒体库 UI。
 - 规范媒体实体使用 Sundarr 内部 UUID，并可绑定多个外部平台 ID；不使用单一目录平台 ID 作为主键。
-- 媒体发现中心以 TMDb 作为 MVP 主目录数据提供方；豆瓣想看是可选独立接入，不能成为发现中心可用性的单点依赖。
+- 媒体发现中心以 TMDb 作为 MVP 主目录数据提供方，豆瓣目录作为可选补充；两者均通过 `CATALOG_PROVIDER` 插件接入。
+- 豆瓣想看通过独立 `WATCHLIST_PROVIDER` 插件接入，由 Core 调度，不能成为发现中心可用性的单点依赖。
 
 ## Product Tone
 

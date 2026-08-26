@@ -327,6 +327,8 @@ Web Console 可管理：
 
 Git Source Repository 模式已进入 Phase 10：系统保存仓库配置和锁定 commit，但仍不得保存可执行 Python 代码。
 
+Phase 10.1 后，插件仓库不限于资源 `SOURCE`。同一豆瓣仓库可以声明 `douban-catalog` 和 `douban-watchlist` 两个独立插件实例；两者分别保存 `PluginConfig`、启用状态和错误状态。TMDb API 密钥以及未来可能使用的豆瓣 cookie 均属于敏感配置，不得写入仓库、普通日志或非脱敏 API 响应。
+
 仓库配置字段建议：
 
 ```text
@@ -351,6 +353,7 @@ fetch 远程更新不等于应用更新。
 更新失败时必须保留 previous_commit 以便回滚。
 Phase 10.1 后，候选更新失败时 current_commit 和旧 PluginActivation 都必须保持不变。
 启动只加载 enabled 仓库的 current_commit，不自动 fetch 或切换到远程最新版本。
+WATCHLIST_PROVIDER 只保存连接参数和读取配置；调度周期、同步游标和重试状态由 Core 管理。
 数据库、settings 和 Web Console 不保存可执行 Python 代码。
 ```
 

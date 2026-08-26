@@ -118,6 +118,9 @@ cleanup LIFO 顺序、幂等和失败隔离
 实时网站访问作为手动集成验收或显式集成测试，不纳入默认 pytest。
 媒体发现中心使用 MockCatalogProvider 覆盖搜索、筛选、热门、分类、详情和海报字段。
 默认 pytest 不调用 TMDb、豆瓣或其他实时目录服务。
+同一仓库中的 douban-catalog 与 douban-watchlist 必须分别测试启用、禁用、失败和配置错误。
+豆瓣补充失败时 TMDb 主目录仍可返回；想看同步失败时不得影响目录查询。
+WATCHLIST_PROVIDER 测试使用固定 fixture 和 Core 持久游标，不启动插件自有永久轮询。
 ```
 
 Git Source Repository 模式测试原则：

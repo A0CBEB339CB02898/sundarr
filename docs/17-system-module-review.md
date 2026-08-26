@@ -59,9 +59,9 @@ plugins/manager.py        仓库和插件生命周期入口
 api/plugins.py            插件管理 API
 ```
 
-已完成：基础模型、加载、注册、仓库 CRUD、更新、回滚、配置和 SOURCE 列表展开。
+已完成：基础模型、加载、注册、仓库 CRUD、更新、回滚、配置、SOURCE 列表展开，以及 PluginContext / PluginActivation 生命周期内核。
 
-待完成：PluginContext、PluginActivation、LIFO cleanup、候选验证、原子切换、启动自动恢复和 Web Console。
+待完成：`CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 类型和执行契约、manifest 能力声明、候选验证、原子切换、启动自动恢复和 Web Console。现有代码中的 `CRAWLER` 等旧枚举不代表已经确认的媒体发现契约。
 
 ### 2.4 SMB 和媒体库
 
@@ -149,10 +149,10 @@ RemoteMediaLibrary
 ```text
 真实站点外部 Source 尚未完成端到端验收。
 应用启动尚未自动激活 enabled 插件仓库。
-插件更新尚未具备候选加载、健康检查、原子切换和失败回滚闭环。
+插件更新尚未具备完整候选加载、健康检查、原子切换和失败回滚闭环。
 真实 SMB 发布门仍需在目标 NAS 环境重复验收。
 插件更新不是候选验证后的原子切换。
-插件副作用没有统一清理栈。
+生命周期内核已有统一清理栈，但尚未接入全部实际插件注册动作。
 Web Console 无法配置外部插件仓库。
 README、历史汇总和部分规格曾存在状态漂移，已在本轮统一。
 ```
@@ -163,7 +163,7 @@ README、历史汇总和部分规格曾存在状态漂移，已在本轮统一�
 
 ```text
 Phase 10.0：已完成质量基线收口。
-Phase 10.1：当前优先实现媒体发现中心。
+Phase 10.1：当前优先实现媒体发现中心，并恢复 CATALOG_PROVIDER / WATCHLIST_PROVIDER 所需的最小插件运行时。
 Phase 10.2：恢复并完成 Python Plugin Activation Runtime。
 Phase 10.3：外部 SeedHub 和 Web Console 仓库管理闭环。
 发布前：真实 SMB 同步手动验收。

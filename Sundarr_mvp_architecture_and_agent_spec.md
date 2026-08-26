@@ -72,7 +72,7 @@ Phase 12：Cloud Direct Download，非 MVP、非近期主线。
 
 媒体发现中心使用内部 UUID 的 `MediaSubject` 作为规范媒体身份，并可绑定多个外部平台 ID；不以任何单一目录平台 ID 作为主键。
 
-媒体发现中心 MVP 以 TMDb 作为主目录数据提供方；豆瓣想看作为可选独立接入，失败不得阻断目录浏览和搜索。
+媒体发现中心 MVP 以 TMDb 作为主 `CATALOG_PROVIDER`，豆瓣目录作为可选补充 `CATALOG_PROVIDER`；豆瓣想看使用独立 `WATCHLIST_PROVIDER` 并由 Core 调度。豆瓣能力失败不得阻断目录浏览和搜索。
 
 ## 不做事项
 
