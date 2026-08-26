@@ -48,6 +48,45 @@ Web Console 不允许创建、编辑、删除搜索源，也不在数据库中�
 
 ---
 
+## 2.1 media_subjects（已确认设计，尚未实现）
+
+用途：表示媒体发现中心中的规范媒体实体，例如一部电影或一部剧集。它描述“这是什么媒体”，不表示某个可下载链接，也不表示 NAS 中的实际文件。
+
+身份规则：
+
+```text
+MediaSubject.id 使用 Sundarr 内部 UUID。
+可以同时绑定 TMDb、豆瓣、IMDb 等多个外部平台 ID。
+任何单一外部平台 ID 都不是数据库主键。
+相同 provider + external_id 可以作为精确匹配依据。
+缺少外部 ID 时，只能根据标准化标题、年份和媒体类型生成候选匹配。
+低可信候选不得静默自动合并。
+```
+
+概念字段：
+
+```text
+id UUID
+media_type
+title
+original_title
+year
+external_ids
+created_at
+updated_at
+```
+
+尚待确认：
+
+```text
+external_ids 使用独立关联表还是 JSONB。
+目录元数据哪些字段持久化、哪些字段只缓存。
+MediaSubject 与现有 Resource / ResourceLink 的关系。
+剧集、季、集的层级模型。
+```
+
+---
+
 ## 3. resources
 
 用途：保存用户主动收藏过的标准化媒体资源，或作为用户收藏资源链接时的最小父级资源记录。

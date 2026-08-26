@@ -23,6 +23,8 @@ Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连�
 
 媒体发现中心的计划范围包括筛选、热门、分类、详情、关注列表和发现型海报墙。它不等于本地媒体库 UI，不包含播放、观影进度或完整本地媒体管理。
 
+媒体身份已确认使用 Sundarr 内部 UUID 的 `MediaSubject`，并允许同时绑定多个外部平台 ID；具体表结构尚未实现。
+
 ---
 
 ## 2. 已实现能力

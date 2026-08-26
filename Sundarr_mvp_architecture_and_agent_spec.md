@@ -70,6 +70,8 @@ Phase 11：AI Friendly API。
 Phase 12：Cloud Direct Download，非 MVP、非近期主线。
 ```
 
+媒体发现中心使用内部 UUID 的 `MediaSubject` 作为规范媒体身份，并可绑定多个外部平台 ID；不以任何单一目录平台 ID 作为主键。
+
 ## 不做事项
 
 ```text

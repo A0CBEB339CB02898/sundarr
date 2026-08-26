@@ -531,3 +531,36 @@ AI Friendly API 稳定后，可以新增可选 Cordis / DeepSeek Harness 桥接�
 桥接插件是 Sundarr 的外部客户端，只通过公开 HTTP API 注册 search_media、收藏和任务状态等工具。
 桥接插件不得直接加载 Sundarr Python 插件、访问数据库或操作 SMB。
 ```
+
+---
+
+## ADR-012: 规范媒体实体使用内部 UUID 和多外部 ID
+
+状态：已确认。
+
+决策：
+
+```text
+媒体发现中心使用 MediaSubject 表示规范媒体实体。
+MediaSubject.id 使用 Sundarr 内部 UUID。
+MediaSubject 可以同时绑定 TMDb、豆瓣、IMDb 等多个外部平台 ID。
+任何单一外部平台 ID 都不能作为 Sundarr 数据库主键。
+```
+
+理由：
+
+```text
+避免更换目录或元数据提供方时破坏收藏、任务和历史关联。
+允许不同发现入口逐步补齐同一个媒体实体的外部身份。
+为电影、剧集、动画和未来其他目录平台保留扩展空间。
+```
+
+匹配规则：
+
+```text
+相同 provider + external_id 可以作为精确匹配依据。
+没有外部 ID 时，只能使用标准化标题、年份和媒体类型生成候选匹配。
+低可信候选不得静默合并，必须保持独立或等待用户确认。
+```
+
+`MediaSubject` 与现有 `Resource` 的表关系、外部 ID 的具体存储结构和缓存策略仍待后续决策。

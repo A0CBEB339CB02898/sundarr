@@ -69,6 +69,7 @@ MVP 不做：
 - `Phase 11 AI Friendly API` 完成后可提供可选 Cordis / DeepSeek Harness 桥接插件，桥接层只通过 HTTP API 调用 Sundarr。
 - `Phase 12 Cloud Direct Download` 不包含在 MVP 中，仅作为后续高级功能保留规格文档。
 - 媒体发现中心属于当前 MVP，但不等于本地媒体库 UI。
+- 规范媒体实体使用 Sundarr 内部 UUID，并可绑定多个外部平台 ID；不使用单一目录平台 ID 作为主键。
 
 ## Product Tone
 

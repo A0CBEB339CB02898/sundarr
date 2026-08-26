@@ -1312,7 +1312,7 @@ sundarr start -> health -> stop 连续执行两次通过，端口和 PID 文件�
 不做本地媒体库海报墙。
 不做播放器和观影进度。
 不做完整本地媒体管理。
-媒体身份、数据提供方、持久化和任务关联仍需逐项确认。
+媒体身份已经确认使用内部 UUID + 多外部 ID；数据提供方、持久化和任务关联仍需逐项确认。
 ```
 
 ### Phase 10.2: Python Plugin Activation Runtime Completion
