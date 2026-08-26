@@ -1292,6 +1292,8 @@ sundarr start -> health -> stop 连续执行两次通过，端口和 PID 文件�
 
 状态：当前执行。
 
+当前进度：生命周期内核首个单元已完成，已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放。候选健康检查、注册中心原子切换、manifest `requires/provides` 和启动自动激活仍待实现。
+
 交付物：
 
 ```text

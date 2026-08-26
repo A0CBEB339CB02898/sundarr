@@ -26,6 +26,9 @@ PluginManifest / LoadedPlugin / PluginType
 PluginLoader：Git clone、fetch、checkout、清单解析和 Python entry 加载
 PluginManager：仓库新增、加载、更新、回滚、删除、配置和启停
 PluginRegistry：运行时注册、查询和注销
+PluginContext：只读配置、Core 能力读取、插件能力提供和 cleanup 登记
+PluginActivation / ActivationStatus：依赖等待、候选校验、激活、失败和释放状态
+同步/异步 cleanup 的 LIFO、失败续跑和并发幂等释放
 /plugins API
 SOURCE 入口返回 SourceModel 或 list[SourceModel]
 ```
@@ -34,7 +37,8 @@ SOURCE 入口返回 SourceModel 或 list[SourceModel]
 
 ```text
 启动时未自动加载数据库中的 enabled 仓库。
-没有 PluginActivation 和统一清理栈。
+PluginContext 尚未接入受控 HTTP client 和 source_registry 注册动作。
+manifest 尚未解析 requires / provides。
 更新过程会直接操作当前注册中心，不是候选验证后的原子切换。
 多 Source 仓库的部分 API 响应仍按单 LoadedPlugin 处理。
 Web Console 没有仓库管理页面。
@@ -49,14 +53,15 @@ Cordis 在本项目中是设计思想来源，不是运行时依赖。
 
 ### 3.1 PluginContext
 
-`PluginContext` 是插件访问 Core 能力的唯一入口。第一阶段至少提供：
+`PluginContext` 是插件访问 Core 能力的唯一入口。当前已实现 logger、只读 `plugin_config`、通用 `require/provide` 和 `register_cleanup`；下一单元接入受控 HTTP 与 Source 注册动作：
 
 ```text
-logger
-http_client 或受控 HTTP client factory
-plugin_config
-register_source(source) -> cleanup callback
-register_cleanup(callback)
+logger                                             已实现
+plugin_config                                      已实现
+require(name) / provide(name, value)              已实现
+register_cleanup(callback)                        已实现
+http_client 或受控 HTTP client factory             待接入
+register_source(source) -> cleanup callback       待接入
 ```
 
 禁止通过 Context 暴露：
@@ -105,7 +110,7 @@ active -> disposing -> disposed
 依赖缺失 -> waiting
 ```
 
-状态名称最终以代码和数据模型评审为准，但不得把 repository 的下载状态与 Activation 运行状态混为一谈。
+上述状态已在 `sundarr/app/plugins/runtime.py` 落地；不得把 repository 的下载状态与 Activation 运行状态混为一谈。
 
 ### 3.4 可逆清理
 

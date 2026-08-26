@@ -65,6 +65,8 @@ PluginLoader / PluginManager / PluginRegistry
 Git clone / fetch / checkout 基础能力
 锁定 current_commit、更新和回滚 API
 SOURCE 插件入口返回 SourceModel 或 list[SourceModel]
+PluginContext / PluginActivation 生命周期内核
+能力依赖、只读配置、状态流转和可逆 cleanup
 SeedHub 已从 Core 移出
 ```
 
@@ -91,10 +93,11 @@ API / Web / Worker 进程级启动：通过。
 GET /health：API、PostgreSQL、Redis、Worker 全部 ok。
 GET /docs 和 Web /app/search：HTTP 200。
 停止后测试端口释放：通过。
-默认 pytest：196 passed。
+默认 pytest：204 passed。
 前端 npm run build：通过。
 Alembic heads/current：唯一 head 和当前版本均为 0008。
 连续两轮 CLI 冒烟：API / Web / Worker 启动、health、PID 对齐、停止清理均通过。
+Plugin Activation 生命周期：8 项新增测试通过。
 Docker Compose：当前机器未安装 Docker，未执行运行验收。
 ```
 

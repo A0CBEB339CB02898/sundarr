@@ -46,14 +46,14 @@ PID 文件、端口和子进程均无残留。
 
 ## 里程碑 B：Phase 10.1 Python Plugin Activation Runtime
 
-状态：A 完成后执行。
+状态：当前执行；B1 和 B3 的生命周期内核已完成。
 
 任务：
 
 ```text
-B1 定义 PluginContext、PluginActivation、ActivationStatus。
+B1 已定义 PluginContext、PluginActivation、ActivationStatus。
 B2 manifest 增加可选 requires / provides，未知能力加载失败但不影响 API。
-B3 注册动作返回 cleanup callback，Activation 维护 LIFO 清理栈。
+B3 已实现通用 cleanup callback、同步/异步 LIFO、失败续跑和并发幂等释放；Source 注册动作待接入。
 B4 新 commit 先创建候选 Activation 并运行配置校验和健康测试。
 B5 候选成功后原子替换；失败时旧 Activation 保持 active。
 B6 disable / rollback / remove_repository 释放旧 Activation。

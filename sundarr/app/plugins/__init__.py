@@ -13,6 +13,13 @@ Sundarr 插件系统
 
 from .base import PluginType, PluginManifest, LoadedPlugin
 from .registry import PluginRegistry, plugin_registry
+from .runtime import (
+    ActivationStatus,
+    MissingCapabilityError,
+    PluginActivation,
+    PluginContext,
+    PluginContextClosedError,
+)
 
 __all__ = [
     "PluginType",
@@ -20,4 +27,9 @@ __all__ = [
     "LoadedPlugin",
     "PluginRegistry",
     "plugin_registry",
+    "ActivationStatus",
+    "MissingCapabilityError",
+    "PluginActivation",
+    "PluginContext",
+    "PluginContextClosedError",
 ]

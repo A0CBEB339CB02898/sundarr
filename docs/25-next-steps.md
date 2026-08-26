@@ -8,12 +8,12 @@
 
 ## 执行顺序
 
-1. 实现 `PluginContext` 的能力提供、能力依赖和清理回调注册。
-2. 实现 `PluginActivation` 的状态和幂等、逆序释放。
-3. 为生命周期异常、重复释放和资源清理增加单元测试。
-4. 接入候选加载与健康检查，但暂不扩展更多插件类型。
-5. 实现注册中心原子切换和失败回滚。
-6. 接入应用启动时自动激活 enabled 仓库的锁定 commit。
+1. 已实现 `PluginContext` 的能力提供、能力依赖和清理回调注册。
+2. 已实现 `PluginActivation` 的状态和并发幂等、逆序释放。
+3. 已为生命周期异常、重复释放和资源清理增加 8 项单元测试。
+4. 下一步为 manifest 增加 `requires/provides`，接入 Source 注册动作与候选健康检查。
+5. 随后实现注册中心原子切换和失败回滚。
+6. 最后接入应用启动时自动激活 enabled 仓库的锁定 commit。
 
 ## Phase 10.0 完成定义
 
@@ -28,17 +28,14 @@ PID 文件指向真实监听或执行服务进程。
 停止后端口、PID 文件和子进程全部释放。
 ```
 
-## 随后的首个插件交付单元
+## 当前插件交付边界
 
 只实现 SOURCE 插件需要的最小生命周期：
 
 ```text
-PluginContext
-PluginActivation
-ActivationStatus
-LIFO cleanup callbacks
-候选加载和原子切换
-启动加载 locked current_commit
+已完成：PluginContext、PluginActivation、ActivationStatus、LIFO cleanup callbacks。
+下一单元：manifest requires/provides、Source 注册动作、候选加载和健康检查。
+后续单元：原子切换、失败回滚、启动加载 locked current_commit。
 失败保留旧 Activation
 ```
 
