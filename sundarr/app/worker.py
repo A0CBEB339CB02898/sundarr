@@ -1,3 +1,4 @@
+import os
 import signal
 import time
 from dataclasses import dataclass
@@ -779,6 +780,9 @@ def main() -> None:
     from sundarr.app.logging_config import configure_file_logging_from_env
 
     configure_file_logging_from_env()
+    pid_file = os.environ.get("SUNDARR_SERVICE_PID_FILE")
+    if pid_file:
+        Path(pid_file).write_text(str(os.getpid()), encoding="utf-8")
     WorkerRuntime().run()
 
 

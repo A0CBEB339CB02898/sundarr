@@ -1,4 +1,6 @@
 import argparse
+import os
+from pathlib import Path
 
 import uvicorn
 
@@ -13,7 +15,14 @@ def main() -> None:
     args = parser.parse_args()
 
     configure_file_logging_from_env()
+    _write_service_pid()
     uvicorn.run("sundarr.app.main:app", host=args.host, port=args.port, reload=args.reload)
+
+
+def _write_service_pid() -> None:
+    pid_file = os.environ.get("SUNDARR_SERVICE_PID_FILE")
+    if pid_file:
+        Path(pid_file).write_text(str(os.getpid()), encoding="utf-8")
 
 
 if __name__ == "__main__":

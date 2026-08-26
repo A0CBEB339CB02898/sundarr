@@ -20,6 +20,7 @@ DEFAULT_API_PORT = 8080
 DEFAULT_WEB_HOST = "0.0.0.0"
 DEFAULT_WEB_PORT = 5173
 LOG_MAX_BYTES_ENV = "SUNDARR_LOG_MAX_BYTES"
+SERVICE_PID_FILE_ENV = "SUNDARR_SERVICE_PID_FILE"
 
 
 @dataclass(frozen=True)
@@ -135,8 +136,8 @@ def _start_background(api_host: str, api_port: int, web_host: str, web_port: int
     _prepare_process(WORKER_SERVICE, quiet=True)
 
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-    _start_service(API_SERVICE, _api_command(api_host, api_port, reload), cwd=None)
-    _start_service(WEB_SERVICE, _web_command(web_host, web_port), cwd=WEB_DIR)
+    _start_service(API_SERVICE, _api_command(api_host, api_port, reload), cwd=None, host=api_host, port=api_port)
+    _start_service(WEB_SERVICE, _web_command(web_host, web_port), cwd=WEB_DIR, host=web_host, port=web_port)
     _start_service(WORKER_SERVICE, _worker_command(), cwd=None)
     print("Sundarr 完整项目已后台启动。")
 
@@ -160,9 +161,16 @@ def _ensure_web_dependencies() -> None:
         raise RuntimeError("Web 前端依赖安装失败，请检查 npm 输出后重试。")
 
 
-def _start_service(service: ManagedService, command: list[str], cwd: Path | None) -> None:
+def _start_service(
+    service: ManagedService,
+    command: list[str],
+    cwd: Path | None,
+    host: str | None = None,
+    port: int | None = None,
+) -> None:
     env = os.environ.copy()
     env["PYTHONPATH"] = _prepend_pythonpath(PROJECT_ROOT, env.get("PYTHONPATH"))
+    service.pid_file.unlink(missing_ok=True)
     stdout = subprocess.DEVNULL
     stderr = subprocess.DEVNULL
     log_file_handle = None
@@ -170,6 +178,7 @@ def _start_service(service: ManagedService, command: list[str], cwd: Path | None
         env[LOG_TO_FILE_ENV] = "true"
         env[LOG_FILE_ENV] = str(service.log_file)
         env[LOG_MAX_BYTES_ENV] = str(_log_max_bytes())
+        env[SERVICE_PID_FILE_ENV] = str(service.pid_file)
     else:
         service.log_file.parent.mkdir(parents=True, exist_ok=True)
         log_file_handle = service.log_file.open("ab")
@@ -189,10 +198,49 @@ def _start_service(service: ManagedService, command: list[str], cwd: Path | None
     process = subprocess.Popen(command, **kwargs)
     if log_file_handle is not None:
         log_file_handle.close()
-    service.pid_file.write_text(str(process.pid), encoding="utf-8")
-    time.sleep(0.5)
-    print(f"{service.display_name} 已后台启动，PID={process.pid}。")
+    if port is not None and host is not None:
+        service_pid = _wait_for_port_service_pid(service, process, host, port)
+        service.pid_file.write_text(str(service_pid), encoding="utf-8")
+    else:
+        service_pid = _wait_for_service_pid_file(service, process)
+    print(f"{service.display_name} 已后台启动，PID={service_pid}。")
     print(f"日志文件：{service.log_file}")
+
+
+def _wait_for_port_service_pid(
+    service: ManagedService,
+    process: subprocess.Popen,
+    host: str,
+    port: int,
+    timeout_seconds: float = 10.0,
+) -> int:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError(f"{service.display_name} 启动失败，退出码={process.returncode}。")
+        listener_pid = _find_port_pid(host, port)
+        if listener_pid is not None and _sundarr_process_tree_root(listener_pid) == process.pid:
+            return listener_pid
+        time.sleep(0.1)
+    _kill_process(process.pid)
+    raise RuntimeError(f"{service.display_name} 启动超时，端口 {port} 未进入监听状态。")
+
+
+def _wait_for_service_pid_file(
+    service: ManagedService,
+    process: subprocess.Popen,
+    timeout_seconds: float = 10.0,
+) -> int:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError(f"{service.display_name} 启动失败，退出码={process.returncode}。")
+        service_pid = _read_pid(service)
+        if service_pid and _is_process_running(service_pid) and _sundarr_process_tree_root(service_pid) == process.pid:
+            return service_pid
+        time.sleep(0.1)
+    _kill_process(process.pid)
+    raise RuntimeError(f"{service.display_name} 启动超时，未写入真实服务 PID。")
 
 
 def _stop_background(quiet: bool = False) -> None:
@@ -210,7 +258,11 @@ def _stop_service(service: ManagedService, quiet: bool = False) -> bool:
     if not pid:
         return False
     if _is_process_running(pid):
-        if not _kill_process(pid):
+        cleanup_pid = _sundarr_process_tree_root(pid)
+        if cleanup_pid is None:
+            service.pid_file.unlink(missing_ok=True)
+            raise RuntimeError(f"{service.display_name} PID 文件指向非 Sundarr 进程 PID={pid}，已移除陈旧 PID 文件。")
+        if not _kill_process(cleanup_pid):
             raise RuntimeError(f"{service.display_name} 旧进程 PID={pid} 清理失败，请手动结束后重试。")
     service.pid_file.unlink(missing_ok=True)
     if not quiet:
@@ -221,7 +273,7 @@ def _stop_service(service: ManagedService, quiet: bool = False) -> bool:
 def _print_status() -> None:
     for service in MANAGED_SERVICES:
         pid = _read_pid(service)
-        if pid and _is_process_running(pid):
+        if pid and _is_process_running(pid) and _is_sundarr_process(pid):
             print(f"{service.display_name} 正在运行，PID={pid}。")
             print(f"日志文件：{service.log_file}")
         else:
@@ -445,7 +497,9 @@ def _api_command(host: str, port: int, reload: bool) -> list[str]:
 
 
 def _web_command(host: str, port: int) -> list[str]:
-    return [_npm_executable(), "run", "dev", "--", "--host", host, "--port", str(port)]
+    node = "node.exe" if os.name == "nt" else "node"
+    vite_entry = WEB_DIR / "node_modules" / "vite" / "bin" / "vite.js"
+    return [node, str(vite_entry), "--host", host, "--port", str(port)]
 
 
 def _worker_command() -> list[str]:

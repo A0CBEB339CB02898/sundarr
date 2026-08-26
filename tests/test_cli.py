@@ -71,13 +71,14 @@ def test_prepare_port_cleans_project_process(tmp_path: Path, monkeypatch: pytest
 
     monkeypatch.setattr(cli, "_is_process_running", lambda pid: pid == 123)
     monkeypatch.setattr(cli, "_is_sundarr_process", lambda pid: True)
+    monkeypatch.setattr(cli, "_sundarr_process_tree_root", lambda pid: 123)
     monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid) or True)
     monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: False)
 
     cli._prepare_port(service, "127.0.0.1", 8080, quiet=True)
 
     assert killed == [123]
-    assert service.pid_file.exists()
+    assert not service.pid_file.exists()
 
 
 def test_prepare_port_waits_after_pid_file_cleanup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -92,6 +93,7 @@ def test_prepare_port_waits_after_pid_file_cleanup(tmp_path: Path, monkeypatch: 
 
     monkeypatch.setattr(cli, "_is_process_running", lambda pid: pid == 123)
     monkeypatch.setattr(cli, "_is_sundarr_process", lambda pid: True)
+    monkeypatch.setattr(cli, "_sundarr_process_tree_root", lambda pid: 123)
     monkeypatch.setattr(cli, "_kill_process", lambda pid: killed.append(pid) or True)
     monkeypatch.setattr(cli, "_wait_port_released", lambda host, port, timeout_seconds=3.0: True)
     monkeypatch.setattr(cli, "_is_port_in_use", lambda host, port: (_ for _ in ()).throw(AssertionError("不应继续检查端口")))
@@ -111,6 +113,7 @@ def test_stop_service_keeps_pid_file_when_cleanup_fails(tmp_path: Path, monkeypa
     service.pid_file.write_text("123", encoding="utf-8")
 
     monkeypatch.setattr(cli, "_is_process_running", lambda pid: pid == 123)
+    monkeypatch.setattr(cli, "_sundarr_process_tree_root", lambda pid: 123)
     monkeypatch.setattr(cli, "_kill_process", lambda pid: False)
 
     with pytest.raises(RuntimeError, match="清理失败"):
@@ -119,7 +122,7 @@ def test_stop_service_keeps_pid_file_when_cleanup_fails(tmp_path: Path, monkeypa
     assert service.pid_file.exists()
 
 
-def test_stop_service_keeps_pid_file_when_cleanup_succeeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_stop_service_removes_pid_file_when_cleanup_succeeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     service = cli.ManagedService(
         name="api",
         display_name="Sundarr API",
@@ -129,10 +132,11 @@ def test_stop_service_keeps_pid_file_when_cleanup_succeeds(tmp_path: Path, monke
     service.pid_file.write_text("123", encoding="utf-8")
 
     monkeypatch.setattr(cli, "_is_process_running", lambda pid: pid == 123)
+    monkeypatch.setattr(cli, "_sundarr_process_tree_root", lambda pid: 123)
     monkeypatch.setattr(cli, "_kill_process", lambda pid: True)
 
     assert cli._stop_service(service, quiet=True) is True
-    assert service.pid_file.exists()
+    assert not service.pid_file.exists()
 
 
 def test_prepare_port_rejects_pid_file_reused_by_external_process(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

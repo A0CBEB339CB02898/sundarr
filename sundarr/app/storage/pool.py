@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
-from sundarr.app.storage.smb import SmbConfig, SmbWriter
+from sundarr.app.storage.smb import SmbConfig, SmbStorageError, SmbWriter
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +299,8 @@ class SmbConnectionPool:
             writer = SmbWriter(config)
             await writer.test_connection()
             return True
+        except SmbStorageError:
+            raise
         except Exception as e:
             logger.error(f"测试连接失败：{e}")
             return False
