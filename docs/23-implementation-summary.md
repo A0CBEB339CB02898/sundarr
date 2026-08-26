@@ -25,6 +25,8 @@ Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连�
 
 媒体身份已确认使用 Sundarr 内部 UUID 的 `MediaSubject`，并允许同时绑定多个外部平台 ID；具体表结构尚未实现。
 
+媒体发现的数据来源已确认：TMDb 作为 MVP 主目录，豆瓣想看作为可选独立接入。二者的具体插件能力契约仍待确认，尚未进入实现。
+
 ---
 
 ## 2. 已实现能力

@@ -116,6 +116,8 @@ cleanup LIFO 顺序、幂等和失败隔离
 每个真实网站 Adapter 必须有 fixture 测试。
 默认自动化测试不依赖实时外部网站。
 实时网站访问作为手动集成验收或显式集成测试，不纳入默认 pytest。
+媒体发现中心使用 MockCatalogProvider 覆盖搜索、筛选、热门、分类、详情和海报字段。
+默认 pytest 不调用 TMDb、豆瓣或其他实时目录服务。
 ```
 
 Git Source Repository 模式测试原则：
