@@ -6,7 +6,7 @@ product
 
 ## Product Purpose
 
-Sundarr 是为 Homelab 打造的远程媒体库同步工具。它帮助个人 NAS 用户把已保存到网盘、并通过 SMB 暴露出来的远程媒体库内容，同步到本地 NAS 媒体库目录。
+Sundarr 是为 Homelab 打造的媒体发现与远程媒体库同步工具。它帮助个人 NAS 用户发现媒体资源，并把已保存到网盘、通过 SMB 暴露出来的远程媒体库内容同步到本地 NAS 媒体库目录。
 
 核心闭环：
 
@@ -29,6 +29,7 @@ Sundarr 是为 Homelab 打造的远程媒体库同步工具。它帮助个人 NA
 ## Core Jobs
 
 - 聚合多个媒体源的搜索结果。
+- 提供带筛选、热门、分类、详情和海报展示的媒体发现中心；该能力已进入核心产品范围，实施阶段仍待确认。
 - 管理已安装 Source Adapter 的启用、禁用、参数、测试和错误状态。
 - 管理多个 SMB 连接，并通过后端测试连接和目录访问。
 - 创建本地媒体库，例如 movie / series / unclassified。
@@ -48,7 +49,7 @@ MVP 不做：
 - 盗版资源分发或资源托管。
 - 绕过网盘限制、破解会员、绕过验证码或风控。
 - 登录注册、多用户权限、角色管理、OAuth。
-- 完整媒体库 UI、海报墙、播放器、媒体刮削、NFO 生成。
+- 完整本地媒体库 UI、本地媒体库海报墙、播放器、观影进度、媒体刮削和 NFO 生成。
 - 完整 NAS 文件管理器或任意文件删除。
 - Web Console 在线编辑代码型 Source Adapter。
 - 真实媒体源通用爬虫框架。
@@ -67,6 +68,7 @@ MVP 不做：
 - Sundarr Core 保持 Python + FastAPI；只借鉴 Cordis 的显式依赖、Activation、可逆清理和原子切换语义，不引入 Cordis 作为核心运行时。
 - `Phase 11 AI Friendly API` 完成后可提供可选 Cordis / DeepSeek Harness 桥接插件，桥接层只通过 HTTP API 调用 Sundarr。
 - `Phase 12 Cloud Direct Download` 不包含在 MVP 中，仅作为后续高级功能保留规格文档。
+- 媒体发现中心属于核心产品范围，但不等于本地媒体库 UI；当前尚未确认纳入 MVP 还是后续阶段。
 
 ## Product Tone
 
@@ -86,7 +88,7 @@ MVP 不做：
 
 - 冷蓝灰企业后台。
 - 大面积玻璃拟态、炫光渐变、AI slop 卡片网格。
-- 花哨媒体海报墙或播放器导向界面。
+- 本地媒体库克隆、播放器导向界面，或缺乏信息层级的花哨海报墙。
 - 过度营销化的 hero-metric 页面。
 - 假装全自动、绕过网盘限制或淡化合规边界的文案。
 

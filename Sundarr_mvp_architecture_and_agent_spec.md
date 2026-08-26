@@ -75,7 +75,7 @@ Phase 12：Cloud Direct Download，非 MVP、非近期主线。
 登录注册和多用户权限
 BT / 磁力 / 种子下载
 绕过网盘限制、验证码、会员或风控
-完整媒体库 UI、海报墙和播放器
+完整本地媒体库 UI、本地媒体库海报墙、播放器和观影进度
 在线编辑或保存可执行 Python 插件代码
 Alist、真实网盘 Provider 和 Cloud Direct Download 近期实现
 Cordis / Node.js 后端重写

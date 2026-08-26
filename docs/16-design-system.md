@@ -519,6 +519,8 @@ Display keyboard hints on hover for major actions. Keycap (`kbd.kbd`):
 
 ### 7.2 `/app/search` — 搜索
 
+> 当前蓝图对应已实现的关键词聚合搜索基线。媒体发现中心已进入核心产品范围，未来将增加筛选、热门、分类、详情、关注列表和发现型海报墙；其具体信息架构和实施阶段尚待确认。
+
 - Single search input at top, full-width, 48px tall, with a keycap `/` hint inside.
 - Result-type filter below or beside input: all / magnet / quark / aliyun / baidu / xunlei.
 - Results as a vertical list of `ResourceCard` — each card shows title, source, metadata row, link validity, and per-link actions: open, save to cloud, copy.

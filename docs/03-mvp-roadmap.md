@@ -28,7 +28,7 @@ CloudProvider 保留为可选扩展，近期不做真实网盘直接下载。
 Phase 10.0 质量基线已收口；当前推进 Phase 10 Python 插件生命周期和外部搜索源仓库闭环。
 真实挂载目录下载到本地通过手动集成验收验证。
 先规则和用户确认，后模型辅助。
-先核心控制台，后完整媒体库 UI。
+先核心控制台，后媒体发现中心；不建设完整本地媒体库 UI。
 每个阶段必须可测试。
 每个阶段都必须有明确停止条件。
 ```
@@ -39,7 +39,7 @@ Phase 10.0 质量基线已收口；当前推进 Phase 10 Python 插件生命周�
 
 ## 当前实现状态
 
-截至 2026-08-26，本项目阶段状态如下：
+截至 2026-08-27，本项目阶段状态如下：
 
 ```text
 Phase 0 Project Skeleton: 已完成。
@@ -55,10 +55,11 @@ Phase 7.8 Web Console UI Polish: 已完成。
 Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需手动集成验收。
 Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一为 process_sync_task 同步路径，远程媒体库和同步绑定已就位。
 Phase 9.5 Resource Favorites Refactoring: 已完成；Resource / ResourceLink 已收缩为收藏模型，搜索默认不入库，Web Console 使用单一收藏入口。
-Phase 10.0 Quality Baseline Closure: 已完成；默认 pytest 196 项通过，前端构建、Alembic 链路和连续两轮 CLI 启停冒烟通过。
-Phase 10 Real Site Source Adapters: 进行中；已实现 Python 插件框架、Git clone/fetch/checkout、SOURCE 列表展开和 SeedHub 外移，待完成 Cordis 启发的 Activation 生命周期、启动自动加载、Web Console 仓库管理和真实源端到端验收。
+Phase 10.0 Quality Baseline Closure: 已完成；当前默认 pytest 204 项通过，前端构建、Alembic 链路和连续两轮 CLI 启停冒烟通过。
+Phase 10 Real Site Source Adapters: 进行中；已实现 Python 插件框架、Git clone/fetch/checkout、SOURCE 列表展开、SeedHub 外移和 Activation 生命周期内核，待完成 manifest 能力声明、Source 注册动作、候选健康检查、原子切换、启动自动加载、Web Console 仓库管理和真实源端到端验收。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
 Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档，后续单独实现。
+媒体发现中心：已纳入核心产品范围，实施阶段尚待确认；范围包括筛选、热门、分类、详情、关注列表和发现型海报墙，不包括本地媒体库海报墙、播放或观影进度。
 ```
 
 Phase 0-10.0 已完成。后续插件交付必须持续保持该质量基线。
@@ -734,7 +735,7 @@ Web Console 可启动并完成 npm run build。
 搜索页、任务页、Storage 设置页、Sources 设置页具备最小可用交互。
 SMB password 不回显明文。
 STORAGE_CONFIG_CHANGED 有明确前端提示。
-前端不包含登录、多用户、完整媒体库 UI。
+前端不包含登录、多用户、完整本地媒体库 UI。
 前端构建通过；涉及后端 API 时 pytest 也必须通过。
 工作区已提交或明确说明不提交原因。
 ```
@@ -913,7 +914,7 @@ Phase 7.5 当前验收范围覆盖搜索页面、代码型源注册表和搜索�
 npm run build 通过。
 pytest 通过。
 不接入真实供应商开发。
-不做完整媒体库 UI。
+不做完整本地媒体库 UI。
 ```
 
 ### Phase 7.6: Sources Page
@@ -969,7 +970,7 @@ README / 本地开发文档同步
 
 ```text
 Search / Transfers / Storage / Sources / Status 页面均具备最小可用交互。
-前端不包含登录、多用户、完整媒体库 UI。
+前端不包含登录、多用户、完整本地媒体库 UI。
 用户不需要接触 SMB password 明文。
 ```
 
@@ -1019,7 +1020,7 @@ GET /transfers 任务列表 API
 ```text
 npm run build 通过。
 涉及 API 时 pytest 通过。
-不引入登录、多用户或完整媒体库 UI。
+不引入登录、多用户或完整本地媒体库 UI。
 不实现真实媒体源爬虫。
 不启动 Phase 8 下载到本地实现。
 ```
@@ -1116,7 +1117,7 @@ pytest 通过。
 涉及前端时 npm run build 通过。
 不实现 Sundarr 内挂载网盘。
 不实现国内封闭网盘直接下载。
-媒体库管理作为 Phase 8 的目录绑定管理能力，不实现完整媒体库 UI。
+媒体库管理作为 Phase 8 的目录绑定管理能力，不实现完整本地媒体库 UI。
 ```
 
 验收标准：
@@ -1147,7 +1148,7 @@ pytest 通过。
 不实现 Sundarr 内保存分享链接到网盘。
 保存分享链接到网盘的后续模块命名为“保存到网盘”。
 不实现国内封闭网盘直接下载。
-媒体库管理作为 Phase 8 的目录绑定管理能力，不实现完整媒体库 UI。
+媒体库管理作为 Phase 8 的目录绑定管理能力，不实现完整本地媒体库 UI。
 工作区已提交或明确说明不提交原因。
 ```
 
@@ -1190,7 +1191,7 @@ npm run build 通过。
 所有旧模块代码已删除。
 新模块 API 和 Worker 入口完成最小冒烟测试。
 不实现真实网盘 Provider。
-不实现完整媒体库 UI。
+不实现完整本地媒体库 UI。
 ```
 
 ---

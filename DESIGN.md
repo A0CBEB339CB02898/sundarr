@@ -157,7 +157,7 @@ Wordmark 写作 `Sundar·r`。中点用 terracotta，表达 Sunday 日轮和 Ser
 - 大数字 hero metric 模板。
 - 统一尺寸图标卡片网格。
 - 把 terracotta 用作大面积背景。
-- 在 Web Console 中引入完整媒体库 UI、海报墙或播放器视觉。
+- 在 Web Console 中引入完整本地媒体库 UI、本地媒体库海报墙或播放器视觉；媒体发现中心的海报展示不在此限制内。
 
 ## Source Documents
 

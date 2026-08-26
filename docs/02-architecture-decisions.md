@@ -152,7 +152,7 @@ MVP 包含轻量 React + Vite Web Console。
 用户希望后续有完整前端。
 React + Vite 更适合后续扩展和维护。
 相比 Jinja2 / HTMX，React + Vite 更适合配置表单、任务状态、目录浏览等复杂交互。
-MVP 只做核心控制台，不做完整媒体库 UI。
+MVP 只做核心控制台，不做完整本地媒体库 UI。媒体发现中心已经进入核心产品范围，但实施阶段和元数据方案尚待确认。
 ```
 
 不选 Jinja2 / HTMX 的原因：

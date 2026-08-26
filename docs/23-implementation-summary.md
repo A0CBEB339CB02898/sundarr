@@ -14,9 +14,12 @@ Phase 10.0 质量基线收口已完成。
 Phase 10 外部真实搜索源进行中。
 Phase 11 AI Friendly API 未开始。
 Phase 12 Cloud Direct Download 非 MVP、非近期主线。
+媒体发现中心已进入核心产品范围但尚未排期；当前尚未实现。
 ```
 
 Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连接、本地/远程媒体库、同步绑定、任务状态机、搜索管线和收藏模块。Core 内已无真实站点 Adapter；搜索源统一从用户信任的外部 Python 插件仓库加载。
+
+媒体发现中心的计划范围包括筛选、热门、分类、详情、关注列表和发现型海报墙。它不等于本地媒体库 UI，不包含播放、观影进度或完整本地媒体管理。
 
 ---
 
