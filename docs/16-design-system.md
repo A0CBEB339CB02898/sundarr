@@ -521,6 +521,7 @@ Display keyboard hints on hover for major actions. Keycap (`kbd.kbd`):
 
 - 顶部使用全宽目录搜索框和一行快捷筛选，搜索状态同步到 URL query。
 - 筛选栏仅包含媒体类型、题材、地区、年份范围和排序；高级筛选不使用隐藏抽屉提前进入 MVP。
+- 题材和地区采用单选控件，不使用多选 tag input；清除操作恢复“全部”。
 - 默认内容流依次展示热门电影、热门剧集、分类推荐和关注更新；各分区拥有独立标题、更多入口和 loading / empty / error 状态。
 - 有效关键词或筛选存在时，分区内容流切换为统一响应式海报网格；卡片与详情页复用同一 `MediaSubject` 展示组件。
 - 单个分区或 Provider 失败不得替换整个页面为全屏错误。

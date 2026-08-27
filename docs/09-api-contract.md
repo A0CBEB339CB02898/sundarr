@@ -703,13 +703,15 @@ Web Console 必须把目录关键词和筛选条件编码进 `/app/discover` 的
 
 ```text
 media_type: all / movie / series
-genre: 规范题材值；单选/多选编码待确认
-region: 规范地区值；单选/多选编码待确认
+genre: 可重复的规范题材参数；MVP 最多一个值
+region: 可重复的规范地区参数；MVP 最多一个值
 year_from / year_to: 可单独或成对使用；单年搜索可使用相同值
 sort: popularity / rating / release_date
 ```
 
 语言、评分区间、演员、导演、Provider 来源和复杂布尔组合不进入 MVP API。
+
+Core 请求模型内部以 `genres: list[str]` 和 `regions: list[str]` 表示题材与地区。MVP 接收到两个及以上同名参数时返回 `422`，不得只取第一个；未来放开多选时不改变内部参数形状。
 
 ---
 
