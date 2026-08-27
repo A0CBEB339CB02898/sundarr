@@ -1,6 +1,6 @@
-# Source 插件开发指南
+# 外部插件开发指南
 
-本文档面向 Sundarr 外部 Python 搜索源仓库开发者。更新时间：2026-08-27。
+本文档面向 Sundarr 外部 Python 插件仓库开发者；当前可运行示例仍以 SOURCE 为主。更新时间：2026-08-27。
 
 当前可运行 SDK 只承诺 flat v1 SOURCE 插件。通用 Manifest v2 已可解析和校验，但 v2 Activation、CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 执行协议尚未接入；TRANSFER_DRIVER 和 NOTIFICATION 是后续扩展。
 

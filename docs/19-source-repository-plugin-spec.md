@@ -1,25 +1,25 @@
-# 外部搜索源仓库接入规范
+# 官方外部插件仓库接入规范
 
-本文档定义 Sundarr 正在实施的外部 Git 搜索源仓库架构、生命周期和验收标准。
+本文档定义 Sundarr 官方真实插件所在的外部 Git 仓库架构、生命周期和验收标准。文件名保留历史命名，正文规范已扩展到通用插件仓库。
 
 ---
 
 ## 1. 目标
 
-Sundarr Core 与真实搜索源代码分离：
+Sundarr Core 与真实平台插件代码分离：
 
 ```text
-Sundarr Core 只保留 Source Adapter SDK、加载框架、搜索管线和 Web Console。
-真实搜索源代码集中放在独立 Git 仓库中。
-Sundarr 只保存搜索源仓库地址、分支和锁定 commit。
-系统从本地缓存中的已锁定 commit 加载搜索源，不默认执行远程最新代码。
+Sundarr Core 保留稳定插件合同、SDK 类型、加载和 Activation Runtime、业务编排、测试 Mock 与 Web Console。
+项目官方维护的真实 SOURCE、CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 实现集中放在一个独立 Git 仓库中。
+Sundarr 只保存插件仓库地址、分支和锁定 commit。
+系统从本地缓存中的已锁定 commit 加载插件，不默认执行远程最新代码。
 Web Console 负责配置仓库、检查更新、应用更新、回滚、测试和诊断。
 ```
 
 该模式命名为：
 
 ```text
-Git Source Repository 模式
+Git Plugin Repository 模式
 ```
 
 ---
@@ -29,11 +29,11 @@ Git Source Repository 模式
 允许：
 
 ```text
-用户配置一个或多个可信 Git 搜索源仓库。
-系统 clone / fetch 搜索源仓库到本地缓存目录。
+用户配置一个或多个可信 Git 插件仓库。
+系统 clone / fetch 插件仓库到本地缓存目录。
 系统读取通用 `sundarr_plugin.toml`；迁移期兼容当前 flat v1 SOURCE 清单。
 系统动态加载清单中一个或多个插件声明的入口。
-系统把加载成功的 SourceModel 注入运行时 Source Registry。
+系统按 PluginType 把加载成功的实例注入类型专用 Registry。
 Web Console 展示加载成功、加载失败、来源仓库、来源 commit 和测试日志。
 ```
 
@@ -45,7 +45,8 @@ Web Console 在线编辑 Source Adapter。
 数据库保存可执行 Python 代码。
 配置文件保存可执行 Python 代码。
 启动时无条件 pull 远程默认分支并执行最新代码。
-搜索源 Adapter 直接访问 Sundarr 内部数据库、服务对象或任务状态机。
+真实平台插件代码进入 Sundarr Core 仓库。
+插件直接访问 Sundarr 内部数据库、服务对象或任务状态机。
 ```
 
 ---
@@ -59,7 +60,7 @@ douban-catalog    -> PluginType.CATALOG_PROVIDER
 douban-watchlist  -> PluginType.WATCHLIST_PROVIDER
 ```
 
-两个实例必须具有独立配置、启用状态、健康检查和错误状态。每个实例保留一个主 `PluginType`，`provides` 用于声明该类型下的细粒度能力。当前文档后续以已实现的 `SOURCE` 仓库链路为主；Phase 10.1 复用通用仓库与 Activation 基础设施接入另外两种类型。
+两个实例必须具有独立配置、启用状态、健康检查和错误状态。每个实例保留一个主 `PluginType`，`provides` 用于声明该类型下的细粒度能力。Phase 10.1 先完成通用仓库、类型专用 Registry 与 Activation 基础设施；Phase 10.2 使用 Core 测试 Mock 验证目录和想看协议；Phase 10.3 才在官方外部仓库接入真实平台。
 
 外部仓库接入不直接扩展当前 `SourceModel` 承载所有信息。持久声明、加载结果、运行 Activation 和执行协议分层：
 
@@ -143,7 +144,7 @@ ResourceLink 表示“这个资源的一个具体链接/版本”，用于用户
 收藏库只用于收藏列表、收藏详情、刷新收藏项，以及给实时搜索结果打已收藏标记。
 ```
 
-该边界用于保证外部搜索源仓库接入后：
+该边界用于保证外部 SOURCE 插件接入后：
 
 ```text
 Adapter SDK 不依赖数据库表结构。
@@ -154,31 +155,55 @@ SearchService 可以在内置源和外部源之间保持统一管线。
 
 ---
 
-## 4. 外部仓库结构
+## 4. 官方外部仓库结构
 
-推荐独立仓库名：
+当前迁移起点：
 
 ```text
-sundarr-sources
+仓库：https://github.com/A0CBEB339CB02898/sundarr-sources.git
+默认分支：master
+当前状态：SOURCE-only / flat v1 历史结构
 ```
 
-当前确认的远程仓库地址：
+`sundarr-sources` 是已存在仓库的历史名称，不代表最终通用仓库名已经确认。是否改名或迁移远程地址必须由用户另行确认；在此之前不得擅自创建、重命名或推送新的外部仓库。
+
+通用 v2 目标结构示意：
 
 ```text
-https://github.com/A0CBEB339CB02898/sundarr-sources.git
-```
-
-通用 v2 目标结构：
-
-```text
-sundarr-sources/
+<official-plugin-repository>/
   sundarr_plugin.toml
+  plugins/
+    tmdb_catalog/
+    seedhub_source/
+    douban_catalog/
+    douban_watchlist/
+  tests/
+    contract/
+    fixtures/
+  docs/
   sources/
-    example/
-      adapter.py
+    ...                  # 迁移期兼容历史 flat v1 SOURCE 结构
+```
+
+边界必须保持：
+
+```text
+Sundarr Core 仓库：协议、SDK、Loader、Activation、Registry、配置/诊断 API、业务编排、Mock 和契约测试。
+官方插件仓库：TMDb、豆瓣、SeedHub 等真实平台实现、平台映射、离线 fixture 和插件级测试。
+第三方仓库：使用相同 Manifest v2 和合同接入；Core 不假设系统只有一个仓库。
+```
+
+官方插件统一放在一个仓库，便于版本锁定和发布；但每个插件声明仍独立配置、启停、测试和报错。仓库更新默认以 commit 为原子一致性边界，不能把“统一仓库”误解为所有插件共用配置或生命周期。
+
+SOURCE 插件的最小示例仍可采用以下结构：
+
+```text
+<official-plugin-repository>/
+  plugins/
+    example_source/
+      plugin.py
       tests/
         fixtures/
-  docs/
 ```
 
 清单示例：
@@ -194,7 +219,7 @@ plugin_type = "source"
 description = "用于验证加载流程的示例源。"
 homepage_url = "https://example.invalid"
 plugin_api_version = "1.0"
-entry = "sources.example.adapter:activate"
+entry = "plugins.example_source.plugin:activate"
 
 [plugins.runtime]
 requires = ["core.http.v1", "core.source_registry.v1"]
@@ -329,7 +354,7 @@ unregister / clear
 
 ### 6.5.1 搜索源代码整理前置要求
 
-在实现 Git Source Repository 模式前，先整理 Core 内部搜索源相关代码：
+在实现 Git Plugin Repository 模式的 SOURCE 兼容链路前，先整理 Core 内部搜索源相关代码：
 
 ```text
 保持 SourceModel 作为 Adapter API v1 的最小运行时协议。
@@ -366,7 +391,7 @@ load_error
 Web Console 后续页面：
 
 ```text
-搜索源仓库设置
+插件仓库设置
 检查更新
 应用更新
 回滚
@@ -451,10 +476,10 @@ CATALOG_PROVIDER 接收列表形式的 genres / regions；MVP Core 保证每个�
 
 ## 8. 验收标准
 
-外部搜索源仓库模式完成时必须满足：
+Git Plugin Repository 模式完成时必须满足：
 
 ```text
-可配置搜索源仓库地址和分支。
+可配置一个或多个可信插件仓库的地址和分支。
 可 clone / fetch 仓库。
 可记录并展示 current_commit。
 可兼容读取 flat v1 sundarr_plugin.toml。
@@ -496,12 +521,12 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
   Phase 10.0 默认测试、迁移链、SMB 错误码和 Windows PID 质量收口
 
 待实现：
-  CATALOG_PROVIDER / WATCHLIST_PROVIDER 类型与最小执行契约
+  CATALOG_PROVIDER / WATCHLIST_PROVIDER 最小执行契约
   v2 类型专用 Activation、Registry 和健康检查
-  Phase 10.1 所需的最小插件加载、注册和健康检查
-  完整候选切换、cleanup 和原子切换闭环
+  Phase 10.1 通用插件加载、注册、健康检查、候选切换、cleanup、原子切换和启动恢复闭环
   启动自动加载 enabled 仓库的 locked current_commit
-  多 Source 仓库所有 API 路径兼容
-  外部 SeedHub 仓库配置、fixture 和端到端验收
+  多插件、多仓库的所有 API 路径兼容
+  Phase 10.2 Core Mock 垂直切片验收
+  Phase 10.3 将现有官方仓库迁移到通用 v2，并逐个交付真实插件
   Web Console 插件管理页面
 ```

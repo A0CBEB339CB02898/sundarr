@@ -4,7 +4,7 @@
 
 ## 当前目标
 
-完成 Phase 10.1 媒体发现中心的设计和最小 MVP 闭环，并恢复目录和想看插件所需的最小加载、注册和健康检查。完整插件热更新与原子切换后续收口。
+完成 Phase 10.1 通用插件框架收口并做第一次技术验收。媒体发现 Core 后移到 Phase 10.2；TMDb、SeedHub、豆瓣等真实插件统一在独立官方仓库于 Phase 10.3 逐个交付。
 
 ## 已完成的架构收口
 
@@ -21,16 +21,31 @@
 10. 已确认通用 Manifest v2、同仓库多插件和 flat v1 SOURCE 兼容边界
 ```
 
-## 下一交付单元
+## 当前交付顺序
 
 ```text
-1. 收口 MediaSubject 与现有 Resource / ResourceLink 的最小关联，不提前引入 ResourceOffer / Artifact。
-2. 一次性定义 CATALOG_PROVIDER / WATCHLIST_PROVIDER 的 Core 方法合同、能力描述和 Mock。
-3. 已实现 PluginType 与通用 Manifest v2 解析，并保持 flat v1 SOURCE 测试兼容；下一步接类型专用 Activation。
-4. 完成 Phase 10.1 最小 API、Web Console 和测试闭环。
+1. 已实现 PluginType、Manifest v2 多声明解析和 flat v1 SOURCE 兼容。
+2. 定义 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 公共协议和类型专用 Registry。
+3. 接入 v2 Activation、requires/provides、配置校验和健康检查。
+4. 完成候选原子切换、失败保留旧版本、启动恢复和多仓库 API。
+5. 使用本地 fixture 仓库完成框架初步验收后暂停。
+6. 验收通过后再实现 MediaSubject、发现 API/Web Console 和测试 Mock。
+7. 最后迁移官方外部仓库并逐个实现真实插件。
 ```
 
-以上属于一个实现包，不再把分页、默认页大小或单个详情字段拆成逐项产品提问；只有发生产品范围、持久化边界或任务状态机变化时再请求确认。
+当前不并行实现媒体发现 UI 或真实插件，避免业务实现反向固化不完整的插件框架。
+
+## 官方外部插件仓库
+
+```text
+当前迁移起点：https://github.com/A0CBEB339CB02898/sundarr-sources.git
+默认分支：master
+当前事实：公开仓库存在，但仍是 SOURCE-only / flat v1 历史布局。
+目标：迁移为 Manifest v2 多类型官方插件仓库，集中维护 TMDb、SeedHub、豆瓣目录和豆瓣想看。
+未确认：是否把仓库改名为 sundarr-plugins；未确认前不创建新地址、不重命名、不 push。
+```
+
+Core 仍支持多个 `PluginRepository`，因此官方插件集中仓库不会阻止用户加载其他可信第三方仓库。
 
 ## 已确认边界
 
@@ -62,6 +77,7 @@ Manifest v2 只保存静态插件声明，不保存 UI 分页、调度游标或�
 PluginContext、PluginActivation、ActivationStatus 已实现。
 LIFO cleanup、失败续跑和并发幂等释放已测试。
 通用 Manifest v2 多声明解析和 requires/provides 静态校验已实现；类型专用注册、Activation、健康检查、原子切换和启动加载待实现。
+完成上述缺口并通过本地三类型 fixture 仓库、重启恢复、失败保留旧版本和插件 API/Worker 冒烟后，立即暂停做第一次技术验收。
 ```
 
 ## 环境限制

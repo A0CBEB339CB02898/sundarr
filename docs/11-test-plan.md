@@ -99,12 +99,12 @@ source failure isolation
 真实站点 Adapter fixture
 网盘链接和提取码提取复用
 代码型源不能前端编辑
-外部搜索源仓库 manifest 解析
+外部插件仓库 manifest 解析
 flat v1 SOURCE 清单兼容读取
 通用 v2 单插件和多插件清单解析
 未知 manifest_version / PluginType / plugin_api_version 拒绝
-外部搜索源仓库路径越界防护
-外部搜索源仓库加载失败隔离
+外部插件仓库路径越界防护
+外部插件仓库加载失败隔离
 外部搜索源 id 冲突处理
 外部搜索源 commit 锁定和回滚
 PluginActivation 候选加载和原子切换
@@ -144,7 +144,7 @@ URL query 不包含目录 Provider 凭据或其他敏感配置。
 重复传入两个及以上 genre 或 region 时返回 422，不静默截断。
 ```
 
-Git Source Repository 模式测试原则：
+Git Plugin Repository 模式测试原则：
 
 ```text
 默认自动化测试使用本地 fixture 仓库，不访问真实 GitHub。
@@ -326,7 +326,7 @@ STORAGE_CONFIG_CHANGED 提示可显示
 同步页面绑定目标为本地媒体库，不重复配置目标 SMB 凭据
 远程媒体库页面可手动触发扫描
 收藏页面可切换资源收藏和链接收藏
-插件仓库管理页可新增、检查更新、应用、回滚和查看诊断（Phase 10.2）
+插件仓库管理页可新增、检查更新、应用、回滚和查看诊断（Phase 10.3）
 亮色 / 暗色 / 跟随系统主题可切换
 移动端布局可读可操作
 ```

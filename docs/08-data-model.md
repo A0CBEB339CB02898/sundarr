@@ -510,7 +510,7 @@ status 至少包含 discovered / stable / queued / downloading / completed / fai
 
 ## 14. plugin_repositories
 
-用途：存储外部可信 Git 插件仓库配置。当前已实现用途是加载 SOURCE Adapter；Phase 10.1 扩展到 CATALOG_PROVIDER 和 WATCHLIST_PROVIDER。
+用途：存储外部可信 Git 插件仓库配置。仓库模型和 Manifest v2 已支持声明 SOURCE、CATALOG_PROVIDER 和 WATCHLIST_PROVIDER；Phase 10.1 补齐这些类型的运行时 Activation，Phase 10.3 再接入真实平台插件。
 
 字段：
 
@@ -562,7 +562,7 @@ updated_at TIMESTAMP NOT NULL
 
 ```text
 plugin_id 为插件实例唯一标识，来自仓库清单。
-plugin_type 标识插件实例的主类型；当前已实现 source，Phase 10.1 新增 catalog_provider 和 watchlist_provider。
+plugin_type 标识插件实例的主类型；当前枚举和 Manifest 解析已包含 source、catalog_provider 和 watchlist_provider，但后两者的运行协议与类型专用 Registry 尚未实现。
 config_data 存储 JSON 格式的插件配置。
 repository_id 关联来源仓库；一个仓库可以声明多个不同类型的插件实例。
 通用 Manifest v2 的每个 [[plugins]] 声明对应一个 plugin_id 和一条独立 PluginConfig；仓库 commit 仍由 PluginRepository 统一锁定。

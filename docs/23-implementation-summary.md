@@ -11,15 +11,15 @@
 ```text
 Phase 0-9.5 已完成。
 Phase 10.0 质量基线收口已完成。
-Phase 10.1 媒体发现中心当前优先、尚未实现。
-Phase 10.1 将恢复目录和想看插件所需的最小加载、注册和健康检查；Phase 10.2 继续完成热更新、原子切换和失败回滚。
-Phase 10.3 外部真实搜索源随后执行。
+Phase 10.1 通用插件框架收口当前优先；类型专用 Activation、Registry、健康检查、原子切换和启动恢复尚未实现。
+Phase 10.2 使用 Core 测试 Mock 完成媒体发现数据、API 和 Web Console 垂直切片。
+Phase 10.3 将官方外部仓库迁移到通用 Manifest v2，并逐个实现真实插件和仓库管理闭环。
 Phase 11 AI Friendly API 未开始。
 Phase 12 Cloud Direct Download 非 MVP、非近期主线。
-媒体发现中心已进入当前 MVP 并成为当前优先任务；当前尚未实现。
+媒体发现中心已进入当前 MVP，但在插件框架初步验收后实施；当前尚未实现。
 ```
 
-Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连接、本地/远程媒体库、同步绑定、任务状态机、搜索管线和收藏模块。Core 内已无真实站点 Adapter；搜索源统一从用户信任的外部 Python 插件仓库加载。
+Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连接、本地/远程媒体库、同步绑定、任务状态机、搜索管线和收藏模块。Core 内已无真实站点 Adapter；项目官方真实插件统一在独立 Python 插件仓库维护，Core 同时支持用户配置多个可信第三方仓库。当前官方迁移起点 `sundarr-sources` 仍是 SOURCE-only / flat v1 历史结构。
 
 媒体发现中心的计划范围包括筛选、热门、分类、详情、关注列表和发现型海报墙。它不等于本地媒体库 UI，不包含播放、观影进度或完整本地媒体管理。
 

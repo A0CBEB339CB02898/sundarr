@@ -206,7 +206,9 @@ Sundarr 采用暖色操作台风格设计：
 
 **Phase 10 进行中**：Core 已移除内置真实站点，搜索源统一来自外部 Python 插件仓库；Activation 生命周期内核、目标 PluginType、通用 Manifest v2 多插件解析和 flat v1 SOURCE 兼容已完成，仍需接入 v2 类型专用 Activation/Registry、候选健康检查、原子切换、启动自动加载、Web Console 仓库管理和首个外部 SeedHub 端到端验收。
 
-**媒体发现中心是当前优先任务**：当前处于设计阶段，MVP 将支持筛选、热门、分类、详情、关注列表和发现型海报墙；不做本地媒体库播放、观影进度或完整媒体管理 UI。Phase 10.1 会恢复目录和想看插件所需的最小运行时，完整插件闭环后续完成。
+**通用插件框架是当前优先任务**：Phase 10.1 先完成 Manifest v2 的类型专用 Activation、Registry、健康检查、候选原子切换和启动恢复；通过初步技术验收后，Phase 10.2 再用 Core 测试 Mock 完成媒体发现中心，Phase 10.3 在独立官方插件仓库逐个接入真实 TMDb、SeedHub 和豆瓣插件。媒体发现 MVP 支持筛选、热门、分类、详情、关注列表和发现型海报墙，但不做本地媒体库播放、观影进度或完整媒体管理 UI。
+
+项目官方维护的真实插件不放在本仓库。当前迁移起点为 [`sundarr-sources`](https://github.com/A0CBEB339CB02898/sundarr-sources) 的 `master` 分支；它目前仍是 SOURCE-only / flat v1 历史结构，仓库是否改名尚未确认。Sundarr Core 继续保留稳定插件合同、运行时、配置与诊断能力、测试 Mock 和契约测试，并支持用户配置多个可信插件仓库。
 
 媒体发现中心计划使用 TMDb 作为主目录、豆瓣目录作为可选补充，两者均以 `CATALOG_PROVIDER` 插件接入；豆瓣想看使用独立 `WATCHLIST_PROVIDER` 插件，由 Core 调度。外部服务不可用时必须支持缓存或明确降级。
 

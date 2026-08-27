@@ -598,7 +598,7 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 [
   {
     "id": "repo_1",
-    "name": "搜索源仓库",
+    "name": "官方插件仓库",
     "repo_url": "https://github.com/example/sources.git",
     "branch": "main",
     "current_commit": "abc123",
@@ -620,7 +620,7 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 
 ```json
 {
-  "name": "搜索源仓库",
+  "name": "官方插件仓库",
   "repo_url": "https://github.com/example/sources.git",
   "branch": "main"
 }
@@ -640,7 +640,7 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 
 ### 9.6 GET /plugins/plugins
 
-列出所有已加载插件，支持 `?plugin_type=source` 和 `?include_disabled=true` 过滤。Phase 10.1 增加 `catalog_provider` 与 `watchlist_provider` 过滤值；同一仓库交付的不同插件实例必须分别返回状态、配置和最后错误。
+列出所有已加载插件，支持 `?plugin_type=source` 和 `?include_disabled=true` 过滤。Phase 10.1 补齐 `catalog_provider` 与 `watchlist_provider` 的实际 Activation 与返回状态；同一仓库交付的不同插件实例必须分别返回配置、启停、健康状态和最后错误。
 
 ### 9.7 GET /plugins/plugins/{plugin_id}
 
@@ -678,15 +678,15 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 }
 ```
 
-当前实现只返回已有类型；新增统计字段随 Phase 10.1 类型实现落地，不得在实现前伪造已加载数量。
+当前实现只统计实际加载的类型；Phase 10.1 补齐类型专用 Activation 后再扩展统计，不得把仅完成 Manifest 解析的声明伪造成已加载实例。
 
 ### 9.12 POST /plugins/load-all
 
 加载所有已启用仓库的插件。
 
-### 9.13 媒体发现响应缓存语义（Phase 10.1 计划）
+### 9.13 媒体发现响应缓存语义（Phase 10.2 计划）
 
-媒体发现 Web 路由已确认为 `/app/discover` 和 `/app/discover/:media_subject_id`；对应 FastAPI 路由随 Phase 10.1 数据/API 规格落地。响应必须遵守：
+媒体发现 Web 路由已确认为 `/app/discover` 和 `/app/discover/:media_subject_id`；对应 FastAPI 路由随 Phase 10.2 数据/API 规格落地。响应必须遵守：
 
 ```text
 不直接返回 CATALOG_PROVIDER 私有原始响应。
@@ -697,7 +697,7 @@ Provider 失败时不得用 null 覆盖已知规范标题、年份或最后可�
 没有缓存、没有最小快照且 Provider 不可用时返回明确错误。
 ```
 
-Web Console 必须把目录关键词和筛选条件编码进 `/app/discover` 的 URL query。计划中的规范字段为 `q`、`media_type`、`genre`、`region`、`year_from`、`year_to` 和 `sort`；具体枚举和 FastAPI 路由实现随 Phase 10.1 API 设计落地。URL 不得包含 API key、cookie 或插件私有配置。
+Web Console 必须把目录关键词和筛选条件编码进 `/app/discover` 的 URL query。计划中的规范字段为 `q`、`media_type`、`genre`、`region`、`year_from`、`year_to` 和 `sort`；具体枚举和 FastAPI 路由实现随 Phase 10.2 API 设计落地。URL 不得包含 API key、cookie 或插件私有配置。
 
 筛选语义：
 

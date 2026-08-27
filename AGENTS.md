@@ -83,7 +83,7 @@ AI Tool API -> docs/14-ai-tool-api-spec.md
 前端设计系统 -> docs/16-design-system.md
 系统模块梳理 -> docs/17-system-module-review.md
 网盘直链下载 -> docs/18-cloud-direct-download-spec.md
-外部搜索源仓库 -> docs/19-source-repository-plugin-spec.md
+官方外部插件仓库 -> docs/19-source-repository-plugin-spec.md
 通用插件分类和运行边界 -> docs/20-plugin-system.md
 通用插件 Manifest -> docs/20-plugin-manifest-spec.md
 Agent 工作规则 -> AGENTS.md
@@ -126,7 +126,7 @@ Worker 定时扫描同步绑定，将远程媒体库内容同步到绑定的本�
 同步支持 movie / series / unclassified，绑定不明确时进入 unclassified 本地媒体库。
 同步成功后按配置删除来源文件和空目录。
 Web Console 中配置类页面默认先展示列表，通过新增按钮打开弹出表单，不默认展开空新增表单。
-媒体发现中心已纳入当前 MVP 和当前优先任务，负责带筛选条件的搜索、热门资源、分类资源、详情、关注列表和发现型海报墙。
+媒体发现中心已纳入当前 MVP，但当前实现顺序调整为先完成通用插件框架，再实现媒体发现 Core 和真实目录插件。
 媒体发现中心使用 Sundarr 内部 UUID 标识规范媒体实体 `MediaSubject`，并允许同时绑定 TMDb、豆瓣、IMDb 等多个外部 ID；任何单一外部平台 ID 都不是数据库主键。
 存在相同外部平台 ID 时可以精确匹配；缺少外部 ID 时只能生成标题、年份和类型候选匹配，低可信候选不得静默自动合并。
 媒体发现中心 MVP 使用 TMDb 作为主目录数据提供方，负责搜索、筛选、热门、分类、详情和海报；豆瓣目录作为可选补充数据提供方，失败不得阻断媒体发现中心。
@@ -147,9 +147,13 @@ Web Console 使用统一 `/app/discover` 媒体发现模块承载目录搜索、
 媒体库管理仍是目录绑定管理能力；媒体发现海报墙不等于本地媒体库海报墙、播放器、观影进度或完整媒体管理 UI。
 当前已实现的是媒体源框架和示例源，不是真实网站 Adapter。
 真实媒体源后续通过代码型 Source Adapter 逐站点接入。
-真实搜索源代码可以集中放在独立 Git 仓库中，Sundarr Core 只保存仓库地址、分支和锁定 commit，并从本地缓存中的已锁定 commit 受控加载。
+所有项目官方真实插件实现统一放在独立 Git 仓库，不进入 Sundarr Core；Sundarr Core 只保存仓库地址、分支和锁定 commit，并从本地缓存中的已锁定 commit 受控加载。
 外部插件仓库使用通用 Plugin Manifest v2 声明一个或多个插件；迁移期兼容 flat v1 SOURCE 清单。SourceModel 继续作为 SOURCE 的最小运行时执行协议。
-Web Console 不上传、不编辑、不保存可执行 Python 代码，只负责搜索源仓库配置、检查更新、应用更新、回滚、测试和诊断。
+当前官方外部仓库及迁移起点为 `https://github.com/A0CBEB339CB02898/sundarr-sources.git`，默认分支 `master`；该仓库当前仍是历史 SOURCE-only 布局，后续迁移为通用 Manifest v2 官方插件仓库。是否改名为更通用的仓库名称尚未确认，不得擅自创建、重命名或推送。
+“官方插件统一外置”不禁止用户加载其他可信第三方仓库；PluginRepository 必须继续支持多个仓库。
+Core 仓库必须保留插件公共协议、SDK 类型、Manifest/Loader、Activation、Registry、配置与诊断 API，以及不访问真实外部服务的测试夹具和 Mock；不得把这些宿主能力误移到外部插件仓库。
+TMDb、豆瓣、SeedHub 等平台专用实现、配置 schema、解析 fixture 和实时集成测试属于官方外部插件仓库，不得回写 Core。
+Web Console 不上传、不编辑、不保存可执行 Python 代码，只负责插件仓库配置、检查更新、应用更新、回滚、测试和诊断。
 Web Console 只管理已安装 Adapter 的启用、禁用、参数、测试和错误查看，不在线编辑代码型 Source Adapter。
 文档型网站是否可通用读取作为后续实验阶段验证。
 Web Console 是核心控制台，不做完整本地媒体库 UI。
@@ -160,7 +164,7 @@ Web Console 是核心控制台，不做完整本地媒体库 UI。
 同步绑定连接：远程媒体库（来源） -> 本地媒体库（目标）。
 Phase 9 模块重构已完成：已删除 Ingest 模块和旧 storage_config_service，新增远程媒体库模型并统一同步绑定。
 Phase 9.5 收藏模型重构已完成：搜索默认不入库，资源和资源链接仅在用户主动收藏时持久化。
-Phase 10.0 质量基线收口已完成；当前优先任务调整为 Phase 10.1 媒体发现中心。Phase 10.1 恢复目录和想看插件所需的最小加载、注册和健康检查；完整热更新、原子切换及外部搜索源仓库闭环在后续阶段完成。
+Phase 10.0 质量基线收口已完成；当前优先任务调整为 Phase 10.1 通用插件框架收口。框架通过初步验收后，Phase 10.2 再实现媒体发现 Core 与 Mock 垂直切片，Phase 10.3 在官方外部仓库逐个实现并验收真实插件。
 通用 Manifest v2 多插件解析、目标 PluginType 和 flat v1 SOURCE 兼容已实现；v2 类型专用 Activation、Registry 和健康检查尚未实现，旧加载入口必须明确拒绝激活 v2。
 Sundarr Core 继续使用 Python + FastAPI，不引入 Cordis 或 Node.js 作为后端运行时。
 Python 插件系统采用 Cordis 启发的生命周期语义：显式能力依赖、Activation、可逆清理、候选加载、健康检查、原子切换和失败回滚。
@@ -273,7 +277,7 @@ Phase 8: Download To Local
 Phase 9: Module Refactoring
 Phase 9.5: Resource Favorites Refactoring
 Phase 10.0: Quality Baseline Closure
-Phase 10: Real Site Source Adapters
+Phase 10: Plugin Framework And External Plugins
 Phase 11: AI Friendly API
 ```
 

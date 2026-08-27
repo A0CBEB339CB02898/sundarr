@@ -26,7 +26,7 @@
 | 前端设计系统 | `docs/16-design-system.md` |
 | 系统模块边界 | `docs/17-system-module-review.md` |
 | Cloud Direct Download（非 MVP） | `docs/18-cloud-direct-download-spec.md` |
-| 外部搜索源仓库 | `docs/19-source-repository-plugin-spec.md` |
+| 官方外部插件仓库（文件名历史保留） | `docs/19-source-repository-plugin-spec.md` |
 | 插件 Activation Runtime | `docs/20-plugin-system.md` |
 | 插件清单 | `docs/20-plugin-manifest-spec.md` |
 | 两阶段搜索 | `docs/20-two-phase-search-spec.md` |
@@ -41,9 +41,9 @@
 ```text
 Phase 0-9.5 已完成。
 Phase 10.0 质量基线收口已完成。
-Phase 10.1 媒体发现中心当前优先，属于 MVP。
-Phase 10.2 Python Plugin Activation Runtime Completion 在发现中心最小闭环后恢复。
-Phase 10.3 外部 Source 和 Web Console 仓库管理完成 Phase 10。
+Phase 10.1 通用插件框架收口当前优先，完成后可做第一次技术验收。
+Phase 10.2 使用 Core 测试 Mock 完成媒体发现 Core 与 Web Console 垂直切片。
+Phase 10.3 将官方外部仓库迁移为通用 Manifest v2，并逐个实现真实插件与仓库管理闭环。
 Phase 11 AI Friendly API 未开始。
 Phase 12 Cloud Direct Download 非 MVP、非近期主线。
 ```

@@ -177,9 +177,9 @@ README、历史汇总和部分规格曾存在状态漂移，已在本轮统一�
 
 ```text
 Phase 10.0：已完成质量基线收口。
-Phase 10.1：当前优先实现媒体发现中心，并恢复 CATALOG_PROVIDER / WATCHLIST_PROVIDER 所需的最小插件运行时。
-Phase 10.2：恢复并完成 Python Plugin Activation Runtime。
-Phase 10.3：外部 SeedHub 和 Web Console 仓库管理闭环。
+Phase 10.1：当前优先完成 Python Plugin Framework，包括当前 MVP 类型的 Activation/Registry、健康检查、原子切换和启动恢复，并做第一次技术验收。
+Phase 10.2：使用 Core 测试 Mock 完成媒体发现数据、API 和 Web Console 垂直切片。
+Phase 10.3：迁移官方外部插件仓库，逐个实现真实插件和 Web Console 仓库管理闭环。
 发布前：真实 SMB 同步手动验收。
 Phase 11：AI Friendly API 和可选 Cordis / DeepSeek Harness HTTP 桥接。
 ```

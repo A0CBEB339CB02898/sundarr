@@ -84,7 +84,7 @@ MVP 页面：
 
 当前没有独立 `/app/sync` 页面；同步绑定和扫描操作由远程媒体库页面承载。Phase 10.3 将增加插件仓库管理入口，但不会提供 Python 代码编辑器。
 
-媒体发现中心已进入当前 MVP 和当前优先任务。TMDb 是主 `CATALOG_PROVIDER`，豆瓣目录是可选补充 `CATALOG_PROVIDER`，豆瓣想看是独立 `WATCHLIST_PROVIDER`；数据采用核心身份与最小快照持久化、易变详情缓存的 A+ 策略。`/app/discover` 和详情路由已经确认但尚未实现；当前 `/app/search` 仍表示已实现的具体资源关键词聚合搜索，不得把发现中心写成已完成。
+媒体发现中心已进入当前 MVP，但当前优先任务是 Phase 10.1 通用插件框架收口。Phase 10.2 再使用 Core 测试 Mock 实现发现中心；Phase 10.3 接入真实插件。TMDb 是主 `CATALOG_PROVIDER`，豆瓣目录是可选补充 `CATALOG_PROVIDER`，豆瓣想看是独立 `WATCHLIST_PROVIDER`；数据采用核心身份与最小快照持久化、易变详情缓存的 A+ 策略。`/app/discover` 和详情路由已经确认但尚未实现；当前 `/app/search` 仍表示已实现的具体资源关键词聚合搜索，不得把发现中心写成已完成。
 
 Web Console 页面路由使用 `/app/*` 前缀，避免与 FastAPI API 路由 `/search`、`/sources`、`/storage`、`/transfers`、`/health` 在 Vite dev proxy 下冲突。
 

@@ -67,14 +67,15 @@ Phase 11 提供稳定 AI Tool API。之后可以开发独立 Cordis / DeepSeek H
 ```text
 Phase 0-9.5：已完成。
 Phase 10.0：已完成，质量基线已恢复。
-Phase 10.1：当前优先，媒体发现中心。
-Phase 10.2：恢复并完成 Python Plugin Activation Runtime。
-Phase 10.3：外部 Source 和 Web Console 仓库管理闭环。
+Phase 10.1：当前优先，完成 Python Plugin Framework、类型专用 Activation/Registry、健康检查、原子切换和启动恢复，并做第一次技术验收。
+Phase 10.2：使用 Core 测试 Mock 完成媒体发现 Core 与 Web Console 垂直切片。
+Phase 10.3：把官方外部仓库迁移到通用 Manifest v2，逐个实现真实插件和仓库管理闭环。
 Phase 11：AI Friendly API。
 Phase 12：Cloud Direct Download，非 MVP、非近期主线。
 ```
 
-通用 Manifest v2 多插件解析、目标 PluginType 和 flat v1 SOURCE 兼容已落地；v2 类型专用 Activation、Registry 与健康检查仍属于 Phase 10.1/10.2 待实现项。
+通用 Manifest v2 多插件解析、目标 PluginType 和 flat v1 SOURCE 兼容已落地；v2 类型专用 Activation、Registry、健康检查、候选原子切换与启动恢复属于 Phase 10.1 待实现项。
+项目官方真实插件统一放在独立 Git 仓库；当前迁移起点为 https://github.com/A0CBEB339CB02898/sundarr-sources.git 的 master 分支，该仓库目前仍是 SOURCE-only / flat v1 历史结构。Core 只保留宿主合同、运行时、业务编排、测试 Mock 和契约测试，同时支持多个可信第三方仓库。
 
 媒体发现中心使用内部 UUID 的 `MediaSubject` 作为规范媒体身份，并可绑定多个外部平台 ID；不以任何单一目录平台 ID 作为主键。
 

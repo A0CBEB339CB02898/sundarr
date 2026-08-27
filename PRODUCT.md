@@ -64,7 +64,7 @@ MVP 不做：
 - 修改 SMB 配置会中断使用旧配置的运行中任务，任务进入 failed，错误码为 `STORAGE_CONFIG_CHANGED`，`retryable=true`。
 - `Phase 8 “下载到本地”` 是历史阶段命名；当前规范统一为“远程媒体库同步到本地媒体库”。
 - `Phase 9 Module Refactoring` 和 `Phase 9.5 Resource Favorites Refactoring` 已完成。
-- `Phase 10.0 Quality Baseline Closure` 已完成；当前优先任务是媒体发现中心。Phase 10.1 恢复目录和想看插件所需的最小运行时，完整插件生命周期闭环后续完成。
+- `Phase 10.0 Quality Baseline Closure` 已完成；当前优先任务是 Phase 10.1 通用插件框架收口。Phase 10.2 再实现媒体发现 Core，Phase 10.3 在独立官方仓库逐个交付真实插件。
 - Sundarr Core 保持 Python + FastAPI；只借鉴 Cordis 的显式依赖、Activation、可逆清理和原子切换语义，不引入 Cordis 作为核心运行时。
 - `Phase 11 AI Friendly API` 完成后可提供可选 Cordis / DeepSeek Harness 桥接插件，桥接层只通过 HTTP API 调用 Sundarr。
 - `Phase 12 Cloud Direct Download` 不包含在 MVP 中，仅作为后续高级功能保留规格文档。
@@ -80,6 +80,9 @@ MVP 不做：
 - 插件类型按稳定业务合同划分，不要求每个任务依次流过所有类型。当前 MVP 只实现 `SOURCE`、`CATALOG_PROVIDER`、`WATCHLIST_PROVIDER`；`TRANSFER_DRIVER` 与 `NOTIFICATION` 作为后续扩展。
 - 当前 SMB 同步是 Core 内置主链路。未来 `TRANSFER_DRIVER` 可统一 SMB、HTTP、网盘或下载客户端，但 BT/磁力仍不进入 MVP。
 - 通用 Manifest v2 支持一个可信 Git 仓库声明多个独立插件；Manifest 不承载 Web Console 分页、Core 调度游标或任务状态。
+- 项目官方真实插件统一存放在独立仓库；Core 只保留稳定插件协议、SDK、Loader、Activation、Registry、配置/诊断 API 和测试 Mock，不内置 TMDb、豆瓣或 SeedHub 实现。
+- 当前外部仓库迁移起点是 `https://github.com/A0CBEB339CB02898/sundarr-sources.git`（`master`）。它仍是历史 SOURCE-only 仓库，改名或迁移远程地址需要单独确认。
+- 官方插件集中维护不限制用户添加其他可信第三方插件仓库。
 
 ## Product Tone
 

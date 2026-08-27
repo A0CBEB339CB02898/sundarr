@@ -11,7 +11,7 @@ flat v1    当前 loader 已实现，只支持一个 SOURCE 声明和旧无参�
 v2         多插件解析和静态校验已实现；类型专用 Activation、Registry 和健康检查尚未实现。
 ```
 
-Phase 10.1 继续实现 v2 的 `CATALOG_PROVIDER`、`WATCHLIST_PROVIDER` 最小 Activation 闭环；Phase 10.2 再完成候选原子切换和启动恢复。迁移期继续读取 flat v1；新仓库使用 v2。旧单插件加载入口在 v2 Activation 接入前明确拒绝 v2，不会误用 v1 无参数调用方式执行。
+Phase 10.1 完成当前 MVP 类型共用的 v2 类型专用 Activation、Registry、健康检查、候选原子切换和启动恢复。Phase 10.2 使用 Core 测试 Mock 验证媒体发现合同；Phase 10.3 再把官方外部仓库迁移到 v2 并逐个接入真实插件。迁移期继续读取 flat v1；新插件使用 v2。旧单插件加载入口在 v2 Activation 接入前明确拒绝 v2，不会误用 v1 无参数调用方式执行。
 
 ---
 
@@ -127,7 +127,7 @@ plugin_id 全局唯一。
 
 ## 5. PluginType 与能力命名
 
-Phase 10.1 可接受类型：
+当前 Manifest v2 已接受并静态校验的 MVP 类型：
 
 ```text
 source

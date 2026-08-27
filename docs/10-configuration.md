@@ -327,9 +327,9 @@ Web Console 可管理：
 
 真实网站 Source Adapter 通过 Python 代码实现和部署，不通过前端在线编辑。MVP 不通过 Web Console 管理 base_url、timeout、rate_limit、user_agent 等 Adapter 参数，不保存可执行 Python 代码。
 
-Git Source Repository 模式已进入 Phase 10：系统保存仓库配置和锁定 commit，但仍不得保存可执行 Python 代码。
+Git Plugin Repository 模式已进入 Phase 10：系统保存仓库配置和锁定 commit，但仍不得保存可执行 Python 代码。
 
-Phase 10.1 后，插件仓库不限于资源 `SOURCE`。同一豆瓣仓库可以声明 `douban-catalog` 和 `douban-watchlist` 两个独立插件实例；两者分别保存 `PluginConfig`、启用状态和错误状态。TMDb API 密钥以及未来可能使用的豆瓣 cookie 均属于敏感配置，不得写入仓库、普通日志或非脱敏 API 响应。
+通用 Manifest v2 已允许插件仓库声明 `SOURCE`、`CATALOG_PROVIDER` 和 `WATCHLIST_PROVIDER`。同一豆瓣仓库可以声明 `douban-catalog` 和 `douban-watchlist` 两个独立插件实例；两者分别保存 `PluginConfig`、启用状态和错误状态。Phase 10.1 补齐运行时，Phase 10.3 才接入真实平台配置。TMDb API 密钥以及未来可能使用的豆瓣 cookie 均属于敏感配置，不得写入仓库、普通日志或非脱敏 API 响应。
 
 通用 Manifest v2 只声明 `config_schema`，不保存配置值。Web Console 的分页方式、Provider 运行中 continuation token、想看同步游标和重试状态也不属于 Manifest；分页状态属于前端/API，游标和调度状态由 Core 持久化。
 

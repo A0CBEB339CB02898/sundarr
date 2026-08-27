@@ -9,7 +9,7 @@
 ```text
 保持 Python + FastAPI Core，不切换到 Cordis / Node.js 后端。
 可信质量基线已经恢复。
-当前先完成媒体发现中心，再恢复 SOURCE 插件闭环。
+当前先完成通用插件框架，再做媒体发现 Core，最后在独立官方仓库逐个交付真实插件。
 先自动化和本地替身验收，再执行真实 SMB / 真实站点手动验收。
 Phase 11 API 稳定后才开发可选 Cordis / DeepSeek Harness 桥接。
 Cloud Direct Download、Alist 和真实网盘 Provider 不属于 MVP 或近期主线。
@@ -44,88 +44,88 @@ PID 文件、端口和子进程均无残留。
 
 ---
 
-## 里程碑 B：Phase 10.1 媒体发现中心
+## 里程碑 B：Phase 10.1 通用插件框架收口
 
-状态：当前优先，产品边界与通用插件分类已收口，正在收口数据/API 规格。
+状态：当前优先；Manifest v2 解析和生命周期内核已完成。
 
 任务：
 
 ```text
-B1 已确认媒体身份使用内部 UUID，并绑定多个外部平台 ID。
-B2 已确认 TMDb 和豆瓣目录使用 CATALOG_PROVIDER，豆瓣想看使用独立 WATCHLIST_PROVIDER，调度由 Core 管理。
-B3 已确认 A+ 持久化：核心身份、最小快照和用户状态入 PostgreSQL，易变目录详情和列表入 Redis。
-B4a 已确认 /app/discover 统一入口、独立详情路由以及 /app/search 资源搜索边界。
-B4b 已确认默认分区内容流、搜索后统一海报网格和 URL 状态恢复。
-B4c 已确认媒体类型、题材、地区、年份范围和三种排序的基础筛选集。
-B4d 已确认题材和地区在 UI 中单选、Core 内部使用列表并校验最多一个值。
-B4e 已确认分页交互属于 Web Console 实现细节，不进入 Manifest；Provider 协议使用不透明 continuation token。详情字段随数据/API 规格整体收口。
-B5 设计 MediaSubject、Resource、ResourceLink 与未来 AcquisitionRequest/TransferTask 的最小关联；不引入尚无用途的 ResourceOffer、Artifact 抽象。
-B6 实现最小 API、Web Console 和测试闭环。
-B7 在 Phase 10.1 恢复目录和想看插件所需的最小加载、注册和健康检查能力。
-B8 已确认插件类型按稳定业务合同划分：MVP 为 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER；未来保留 TRANSFER_DRIVER、NOTIFICATION。
-B9 已实现通用 Manifest v2 同仓库多插件解析、flat v1 SOURCE 兼容和静态校验；类型专用 Activation 仍由后续任务接入。
+B1 已定义 PluginContext、PluginActivation、ActivationStatus 和幂等 LIFO cleanup。
+B2 已实现目标 PluginType、通用 Manifest v2 多插件解析和 flat v1 SOURCE 兼容。
+B3 实现 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 类型合同与 Registry。
+B4 实现 v2 入口调用、requires/provides 注入、配置校验和类型专用健康检查。
+B5 实现候选加载、仓库级原子切换、失败保留旧 Activation 和确定清理语义。
+B6 API 与 Worker 启动时分别恢复 enabled 仓库的 locked current_commit。
+B7 修复 PluginManager 和 API 对同仓库多插件结果的完整支持。
+B8 使用本地 fixture 仓库完成三类插件调用、禁用、更新、回滚、重启和失败诊断。
+B9 确认敏感配置和日志脱敏，不依赖真实网络、GitHub、TMDb、豆瓣或 NAS。
 ```
 
 验收门：
 
 ```text
-用户可以浏览热门和分类资源。
-用户可以按确认的条件筛选并查看媒体详情。
-用户可以从媒体条目查找候选资源。
-关注列表入口按确认的数据来源工作。
-页面不是本地媒体库 UI，不提供播放和观影进度。
+三类 MVP 插件均可从本地 v2 fixture 仓库激活、调用和释放。
+候选失败时旧版本继续服务，current_commit 不切换。
+API 与 Worker 重启只恢复已启用的锁定版本。
+单插件失败不影响其他插件和 /health。
+pytest、插件 API 和 Worker 冒烟通过。
+```
+
+达到该验收门即可暂停，进行第一次插件框架技术验收。
+
+---
+
+## 里程碑 C：Phase 10.2 媒体发现 Core 与 Mock 垂直切片
+
+状态：B 验收后执行；产品边界已确认，尚未实现。
+
+任务：
+
+```text
+C1 实现 MediaSubject、外部 ID、最小快照和关注状态数据模型。
+C2 实现 CATALOG_PROVIDER / WATCHLIST_PROVIDER Core 查询和同步服务。
+C3 使用测试 Mock 覆盖搜索、热门、分类、详情、想看和降级，不发布生产 Mock 插件。
+C4 实现 `/app/discover` API、详情 API 和基础筛选。
+C5 实现 Web Console 内容流、海报网格、详情和资源搜索跳转。
+C6 验证 PostgreSQL/Redis 分层、Provider 失败隔离和 URL 状态恢复。
+```
+
+验收门：
+
+```text
+不连接真实 TMDb 或豆瓣即可完成发现中心产品垂直切片验收。
+Mock 不进入生产插件目录或官方外部仓库发布物。
+缓存清空不丢失媒体身份和用户状态。
+前后端回归、构建和页面冒烟通过。
 ```
 
 ---
 
-## 里程碑 C：Phase 10.2 Python Plugin Activation Runtime Completion
+## 里程碑 D：Phase 10.3 官方外部插件仓库与真实插件
 
-状态：生命周期内核已完成；剩余工作在 B 最小闭环后恢复。
+状态：B/C 完成后执行。
 
 任务：
 
 ```text
-C1 已定义 PluginContext、PluginActivation、ActivationStatus。
-C2 部分完成：通用 Manifest v2 多插件解析、flat v1 SOURCE 兼容和版本化 requires / provides 静态校验已实现；Activation 注入与原子切换待完成。
-C3 已实现通用 cleanup callback、LIFO、失败续跑和并发幂等释放。
-C4 接入 Source 注册动作、候选配置校验和健康测试。
-C5 实现原子替换、失败保留旧 Activation 和确定清理语义。
-C6 启动时加载 enabled 仓库的 locked current_commit。
+D1 以当前 `sundarr-sources` master 作为迁移起点，升级为通用 Manifest v2 官方插件仓库；改名需用户另行确认。
+D2 首先实现 TMDb CATALOG_PROVIDER，完成媒体发现真实主目录验收。
+D3 实现 SeedHub SOURCE，恢复具体资源链接搜索。
+D4 实现豆瓣 CATALOG_PROVIDER 作为可选补充。
+D5 实现豆瓣 WATCHLIST_PROVIDER，并由 Core 调度持久游标。
+D6 每个真实插件独立配置、启停、fixture、健康检查、错误和显式实时验收。
+D7 Web Console 增加多仓库管理、检查更新、应用、回滚和诊断。
 ```
 
 验收门：
 
 ```text
-单插件失败不影响 API 和其他插件。
-更新失败时旧 Source 仍可搜索。
-禁用或删除后 cleanup 只执行一次。
-重启后锁定 commit 自动恢复。
-```
-
----
-
-## 里程碑 D：Phase 10.3 外部搜索源端到端
-
-状态：C 完成后执行。
-
-任务：
-
-```text
-D1 配置 sundarr-sources 仓库和锁定 commit。
-D2 补齐 SeedHub 外部 Adapter fixture 和离线测试。
-D3 修复单仓库多 Source 的新增、更新、回滚和 API 响应。
-D4 Web Console 增加仓库管理和诊断。
-D5 执行显式实时 SeedHub 手动集成验收。
-```
-
-验收门：
-
-```text
-全新数据库可以通过 API 或 Web Console 配置一个可信仓库。
-重启后至少一个 Source 自动加载。
-/sources 显示来源 commit 和状态。
-/search 可以聚合外部 Source 结果。
-源失败、更新失败和回滚路径均可诊断。
+Core 仓库不包含 TMDb、豆瓣、SeedHub 平台实现或平台 fixture。
+官方仓库可从锁定 commit 加载全部已启用插件。
+每个插件失败不阻断其他插件，仓库更新失败保留旧版本。
+TMDb 支持发现中心真实主目录，SeedHub 支持资源搜索，豆瓣能力可独立降级。
+系统继续允许添加其他可信第三方插件仓库。
 ```
 
 ---

@@ -25,7 +25,7 @@ MVP 的目标是先跑通端到端闭环：
 ```text
 先后端闭环，后前端完善。
 CloudProvider 保留为可选扩展，近期不做真实网盘直接下载。
-Phase 10.0 质量基线已收口；当前优先完成 Phase 10.1 媒体发现中心，随后恢复插件生命周期和外部搜索源仓库闭环。
+Phase 10.0 质量基线已收口；当前优先完成 Phase 10.1 通用插件框架，初步验收后再实现媒体发现 Core 和官方外部真实插件。
 真实挂载目录下载到本地通过手动集成验收验证。
 先规则和用户确认，后模型辅助。
 先核心控制台，后媒体发现中心；不建设完整本地媒体库 UI。
@@ -56,12 +56,12 @@ Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需�
 Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一为 process_sync_task 同步路径，远程媒体库和同步绑定已就位。
 Phase 9.5 Resource Favorites Refactoring: 已完成；Resource / ResourceLink 已收缩为收藏模型，搜索默认不入库，Web Console 使用单一收藏入口。
 Phase 10.0 Quality Baseline Closure: 已完成；当前默认 pytest 220 项通过，前端构建、Alembic 链路和连续两轮 CLI 启停冒烟通过。
-Phase 10.1 Media Discovery Center: 当前优先、尚未实现；媒体身份、数据来源、A+ 持久化边界、顶层路由、首页双模式、基础筛选集和单选边界已确认，当前继续确认分页与详情信息层级，再实现发现闭环。
-Phase 10.2 Plugin Activation Runtime Completion: 生命周期内核和 8 项测试已完成；Phase 10.1 先恢复目录与想看插件所需的最小能力，之后收口候选健康检查、原子切换和启动自动加载。
-Phase 10.3 External Source End-to-End: Phase 10.2 后执行，完成仓库管理和真实源验收。
+Phase 10.1 Plugin Framework Completion: 当前优先；Manifest v2 解析和生命周期内核已完成，继续实现类型专用 Activation/Registry、健康检查、原子切换、启动恢复和多仓库管理闭环。
+Phase 10.2 Media Discovery Core And Mock Acceptance: 插件框架初步验收后执行，使用 Core 测试 Mock 完成媒体发现数据、API 和 Web Console 垂直切片。
+Phase 10.3 Official External Plugins: 在独立官方仓库迁移到 Manifest v2 后，逐个实现和验收 TMDb、SeedHub、豆瓣目录与豆瓣想看插件。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
 Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档，后续单独实现。
-媒体发现中心：已纳入当前 MVP 和当前优先任务；不包括本地媒体库海报墙、播放或观影进度。
+媒体发现中心：已纳入当前 MVP，但在插件框架初步验收后实施；不包括本地媒体库海报墙、播放或观影进度。
 ```
 
 Phase 0-10.0 已完成。后续插件交付必须持续保持该质量基线。
@@ -1198,16 +1198,16 @@ npm run build 通过。
 
 ---
 
-## Phase 10: Real Site Source Adapters
+## Phase 10: Plugin Framework And External Plugins
 
-目标：实现真实媒体网站即时搜索能力。每个真实网站通过 Source Adapter 接入，多个 Adapter 并发搜索，结果统一进入 Search Pipeline。搜索源统一由 Adapter 代码定义并同步到 `sources` 目录表，不再支持用户通过 Web Console 创建 configurable / document source。真实搜索源代码优先通过外部 Git 搜索源仓库接入，Sundarr Core 只保存仓库地址、分支和锁定 commit。
+目标：先完成可独立验收的 Python 插件框架，再以同一稳定合同承载媒体目录、想看列表和资源搜索插件。项目官方真实插件全部在独立 Git 仓库维护，Sundarr Core 只保存仓库地址、分支和锁定 commit，不内置平台实现。
 
 交付物：
 
 ```text
 Source Adapter SDK 完整化
 代码型 Adapter 插件加载机制
-外部 Git 搜索源仓库配置
+外部 Git 插件仓库配置
 通用 Plugin Manifest v2 / LoadedPlugin / 类型运行协议分层，并兼容 flat v1 SOURCE 清单
 PluginContext / PluginActivation 生命周期
 requires / provides 显式能力依赖
@@ -1227,7 +1227,7 @@ fixture 测试模板
 按真实链接去重
 搜索返回前同步检测链接有效性
 Web Console 已安装 Adapter 管理
-Web Console 搜索源仓库检查更新、应用更新、回滚和加载诊断
+Web Console 插件仓库检查更新、应用更新、回滚和加载诊断
 ```
 
 运行时边界：
@@ -1236,14 +1236,14 @@ Web Console 搜索源仓库检查更新、应用更新、回滚和加载诊断
 Core 保持 Python + FastAPI，不依赖 Cordis 包或 Node.js 插件宿主。
 只借鉴 Cordis 的显式依赖、Activation 和副作用回收语义。
 PluginActivation 只管理进程内插件资源，不替代 PostgreSQL、Redis、Worker 或 SMB 状态。
-插件类型按稳定业务合同划分，不是所有任务都要经过的固定阶段。SOURCE 负责具体资源链接搜索；Phase 10.1 同时引入 CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 的最小运行闭环。TRANSFER_DRIVER 和 NOTIFICATION 仅作为后续扩展；Cloud Provider、通知和通用爬虫不是近期主线。
+插件类型按稳定业务合同划分，不是所有任务都要经过的固定阶段。SOURCE 负责具体资源链接搜索；Phase 10.1 为 SOURCE、CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 补齐共用框架及类型专用运行闭环。TRANSFER_DRIVER 和 NOTIFICATION 仅作为后续扩展；Cloud Provider、通知和通用爬虫不是近期主线。
 ```
 
 验收标准：
 
 ```text
 至少 1 个真实网站 Adapter 可以即时搜索，当前首个实现参考 seedhub-cli 的列表页 + 详情页抽取方式。
-至少 1 个外部 Git 搜索源仓库可以被配置、拉取、锁定 commit 并加载。
+至少 1 个外部 Git 插件仓库可以被配置、拉取、锁定 commit 并加载。
 Adapter 可以解析搜索结果和必要的详情页。
 搜索结果能进入现有 Search Pipeline。
 单个 Adapter 失败不会影响其他 Adapter。
@@ -1291,51 +1291,11 @@ alembic heads/current/upgrade head 通过。
 sundarr start -> health -> stop 连续执行两次通过，端口和 PID 文件无残留。
 ```
 
-### Phase 10.1: Media Discovery Center
+### Phase 10.1: Python Plugin Framework Completion
 
-状态：当前优先，产品边界与通用插件分类已收口，数据/API 规格和实现尚未完成。
+状态：当前优先；生命周期内核、目标 PluginType、Manifest v2 多声明解析和 flat v1 SOURCE 兼容已完成。
 
-范围：
-
-```text
-带筛选条件的媒体搜索
-热门资源和分类资源
-发现型海报墙
-媒体详情
-关注列表入口
-从媒体条目继续查找候选资源
-```
-
-边界：
-
-```text
-不做本地媒体库海报墙。
-不做播放器和观影进度。
-不做完整本地媒体管理。
-媒体身份已经确认使用内部 UUID + 多外部 ID；TMDb 和豆瓣目录均使用 CATALOG_PROVIDER，豆瓣想看使用 WATCHLIST_PROVIDER；持久化采用核心身份与最小快照入 PostgreSQL、易变目录详情入 Redis 的 A+ 策略；任务关联仍需确认。
-/app/discover 是统一发现入口，/app/discover/:media_subject_id 是详情；/app/search 保留为具体资源链接搜索。
-/app/discover 默认显示热门电影、热门剧集、分类推荐和关注更新内容流；搜索或筛选后显示海报网格，条件保存在 URL query。
-MVP 筛选为媒体类型、题材、地区、年份范围和热度/评分/上映时间排序；不做演员、导演、语言等高级组合筛选。
-题材和地区在 MVP 界面均为单选，Core 查询模型以列表承载并校验最多一个值。
-分页交互和默认页大小属于 Web Console 实现细节，不进入插件 Manifest；Core Provider 协议使用不透明 continuation token。
-```
-
-插件运行边界：
-
-```text
-Phase 10.1 恢复加载已安装、已锁定版本插件所需的最小运行时。
-TMDb 目录是主 CATALOG_PROVIDER，豆瓣目录是可选补充 CATALOG_PROVIDER。
-豆瓣想看是独立 WATCHLIST_PROVIDER，由 Core 调度。
-同一仓库可以交付多个插件实例，但每个实例独立配置、启停、健康检查和报错。
-Phase 10.1 采用通用 Manifest v2 的多插件声明；迁移期继续兼容 flat v1 SOURCE 清单。
-热更新候选、原子切换和完整失败回滚仍由 Phase 10.2 收口。
-```
-
-### Phase 10.2: Python Plugin Activation Runtime Completion
-
-状态：生命周期内核首个单元已完成；Phase 10.1 会复用最小加载和注册能力，完整热更新与原子切换在媒体发现最小闭环后恢复。
-
-当前进度：生命周期内核首个单元已完成，已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放。目标 PluginType、通用 Manifest v2 多声明解析、版本与字段校验和 flat v1 SOURCE 兼容已实现；v2 类型专用 Activation/Registry、候选健康检查、注册中心原子切换和启动自动激活仍待实现。
+当前进度：已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放，以及目标 PluginType、通用 Manifest v2 多声明解析、版本与字段校验和 flat v1 SOURCE 兼容。v2 类型专用 Activation/Registry、候选健康检查、注册中心原子切换、启动自动激活和多仓库 API 闭环仍待实现。
 
 交付物：
 
@@ -1347,19 +1307,60 @@ requires / provides：显式声明能力依赖和提供能力。
 候选 Activation 通过校验和健康测试后原子替换旧 Activation。
 加载、禁用、更新、回滚、仓库删除均有确定的清理语义。
 启动时只加载数据库中已启用仓库的 current_commit。
+API 与 Worker 分别恢复自身需要的插件，不共享内存 Activation。
+本地 fixture 仓库覆盖 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 三类合同。
 ```
 
-### Phase 10.3: External Source End-to-End
+初步验收停止点：
 
-状态：Phase 10.2 后执行。
+```text
+不依赖任何真实外部服务即可加载本地 v2 多插件 fixture 仓库。
+SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 均可完成 Activation、健康检查、调用和 cleanup。
+候选失败保留旧 Activation，更新和回滚按仓库 commit 原子切换。
+API 与 Worker 重启后只恢复 enabled + locked current_commit。
+配置校验、敏感字段脱敏、禁用、删除和失败诊断可验证。
+pytest 与插件 API/Worker 冒烟通过，工作区已提交。
+```
+
+此处允许暂停做第一次技术验收；不要求真实 TMDb、豆瓣、SeedHub 或媒体发现 UI。
+
+### Phase 10.2: Media Discovery Core And Mock Acceptance
+
+状态：Phase 10.1 初步验收后执行；产品边界已收口，数据/API 和实现尚未完成。
+
+范围：
+
+```text
+MediaSubject、外部 ID、最小展示快照和用户关注状态。
+CATALOG_PROVIDER / WATCHLIST_PROVIDER Core 方法合同和能力描述。
+使用 Core 测试 Mock 的搜索、热门、分类、详情和想看同步。
+/app/discover、详情路由、基础筛选、海报墙和资源搜索跳转。
+PostgreSQL 最小事实与 Redis 易变缓存降级。
+```
+
+边界：
+
+```text
+Mock 只属于 Core 自动化测试和开发验收，不作为生产插件发布。
+不在 Core 实现 TMDb、豆瓣或其他真实平台客户端。
+不做本地媒体库海报墙、播放器、观影进度或完整本地媒体管理。
+分页交互不进入 Manifest，Core Provider 协议使用不透明 continuation token。
+```
+
+### Phase 10.3: Official External Plugins
+
+状态：Phase 10.1 框架与 Phase 10.2 媒体发现 Core 验收后执行。
 
 交付物：
 
 ```text
-sundarr-sources 仓库配置和锁定 commit。
-SeedHub 外部 Source Adapter fixture、测试和手动实时验收。
+把当前 https://github.com/A0CBEB339CB02898/sundarr-sources.git 的 master 分支从 SOURCE-only 历史结构迁移为通用 Manifest v2；仓库是否改名需另行确认。
+官方真实插件只在该独立仓库实现，Core 不复制平台代码或 fixture。
+按顺序交付：TMDb CATALOG_PROVIDER -> SeedHub SOURCE -> 豆瓣 CATALOG_PROVIDER -> 豆瓣 WATCHLIST_PROVIDER。
+每个插件分别提供配置 schema、离线 fixture、契约测试、健康检查和显式实时集成验收。
 Web Console 仓库新增、检查更新、应用更新、回滚、测试和诊断。
-重启恢复搜索源和 sources 目录同步。
+重启恢复已启用插件和 SOURCE 目录同步。
+继续允许用户配置其他可信第三方插件仓库。
 ```
 
 ### Phase 10.x: Document Site Generalization Experiment

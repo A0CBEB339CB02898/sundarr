@@ -26,9 +26,9 @@ TransferTask 状态机回答“持久任务当前执行到哪里”。
 
 | PluginType | 稳定职责 | 主要调用进程 | 当前状态 |
 | --- | --- | --- | --- |
-| `SOURCE` | 按关键词搜索具体资源及其链接候选 | API | 已有 v1 运行协议，外部仓库闭环待完成 |
-| `CATALOG_PROVIDER` | 搜索、热门、分类和详情等媒体目录能力 | API | Phase 10.1 实现 |
-| `WATCHLIST_PROVIDER` | 拉取外部想看列表项并返回增量游标 | Worker 调度，API 提供测试入口 | Phase 10.1 实现 |
+| `SOURCE` | 按关键词搜索具体资源及其链接候选 | API | 已有 v1 运行协议；v2 类型专用 Activation 待完成 |
+| `CATALOG_PROVIDER` | 搜索、热门、分类和详情等媒体目录能力 | API | 类型与 Manifest 解析已实现；运行合同和 Activation 待完成 |
+| `WATCHLIST_PROVIDER` | 拉取外部想看列表项并返回增量游标 | Worker 调度，API 提供测试入口 | 类型与 Manifest 解析已实现；运行合同和 Activation 待完成 |
 
 ### 2.2 已规划但不进入当前 MVP
 
@@ -61,7 +61,7 @@ LINK_EXTRACTOR      是 SOURCE 内部或 Core 搜索管线的细粒度能力。
 TASK_PROCESSOR      可任意插入状态机，难以保证幂等、事务和恢复，不开放为通用插件类型。
 ```
 
-当前代码 `PluginType` 中仍保留以上旧枚举，这是待迁移的实现事实，不表示继续采用这些分类。
+当前代码 `PluginType` 已移除以上旧枚举；旧清单若声明这些类型必须明确拒绝，不得静默映射为其他类型。
 
 ---
 
@@ -151,6 +151,14 @@ TransferTask 状态和数据库事实
 
 详细格式见 `docs/20-plugin-manifest-spec.md`。
 
+### 4.1 仓库边界
+
+项目官方维护的真实插件统一放在独立 Git 仓库，不进入 Sundarr Core。Core 仍必须保留插件合同、SDK 类型、Manifest/Loader、Activation/Registry、配置和诊断接口、业务编排、测试 Mock 与契约 fixture，因为这些属于宿主能力，不能外置。
+
+当前官方仓库迁移起点是 `https://github.com/A0CBEB339CB02898/sundarr-sources.git` 的 `master` 分支。该仓库目前仍是 SOURCE-only / flat v1 历史结构；Phase 10.3 才迁移为通用 Manifest v2 官方插件仓库。是否改名尚未确认。
+
+“官方插件统一外置”不限制用户只配置一个仓库。Core 必须支持多个可信仓库及第三方实现；同一官方仓库内的插件共享锁定 commit 和仓库级原子更新边界，但配置、启停、健康状态和错误仍按 `plugin_id` 独立保存。
+
 ---
 
 ## 5. 当前实现与目标差异
@@ -180,14 +188,14 @@ v2 类型专用 Activation、Registry 和健康检查尚未实现；当前只解
 旧单插件加载入口尚不执行 v2，避免错误复用 flat v1 无参数入口。
 启动时未自动加载数据库中的 enabled 仓库。
 PluginContext 尚未接入受控 HTTP client 和各类型 registry 注册动作。
-manifest 尚未解析 requires / provides。
+requires / provides 已完成 Manifest 解析和静态校验，但尚未完成运行时能力注入与依赖检查。
 更新过程不是候选验证后的原子切换。
 API 和 Worker 尚未分别恢复各自需要的插件 Activation。
 Web Console 没有仓库管理页面。
 当前默认数据库没有仓库，运行时搜索源为 0。
 ```
 
-Phase 10.1 只实现 `CATALOG_PROVIDER`、`WATCHLIST_PROVIDER` 所需的最小 v2 加载、注册和健康检查；完整候选切换、启动恢复和 SOURCE 外部仓库闭环在 Phase 10.2/10.3 完成。
+Phase 10.1 先完成全部当前 MVP 类型共用的 v2 加载、类型专用 Registry、健康检查、候选原子切换、失败回滚和启动恢复。Phase 10.2 使用 Core 测试 Mock 完成媒体发现垂直切片；Phase 10.3 才在官方外部仓库逐个实现和验收 TMDb、SeedHub、豆瓣目录和豆瓣想看等真实插件。
 
 ---
 

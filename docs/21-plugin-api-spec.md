@@ -28,7 +28,7 @@ POST   /plugins/load-all
 当前限制：
 
 ```text
-POST /repositories 在多 Source 仓库返回列表时响应处理尚未完全兼容。
+POST /repositories 在多插件、多仓库返回列表时响应处理尚未完全兼容。
 load-all 需要手动调用，应用启动不会自动执行。
 接口尚未暴露 Activation、依赖和 cleanup 状态。
 Web Console 尚未提供对应页面。
@@ -42,8 +42,8 @@ Web Console 尚未提供对应页面。
 ```json
 {
   "id": "repo_01",
-  "name": "sundarr-sources",
-  "repo_url": "https://github.com/example/sundarr-sources.git",
+  "name": "official-plugins",
+  "repo_url": "https://github.com/example/sundarr-plugins.git",
   "branch": "main",
   "current_commit": "abc123",
   "previous_commit": "def456",
