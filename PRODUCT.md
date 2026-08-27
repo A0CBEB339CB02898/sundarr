@@ -77,6 +77,9 @@ MVP 不做：
 - `/app/discover` 默认展示分区内容流，搜索或筛选后切换为海报网格；搜索状态写入 URL，刷新和返回时可恢复。
 - 媒体发现 MVP 只提供媒体类型、题材、地区、年份范围和热度/评分/上映时间排序，不做演员、导演、语言等高级组合筛选。
 - 题材和地区在 MVP 界面均为单选；Core 内部保留列表结构，未来可以兼容扩展为多选。
+- 插件类型按稳定业务合同划分，不要求每个任务依次流过所有类型。当前 MVP 只实现 `SOURCE`、`CATALOG_PROVIDER`、`WATCHLIST_PROVIDER`；`TRANSFER_DRIVER` 与 `NOTIFICATION` 作为后续扩展。
+- 当前 SMB 同步是 Core 内置主链路。未来 `TRANSFER_DRIVER` 可统一 SMB、HTTP、网盘或下载客户端，但 BT/磁力仍不进入 MVP。
+- 通用 Manifest v2 支持一个可信 Git 仓库声明多个独立插件；Manifest 不承载 Web Console 分页、Core 调度游标或任务状态。
 
 ## Product Tone
 

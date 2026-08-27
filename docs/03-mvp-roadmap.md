@@ -1208,7 +1208,7 @@ npm run build 通过。
 Source Adapter SDK 完整化
 代码型 Adapter 插件加载机制
 外部 Git 搜索源仓库配置
-SourceManifest / LoadedSource / SourceModel 分层
+通用 Plugin Manifest v2 / LoadedPlugin / 类型运行协议分层，并兼容 flat v1 SOURCE 清单
 PluginContext / PluginActivation 生命周期
 requires / provides 显式能力依赖
 候选加载、健康检查、原子切换和可逆清理
@@ -1236,7 +1236,7 @@ Web Console 搜索源仓库检查更新、应用更新、回滚和加载诊断
 Core 保持 Python + FastAPI，不依赖 Cordis 包或 Node.js 插件宿主。
 只借鉴 Cordis 的显式依赖、Activation 和副作用回收语义。
 PluginActivation 只管理进程内插件资源，不替代 PostgreSQL、Redis、Worker 或 SMB 状态。
-SOURCE 负责具体资源链接搜索；Phase 10.1 同时引入 CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 的最小运行闭环。Cloud Provider、通知和通用爬虫不是近期主线。
+插件类型按稳定业务合同划分，不是所有任务都要经过的固定阶段。SOURCE 负责具体资源链接搜索；Phase 10.1 同时引入 CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 的最小运行闭环。TRANSFER_DRIVER 和 NOTIFICATION 仅作为后续扩展；Cloud Provider、通知和通用爬虫不是近期主线。
 ```
 
 验收标准：
@@ -1293,7 +1293,7 @@ sundarr start -> health -> stop 连续执行两次通过，端口和 PID 文件�
 
 ### Phase 10.1: Media Discovery Center
 
-状态：当前优先，处于逐项设计阶段，尚未实现。
+状态：当前优先，产品边界与通用插件分类已收口，数据/API 规格和实现尚未完成。
 
 范围：
 
@@ -1317,6 +1317,7 @@ sundarr start -> health -> stop 连续执行两次通过，端口和 PID 文件�
 /app/discover 默认显示热门电影、热门剧集、分类推荐和关注更新内容流；搜索或筛选后显示海报网格，条件保存在 URL query。
 MVP 筛选为媒体类型、题材、地区、年份范围和热度/评分/上映时间排序；不做演员、导演、语言等高级组合筛选。
 题材和地区在 MVP 界面均为单选，Core 查询模型以列表承载并校验最多一个值。
+分页交互和默认页大小属于 Web Console 实现细节，不进入插件 Manifest；Core Provider 协议使用不透明 continuation token。
 ```
 
 插件运行边界：
@@ -1326,6 +1327,7 @@ Phase 10.1 恢复加载已安装、已锁定版本插件所需的最小运行时
 TMDb 目录是主 CATALOG_PROVIDER，豆瓣目录是可选补充 CATALOG_PROVIDER。
 豆瓣想看是独立 WATCHLIST_PROVIDER，由 Core 调度。
 同一仓库可以交付多个插件实例，但每个实例独立配置、启停、健康检查和报错。
+Phase 10.1 采用通用 Manifest v2 的多插件声明；迁移期继续兼容 flat v1 SOURCE 清单。
 热更新候选、原子切换和完整失败回滚仍由 Phase 10.2 收口。
 ```
 
@@ -1333,7 +1335,7 @@ TMDb 目录是主 CATALOG_PROVIDER，豆瓣目录是可选补充 CATALOG_PROVIDE
 
 状态：生命周期内核首个单元已完成；Phase 10.1 会复用最小加载和注册能力，完整热更新与原子切换在媒体发现最小闭环后恢复。
 
-当前进度：生命周期内核首个单元已完成，已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放。候选健康检查、注册中心原子切换、manifest `requires/provides` 和启动自动激活仍待实现。
+当前进度：生命周期内核首个单元已完成，已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放。通用 Manifest v2 和目标 PluginType 已完成设计；多声明解析、候选健康检查、注册中心原子切换、manifest `requires/provides` 和启动自动激活仍待实现。
 
 交付物：
 
@@ -1341,6 +1343,7 @@ TMDb 目录是主 CATALOG_PROVIDER，豆瓣目录是可选补充 CATALOG_PROVIDE
 PluginContext：向插件暴露受控日志、HTTP、配置等能力。
 PluginActivation：记录插件实例、状态、commit 和 LIFO cleanup callbacks。
 requires / provides：显式声明能力依赖和提供能力。
+通用 Manifest v2：同仓库多插件声明、版本化 Core 能力名和 flat v1 SOURCE 兼容读取。
 候选 Activation 通过校验和健康测试后原子替换旧 Activation。
 加载、禁用、更新、回滚、仓库删除均有确定的清理语义。
 启动时只加载数据库中已启用仓库的 current_commit。

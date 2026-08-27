@@ -686,7 +686,7 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 
 ### 9.13 媒体发现响应缓存语义（Phase 10.1 计划）
 
-媒体发现 Web 路由已确认为 `/app/discover` 和 `/app/discover/:media_subject_id`；对应 FastAPI 路由名称和请求参数仍待模块内信息架构确认。响应必须遵守：
+媒体发现 Web 路由已确认为 `/app/discover` 和 `/app/discover/:media_subject_id`；对应 FastAPI 路由随 Phase 10.1 数据/API 规格落地。响应必须遵守：
 
 ```text
 不直接返回 CATALOG_PROVIDER 私有原始响应。
@@ -712,6 +712,8 @@ sort: popularity / rating / release_date
 语言、评分区间、演员、导演、Provider 来源和复杂布尔组合不进入 MVP API。
 
 Core 请求模型内部以 `genres: list[str]` 和 `regions: list[str]` 表示题材与地区。MVP 接收到两个及以上同名参数时返回 `422`，不得只取第一个；未来放开多选时不改变内部参数形状。
+
+目录 Provider 分页使用 Core 定义的不透明 `continuation_token` 和受限 `limit`。Adapter 负责把 token 映射为外部平台页码或 cursor；Web Console 的页码、加载更多或无限滚动属于展示实现，不进入插件 Manifest，也不能要求 API 暴露平台私有分页值。
 
 ---
 

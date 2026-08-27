@@ -1,31 +1,168 @@
 # Python 插件系统与 Activation Runtime
 
-本文档定义 Sundarr 插件系统的当前实现、目标生命周期和边界。更新时间：2026-08-26。
+本文档是 Sundarr 通用插件体系的事实来源，定义插件分类、运行边界、任务流关系和生命周期。更新时间：2026-08-27。
 
 ---
 
-## 1. 当前范围
+## 1. 设计原则
 
-当前必须完成的插件类型只有：
+插件类型表示一份稳定的业务扩展协议，不表示任务状态机中的固定阶段。
 
 ```text
-SOURCE — 外部真实搜索源 Adapter。
+插件类型回答“这个扩展提供什么能力”。
+Core 编排回答“某次操作要调用哪些能力、按什么顺序调用”。
+TransferTask 状态机回答“持久任务当前执行到哪里”。
 ```
 
-`CLOUD_PROVIDER`、`NOTIFICATION`、`CRAWLER`、`LINK_VALIDATOR`、`LINK_EXTRACTOR` 和 `TASK_PROCESSOR` 可以保留枚举或设计扩展点，但不代表已经实现，更不属于近期主线。
+因此，不要求每个任务自上而下流过所有插件类型。媒体发现、外部想看同步、资源搜索和文件传输是相互连接但独立的流程；只有用户动作或 Core 规则明确产生传输意图时才创建 `TransferTask`。
 
 插件代码使用 Python。Sundarr 不依赖 Cordis 包，不运行 Node.js 插件宿主。
 
 ---
 
-## 2. 已实现组件
+## 2. 目标插件分类
+
+### 2.1 当前 MVP 必需类型
+
+| PluginType | 稳定职责 | 主要调用进程 | 当前状态 |
+| --- | --- | --- | --- |
+| `SOURCE` | 按关键词搜索具体资源及其链接候选 | API | 已有 v1 运行协议，外部仓库闭环待完成 |
+| `CATALOG_PROVIDER` | 搜索、热门、分类和详情等媒体目录能力 | API | Phase 10.1 实现 |
+| `WATCHLIST_PROVIDER` | 拉取外部想看列表项并返回增量游标 | Worker 调度，API 提供测试入口 | Phase 10.1 实现 |
+
+### 2.2 已规划但不进入当前 MVP
+
+| PluginType | 稳定职责 | 主要调用进程 | 边界 |
+| --- | --- | --- | --- |
+| `TRANSFER_DRIVER` | 执行一种来源到目标媒体库的搬运，并报告进度、校验和取消结果 | Worker | 后续统一 SMB、HTTP、网盘或下载客户端接入；BT/磁力仍不属于 MVP |
+| `NOTIFICATION` | 消费 Core 产生的领域事件并向外部渠道投递 | Worker / 独立通知消费者 | 不参与同步状态机的同步阻塞路径 |
+
+`TRANSFER_DRIVER` 比 `DOWNLOAD_CLIENT` 更适合作为顶层名称：qBittorrent 是下载客户端，SMB 是流式复制协议，HTTP 和网盘保存也不一定存在“客户端”。它们可以实现同一搬运合同，但不需要伪装成同一种外部软件。
+
+当前 `SmbWriter` 和远程媒体库扫描状态机仍是 Core 内置实现，不是外部插件。未来引入 `TRANSFER_DRIVER` 时，应先让内置 SMB 驱动实现相同协议，再接入外部驱动，不能为了插件化提前改写已稳定主链路。
+
+### 2.3 不作为顶层 PluginType
+
+```text
+CLOUD_PROVIDER
+CRAWLER
+LINK_VALIDATOR
+LINK_EXTRACTOR
+TASK_PROCESSOR
+```
+
+原因：
+
+```text
+CLOUD_PROVIDER      平台连接能力，不等于一次完整搬运；后续作为 TRANSFER_DRIVER 的依赖或内部连接器。
+CRAWLER             技术实现方式过于宽泛；目录、想看和资源源应按业务产出分类。
+LINK_VALIDATOR      是 SOURCE 或 TRANSFER_DRIVER 可复用的细粒度能力。
+LINK_EXTRACTOR      是 SOURCE 内部或 Core 搜索管线的细粒度能力。
+TASK_PROCESSOR      可任意插入状态机，难以保证幂等、事务和恢复，不开放为通用插件类型。
+```
+
+当前代码 `PluginType` 中仍保留以上旧枚举，这是待迁移的实现事实，不表示继续采用这些分类。
+
+---
+
+## 3. 三条业务流
+
+### 3.1 媒体发现流
+
+```text
+用户目录搜索 ───────────────┐
+                           v
+CATALOG_PROVIDER -> CatalogItem -> Core 身份归一化 -> MediaSubject / 最小快照
+                           ^
+WATCHLIST_PROVIDER -> WatchlistItem ┘
+```
+
+发现和想看同步只产生或更新媒体身份、展示快照和用户状态，不自动创建传输任务。
+
+### 3.2 资源查找流
+
+```text
+用户关键词或 MediaSubject
+  -> SOURCE
+  -> RawSearchItem
+  -> Core 标准化、链接提取、验证、去重
+  -> ResourceCandidate / ResourceLinkResult
+  -> 用户可选收藏
+```
+
+搜索结果默认不持久化，也不自动创建传输任务。`LINK_EXTRACTOR` 和 `LINK_VALIDATOR` 属于该流程中的 Core 能力或 Adapter 内部实现，不是用户必须安装的顶层阶段插件。
+
+### 3.3 搬运流
+
+当前 MVP：
+
+```text
+RemoteLibraryScanner（Core）
+  -> SyncBinding / SyncSeenFile
+  -> TransferTask(mode=sync)
+  -> Worker
+  -> SmbWriter（Core 内置）
+  -> 校验 / 原子重命名 / 可选来源清理
+```
+
+未来扩展：
+
+```text
+用户确认的资源链接或其他受支持来源
+  -> AcquisitionRequest
+  -> Core 依据来源协议、目标媒体库和策略选择 TRANSFER_DRIVER
+  -> 在任务创建前持久化 driver_id 与规范化 source/target
+  -> TransferTask
+  -> Worker 调用选定 Driver
+```
+
+插件不得在任务运行中临时决定“下一步流入哪个插件类型”。选择结果由 Core 在任务创建前确定并持久化，重试必须继续使用可追踪的驱动版本，除非用户明确重新规划任务。
+
+未来 qBittorrent 驱动应直接把内容落到目标本地媒体库所在文件系统，并使用同文件系统的未完成标记或原子可见策略；不要求先下载到另一块本地暂存空间，也不绕经远程媒体库。该能力不改变 BT/磁力不进入当前 MVP 的边界。
+
+---
+
+## 4. Manifest 与运行协议边界
+
+通用 Manifest 只保存静态声明：
+
+```text
+manifest 版本
+插件 id、名称、版本、主 PluginType
+入口函数和 Plugin API 兼容版本
+配置 schema
+requires / provides 静态能力声明
+```
+
+Manifest 不保存：
+
+```text
+Web Console 的分页、布局或默认页大小
+Core 调度周期、重试次数或持久游标
+TransferTask 状态和数据库事实
+运行时缓存 TTL
+平台原始响应
+密钥、Cookie、Token 等配置值
+```
+
+一个 Git 仓库可以在 `sundarr_plugin.toml` 中声明多个插件。每个插件只有一个主 `PluginType`，拥有独立 `plugin_id`、配置、启停、健康检查、Activation 和错误状态。`provides` 只表达该类型下的细粒度能力，不能借此绕过类型的输入输出合同。
+
+目录筛选支持情况、排序能力等可能受账号、地区或配置影响的内容，由 Provider 运行时能力描述返回，不固化为 UI 字段。分页统一使用 Core 的不透明 continuation token；Adapter 自行转换外部平台的页码或 cursor，Web Console 可以独立选择页码或“加载更多”交互。
+
+详细格式见 `docs/20-plugin-manifest-spec.md`。
+
+---
+
+## 5. 当前实现与目标差异
+
+### 5.1 已实现组件
 
 ```text
 PluginRepository / PluginConfig / PluginLog 数据模型
 PluginManifest / LoadedPlugin / PluginType
-PluginLoader：Git clone、fetch、checkout、清单解析和 Python entry 加载
+PluginLoader：Git clone、fetch、checkout、单清单解析和 Python entry 加载
 PluginManager：仓库新增、加载、更新、回滚、删除、配置和启停
-PluginRegistry：运行时注册、查询和注销
+PluginRegistry：进程内注册、查询和注销
 PluginContext：只读配置、Core 能力读取、插件能力提供和 cleanup 登记
 PluginActivation / ActivationStatus：依赖等待、候选校验、激活、失败和释放状态
 同步/异步 cleanup 的 LIFO、失败续跑和并发幂等释放
@@ -33,189 +170,119 @@ PluginActivation / ActivationStatus：依赖等待、候选校验、激活、失
 SOURCE 入口返回 SourceModel 或 list[SourceModel]
 ```
 
-当前缺口（Phase 10.2 在媒体发现中心最小闭环后恢复）：
+### 5.2 当前缺口
 
 ```text
+代码枚举仍是 SOURCE + 旧占位类型，尚无 CATALOG_PROVIDER / WATCHLIST_PROVIDER。
+当前 loader 只解析单插件 flat v1 manifest，尚不支持通用 v2 多插件清单。
 启动时未自动加载数据库中的 enabled 仓库。
-PluginContext 尚未接入受控 HTTP client 和 source_registry 注册动作。
+PluginContext 尚未接入受控 HTTP client 和各类型 registry 注册动作。
 manifest 尚未解析 requires / provides。
-更新过程会直接操作当前注册中心，不是候选验证后的原子切换。
-多 Source 仓库的部分 API 响应仍按单 LoadedPlugin 处理。
+更新过程不是候选验证后的原子切换。
+API 和 Worker 尚未分别恢复各自需要的插件 Activation。
 Web Console 没有仓库管理页面。
 当前默认数据库没有仓库，运行时搜索源为 0。
 ```
 
+Phase 10.1 只实现 `CATALOG_PROVIDER`、`WATCHLIST_PROVIDER` 所需的最小 v2 加载、注册和健康检查；完整候选切换、启动恢复和 SOURCE 外部仓库闭环在 Phase 10.2/10.3 完成。
+
 ---
 
-## 3. Cordis 启发的运行时模型
+## 6. Cordis 启发的生命周期
 
-Cordis 在本项目中是设计思想来源，不是运行时依赖。
+### 6.1 PluginContext
 
-### 3.1 PluginContext
-
-`PluginContext` 是插件访问 Core 能力的唯一入口。当前已实现 logger、只读 `plugin_config`、通用 `require/provide` 和 `register_cleanup`；下一单元接入受控 HTTP 与 Source 注册动作：
+`PluginContext` 是插件访问 Core 能力的唯一入口：
 
 ```text
-logger                                             已实现
-plugin_config                                      已实现
-require(name) / provide(name, value)              已实现
-register_cleanup(callback)                        已实现
-http_client 或受控 HTTP client factory             待接入
-register_source(source) -> cleanup callback       待接入
+logger
+只读 plugin_config
+require(name) / provide(name, value)
+register_cleanup(callback)
+受控 HTTP client factory（待实现）
+类型专用 registry（待实现）
 ```
 
-禁止通过 Context 暴露：
+禁止通过 Context 暴露任意数据库 Session、SMB 密码、Worker 私有函数或全局任务状态机可写对象。
 
-```text
-任意数据库 Session
-SMB 密码或全量敏感配置
-Worker 私有函数
-全局任务状态机可写对象
-```
+### 6.2 requires / provides
 
-### 3.2 能力依赖
+`requires` 声明插件需要的 Core 宿主能力，`provides` 声明插件对外提供的版本化能力。MVP 不支持插件通过 ID 相互依赖；Core 能力缺失时插件进入 `waiting` 或 `failed`，不得执行入口后再猜测依赖。
 
-插件可以声明：
-
-```text
-requires — 激活前必须存在的能力。
-provides — 激活成功后提供的能力。
-```
-
-SOURCE v1 默认要求 `source_registry`，可选要求受控 `http_client`。依赖不满足时不得执行插件入口。
-
-### 3.3 PluginActivation
-
-Activation 是一次具体插件版本的运行实例：
-
-```text
-plugin_id
-repository_id
-commit_hash
-manifest
-instance
-status
-provided_capabilities
-cleanup_callbacks
-error
-activated_at
-```
-
-推荐状态：
+### 6.3 PluginActivation
 
 ```text
 candidate -> validating -> active
 candidate/validating -> failed
-active -> disposing -> disposed
 依赖缺失 -> waiting
+active -> disposing -> disposed
 ```
 
-上述状态已在 `sundarr/app/plugins/runtime.py` 落地；不得把 repository 的下载状态与 Activation 运行状态混为一谈。
+Activation 只管理一次具体插件版本的进程内资源和可逆副作用，不替代 PostgreSQL、Redis、Alembic、Worker 状态机或 SMB 连接池。
 
-### 3.4 可逆清理
-
-插件通过 Context 产生的注册和资源必须返回清理函数。Activation 在以下场景按 LIFO 顺序执行一次清理：
-
-```text
-disable
-update 成功切换后
-rollback 成功切换后
-remove_repository
-应用关闭
-依赖能力撤回
-```
-
-cleanup 失败应记录日志并继续清理剩余资源，不能恢复已经完成的旧副作用。
-
-### 3.5 候选加载和原子切换
+### 6.4 候选加载和原子切换
 
 ```text
 fetch 远程信息
 checkout 明确 commit 到本地缓存
-构建 candidate Activation
-解析和校验 manifest/config/requires
+解析通用 Manifest 并为每个声明创建 candidate
+校验类型合同、配置和 requires
 加载 Python entry
-执行插件健康测试
-准备提供能力但不覆盖 active
-原子替换 registry 映射
+执行类型专用健康测试
+准备 provides，但不覆盖 active
+按 plugin_id 原子替换 registry 映射
 释放旧 Activation
 提交 current_commit / previous_commit 和状态
 ```
 
-候选失败时：
-
-```text
-旧 active Activation 继续工作。
-current_commit 不切换。
-候选副作用全部清理。
-错误写入 PluginLog / repository last_error。
-```
+仓库内任一必须启用的插件候选失败时，默认不切换该仓库的 `current_commit`。旧 active Activation 继续工作，候选副作用全部清理，错误写入插件日志。后续若需要部分切换，必须另行定义仓库版本一致性规则。
 
 ---
 
-## 4. 启动顺序
+## 7. 进程边界
+
+API 与 Worker 不共享内存 Registry 或 Activation：
 
 ```text
-加载 bootstrap 配置
-连接数据库并执行 Alembic
-初始化 Core 能力
-读取 enabled PluginRepository
-从本地缓存加载每个 current_commit
-激活成功插件
-同步 sources 目录表
-启动对外 API ready 状态
+API       加载 SOURCE、CATALOG_PROVIDER。
+Worker    加载 WATCHLIST_PROVIDER；未来加载 TRANSFER_DRIVER、NOTIFICATION。
 ```
 
-约束：
-
-```text
-启动时不自动 fetch 或执行远程最新 commit。
-单个插件失败不阻止 API 启动。
-没有 Source 时 API 可以健康启动，但 /health 或插件诊断必须能表达“搜索能力未配置”。
-```
+管理 API 可以触发类型专用的候选健康检查，但不能把 API 进程中的对象当成 Worker 已激活。各进程从同一数据库事实和锁定 commit 恢复自己需要的插件；跨进程进度、游标和任务状态必须持久化。
 
 ---
 
-## 5. 进程边界
-
-API 和 Worker 是不同进程，各自需要明确的插件能力：
+## 8. 安全边界
 
 ```text
-API 进程需要 SOURCE 插件执行搜索。
-Worker 当前不需要加载 SOURCE 插件。
-未来若出现 Worker 插件，必须单独定义跨进程配置和状态恢复，不能复用内存 Activation 假装共享。
-```
-
----
-
-## 6. 安全边界
-
-```text
-外部 Python 插件是用户显式信任代码。
-锁定 commit 提供可追踪性，不提供沙箱隔离。
+外部 Python 插件是用户显式信任代码，不是沙箱代码。
+锁定 commit 提供可追踪性，不提供隔离。
 数据库和 Web Console 不保存、上传或编辑可执行 Python 代码。
-插件日志必须脱敏。
+插件日志和诊断响应必须脱敏。
 仓库路径、manifest 路径和 entry module 必须有越界保护。
+插件不得直接访问 ORM Session、SMB 凭据或任务状态机写接口。
 ```
 
-如果未来需要运行不可信插件，应使用独立进程/容器和 RPC 协议另行设计，不能把 PluginContext 当安全边界。
+如需运行不可信插件，必须使用独立进程或容器和 RPC 协议另行设计。
 
 ---
 
-## 7. 验收标准
+## 9. 验收标准
 
 ```text
-默认 pytest 覆盖 Activation 成功、失败、清理顺序、重复清理和原子切换。
-更新失败时旧 Source 仍可被 SearchService 调用。
-禁用、删除和回滚后 registry 与数据库状态一致。
-重启只加载 locked current_commit。
-一个仓库返回多个 Source 时全部注册、展示和清理。
-插件失败不影响 /health 和其他插件。
+同一仓库的多个插件声明可以独立配置、启停、测试和报错。
+Manifest 只包含静态声明，运行时状态和 UI 细节不进入清单。
+Provider 输出先映射为 Core 模型，平台私有响应不直接穿透 API。
+单插件失败不影响 /health 和其他插件。
+更新失败时旧插件仍可用，候选副作用无残留。
+禁用、删除、回滚和关闭时 cleanup 幂等执行。
+API 与 Worker 分别恢复自身所需插件，不假装共享内存 Activation。
+TransferTask 的驱动选择可追踪且不由插件运行中任意改写。
 ```
 
 ---
 
-## 8. 与 Cordis / DeepSeek Harness 的关系
+## 10. 与 Cordis / DeepSeek Harness 的关系
 
 Phase 11 后可以维护独立的 TypeScript 桥接插件：
 
@@ -223,4 +290,4 @@ Phase 11 后可以维护独立的 TypeScript 桥接插件：
 Cordis / DeepSeek Harness plugin -> Sundarr AI Tool HTTP API
 ```
 
-该桥接不进入 Sundarr Core，不与 Python PluginActivation 共用进程，也不访问数据库、SMB 或 Worker 内部对象。
+桥接插件不进入 Sundarr Core，不与 Python PluginActivation 共用进程，也不访问数据库、SMB 或 Worker 内部对象。

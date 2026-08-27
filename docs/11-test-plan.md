@@ -100,6 +100,9 @@ source failure isolation
 网盘链接和提取码提取复用
 代码型源不能前端编辑
 外部搜索源仓库 manifest 解析
+flat v1 SOURCE 清单兼容读取
+通用 v2 单插件和多插件清单解析
+未知 manifest_version / PluginType / plugin_api_version 拒绝
 外部搜索源仓库路径越界防护
 外部搜索源仓库加载失败隔离
 外部搜索源 id 冲突处理
@@ -119,6 +122,7 @@ cleanup LIFO 顺序、幂等和失败隔离
 媒体发现中心使用 MockCatalogProvider 覆盖搜索、筛选、热门、分类、详情和海报字段。
 默认 pytest 不调用 TMDb、豆瓣或其他实时目录服务。
 同一仓库中的 douban-catalog 与 douban-watchlist 必须分别测试启用、禁用、失败和配置错误。
+同仓库任一必须启用声明候选失败时 current_commit 不切换，旧 Activation 保持可用。
 豆瓣补充失败时 TMDb 主目录仍可返回；想看同步失败时不得影响目录查询。
 WATCHLIST_PROVIDER 测试使用固定 fixture 和 Core 持久游标，不启动插件自有永久轮询。
 Redis 清空后 MediaSubject、外部 ID、最小展示快照和用户状态仍存在。
@@ -145,7 +149,7 @@ Git Source Repository 模式测试原则：
 ```text
 默认自动化测试使用本地 fixture 仓库，不访问真实 GitHub。
 clone / fetch 可通过临时本地 git repository 或 mock repository manager 覆盖。
-加载器测试必须覆盖成功加载 SourceModel、入口不存在、返回值错误、manifest 缺字段、adapter_api_version 不支持。
+加载器测试必须覆盖成功加载 SourceModel、入口不存在、返回值错误、manifest 缺字段、flat v1 adapter_api_version 不支持、v2 plugin_api_version 不支持和重复 plugin_id。
 安全测试必须覆盖 source path 越界、entry module 越界和不执行未锁定 commit。
 Web Console 冒烟测试必须覆盖加载成功列表、加载失败列表和测试搜索入口。
 ```

@@ -2,7 +2,7 @@
 
 本文档是当前实现状态的派生摘要。阶段事实来源以 `docs/03-mvp-roadmap.md` 为准，插件运行时事实来源以 `docs/20-plugin-system.md` 为准。
 
-更新时间：2026-08-26。
+更新时间：2026-08-27。
 
 ---
 
@@ -33,7 +33,9 @@ Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连�
 
 发现首页交互已确认采用双模式：默认分区内容流，搜索/筛选后统一海报网格，状态进入 URL query。
 
-基础筛选已确认：媒体类型、题材、地区、年份范围和热度/评分/上映时间排序。题材和地区在 MVP 界面均为单选，Core 使用列表查询结构；分页方式与详情字段仍待确认。
+基础筛选已确认：媒体类型、题材、地区、年份范围和热度/评分/上映时间排序。题材和地区在 MVP 界面均为单选，Core 使用列表查询结构。分页交互作为实现细节处理，不进入插件 Manifest。
+
+通用插件分类已收口：当前 MVP 是 `SOURCE`、`CATALOG_PROVIDER`、`WATCHLIST_PROVIDER`，未来保留 `TRANSFER_DRIVER`、`NOTIFICATION`。插件类型不是所有任务必须经过的阶段；当前 SMB 同步仍由 Core 内置状态机和 SmbWriter 执行。Manifest v2 的多插件声明已经设计，代码仍是 flat v1 SOURCE 实现。
 
 ---
 
@@ -97,7 +99,7 @@ SeedHub 已从 Core 移出
 Web Console 没有插件仓库新增、更新、回滚和诊断页面。
 当前环境未配置插件仓库，运行时搜索源为 0。
 外部 SeedHub 尚未完成 Core 侧端到端验收。
-CATALOG_PROVIDER / WATCHLIST_PROVIDER 尚未加入代码枚举、加载器和注册中心。
+CATALOG_PROVIDER / WATCHLIST_PROVIDER 以及通用 Manifest v2 尚未加入代码枚举、加载器和注册中心。
 Docker Compose 未在当前 Windows 环境实跑。
 ```
 
@@ -143,8 +145,4 @@ Phase 11 完成后，可以提供可选 Cordis / DeepSeek Harness 桥接插件�
 
 ## 6. 当前工作区说明
 
-```text
-master 与 origin/master 同步。
-migrations/versions/0008_create_plugin_tables.py 有用户未提交的 down_revision 修复。
-在测试全绿前不得自动提交代码修复。
-```
+文档中的“已实现”和“目标设计”必须继续分开标注。当前验证基线仍为 2026-08-26 的 204 项后端测试、前端构建及 API/Web/Worker 冒烟结果；本轮插件分类与 Manifest v2 仅更新设计文档，不代表代码已经实现。

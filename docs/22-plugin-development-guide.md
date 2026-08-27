@@ -1,8 +1,8 @@
 # Source 插件开发指南
 
-本文档面向 Sundarr 外部 Python 搜索源仓库开发者。更新时间：2026-08-26。
+本文档面向 Sundarr 外部 Python 搜索源仓库开发者。更新时间：2026-08-27。
 
-当前只承诺 SOURCE 插件。Cloud Provider、通知、Crawler 和 Task Processor 示例不属于已实现 SDK。
+当前可运行 SDK 只承诺 flat v1 SOURCE 插件。通用 Manifest v2、CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 已完成设计但尚未实现；TRANSFER_DRIVER 和 NOTIFICATION 是后续扩展。
 
 ---
 
@@ -23,7 +23,7 @@ my-source-repository/
 
 ---
 
-## 2. 清单
+## 2. 当前 flat v1 清单
 
 ```toml
 id = "example-source"
@@ -34,12 +34,9 @@ description = "用于演示 Sundarr Source Adapter。"
 entry = "my_source.adapter:create_source"
 adapter_api_version = 1
 
-[runtime]
-requires = ["source_registry", "http_client"]
-provides = ["source:example-source"]
 ```
 
-`runtime.requires/provides` 是 Phase 10.1 目标字段；在 Core 实现前插件不得依赖其自动注入行为。字段最终 schema 以 `docs/20-plugin-manifest-spec.md` 为准。
+当前模板继续使用 flat v1。新仓库在通用 v2 loader 落地后迁移到 `manifest_version = 2` 和 `[[plugins]]`；目标格式及版本化 `requires/provides` 以 `docs/20-plugin-manifest-spec.md` 为准。在 Core 实现前插件不得依赖 v2 自动注入行为。
 
 ---
 

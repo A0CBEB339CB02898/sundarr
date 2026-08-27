@@ -341,6 +341,10 @@ Sundarr Core 保持 Python + FastAPI，不迁移到 Cordis / Node.js。
 当前 Source Adapter 继续使用 Python 运行时协议。
 插件系统借鉴 Cordis 的显式能力依赖、Activation、可逆副作用清理、候选加载和原子切换语义。
 Cordis 启发的生命周期层不替代 PostgreSQL 任务事实来源、Alembic 迁移、Redis、SMB 连接池或 Worker 状态机。
+插件类型按稳定业务合同划分，不是每个任务必须依次经过的处理阶段。
+当前 MVP 顶层类型为 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER；TRANSFER_DRIVER、NOTIFICATION 仅作为后续扩展。
+当前 SMB 同步保持 Core 内置；LINK_EXTRACTOR、LINK_VALIDATOR 属于 Core 或插件内部细粒度能力，不设为顶层类型。
+通用 Manifest v2 支持同一仓库声明多个独立插件，且不保存 UI、调度或任务运行状态。
 Phase 11 AI Friendly API 稳定后，可提供可选 Cordis / DeepSeek Harness 桥接插件。
 桥接插件只调用公开 Sundarr API，不直接访问数据库、SMB 凭据、NAS 文件或 Worker 内部对象。
 ```

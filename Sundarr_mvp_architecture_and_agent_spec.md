@@ -2,7 +2,7 @@
 
 本文件保留为高层架构入口，不再复制编号规格全文。详细事实来源见 `Sundarr_documentation_plan.md`。
 
-更新时间：2026-08-26。
+更新时间：2026-08-27。
 
 ## 产品目标
 
@@ -52,6 +52,10 @@ RemoteMediaLibrary
 更新使用候选加载、健康检查、原子切换和失败保留旧 Activation。
 Activation 不替代数据库事务、Worker 状态或 SMB 连接池。
 外部 Python 插件是用户信任代码，不是沙箱代码。
+插件类型表示稳定业务合同，不是任务状态机阶段；发现、资源搜索和搬运不组成一条强制流水线。
+MVP 类型为 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER；未来保留 TRANSFER_DRIVER、NOTIFICATION。
+当前 SMB 同步保持 Core 内置，未来可先适配内置 TRANSFER_DRIVER 合同再扩展外部驱动。
+通用 Manifest v2 支持同仓库多插件声明，只包含静态身份、入口、协议版本、配置 schema 和 requires/provides。
 ```
 
 ## AI 集成

@@ -282,8 +282,8 @@ Sundarr 只保存仓库地址、分支和锁定 commit。
 模型分层：
 
 ```text
-SourceManifest：来自外部仓库清单，描述搜索源声明。
-LoadedSource：系统加载结果，描述来源、commit、状态、错误和 SourceModel。
+PluginManifest：来自外部仓库通用清单，描述插件身份、主类型、入口、兼容版本和能力；flat v1 只支持 SOURCE。
+LoadedPlugin：单个插件声明的加载结果，描述来源、commit、状态、错误和类型运行实例。
 PluginActivation：具体 commit 的运行实例，描述依赖、提供能力和可逆清理栈。
 SourceModel：SearchService 调用的最小运行时执行协议。
 ```

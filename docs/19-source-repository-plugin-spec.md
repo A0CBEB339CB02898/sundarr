@@ -31,8 +31,8 @@ Git Source Repository 模式
 ```text
 用户配置一个或多个可信 Git 搜索源仓库。
 系统 clone / fetch 搜索源仓库到本地缓存目录。
-系统读取仓库清单和单个搜索源清单。
-系统动态加载清单声明的 Adapter 入口。
+系统读取通用 `sundarr_plugin.toml`；迁移期兼容当前 flat v1 SOURCE 清单。
+系统动态加载清单中一个或多个插件声明的入口。
 系统把加载成功的 SourceModel 注入运行时 Source Registry。
 Web Console 展示加载成功、加载失败、来源仓库、来源 commit 和测试日志。
 ```
@@ -64,11 +64,11 @@ douban-watchlist  -> PluginType.WATCHLIST_PROVIDER
 外部仓库接入不直接扩展当前 `SourceModel` 承载所有信息。持久声明、加载结果、运行 Activation 和执行协议分层：
 
 ```text
-SourceManifest
-  来自 source.toml，描述搜索源 id、名称、入口、兼容版本和运行约束。
+PluginManifest
+  来自 sundarr_plugin.toml；v2 可声明多个插件，描述 id、主类型、入口、兼容版本、配置 schema 和能力。
 
-LoadedSource
-  系统加载后的结果，描述来源仓库、commit、路径、加载状态、错误和 SourceModel。
+LoadedPlugin
+  单个插件声明的加载结果，描述来源仓库、commit、路径、加载状态、错误和类型运行实例。
 
 PluginActivation
   具体 commit 的运行实例，描述依赖、提供能力、状态、错误和可逆清理栈。
@@ -168,49 +168,40 @@ sundarr-sources
 https://github.com/A0CBEB339CB02898/sundarr-sources.git
 ```
 
-推荐结构：
+通用 v2 目标结构：
 
 ```text
 sundarr-sources/
-  sundarr_sources.toml
+  sundarr_plugin.toml
   sources/
     example/
-      source.toml
       adapter.py
       tests/
         fixtures/
   docs/
 ```
 
-根清单示例：
+清单示例：
 
 ```toml
-version = 1
-name = "sundarr-sources"
-description = "Sundarr 外部搜索源仓库。"
+manifest_version = 2
 
-[sources.example]
-path = "sources/example"
-enabled = true
-```
-
-单源清单示例：
-
-```toml
+[[plugins]]
 id = "example"
 name = "示例搜索源"
+version = "0.1.0"
+plugin_type = "source"
 description = "用于验证加载流程的示例源。"
 homepage_url = "https://example.invalid"
-adapter_api_version = 1
-entry = "adapter:get_source"
+plugin_api_version = "1.0"
+entry = "sources.example.adapter:activate"
 
-[compatibility]
-min_sundarr_version = "0.1.0"
-
-[runtime]
-timeout_seconds = 10
-rate_limit_per_minute = 60
+[plugins.runtime]
+requires = ["core.http.v1", "core.source_registry.v1"]
+provides = ["source.search.v1"]
 ```
+
+当前 `PluginLoader` 尚只实现仓库根目录 flat v1 `sundarr_plugin.toml`。迁移期继续兼容 flat v1，新仓库和多插件仓库统一以 `docs/20-plugin-manifest-spec.md` 的 v2 为目标。
 
 ---
 
@@ -242,7 +233,7 @@ def get_sources() -> list[SourceModel]: ...
 adapter_api_version 必须受当前 Sundarr 支持。
 entry 必须是 module:function 格式。
 入口返回值必须是 SourceModel 或 list[SourceModel]。
-SourceModel.id 必须与 source.toml 中的 id 一致。
+flat v1 的 SourceModel.id 必须与 Manifest id 一致；v2 入口通过对应 plugin_id 注册 SourceModel。
 RawSearchItem.source_id 必须与 SourceModel.id 一致。
 搜索源 id 全局唯一，冲突时后加载项不得覆盖先加载项。
 ```
@@ -296,14 +287,14 @@ fetch 不等于应用更新。
 
 ### 6.3 新增清单解析器
 
-新增 `SourceManifestParser`：
+将当前单清单解析器演进为通用 `PluginManifestParser`：
 
 ```text
-读取 sundarr_sources.toml。
-读取每个 source.toml。
-校验必填字段。
-校验路径不能越界。
-校验 entry 格式。
+识别 manifest_version；缺失时按 flat v1 SOURCE 解析。
+读取 v2 的一个或多个 [[plugins]] 声明。
+校验必填字段、PluginType、plugin_api_version 和 requires/provides。
+校验清单和 entry 路径不能越界。
+每个声明生成独立 LoadedPlugin。
 ```
 
 ### 6.4 新增加载器
@@ -358,7 +349,7 @@ Adapter 不感知 Resource / ResourceLink 是否入库。
 
 ### 6.6 改造 SourceService 和 Web Console
 
-SourceService 后续需要读取 `LoadedSource`：
+SourceService 后续从 `LoadedPlugin` 中读取 SOURCE 类型的加载信息：
 
 ```text
 已加载搜索源列表
@@ -416,7 +407,10 @@ WATCHLIST_PROVIDER 读取外部列表项，由 Core 负责定时调度、游标�
 插件不得自行把长期同步循环作为 Activation 内定时器运行。
 CATALOG_PROVIDER 必须声明支持的目录筛选能力；不支持的筛选不得静默丢弃。
 CATALOG_PROVIDER 接收列表形式的 genres / regions；MVP Core 保证每个列表最多一个值。
+目录分页由运行协议使用不透明 continuation token 表达；页码或无限滚动不是 Manifest 字段。
 ```
+
+通用类型边界以 `docs/20-plugin-system.md` 为准。`CLOUD_PROVIDER`、`CRAWLER`、`LINK_VALIDATOR`、`LINK_EXTRACTOR` 和 `TASK_PROCESSOR` 不再作为 v2 顶层类型；链接提取和验证保留为 Core 或 SOURCE 内部细粒度能力。
 
 ### 6.8 启动恢复
 
@@ -463,9 +457,9 @@ CATALOG_PROVIDER 接收列表形式的 genres / regions；MVP Core 保证每个�
 可配置搜索源仓库地址和分支。
 可 clone / fetch 仓库。
 可记录并展示 current_commit。
-可读取 sundarr_sources.toml。
-可读取 source.toml。
-可加载 adapter_api_version = 1 的 SourceModel。
+可兼容读取 flat v1 sundarr_plugin.toml。
+可读取通用 v2 sundarr_plugin.toml 的一个或多个插件声明。
+可加载 SOURCE plugin_api_version = "1.0" 的 SourceModel。
 加载失败时 API 仍可启动。
 加载失败原因可在 Web Console 或 API 中查看。
 SearchService 可聚合外部搜索源结果。
@@ -483,7 +477,7 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
 
 ## 9. 当前交付状态
 
-截至 2026-08-26：
+截至 2026-08-27：
 
 ```text
 已实现通用插件框架：
@@ -499,6 +493,7 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
   Phase 10.0 默认测试、迁移链、SMB 错误码和 Windows PID 质量收口
 
 待实现：
+  通用 Manifest v2 多插件解析和 flat v1 兼容读取
   CATALOG_PROVIDER / WATCHLIST_PROVIDER 类型与最小执行契约
   Phase 10.1 所需的最小插件加载、注册和健康检查
   完整候选切换、cleanup 和原子切换闭环

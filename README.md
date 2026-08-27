@@ -220,6 +220,8 @@ MVP 筛选范围收口为媒体类型、题材、地区、年份范围和热度/
 
 题材与地区在 MVP 界面均为单选；Core 查询对象预留列表结构，但当前多个值会返回明确参数错误，不会静默忽略。
 
+插件类型围绕稳定能力合同划分，而不是一条所有任务都必须经过的流水线。当前 MVP 的顶层类型是 `SOURCE`、`CATALOG_PROVIDER` 和 `WATCHLIST_PROVIDER`；未来搬运统一扩展点命名为 `TRANSFER_DRIVER`，当前 SMB 同步仍是 Core 内置实现。通用 Manifest v2 允许同一仓库声明多个独立插件，但不包含分页 UI、调度游标或任务状态。
+
 **Phase 11 未开始**：稳定 AI Tool API 完成后，可提供可选 Cordis / DeepSeek Harness 桥接插件。Sundarr Core 保持 Python + FastAPI，不改为 Cordis/Node.js 运行时。
 
 ## 不做的事情

@@ -24,7 +24,7 @@ Web Console 不上传、不编辑、不保存可执行 Python 代码。
 真实搜索源变化频率高，不应要求频繁修改 Sundarr Core。
 多个搜索源需要集中维护、测试和复用开发规范。
 SourceModel 已适合作为搜索执行协议，但不适合承载仓库来源、commit 和加载状态。
-通过 SourceManifest / LoadedSource / SourceModel 分层，可以同时保持搜索管线稳定和插件来源可追踪。
+通过 PluginManifest / LoadedPlugin / PluginActivation / SourceModel 分层，可以同时保持搜索管线稳定、插件来源可追踪，并兼容通用多插件仓库。
 ```
 
 约束：
@@ -642,12 +642,12 @@ Provider 失败且存在最小展示快照时，返回快照并标记 degraded�
 /app/discover 是媒体发现中心的统一入口，承载目录搜索、筛选、热门、分类、关注入口和发现型海报墙。
 /app/discover/:media_subject_id 是媒体详情页。
 /app/search 继续调用 SOURCE 查找具体资源链接，不承担 TMDb/豆瓣目录搜索。
-用户可以从媒体详情进入资源搜索；传递参数、ResourceOffer 关联和任务创建方式在后续决策中确认。
+用户可以从媒体详情进入资源搜索；优先复用现有 Resource / ResourceLink，只有明确传输意图才进入未来 AcquisitionRequest / TransferTask 规划，不提前引入 ResourceOffer 或 Artifact 抽象。
 ```
 
 理由：目录搜索回答“想看什么”，资源搜索回答“从哪里获取”。二者共享用户旅程但数据模型、Provider、结果结构和失败语义不同，使用独立路由能避免搜索框、筛选项和状态含义混杂。
 
-尚待确认：分页方式、详情信息层级和关注列表的进一步操作。
+分页交互和默认页大小作为实现细节在 Web Console 落地，不进入插件 Manifest。详情信息层级和关注列表的进一步操作随 Phase 10.1 数据/API 规格收口。
 
 ---
 
@@ -711,3 +711,42 @@ Core 查询模型使用列表结构，MVP 校验最多一个题材和一个地�
 传入多个值时返回明确参数错误，不静默取第一个值。
 未来启用简单多选时复用同一查询结构，不改变 Provider 方法的参数形状。
 ```
+
+---
+
+## ADR-018: 插件类型按稳定业务合同划分
+
+状态：已确认。
+
+决策：
+
+```text
+插件类型是稳定扩展协议，不是 TransferTask 的固定处理阶段。
+当前 MVP 顶层类型为 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER。
+后续扩展保留 TRANSFER_DRIVER、NOTIFICATION，但不进入当前 MVP。
+CLOUD_PROVIDER、CRAWLER、LINK_VALIDATOR、LINK_EXTRACTOR、TASK_PROCESSOR 不进入通用 v2 顶层类型。
+当前 SmbWriter 和远程媒体库同步状态机保持 Core 内置，不为追求形式统一提前插件化。
+```
+
+业务流边界：
+
+```text
+CATALOG_PROVIDER / WATCHLIST_PROVIDER 产生媒体发现和用户状态，不自动创建传输任务。
+SOURCE 产生具体资源链接候选，搜索和收藏也不自动创建传输任务。
+当前 TransferTask 由远程媒体库扫描产生，并由 Core Worker + SmbWriter 执行。
+未来资源获取先形成 AcquisitionRequest，由 Core 在创建任务前选择 TRANSFER_DRIVER 并持久化 driver_id。
+插件不能在任务运行中任意改变下一阶段或把任务路由到另一插件类型。
+```
+
+通用 Manifest：
+
+```text
+sundarr_plugin.toml v2 允许一个 Git 仓库声明多个独立插件。
+每个插件只有一个主 PluginType，并独立配置、启停、健康检查、Activation 和报错。
+requires / provides 使用版本化能力名；MVP 只允许依赖 Core 宿主能力，不建立插件 ID 依赖图。
+Manifest 只保存静态身份、入口、协议版本、配置 schema 和能力声明。
+分页 UI、运行中 cursor、调度、重试、任务状态、缓存 TTL 和敏感配置值不进入 Manifest。
+迁移期兼容当前 flat v1 SOURCE 清单，新仓库使用 v2。
+```
+
+理由：如果按“每个任务必须流过所有插件分类”设计，发现、资源搜索和搬运会被错误耦合，插件可随意改写持久状态机，恢复与幂等边界也会变得不可验证。按稳定输入输出合同分类，可让 Core 保留编排权，同时允许同一仓库交付多种独立能力。

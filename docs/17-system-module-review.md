@@ -61,7 +61,7 @@ api/plugins.py            插件管理 API
 
 已完成：基础模型、加载、注册、仓库 CRUD、更新、回滚、配置、SOURCE 列表展开，以及 PluginContext / PluginActivation 生命周期内核。
 
-待完成：`CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 类型和执行契约、manifest 能力声明、候选验证、原子切换、启动自动恢复和 Web Console。现有代码中的 `CRAWLER` 等旧枚举不代表已经确认的媒体发现契约。
+待完成：`CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 类型和执行契约、通用 Manifest v2 多声明解析、能力声明、候选验证、原子切换、启动自动恢复和 Web Console。现有代码中的 `CLOUD_PROVIDER`、`CRAWLER`、`LINK_VALIDATOR`、`LINK_EXTRACTOR`、`TASK_PROCESSOR` 是待清理的旧占位枚举，不属于目标 v2 顶层类型。
 
 ### 2.4 SMB 和媒体库
 
@@ -142,6 +142,18 @@ RemoteMediaLibrary
   -> optional source cleanup
 ```
 
+### 4.3 插件与任务流边界
+
+```text
+CATALOG_PROVIDER / WATCHLIST_PROVIDER -> 媒体身份与用户状态，不自动建 TransferTask。
+SOURCE -> 临时资源链接候选，不自动建 TransferTask。
+RemoteLibraryScanner -> 当前 TransferTask 事实来源。
+SmbWriter -> 当前 Core 内置执行器，不是外部插件。
+TRANSFER_DRIVER -> 后续统一搬运合同，不进入当前 MVP。
+```
+
+插件类型不是任务状态机阶段。Core 在任务创建前完成驱动选择并持久化，插件不得在运行中任意改变任务路由。
+
 ---
 
 ## 5. 当前风险
@@ -171,3 +183,5 @@ Phase 11：AI Friendly API 和可选 Cordis / DeepSeek Harness HTTP 桥接。
 ```
 
 不进入近期主线：Alist、真实网盘 Provider、Cloud Direct Download、通知和 Crawler 插件。
+
+通用 Manifest v2 已完成设计但尚未实现：同一仓库可声明多个独立插件，迁移期兼容当前 flat v1 SOURCE 清单。Manifest 不包含分页 UI、调度游标或任务状态。

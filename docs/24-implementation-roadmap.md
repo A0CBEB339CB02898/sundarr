@@ -46,7 +46,7 @@ PID 文件、端口和子进程均无残留。
 
 ## 里程碑 B：Phase 10.1 媒体发现中心
 
-状态：当前优先，处于逐项设计阶段。
+状态：当前优先，产品边界与通用插件分类已收口，正在收口数据/API 规格。
 
 任务：
 
@@ -58,10 +58,12 @@ B4a 已确认 /app/discover 统一入口、独立详情路由以及 /app/search 
 B4b 已确认默认分区内容流、搜索后统一海报网格和 URL 状态恢复。
 B4c 已确认媒体类型、题材、地区、年份范围和三种排序的基础筛选集。
 B4d 已确认题材和地区在 UI 中单选、Core 内部使用列表并校验最多一个值。
-B4e 当前确认分页方式和详情信息层级。
-B5 确认 MediaSubject、ResourceOffer、Artifact 与任务的关联。
+B4e 已确认分页交互属于 Web Console 实现细节，不进入 Manifest；Provider 协议使用不透明 continuation token。详情字段随数据/API 规格整体收口。
+B5 设计 MediaSubject、Resource、ResourceLink 与未来 AcquisitionRequest/TransferTask 的最小关联；不引入尚无用途的 ResourceOffer、Artifact 抽象。
 B6 实现最小 API、Web Console 和测试闭环。
 B7 在 Phase 10.1 恢复目录和想看插件所需的最小加载、注册和健康检查能力。
+B8 已确认插件类型按稳定业务合同划分：MVP 为 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER；未来保留 TRANSFER_DRIVER、NOTIFICATION。
+B9 已确认通用 Manifest v2 同仓库多插件结构、flat v1 SOURCE 兼容和 Manifest/运行状态/UI 边界。
 ```
 
 验收门：
@@ -84,7 +86,7 @@ B7 在 Phase 10.1 恢复目录和想看插件所需的最小加载、注册和�
 
 ```text
 C1 已定义 PluginContext、PluginActivation、ActivationStatus。
-C2 manifest 增加可选 requires / provides。
+C2 实现通用 Manifest v2 多插件解析、flat v1 SOURCE 兼容和版本化 requires / provides。
 C3 已实现通用 cleanup callback、LIFO、失败续跑和并发幂等释放。
 C4 接入 Source 注册动作、候选配置校验和健康测试。
 C5 实现原子替换、失败保留旧 Activation 和确定清理语义。
@@ -175,5 +177,6 @@ Cloud Direct Download
 Alist 集成
 真实网盘 CloudProviderPlugin
 通知渠道插件
+TRANSFER_DRIVER 及 qBittorrent 等下载客户端接入
 完整本地媒体库 UI、本地媒体库海报墙、播放器和观影进度
 ```

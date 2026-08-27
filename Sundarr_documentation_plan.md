@@ -2,7 +2,7 @@
 
 本文件是文档索引，不复制各规格全文。编号文档是事实来源，避免汇总文档与实现再次漂移。
 
-更新时间：2026-08-26。
+更新时间：2026-08-27。
 
 ## 事实来源
 
@@ -54,6 +54,9 @@ Phase 12 Cloud Direct Download 非 MVP、非近期主线。
 Sundarr Core 保持 Python + FastAPI。
 插件系统借鉴 Cordis 的显式依赖、Activation、可逆清理和原子切换语义，但不依赖 Cordis 包。
 Phase 11 后可提供可选 Cordis / DeepSeek Harness HTTP 桥接插件。
+插件类型按稳定业务合同划分；MVP 为 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER，未来保留 TRANSFER_DRIVER、NOTIFICATION。
+通用 Manifest v2 支持同仓库多插件声明，迁移期兼容 flat v1 SOURCE 清单。
+发现、资源搜索和搬运不是一条所有任务都必须流过的插件流水线；当前 SMB 同步保持 Core 内置。
 ```
 
 ## 维护规则

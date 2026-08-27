@@ -1,10 +1,21 @@
 # 插件清单规范
 
-插件清单文件名为 `sundarr_plugin.toml`。当前稳定范围只包括 Python SOURCE 插件。更新时间：2026-08-26。
+插件清单文件名为 `sundarr_plugin.toml`。本文档同时记录当前 flat v1 实现和通用 v2 目标，避免把规划写成已实现。更新时间：2026-08-27。
 
 ---
 
-## 1. 当前支持格式
+## 1. 状态说明
+
+```text
+flat v1    当前 loader 已实现，只支持一个 SOURCE 声明。
+v2         已确认的通用目标，支持一个仓库声明多个独立插件；尚未实现。
+```
+
+Phase 10.1 实现 v2 的 `CATALOG_PROVIDER`、`WATCHLIST_PROVIDER` 最小加载闭环；Phase 10.2 再完成 requires/provides、候选原子切换和启动恢复。迁移期读取 flat v1，写文档、模板和新仓库时使用 v2。
+
+---
+
+## 2. flat v1 兼容格式
 
 ```toml
 id = "my-source"
@@ -16,54 +27,169 @@ author = "Sundarr Team"
 homepage_url = "https://github.com/example/my-source"
 adapter_api_version = "1.0"
 entry = "my_source.adapter:create_source"
-
 dependencies = []
 
 [config_schema]
 timeout = { type = "integer", default = 30, label = "超时时间（秒）", min = 1, max = 300 }
 ```
 
-字段：
+v1 入口无参数调用，返回 `SourceModel` 或 `list[SourceModel]`。`dependencies` 当前不产生可靠的运行时依赖语义，新插件不得继续扩展该字段。
+
+---
+
+## 3. 通用 v2 格式
+
+```toml
+manifest_version = 2
+
+[[plugins]]
+id = "douban-catalog"
+name = "豆瓣目录"
+version = "0.1.0"
+plugin_type = "catalog_provider"
+description = "提供豆瓣目录补充数据。"
+author = "Example Team"
+homepage_url = "https://github.com/example/sundarr-douban"
+plugin_api_version = "1.0"
+entry = "douban_plugin.catalog:activate"
+
+[plugins.runtime]
+requires = ["core.http.v1", "core.catalog_registry.v1"]
+provides = ["catalog.search.v1", "catalog.detail.v1"]
+
+[plugins.config_schema.cookie]
+type = "password"
+label = "豆瓣 Cookie"
+required = false
+secret = true
+
+[[plugins]]
+id = "douban-watchlist"
+name = "豆瓣想看"
+version = "0.1.0"
+plugin_type = "watchlist_provider"
+description = "按 Core 调度读取豆瓣想看列表。"
+author = "Example Team"
+homepage_url = "https://github.com/example/sundarr-douban"
+plugin_api_version = "1.0"
+entry = "douban_plugin.watchlist:activate"
+
+[plugins.runtime]
+requires = ["core.http.v1", "core.watchlist_registry.v1"]
+provides = ["watchlist.pull.v1"]
+
+[plugins.config_schema.user_id]
+type = "string"
+label = "豆瓣用户 ID"
+required = true
+```
+
+同一仓库的每个 `[[plugins]]` 声明都是独立插件实例：
 
 ```text
-id                    全局唯一，小写字母、数字和连字符，3-50 字符。
-name                  简体中文或明确的站点显示名。
-version               插件自身语义化版本。
-plugin_type           当前必须为 source。
-description           简短用途说明。
-author                可选作者信息。
-homepage_url          可选项目主页。
-adapter_api_version   当前使用 "1.0"。
-entry                 module:function。
-dependencies          当前兼容字段；Phase 10.1 后由 requires 取代能力依赖语义。
-config_schema         Web/API 可管理的非代码配置声明。
+plugin_id 全局唯一。
+每个声明只有一个主 plugin_type。
+每个声明独立保存配置、启用状态、健康状态和最后错误。
+仓库 commit 统一锁定；任一声明不能引用仓库目录外的 entry。
 ```
 
 ---
 
-## 2. 入口协议
+## 4. 字段定义
 
-当前入口函数无参数调用，返回：
+### 4.1 顶层
 
-```python
-SourceModel
-list[SourceModel]
-```
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `manifest_version` | 是 | v2 固定为整数 `2` |
+| `plugins` | 是 | 一个或多个插件声明 |
 
-禁止在 import 或入口阶段：
+### 4.2 插件声明
 
-```text
-执行未受控的长期网络循环。
-创建无法释放的线程或定时器。
-访问 Sundarr 数据库、SMB 凭据或 Worker 私有对象。
-修改全局注册中心。
-```
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `id` | 是 | 全局唯一，小写字母、数字和连字符，3-50 字符 |
+| `name` | 是 | 用户可读显示名 |
+| `version` | 是 | 插件自身语义化版本；代码事实仍以锁定 commit 为准 |
+| `plugin_type` | 是 | 一个主 PluginType |
+| `description` | 是 | 简短职责说明 |
+| `author` | 否 | 作者或维护组织 |
+| `homepage_url` | 否 | 项目主页 |
+| `plugin_api_version` | 是 | 类型运行协议版本 |
+| `entry` | 是 | `module:function` |
+| `runtime.requires` | 否 | 激活前需要的版本化 Core 能力 |
+| `runtime.provides` | 是 | 激活成功后提供的版本化能力 |
+| `config_schema` | 否 | 可配置字段声明，不包含配置值 |
 
-Phase 10.1 引入 PluginContext 后，将增加兼容的 Activation 入口形式；旧 v1 无参数入口在明确迁移期内继续支持。
+`plugin_api_version` 取代名称过窄的 `adapter_api_version`。它描述入口和生命周期协议版本，不等于插件自身版本或 Git commit。
 
 ---
 
-## 3. 配置字段
+## 5. PluginType 与能力命名
+
+Phase 10.1 可接受类型：
+
+```text
+source
+catalog_provider
+watchlist_provider
+```
+
+已规划但当前 loader 必须拒绝激活：
+
+```text
+transfer_driver
+notification
+```
+
+旧 `cloud_provider`、`crawler`、`link_validator`、`link_extractor`、`task_processor` 不进入 v2 顶层类型。
+
+能力名使用带版本命名空间：
+
+```text
+Core 宿主能力
+  core.http.v1
+  core.source_registry.v1
+  core.catalog_registry.v1
+  core.watchlist_registry.v1
+
+插件提供能力
+  source.search.v1
+  source.detail.v1
+  catalog.search.v1
+  catalog.trending.v1
+  catalog.categories.v1
+  catalog.detail.v1
+  watchlist.pull.v1
+
+后续保留
+  transfer.execute.v1
+  notification.deliver.v1
+```
+
+MVP 的 `requires` 只允许依赖 Core 宿主能力，不支持通过插件 ID 建立插件间依赖图。
+
+---
+
+## 6. Manifest 不负责的内容
+
+以下信息不得写入 Manifest：
+
+```text
+Web Console 的页码、无限滚动、布局和默认页大小。
+外部平台当前页码或运行中 continuation token。
+WATCHLIST_PROVIDER 的持久游标、调度周期和重试状态。
+TransferTask 状态、进度和 driver 运行实例。
+Redis 缓存 TTL 和运行时原始响应。
+API key、Cookie、Token、密码等配置值。
+可执行 Python 源码文本或用户可编辑脚本。
+```
+
+目录 Provider 的筛选、排序和媒体类型支持情况通过运行时 `describe_capabilities()` 返回。Core 的目录协议使用不透明 continuation token；Adapter 自行映射平台页码或 cursor。Manifest 只声明 `catalog.search.v1` 等静态能力，不承载前端交互选择。
+
+---
+
+## 7. 配置字段
 
 支持：
 
@@ -88,63 +214,71 @@ min / max
 options
 ```
 
-敏感字段必须标记 `secret = true`，API 和日志不得回显明文。
+敏感字段必须标记 `secret = true`。Manifest 只包含 schema；配置值由 `PluginConfig` 保存并在 API、日志和诊断中脱敏。
 
 ---
 
-## 4. Phase 10.1 生命周期扩展
+## 8. 入口与 Activation
 
-目标格式：
+v2 入口接受 `PluginContext`，通过类型专用 Registry 注册运行实例，并为全部副作用登记 cleanup。具体 Provider 方法协议由各类型规格定义。
 
-```toml
-[runtime]
-requires = ["source_registry", "http_client"]
-provides = ["source:my-source"]
-```
-
-语义：
+禁止在 import 阶段：
 
 ```text
-requires 中任一能力缺失时不激活插件。
-provides 只在候选 Activation 验证成功并切换后可见。
-禁用、更新、回滚或删除时撤销 provides 并执行 cleanup。
+执行网络请求。
+启动线程、定时器或永久循环。
+修改全局 Registry。
+访问数据库、SMB 凭据或 Worker 私有对象。
 ```
 
-在 Core 完成该字段实现前，清单可以不写 `[runtime]`，插件也不得假定依赖注入已经存在。
+`WATCHLIST_PROVIDER` 只响应 Core 的一次拉取调用，不自行运行长期轮询。调度、游标、重试和持久状态由 Core 管理。
 
 ---
 
-## 5. 校验规则
+## 9. 校验规则
 
 ```text
-清单路径必须位于锁定 commit 的仓库目录内。
-entry module 不得通过路径或符号链接越界。
-plugin_type 和 adapter_api_version 必须受当前 Core 支持。
-SOURCE 列表中的每个 SourceModel.id 必须全局唯一。
-RawSearchItem.source_id 必须与对应 SourceModel.id 一致。
-配置必须通过 config_schema；数据库不得保存可执行代码。
+清单和 entry 必须位于锁定 commit 的仓库目录内，符号链接解析后也不得越界。
+manifest_version、plugin_type 和 plugin_api_version 必须受当前 Core 支持。
+仓库内和全局 plugin_id 不得冲突。
+entry 必须符合 module:function，且入口返回对象符合类型协议。
+requires 中任一 Core 能力缺失时不得激活插件。
+实际注册的 provides 必须是 Manifest 声明集合的子集，必需能力缺失时健康检查失败。
+配置必须通过 config_schema；数据库和 Web Console 不得保存可执行代码。
+单个声明失败必须准确关联到 plugin_id，不得只给仓库级模糊错误。
 ```
+
+候选更新默认按仓库 commit 保持一致：仓库内任一必须启用的插件验证失败时，不切换 `current_commit`，旧 Activation 继续工作。
 
 ---
 
-## 6. 当前不支持
-
-以下仅是未来扩展概念，不是当前可用 SDK：
+## 10. 迁移要求
 
 ```text
-cloud_provider
-notification
-crawler
-link_validator
-link_extractor
-task_processor
+读取器先识别 manifest_version；缺失时按 flat v1 解析。
+flat v1 只允许 SOURCE，不扩展新类型。
+新模板和新仓库统一生成 v2。
+v2 加载结果始终是 list[LoadedPlugin]，即使仓库只声明一个插件。
+PluginConfig 继续按 plugin_id 独立保存，PluginRepository 继续按 Git 仓库保存 commit。
 ```
-
-不得用这些类型绕过 Cloud Direct Download 的非 MVP 边界。
 
 ---
 
-## 7. 参考
+## 11. 测试要求
+
+```text
+解析单插件和多插件 v2 清单。
+兼容读取 flat v1 SOURCE。
+拒绝未知 manifest_version、类型和协议版本。
+覆盖重复 plugin_id、entry 越界、符号链接越界和错误配置。
+覆盖一个仓库中某个声明失败时的错误隔离和仓库切换规则。
+确认日志、API 和序列化结果不包含敏感配置值。
+确认 Manifest 不依赖任何 Web Console 分页或布局字段。
+```
+
+---
+
+## 12. 参考
 
 ```text
 docs/20-plugin-system.md

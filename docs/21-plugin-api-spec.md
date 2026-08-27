@@ -1,6 +1,6 @@
 # 插件管理 API 规范
 
-本文档记录当前 API 和 Phase 10 目标扩展。更新时间：2026-08-26。
+本文档记录当前 API 和 Phase 10 目标扩展。更新时间：2026-08-27。
 
 基础前缀：`/plugins`。
 
@@ -32,6 +32,7 @@ POST /repositories 在多 Source 仓库返回列表时响应处理尚未完全�
 load-all 需要手动调用，应用启动不会自动执行。
 接口尚未暴露 Activation、依赖和 cleanup 状态。
 Web Console 尚未提供对应页面。
+当前响应按 flat v1 单插件假设实现，尚未支持通用 Manifest v2 的同仓库多声明。
 ```
 
 ---
@@ -80,7 +81,7 @@ Activation 响应：
   "commit_hash": "abc123",
   "status": "active",
   "requires": ["source_registry", "http_client"],
-  "provides": ["source:seedhub"],
+  "provides": ["source.search.v1"],
   "cleanup_count": 2,
   "error": null,
   "activated_at": "2026-08-26T10:00:00Z"
@@ -150,6 +151,7 @@ PLUGIN_ID_CONFLICT
 ```text
 仓库 CRUD、更新、回滚、启停和配置有 API 测试。
 多 Source 仓库响应正确返回全部 plugin_id。
+通用 v2 仓库响应按声明返回全部 plugin_id，插件配置和错误状态彼此独立。
 候选测试没有残留 registry 项或资源。
 更新失败保留旧 active 插件。
 日志和响应不泄露凭据。

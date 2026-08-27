@@ -565,6 +565,7 @@ plugin_id 为插件实例唯一标识，来自仓库清单。
 plugin_type 标识插件实例的主类型；当前已实现 source，Phase 10.1 新增 catalog_provider 和 watchlist_provider。
 config_data 存储 JSON 格式的插件配置。
 repository_id 关联来源仓库；一个仓库可以声明多个不同类型的插件实例。
+通用 Manifest v2 的每个 [[plugins]] 声明对应一个 plugin_id 和一条独立 PluginConfig；仓库 commit 仍由 PluginRepository 统一锁定。
 ```
 
 `PluginActivation` 是进程内运行时对象，不新增为任务事实表。Repository/Config 保存声明和期望状态，Activation 诊断通过运行时 API 暴露，不能把内存状态误写成跨进程事实来源。

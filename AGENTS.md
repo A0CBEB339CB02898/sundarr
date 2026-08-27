@@ -84,6 +84,8 @@ AI Tool API -> docs/14-ai-tool-api-spec.md
 系统模块梳理 -> docs/17-system-module-review.md
 网盘直链下载 -> docs/18-cloud-direct-download-spec.md
 外部搜索源仓库 -> docs/19-source-repository-plugin-spec.md
+通用插件分类和运行边界 -> docs/20-plugin-system.md
+通用插件 Manifest -> docs/20-plugin-manifest-spec.md
 Agent 工作规则 -> AGENTS.md
 ```
 
@@ -141,12 +143,12 @@ Web Console 使用统一 `/app/discover` 媒体发现模块承载目录搜索、
 媒体发现搜索条件必须写入 URL query，刷新、返回和分享 URL 时可以恢复。
 媒体发现 MVP 筛选只包含媒体类型（全部 / 电影 / 剧集）、题材、地区、年份或年份范围，以及排序（热度 / 评分 / 上映时间）。语言、评分区间、演员、导演、目录平台来源和复杂布尔组合不进入当前 MVP。
 题材和地区在 MVP Web Console 中均为单选；Core 查询模型使用列表结构但 MVP 最多接受一个值，传入多个值必须明确报参数错误，不得静默截断，为未来多选保留兼容空间。
-具体分页方式和详情字段仍待后续确认。
+分页交互、默认页大小等属于 Web Console 实现细节，不进入插件 Manifest；Core Provider 协议使用不透明 continuation token，Adapter 负责映射外部平台页码或 cursor。
 媒体库管理仍是目录绑定管理能力；媒体发现海报墙不等于本地媒体库海报墙、播放器、观影进度或完整媒体管理 UI。
 当前已实现的是媒体源框架和示例源，不是真实网站 Adapter。
 真实媒体源后续通过代码型 Source Adapter 逐站点接入。
 真实搜索源代码可以集中放在独立 Git 仓库中，Sundarr Core 只保存仓库地址、分支和锁定 commit，并从本地缓存中的已锁定 commit 受控加载。
-外部搜索源仓库接入采用 SourceManifest / LoadedSource / SourceModel 分层，SourceModel 继续作为最小运行时执行协议。
+外部插件仓库使用通用 Plugin Manifest v2 声明一个或多个插件；迁移期兼容 flat v1 SOURCE 清单。SourceModel 继续作为 SOURCE 的最小运行时执行协议。
 Web Console 不上传、不编辑、不保存可执行 Python 代码，只负责搜索源仓库配置、检查更新、应用更新、回滚、测试和诊断。
 Web Console 只管理已安装 Adapter 的启用、禁用、参数、测试和错误查看，不在线编辑代码型 Source Adapter。
 文档型网站是否可通用读取作为后续实验阶段验证。
@@ -162,6 +164,11 @@ Phase 10.0 质量基线收口已完成；当前优先任务调整为 Phase 10.1 
 Sundarr Core 继续使用 Python + FastAPI，不引入 Cordis 或 Node.js 作为后端运行时。
 Python 插件系统采用 Cordis 启发的生命周期语义：显式能力依赖、Activation、可逆清理、候选加载、健康检查、原子切换和失败回滚。
 该设计只借鉴 Cordis 的组合思想，不依赖 Cordis 包，不把持久任务状态、数据库事务或 SMB Worker 交给插件运行时。
+顶层插件类型按稳定业务合同划分，不按任务阶段划分；当前 MVP 类型为 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER，后续保留 TRANSFER_DRIVER、NOTIFICATION。
+CloudProvider 是后续搬运驱动可能使用的连接能力或测试抽象，不再作为通用 v2 顶层 PluginType。CRAWLER、LINK_VALIDATOR、LINK_EXTRACTOR、TASK_PROCESSOR 也不作为顶层 PluginType。
+发现、想看、资源搜索和搬运是独立业务流，不要求每个任务流过所有插件类型；只有明确的传输意图才创建 TransferTask。
+当前 SMB 同步状态机和 SmbWriter 是 Core 内置实现；未来可先实现 TRANSFER_DRIVER 协议的内置 SMB 驱动，再接入 qBittorrent 等外部驱动，但 BT/磁力仍不进入 MVP。
+Manifest 只声明静态身份、入口、协议版本、配置 schema 和 requires/provides，不保存 UI 分页、调度游标、任务状态或敏感配置值。
 Phase 11 AI Friendly API 完成后，可以提供可选的 Cordis / DeepSeek Harness 桥接插件；桥接插件只调用 Sundarr API，不直接访问数据库、SMB 或 Worker 内部对象。
 前端设计系统基线文档位于 docs/16-design-system.md，在 Phase 7.8 Web Console UI Polish 中落地。
 前端视觉基调：暖色操作台风格，强调色为 terracotta（暗色 #d97642 / 亮色 #b05623），字体 Inter + JetBrains Mono，支持亮色 / 暗色 / 跟随系统三种主题。
