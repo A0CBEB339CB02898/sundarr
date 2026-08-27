@@ -78,6 +78,8 @@ Phase 12：Cloud Direct Download，非 MVP、非近期主线。
 
 Web Console 使用 `/app/discover` 作为统一媒体发现入口，`/app/discover/:media_subject_id` 作为详情页；`/app/search` 继续承担具体资源链接搜索。
 
+发现首页默认是热门电影、热门剧集、分类推荐和关注更新组成的内容流；搜索或筛选后切换为统一海报网格，状态写入 URL query。
+
 ## 不做事项
 
 ```text

@@ -13,9 +13,10 @@
 2. 已确认 TMDb 与豆瓣目录使用 CATALOG_PROVIDER，豆瓣想看使用 WATCHLIST_PROVIDER
 3. 已确认 A+：核心身份和最小快照持久化，易变目录详情缓存
 4. 已确认 /app/discover 统一入口和 /app/search 资源搜索边界
-5. 当前确认发现首页布局、筛选项、结果呈现和详情信息层级
-6. MediaSubject、ResourceOffer、Artifact 与任务的关系
-7. 最小 API 和 Web Console 验收范围
+5. 已确认默认内容流、搜索后海报网格和 URL 状态恢复
+6. 当前确认筛选字段、分页方式和详情信息层级
+7. MediaSubject、ResourceOffer、Artifact 与任务的关系
+8. 最小 API 和 Web Console 验收范围
 ```
 
 ## 已确认边界
@@ -29,6 +30,7 @@ PostgreSQL 保存 MediaSubject 身份、外部 ID、最小展示快照和用户�
 Redis 缓存详情、评分、图片信息、搜索、热门和分类；缓存清空不得丢失用户状态。
 /app/discover 统一承载目录搜索、筛选、热门、分类、关注入口和海报墙。
 /app/discover/:media_subject_id 展示媒体详情；/app/search 专门搜索具体资源链接。
+/app/discover 默认显示热门电影、热门剧集、分类推荐和关注更新；搜索或筛选后显示海报网格并保留 URL 状态。
 提供筛选、热门、分类、详情、关注列表和发现型海报墙。
 不做本地媒体库海报墙。
 不做播放器和观影进度。

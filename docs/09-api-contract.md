@@ -697,6 +697,8 @@ Provider 失败时不得用 null 覆盖已知规范标题、年份或最后可�
 没有缓存、没有最小快照且 Provider 不可用时返回明确错误。
 ```
 
+Web Console 必须把目录关键词和已确认的筛选条件编码进 `/app/discover` 的 URL query。具体 query 字段将在筛选项确认后定义；URL 不得包含 API key、cookie 或插件私有配置。
+
 ---
 
 ## 10. 错误码

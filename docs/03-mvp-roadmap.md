@@ -56,7 +56,7 @@ Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需�
 Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一为 process_sync_task 同步路径，远程媒体库和同步绑定已就位。
 Phase 9.5 Resource Favorites Refactoring: 已完成；Resource / ResourceLink 已收缩为收藏模型，搜索默认不入库，Web Console 使用单一收藏入口。
 Phase 10.0 Quality Baseline Closure: 已完成；当前默认 pytest 204 项通过，前端构建、Alembic 链路和连续两轮 CLI 启停冒烟通过。
-Phase 10.1 Media Discovery Center: 当前优先、尚未实现；媒体身份、数据来源、A+ 持久化边界和顶层路由已确认，当前继续确认模块内布局、筛选项和详情信息层级，再实现发现闭环。
+Phase 10.1 Media Discovery Center: 当前优先、尚未实现；媒体身份、数据来源、A+ 持久化边界、顶层路由和内容流/海报网格双模式已确认，当前继续确认筛选项和详情信息层级，再实现发现闭环。
 Phase 10.2 Plugin Activation Runtime Completion: 生命周期内核和 8 项测试已完成；Phase 10.1 先恢复目录与想看插件所需的最小能力，之后收口候选健康检查、原子切换和启动自动加载。
 Phase 10.3 External Source End-to-End: Phase 10.2 后执行，完成仓库管理和真实源验收。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
@@ -1314,6 +1314,7 @@ sundarr start -> health -> stop 连续执行两次通过，端口和 PID 文件�
 不做完整本地媒体管理。
 媒体身份已经确认使用内部 UUID + 多外部 ID；TMDb 和豆瓣目录均使用 CATALOG_PROVIDER，豆瓣想看使用 WATCHLIST_PROVIDER；持久化采用核心身份与最小快照入 PostgreSQL、易变目录详情入 Redis 的 A+ 策略；任务关联仍需确认。
 /app/discover 是统一发现入口，/app/discover/:media_subject_id 是详情；/app/search 保留为具体资源链接搜索。
+/app/discover 默认显示热门电影、热门剧集、分类推荐和关注更新内容流；搜索或筛选后显示海报网格，条件保存在 URL query。
 ```
 
 插件运行边界：

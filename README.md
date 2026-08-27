@@ -214,6 +214,8 @@ Sundarr 采用暖色操作台风格设计：
 
 规划路由中，`/app/discover` 是统一媒体发现模块，`/app/discover/:media_subject_id` 是媒体详情；现有 `/app/search` 保留为具体资源链接搜索。在发现模块实现前，README 中的启动入口仍指向当前可用的 `/app/search`。
 
+发现首页默认使用内容流，展示热门电影、热门剧集、分类推荐和关注更新；输入目录关键词或应用筛选后切换为统一海报网格，并通过 URL query 保留搜索状态。
+
 **Phase 11 未开始**：稳定 AI Tool API 完成后，可提供可选 Cordis / DeepSeek Harness 桥接插件。Sundarr Core 保持 Python + FastAPI，不改为 Cordis/Node.js 运行时。
 
 ## 不做的事情

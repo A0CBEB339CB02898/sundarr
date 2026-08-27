@@ -517,9 +517,16 @@ Display keyboard hints on hover for major actions. Keycap (`kbd.kbd`):
 - Grid of source cards (3-col desktop, 2-col tablet, 1-col mobile), each showing: adapter icon · name (`title`) · status badge · description (`body-sm`) · last tested timestamp (mono) · actions (Test, View).
 - Viewing opens a read-only side drawer (right, 480px), not a full modal.
 
-### 7.2 `/app/search` — 搜索
+### 7.2 `/app/discover` — 媒体发现（计划）
 
-> 当前蓝图对应已实现的关键词聚合搜索基线。媒体发现中心已进入当前 MVP 和当前优先任务，将增加筛选、热门、分类、详情、关注列表和发现型海报墙；具体信息架构尚待确认。
+- 顶部使用全宽目录搜索框和一行快捷筛选，搜索状态同步到 URL query。
+- 默认内容流依次展示热门电影、热门剧集、分类推荐和关注更新；各分区拥有独立标题、更多入口和 loading / empty / error 状态。
+- 有效关键词或筛选存在时，分区内容流切换为统一响应式海报网格；卡片与详情页复用同一 `MediaSubject` 展示组件。
+- 单个分区或 Provider 失败不得替换整个页面为全屏错误。
+
+### 7.2.1 `/app/search` — 资源搜索
+
+> 当前蓝图对应已实现的具体资源关键词聚合搜索，与媒体目录发现保持独立。
 
 - Single search input at top, full-width, 48px tall, with a keycap `/` hint inside.
 - Result-type filter below or beside input: all / magnet / quark / aliyun / baidu / xunlei.

@@ -31,6 +31,8 @@ Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连�
 
 媒体发现顶层信息架构已确认：`/app/discover` 是统一发现入口，`/app/discover/:media_subject_id` 是详情，现有 `/app/search` 保持为具体资源搜索。发现路由尚未实现。
 
+发现首页交互已确认采用双模式：默认分区内容流，搜索/筛选后统一海报网格，状态进入 URL query。具体筛选、分页和详情字段尚未确认。
+
 ---
 
 ## 2. 已实现能力
