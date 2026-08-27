@@ -27,6 +27,7 @@ from .contracts import (
     CatalogQuery,
     CatalogSort,
     MediaType,
+    PluginHealthResult,
     SourceProvider,
     WatchlistItem,
     WatchlistPage,
@@ -40,6 +41,13 @@ from .runtime_registry import (
     source_registry,
     watchlist_provider_registry,
 )
+from .activator import (
+    CandidateActivationError,
+    PluginActivator,
+    build_core_capabilities,
+    plugin_activator,
+)
+from .config import PluginConfigValidationError, validate_plugin_config
 
 __all__ = [
     "PluginType",
@@ -61,6 +69,7 @@ __all__ = [
     "CatalogQuery",
     "CatalogSort",
     "MediaType",
+    "PluginHealthResult",
     "SourceProvider",
     "WatchlistItem",
     "WatchlistPage",
@@ -71,4 +80,10 @@ __all__ = [
     "get_runtime_registry",
     "source_registry",
     "watchlist_provider_registry",
+    "CandidateActivationError",
+    "PluginActivator",
+    "build_core_capabilities",
+    "plugin_activator",
+    "PluginConfigValidationError",
+    "validate_plugin_config",
 ]

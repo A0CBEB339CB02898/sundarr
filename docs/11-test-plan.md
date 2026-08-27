@@ -114,6 +114,9 @@ cleanup LIFO 顺序、幂等和失败隔离
 三类 MVP Runtime Registry 的类型校验、重复注册、显式替换和按实例身份安全注销
 CatalogQuery 的单题材、单地区、年份范围、limit 和不透明游标边界
 类型专用 SOURCE Registry 优先于 flat v1 兼容结果，且不重复返回同 ID SourceModel
+本地 v2 三类型 fixture 逐个完成入口调用、配置默认值、requires 隔离、实际 provides、注册、调用和 cleanup
+缺失 Core 能力、缺少必填配置、配置越界、未知配置、类型错误和动态健康检查失败均不留下 Registry 残留
+插件只能通过 PluginContext 访问 Manifest 已声明的 requires，不因宿主拥有其他能力而越权读取
 ```
 
 真实媒体源测试原则：
@@ -378,7 +381,7 @@ pytest 可运行。
 ```text
 前端 npm run build 通过。
 API / Web / Worker 启动和 /health 冒烟通过。
-默认 pytest：220 passed，无需预启动 API、无需 --ignore、无需真实网络。
+默认 pytest：231 passed，无需预启动 API、无需 --ignore、无需真实网络。
 Alembic heads/current：唯一 head 为 0008，当前数据库位于 0008。
 API / Web / Worker 连续两轮 start / status / health / stop 冒烟通过。
 API / Web PID 文件与监听进程一致；停止后测试端口、PID 文件和服务进程无残留。

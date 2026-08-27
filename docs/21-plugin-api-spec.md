@@ -1,6 +1,6 @@
 # 插件管理 API 规范
 
-本文档记录当前 API 和 Phase 10 目标扩展。更新时间：2026-08-27。
+本文档记录当前 API 和 Phase 10 目标扩展。更新时间：2026-08-28。
 
 基础前缀：`/plugins`。
 
@@ -32,7 +32,7 @@ POST /repositories 在多插件、多仓库返回列表时响应处理尚未完�
 load-all 需要手动调用，应用启动不会自动执行。
 接口尚未暴露 Activation、依赖和 cleanup 状态。
 Web Console 尚未提供对应页面。
-通用 Manifest v2 多声明已可解析，但当前管理 API 仍按 flat v1 单插件加载结果工作，尚未接入 v2 类型专用 Activation 和多插件响应。
+通用 Manifest v2 多声明和单 Manifest 候选 Activation 已实现，但当前管理 API 仍按 flat v1 单插件加载结果工作，尚未接入仓库级候选编排、原子切换和多插件响应。
 ```
 
 ---

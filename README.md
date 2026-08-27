@@ -202,7 +202,7 @@ Sundarr 采用暖色操作台风格设计：
 
 **Phase 0-9.5 已完成**：项目骨架、持久化模型、搜索与收藏、SMB 写入、任务管理、Web Console、远程媒体库同步和模块重构已经落地。
 
-**Phase 10.0 已完成**：默认 pytest、Alembic 迁移链、Windows 真实服务 PID 语义和 SMB 错误码均已收口；当前基线为后端 220 项测试通过、前端生产构建通过、API / Web / Worker 连续两轮启停冒烟通过。
+**Phase 10.0 已完成**：默认 pytest、Alembic 迁移链、Windows 真实服务 PID 语义和 SMB 错误码均已收口；当前基线为后端 231 项测试通过，前端生产构建及 API / Web / Worker 连续两轮启停冒烟沿用此前通过结果。
 
 **Phase 10 进行中**：Core 已移除内置真实站点，搜索源统一来自外部 Python 插件仓库；Activation 生命周期内核、目标 PluginType、通用 Manifest v2 多插件解析和 flat v1 SOURCE 兼容已完成，仍需接入 v2 类型专用 Activation/Registry、候选健康检查、原子切换、启动自动加载、Web Console 仓库管理和首个外部 SeedHub 端到端验收。
 

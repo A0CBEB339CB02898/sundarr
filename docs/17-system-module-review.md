@@ -186,4 +186,4 @@ Phase 11：AI Friendly API 和可选 Cordis / DeepSeek Harness HTTP 桥接。
 
 不进入近期主线：Alist、真实网盘 Provider、Cloud Direct Download、通知和 Crawler 插件。
 
-通用 Manifest v2 多插件解析和 flat v1 SOURCE 兼容已实现；类型专用 Activation 尚未接入。同一仓库可声明多个独立插件，Manifest 不包含分页 UI、调度游标或任务状态。
+通用 Manifest v2 多插件解析、flat v1 SOURCE 兼容和单 Manifest 候选 Activation 已实现；仓库级多候选原子切换、Manager/API 接入和启动恢复尚未完成。同一仓库可声明多个独立插件，Manifest 不包含分页 UI、调度游标或任务状态。

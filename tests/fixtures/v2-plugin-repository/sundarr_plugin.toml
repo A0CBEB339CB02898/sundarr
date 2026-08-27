@@ -1,0 +1,61 @@
+manifest_version = 2
+
+[[plugins]]
+id = "fixture-source"
+name = "Fixture 搜索源"
+version = "0.1.0"
+plugin_type = "source"
+plugin_api_version = "1.0"
+entry = "fixture_plugins:activate_source"
+
+[plugins.runtime]
+requires = ["core.source_registry.v1"]
+provides = ["source.search.v1"]
+
+[plugins.config_schema.timeout]
+type = "integer"
+default = 30
+min = 1
+max = 300
+
+[[plugins]]
+id = "fixture-catalog"
+name = "Fixture 目录"
+version = "0.1.0"
+plugin_type = "catalog_provider"
+plugin_api_version = "1.0"
+entry = "fixture_plugins:activate_catalog"
+
+[plugins.runtime]
+requires = ["core.http.v1", "core.catalog_registry.v1"]
+provides = [
+  "catalog.search.v1",
+  "catalog.trending.v1",
+  "catalog.categories.v1",
+  "catalog.detail.v1",
+]
+
+[plugins.config_schema.api_key]
+type = "password"
+required = true
+secret = true
+
+[plugins.config_schema.health_ok]
+type = "boolean"
+default = true
+
+[[plugins]]
+id = "fixture-watchlist"
+name = "Fixture 想看"
+version = "0.1.0"
+plugin_type = "watchlist_provider"
+plugin_api_version = "1.0"
+entry = "fixture_plugins:activate_watchlist"
+
+[plugins.runtime]
+requires = ["core.watchlist_registry.v1"]
+provides = ["watchlist.pull.v1"]
+
+[plugins.config_schema.user_id]
+type = "string"
+required = true

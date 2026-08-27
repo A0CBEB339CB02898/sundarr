@@ -26,7 +26,7 @@ TransferTask 状态机回答“持久任务当前执行到哪里”。
 
 | PluginType | 稳定职责 | 主要调用进程 | 当前状态 |
 | --- | --- | --- | --- |
-| `SOURCE` | 按关键词搜索具体资源及其链接候选 | API | 已有 v1 运行协议；v2 类型专用 Activation 待完成 |
+| `SOURCE` | 按关键词搜索具体资源及其链接候选 | API | v1 可运行；v2 单 Manifest 候选 Activation 已完成 |
 | `CATALOG_PROVIDER` | 搜索、热门、分类和详情等媒体目录能力 | API | 类型与 Manifest 解析已实现；运行合同和 Activation 待完成 |
 | `WATCHLIST_PROVIDER` | 拉取外部想看列表项并返回增量游标 | Worker 调度，API 提供测试入口 | 类型与 Manifest 解析已实现；运行合同和 Activation 待完成 |
 
@@ -182,6 +182,8 @@ WATCHLIST_PROVIDER
 
 三类 active 实例分别进入 `source_registry`、`catalog_provider_registry` 和 `watchlist_provider_registry`。Registry 注册时检查合同和 `plugin_id`，普通 `register` 拒绝覆盖，`replace` 显式返回旧实例；cleanup 可携带 `expected_instance` 注销，避免旧 Activation 在切换后误删新实例。flat v1 多 Source 返回仍经旧 `PluginRegistry` 兼容，类型专用 SOURCE Registry 的同 ID 实例优先。
 
+`PluginActivator` 当前按单 Manifest 执行：配置校验、Manifest 运行边界校验、requires 检查、带 `PluginContext` 调用入口、类型合同和实际 provides 校验、可选动态 `health_check() -> PluginHealthResult`、Registry 注册与 cleanup。Context 只注入 Manifest 明确声明的 requires；宿主拥有但插件未声明的能力对该插件不可见。Registry 注册和 cleanup 由 Core 管理，插件入口只返回实例并登记自身副作用。
+
 ---
 
 ## 5. 当前实现与目标差异
@@ -205,15 +207,17 @@ v2 同仓库多插件、协议版本、类型、entry、requires/provides 和重
 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 最小运行合同
 三类类型专用 Runtime Registry：合同校验、查询、显式替换和按实例身份安全注销
 SOURCE 查询兼容新 Runtime Registry 与 flat v1 PluginRegistry，v2 同 ID 实例优先
+单 Manifest v2 候选 Activation：配置默认值/校验、声明能力隔离、入口调用和失败 cleanup
+SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 类型健康检查与实际 provides 校验
 ```
 
 ### 5.2 当前缺口
 
 ```text
-v2 入口 Activation、Registry 能力注入和健康检查尚未实现；当前尚未从仓库入口创建并注册类型实例。
-旧单插件加载入口尚不执行 v2，避免错误复用 flat v1 无参数入口。
+仓库内多个 v2 候选尚未统一编排，不能保证同一 commit 的全成功或全失败。
+旧 flat v1 加载入口不执行 v2；Manager/API 尚未切换到候选 Activation 流程。
 启动时未自动加载数据库中的 enabled 仓库。
-PluginContext 尚未接入受控 HTTP client 和各类型 registry 注册动作。
+PluginContext 已按 requires 注入类型 Registry 和测试 HTTP 能力；生产受控 HTTP client factory 尚未实现。
 requires / provides 已完成 Manifest 解析和静态校验，但尚未完成运行时能力注入与依赖检查。
 更新过程不是候选验证后的原子切换。
 API 和 Worker 尚未分别恢复各自需要的插件 Activation。
@@ -237,7 +241,7 @@ logger
 require(name) / provide(name, value)
 register_cleanup(callback)
 受控 HTTP client factory（待实现）
-类型专用 registry（实现已完成，Context 能力注入待实现）
+类型专用 registry（单候选注入已实现）
 ```
 
 禁止通过 Context 暴露任意数据库 Session、SMB 密码、Worker 私有函数或全局任务状态机可写对象。

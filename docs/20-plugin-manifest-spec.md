@@ -1,6 +1,6 @@
 # 插件清单规范
 
-插件清单文件名为 `sundarr_plugin.toml`。本文档同时记录当前 flat v1 实现和通用 v2 目标，避免把规划写成已实现。更新时间：2026-08-27。
+插件清单文件名为 `sundarr_plugin.toml`。本文档同时记录当前 flat v1 实现和通用 v2 目标，避免把规划写成已实现。更新时间：2026-08-28。
 
 ---
 
@@ -8,10 +8,10 @@
 
 ```text
 flat v1    当前 loader 已实现，只支持一个 SOURCE 声明和旧无参数入口。
-v2         多插件解析和静态校验已实现；类型专用 Activation、Registry 和健康检查尚未实现。
+v2         多插件解析、单 Manifest 候选入口调用、配置/依赖/类型/能力健康校验、Runtime Registry 注册和失败 cleanup 已实现；仓库级原子切换与启动恢复尚未实现。
 ```
 
-Phase 10.1 完成当前 MVP 类型共用的 v2 类型专用 Activation、Registry、健康检查、候选原子切换和启动恢复。Phase 10.2 使用 Core 测试 Mock 验证媒体发现合同；Phase 10.3 再把官方外部仓库迁移到 v2 并逐个接入真实插件。迁移期继续读取 flat v1；新插件使用 v2。旧单插件加载入口在 v2 Activation 接入前明确拒绝 v2，不会误用 v1 无参数调用方式执行。
+Phase 10.1 下一步完成仓库内多候选编排、原子切换和启动恢复。Phase 10.2 使用 Core 测试 Mock 验证媒体发现合同；Phase 10.3 再把官方外部仓库迁移到 v2 并逐个接入真实插件。迁移期继续读取 flat v1；新插件使用 v2。旧 flat v1 加载入口继续明确拒绝 v2，避免绕过候选校验流程。
 
 ---
 
@@ -220,7 +220,7 @@ options
 
 ## 8. 入口与 Activation
 
-v2 目标入口接受 `PluginContext`，通过类型专用 Registry 注册运行实例，并为全部副作用登记 cleanup。当前只完成解析与静态校验，尚未执行 v2 入口。具体 Provider 方法协议由各类型规格定义。
+v2 入口接受一个 `PluginContext` 并返回符合主 PluginType 合同的实例。Core 负责类型专用 Registry 注册和对应 cleanup；插件只为自己创建的连接、回调等副作用登记 cleanup，不得自行覆盖 Registry active 映射。当前单 Manifest 候选入口已经执行；仓库级统一切换尚未接入。具体 Provider 方法协议由各类型规格定义。
 
 禁止在 import 阶段：
 

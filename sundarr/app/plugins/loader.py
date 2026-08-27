@@ -12,6 +12,7 @@ import sys
 import tomllib
 from collections.abc import Mapping
 from pathlib import Path
+from threading import RLock
 from typing import Any, Callable, Coroutine, Dict, List, Optional
 
 from .base import LoadedPlugin, PluginManifest, PluginType
@@ -29,6 +30,7 @@ _SUPPORTED_V2_PLUGIN_TYPES = {
     PluginType.CATALOG_PROVIDER,
     PluginType.WATCHLIST_PROVIDER,
 }
+_IMPORT_LOCK = RLock()
 
 
 class PluginLoader:
@@ -337,12 +339,12 @@ class PluginLoader:
         """
         兼容当前单插件加载链路。
 
-        v2 多插件仓库已经可以解析，但在类型专用 Activation 接入前不能通过旧单入口加载。
+        v2 单 Manifest 候选 Activation 已实现，但旧入口没有仓库级编排语义，仍只处理 flat v1。
         """
         manifests = self.parse_manifests(repo_path)
         if len(manifests) != 1 or manifests[0].manifest_version != 1:
             raise NotImplementedError(
-                "通用 v2 Manifest 已可解析，但类型专用 Activation 尚未接入旧加载入口"
+                "通用 v2 必须通过候选 Activation 流程加载，旧 flat v1 入口不执行 v2"
             )
         return manifests[0]
 
@@ -484,17 +486,8 @@ class PluginLoader:
             ImportError: 如果模块导入失败
             AttributeError: 如果入口函数不存在
         """
-        module_path, function_name = manifest.entry.split(":")
-
-        # 将仓库路径添加到 sys.path
-        sys.path.insert(0, str(repo_path))
-
         try:
-            # 导入模块
-            module = importlib.import_module(module_path)
-
-            # 获取入口函数
-            entry_func = getattr(module, function_name)
+            module, entry_func = self.load_entry(manifest, repo_path)
 
             # 调用入口函数创建实例
             instance = entry_func()
@@ -508,10 +501,37 @@ class PluginLoader:
             logger.error(f"加载插件失败：{manifest.name} - {e}")
             raise
 
-        finally:
-            # 从 sys.path 中移除仓库路径
-            if str(repo_path) in sys.path:
-                sys.path.remove(str(repo_path))
+    def load_entry(
+        self,
+        manifest: PluginManifest,
+        repo_path: Path,
+    ) -> tuple[Any, Callable[..., Any]]:
+        """从仓库内导入并校验 Manifest 入口，但不调用入口函数。"""
+
+        repo_path = Path(repo_path).resolve()
+        module_path, function_name = manifest.entry.split(":")
+        repo_path_text = str(repo_path)
+
+        with _IMPORT_LOCK:
+            sys.path.insert(0, repo_path_text)
+            try:
+                importlib.invalidate_caches()
+                module = importlib.import_module(module_path)
+                module_file = getattr(module, "__file__", None)
+                if module_file is None:
+                    raise ImportError(f"插件入口模块没有可验证的文件路径：{module_path}")
+                resolved_module_file = Path(module_file).resolve()
+                if not resolved_module_file.is_relative_to(repo_path):
+                    raise ImportError(
+                        f"插件入口模块不在仓库目录内：{resolved_module_file}"
+                    )
+                entry_func = getattr(module, function_name)
+                if not callable(entry_func):
+                    raise TypeError(f"插件入口不可调用：{manifest.entry}")
+                return module, entry_func
+            finally:
+                if repo_path_text in sys.path:
+                    sys.path.remove(repo_path_text)
 
     def _normalize_instance(self, instance: Any, plugin_type: PluginType) -> Any:
         """

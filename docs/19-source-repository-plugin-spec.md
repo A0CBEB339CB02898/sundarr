@@ -226,7 +226,7 @@ requires = ["core.http.v1", "core.source_registry.v1"]
 provides = ["source.search.v1"]
 ```
 
-当前 `PluginLoader` 已实现仓库根目录 flat v1 与通用 v2 `sundarr_plugin.toml` 解析。flat v1 SOURCE 仍可通过旧入口加载；v2 在类型专用 Activation 接入前只解析和校验，不按 v1 无参数入口执行。
+当前 `PluginLoader` 已实现仓库根目录 flat v1 与通用 v2 `sundarr_plugin.toml` 解析，`PluginActivator` 已实现单 Manifest v2 候选入口调用、配置/依赖/类型/能力健康校验、注册和失败 cleanup。flat v1 SOURCE 仍可通过旧入口加载；旧入口继续拒绝 v2，仓库级 v2 多插件编排和原子切换由后续阶段接入。
 
 ---
 
@@ -502,7 +502,7 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
 
 ## 9. 当前交付状态
 
-截至 2026-08-27：
+截至 2026-08-28：
 
 ```text
 已实现通用插件框架：
@@ -522,8 +522,8 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
 
 待实现：
   CATALOG_PROVIDER / WATCHLIST_PROVIDER 最小执行契约
-  v2 类型专用 Activation、Registry 和健康检查
-  Phase 10.1 通用插件加载、注册、健康检查、候选切换、cleanup、原子切换和启动恢复闭环
+  仓库内多个 v2 候选的统一编排和版本一致性校验
+  Phase 10.1 仓库级候选切换、原子切换和启动恢复闭环
   启动自动加载 enabled 仓库的 locked current_commit
   多插件、多仓库的所有 API 路径兼容
   Phase 10.2 Core Mock 垂直切片验收

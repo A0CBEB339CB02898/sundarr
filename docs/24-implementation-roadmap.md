@@ -1,6 +1,6 @@
 # Sundarr 当前实施路线
 
-本文档把 `docs/03-mvp-roadmap.md` 的阶段计划转换为当前可执行交付顺序。更新时间：2026-08-27。
+本文档把 `docs/03-mvp-roadmap.md` 的阶段计划转换为当前可执行交付顺序。更新时间：2026-08-28。
 
 ---
 
@@ -54,7 +54,7 @@ PID 文件、端口和子进程均无残留。
 B1 已定义 PluginContext、PluginActivation、ActivationStatus 和幂等 LIFO cleanup。
 B2 已实现目标 PluginType、通用 Manifest v2 多插件解析和 flat v1 SOURCE 兼容。
 B3 已实现 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 类型合同与 Runtime Registry。
-B4 实现 v2 入口调用、requires/provides 注入、配置校验和类型专用健康检查。
+B4 已实现 v2 单 Manifest 入口调用、requires/provides 隔离与校验、配置校验和类型专用健康检查。
 B5 实现候选加载、仓库级原子切换、失败保留旧 Activation 和确定清理语义。
 B6 API 与 Worker 启动时分别恢复 enabled 仓库的 locked current_commit。
 B7 修复 PluginManager 和 API 对同仓库多插件结果的完整支持。

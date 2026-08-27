@@ -299,7 +299,7 @@ provides = ["source.search.v1"]
         make_loader(tmp_path).parse_manifests(repo_path)
 
 
-def test_current_single_plugin_loader_rejects_v2_until_activation_is_ready(
+def test_legacy_single_plugin_loader_requires_v2_candidate_flow(
     tmp_path: Path,
 ) -> None:
     repo_path = tmp_path / "v2-not-active"
@@ -320,5 +320,5 @@ provides = ["source.search.v1"]
 """,
     )
 
-    with pytest.raises(NotImplementedError, match="类型专用 Activation 尚未接入"):
+    with pytest.raises(NotImplementedError, match="候选 Activation 流程"):
         make_loader(tmp_path)._parse_manifest(repo_path)

@@ -2,7 +2,7 @@
 
 本文档面向 Sundarr 外部 Python 插件仓库开发者；当前可运行示例仍以 SOURCE 为主。更新时间：2026-08-28。
 
-当前可运行仓库入口仍只承诺 flat v1 SOURCE 插件。通用 Manifest v2 已可解析和校验，三类 MVP 公共合同与类型专用 Runtime Registry 已实现，但 v2 Activation、Context 能力注入和健康检查尚未接入；因此 CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 仍不能从外部仓库实际启用。TRANSFER_DRIVER 和 NOTIFICATION 是后续扩展。
+当前生产仓库管理入口仍只承诺 flat v1 SOURCE 插件。通用 Manifest v2 已可解析，三类 MVP 公共合同、Runtime Registry 和单 Manifest 候选 Activation 已实现并由本地 fixture 验证；但仓库级多候选原子切换、Manager/API 接入和启动恢复尚未完成，因此 CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 仍不能通过生产配置启用。TRANSFER_DRIVER 和 NOTIFICATION 是后续扩展。
 
 ---
 
@@ -91,21 +91,19 @@ Core 负责：
 
 ## 5. 生命周期约定
 
-Phase 10.1 B4 接入后，v2 插件应通过 `PluginContext` 获取受控 Registry，并登记按实例身份保护的清理回调：
+v2 插件入口接收 `PluginContext`，创建并返回合同实例。Registry 注册和按实例身份保护的注销由 Core 完成；插件只登记自己创建的连接、订阅或回调等副作用：
 
 ```python
 def activate(context):
-    source = create_source(context.require("core.http.v1"), context.plugin_config)
-    registry = context.require("core.source_registry.v1")
-    registry.register(context.plugin_id, source)
-    context.register_cleanup(
-        lambda: registry.unregister(
-            context.plugin_id,
-            expected_instance=source,
-        )
+    client = create_site_client(
+        context.require("core.http.v1"),
+        context.plugin_config,
     )
-    return source
+    context.register_cleanup(client.close)
+    return create_source(client)
 ```
+
+插件只能 `require()` Manifest 中明确声明的 Core 能力。可选动态健康检查使用无参数 `health_check()`，返回 `PluginHealthResult`；没有动态检查时 Core 仍执行类型合同、ID、能力描述和 provides 一致性检查。
 
 插件不得在 import 阶段启动线程、创建长期连接、注册全局回调或执行网络请求。所有长期副作用必须发生在 Activation 内，并有对应 cleanup。
 

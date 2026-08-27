@@ -49,6 +49,18 @@ class CatalogFilter(str, Enum):
 
 
 @dataclass(frozen=True)
+class PluginHealthResult:
+    """插件可选动态健康检查的统一结果。"""
+
+    ok: bool
+    message: str = ""
+    details: Mapping[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "details", MappingProxyType(dict(self.details)))
+
+
+@dataclass(frozen=True)
 class CatalogCapabilities:
     """目录 Provider 在当前配置下实际支持的能力。"""
 

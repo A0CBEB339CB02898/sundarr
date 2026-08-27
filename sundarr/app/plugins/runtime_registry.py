@@ -34,7 +34,7 @@ class RuntimePluginRegistry(Generic[T]):
     def register(self, plugin_id: str, instance: T) -> None:
         """注册新实例；已有同 ID 时必须显式使用 replace。"""
 
-        self._validate(plugin_id, instance)
+        self.validate(plugin_id, instance)
         with self._lock:
             if plugin_id in self._instances:
                 raise ValueError(f"插件运行实例 ID 冲突：{plugin_id} 已存在")
@@ -43,7 +43,7 @@ class RuntimePluginRegistry(Generic[T]):
     def replace(self, plugin_id: str, instance: T) -> T | None:
         """原子替换实例，并返回旧实例。"""
 
-        self._validate(plugin_id, instance)
+        self.validate(plugin_id, instance)
         with self._lock:
             previous = self._instances.get(plugin_id)
             self._instances[plugin_id] = instance
@@ -102,7 +102,9 @@ class RuntimePluginRegistry(Generic[T]):
         with self._lock:
             return len(self._instances)
 
-    def _validate(self, plugin_id: str, instance: T) -> None:
+    def validate(self, plugin_id: str, instance: T) -> None:
+        """只校验合同和 ID，不修改 Registry。"""
+
         if not plugin_id or not plugin_id.strip():
             raise ValueError("plugin_id 不能为空")
         self._validator(plugin_id, instance)

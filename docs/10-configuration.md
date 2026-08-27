@@ -333,6 +333,8 @@ Git Plugin Repository 模式已进入 Phase 10：系统保存仓库配置和锁�
 
 通用 Manifest v2 只声明 `config_schema`，不保存配置值。Web Console 的分页方式、Provider 运行中 continuation token、想看同步游标和重试状态也不属于 Manifest；分页状态属于前端/API，游标和调度状态由 Core 持久化。
 
+当前单 Manifest 候选 Activation 已实现 `string`、`password`、`integer`、`boolean`、`select` 的最小配置校验，支持 required、default、min/max 和 options；未声明字段会明确拒绝。校验错误只报告字段名和规则，不回显敏感配置值。数据库配置解码、API 脱敏响应和 Web Console 表单仍在后续 Manager/API 接入阶段完成。
+
 仓库配置字段建议：
 
 ```text
