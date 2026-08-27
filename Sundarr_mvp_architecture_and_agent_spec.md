@@ -76,6 +76,8 @@ Phase 12：Cloud Direct Download，非 MVP、非近期主线。
 
 媒体发现采用 A+ 数据策略：PostgreSQL 保存 `MediaSubject` 规范身份、外部 ID、最小展示快照和用户状态；Redis 缓存可重建的目录详情、评分、图片信息和发现列表。缓存丢失不得造成身份或用户状态丢失。
 
+Web Console 使用 `/app/discover` 作为统一媒体发现入口，`/app/discover/:media_subject_id` 作为详情页；`/app/search` 继续承担具体资源链接搜索。
+
 ## 不做事项
 
 ```text

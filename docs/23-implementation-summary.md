@@ -29,6 +29,8 @@ Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连�
 
 媒体发现持久化边界已确认采用 A+：PostgreSQL 保存规范身份、外部 ID、最小展示快照和用户状态，Redis 保存可重建目录详情和列表缓存。该数据模型尚未实现。
 
+媒体发现顶层信息架构已确认：`/app/discover` 是统一发现入口，`/app/discover/:media_subject_id` 是详情，现有 `/app/search` 保持为具体资源搜索。发现路由尚未实现。
+
 ---
 
 ## 2. 已实现能力

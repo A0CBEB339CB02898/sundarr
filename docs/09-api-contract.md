@@ -686,7 +686,7 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 
 ### 9.13 媒体发现响应缓存语义（Phase 10.1 计划）
 
-媒体发现 API 的具体路由尚待页面信息架构确认，但响应必须遵守：
+媒体发现 Web 路由已确认为 `/app/discover` 和 `/app/discover/:media_subject_id`；对应 FastAPI 路由名称和请求参数仍待模块内信息架构确认。响应必须遵守：
 
 ```text
 不直接返回 CATALOG_PROVIDER 私有原始响应。

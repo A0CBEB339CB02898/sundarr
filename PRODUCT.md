@@ -73,6 +73,7 @@ MVP 不做：
 - 媒体发现中心以 TMDb 作为 MVP 主目录数据提供方，豆瓣目录作为可选补充；两者均通过 `CATALOG_PROVIDER` 插件接入。
 - 豆瓣想看通过独立 `WATCHLIST_PROVIDER` 插件接入，由 Core 调度，不能成为发现中心可用性的单点依赖。
 - 媒体发现采用 A+ 数据策略：PostgreSQL 保存规范身份、外部 ID、最小展示快照和用户状态；易变目录详情、榜单和搜索结果只作为可过期缓存。
+- Web Console 使用统一 `/app/discover` 模块承载目录发现，详情使用 `/app/discover/:media_subject_id`；`/app/search` 保留为具体资源链接搜索。
 
 ## Product Tone
 

@@ -212,6 +212,8 @@ Sundarr 采用暖色操作台风格设计：
 
 媒体发现数据采用 A+ 策略：PostgreSQL 保存 `MediaSubject` 身份、外部 ID、最小展示快照和用户状态；Redis 缓存易变详情、评分、榜单和搜索结果。缓存丢失不会丢失收藏或关注，Provider 故障时可以退化为最小卡片。
 
+规划路由中，`/app/discover` 是统一媒体发现模块，`/app/discover/:media_subject_id` 是媒体详情；现有 `/app/search` 保留为具体资源链接搜索。在发现模块实现前，README 中的启动入口仍指向当前可用的 `/app/search`。
+
 **Phase 11 未开始**：稳定 AI Tool API 完成后，可提供可选 Cordis / DeepSeek Harness 桥接插件。Sundarr Core 保持 Python + FastAPI，不改为 Cordis/Node.js 运行时。
 
 ## 不做的事情
