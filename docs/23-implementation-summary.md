@@ -35,7 +35,7 @@ Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连�
 
 基础筛选已确认：媒体类型、题材、地区、年份范围和热度/评分/上映时间排序。题材和地区在 MVP 界面均为单选，Core 使用列表查询结构。分页交互作为实现细节处理，不进入插件 Manifest。
 
-通用插件分类已收口：当前 MVP 是 `SOURCE`、`CATALOG_PROVIDER`、`WATCHLIST_PROVIDER`，未来保留 `TRANSFER_DRIVER`、`NOTIFICATION`。插件类型不是所有任务必须经过的阶段；当前 SMB 同步仍由 Core 内置状态机和 SmbWriter 执行。Manifest v2 的多插件声明已经设计，代码仍是 flat v1 SOURCE 实现。
+通用插件分类已收口：当前 MVP 是 `SOURCE`、`CATALOG_PROVIDER`、`WATCHLIST_PROVIDER`，未来保留 `TRANSFER_DRIVER`、`NOTIFICATION`。插件类型不是所有任务必须经过的阶段；当前 SMB 同步仍由 Core 内置状态机和 SmbWriter 执行。Manifest v2 多插件解析和 flat v1 SOURCE 兼容已实现，v2 Activation 尚未实现。
 
 ---
 
@@ -99,13 +99,13 @@ SeedHub 已从 Core 移出
 Web Console 没有插件仓库新增、更新、回滚和诊断页面。
 当前环境未配置插件仓库，运行时搜索源为 0。
 外部 SeedHub 尚未完成 Core 侧端到端验收。
-CATALOG_PROVIDER / WATCHLIST_PROVIDER 以及通用 Manifest v2 尚未加入代码枚举、加载器和注册中心。
+CATALOG_PROVIDER / WATCHLIST_PROVIDER 已加入代码枚举和 v2 Manifest 解析，但类型专用执行协议、Registry 和 Activation 尚未实现。
 Docker Compose 未在当前 Windows 环境实跑。
 ```
 
 ---
 
-## 4. 2026-08-26 验证结果
+## 4. 2026-08-26 至 2026-08-27 验证结果
 
 ```text
 前端 npm run build：通过。
@@ -113,7 +113,7 @@ API / Web / Worker 进程级启动：通过。
 GET /health：API、PostgreSQL、Redis、Worker 全部 ok。
 GET /docs 和 Web /app/search：HTTP 200。
 停止后测试端口释放：通过。
-默认 pytest：204 passed。
+默认 pytest：220 passed。
 前端 npm run build：通过。
 Alembic heads/current：唯一 head 和当前版本均为 0008。
 连续两轮 CLI 冒烟：API / Web / Worker 启动、health、PID 对齐、停止清理均通过。
@@ -145,4 +145,4 @@ Phase 11 完成后，可以提供可选 Cordis / DeepSeek Harness 桥接插件�
 
 ## 6. 当前工作区说明
 
-文档中的“已实现”和“目标设计”必须继续分开标注。当前验证基线仍为 2026-08-26 的 204 项后端测试、前端构建及 API/Web/Worker 冒烟结果；本轮插件分类与 Manifest v2 仅更新设计文档，不代表代码已经实现。
+文档中的“已实现”和“目标设计”必须继续分开标注。当前后端验证基线为 220 项测试，并已完成 flat v1 示例插件加载与 OpenAPI 插件接口冒烟；前端构建及 API/Web/Worker 进程冒烟仍沿用 2026-08-26 的已通过结果。Manifest v2 当前只完成解析和静态校验，不代表 v2 插件已经可激活。

@@ -1,14 +1,11 @@
 """
 Sundarr 插件系统
 
-提供统一的插件注册、发现和管理机制，支持多种插件类型：
-- Source: 搜索源插件
-- CloudProvider: 网盘 Provider 插件
-- Notification: 通知渠道插件
-- Crawler: 爬虫插件（豆瓣等）
-- LinkValidator: 链接验证器插件
-- LinkExtractor: 链接提取器插件
-- TaskProcessor: 任务处理器插件
+提供统一的插件注册、发现和管理机制：
+- SOURCE: 具体资源链接搜索
+- CATALOG_PROVIDER: 媒体目录
+- WATCHLIST_PROVIDER: 外部想看列表
+- TRANSFER_DRIVER / NOTIFICATION: 后续扩展点，当前不允许激活
 """
 
 from .base import PluginType, PluginManifest, LoadedPlugin

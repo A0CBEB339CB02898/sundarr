@@ -201,7 +201,7 @@ requires = ["core.http.v1", "core.source_registry.v1"]
 provides = ["source.search.v1"]
 ```
 
-当前 `PluginLoader` 尚只实现仓库根目录 flat v1 `sundarr_plugin.toml`。迁移期继续兼容 flat v1，新仓库和多插件仓库统一以 `docs/20-plugin-manifest-spec.md` 的 v2 为目标。
+当前 `PluginLoader` 已实现仓库根目录 flat v1 与通用 v2 `sundarr_plugin.toml` 解析。flat v1 SOURCE 仍可通过旧入口加载；v2 在类型专用 Activation 接入前只解析和校验，不按 v1 无参数入口执行。
 
 ---
 
@@ -488,13 +488,16 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
   SOURCE 入口返回 SourceModel 或 list[SourceModel] 并展开注册
   SeedHub 已从 Sundarr Core 移出
   tests/test_plugin_system.py
+  目标 PluginType、通用 Manifest v2 多插件解析和 flat v1 SOURCE 兼容
+  manifest_version、plugin_api_version、旧类型、重复 id、entry 和 requires/provides 校验
+  tests/test_plugin_manifest.py
 
 已完成：
   Phase 10.0 默认测试、迁移链、SMB 错误码和 Windows PID 质量收口
 
 待实现：
-  通用 Manifest v2 多插件解析和 flat v1 兼容读取
   CATALOG_PROVIDER / WATCHLIST_PROVIDER 类型与最小执行契约
+  v2 类型专用 Activation、Registry 和健康检查
   Phase 10.1 所需的最小插件加载、注册和健康检查
   完整候选切换、cleanup 和原子切换闭环
   启动自动加载 enabled 仓库的 locked current_commit

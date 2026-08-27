@@ -168,13 +168,16 @@ PluginActivation / ActivationStatus：依赖等待、候选校验、激活、失
 同步/异步 cleanup 的 LIFO、失败续跑和并发幂等释放
 /plugins API
 SOURCE 入口返回 SourceModel 或 list[SourceModel]
+目标 PluginType 已替换旧占位枚举
+flat v1 SOURCE 与通用 v2 Manifest 解析
+v2 同仓库多插件、协议版本、类型、entry、requires/provides 和重复 id 校验
 ```
 
 ### 5.2 当前缺口
 
 ```text
-代码枚举仍是 SOURCE + 旧占位类型，尚无 CATALOG_PROVIDER / WATCHLIST_PROVIDER。
-当前 loader 只解析单插件 flat v1 manifest，尚不支持通用 v2 多插件清单。
+v2 类型专用 Activation、Registry 和健康检查尚未实现；当前只解析和静态校验。
+旧单插件加载入口尚不执行 v2，避免错误复用 flat v1 无参数入口。
 启动时未自动加载数据库中的 enabled 仓库。
 PluginContext 尚未接入受控 HTTP client 和各类型 registry 注册动作。
 manifest 尚未解析 requires / provides。

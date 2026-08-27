@@ -55,7 +55,7 @@ Phase 7.8 Web Console UI Polish: 已完成。
 Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需手动集成验收。
 Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一为 process_sync_task 同步路径，远程媒体库和同步绑定已就位。
 Phase 9.5 Resource Favorites Refactoring: 已完成；Resource / ResourceLink 已收缩为收藏模型，搜索默认不入库，Web Console 使用单一收藏入口。
-Phase 10.0 Quality Baseline Closure: 已完成；当前默认 pytest 204 项通过，前端构建、Alembic 链路和连续两轮 CLI 启停冒烟通过。
+Phase 10.0 Quality Baseline Closure: 已完成；当前默认 pytest 220 项通过，前端构建、Alembic 链路和连续两轮 CLI 启停冒烟通过。
 Phase 10.1 Media Discovery Center: 当前优先、尚未实现；媒体身份、数据来源、A+ 持久化边界、顶层路由、首页双模式、基础筛选集和单选边界已确认，当前继续确认分页与详情信息层级，再实现发现闭环。
 Phase 10.2 Plugin Activation Runtime Completion: 生命周期内核和 8 项测试已完成；Phase 10.1 先恢复目录与想看插件所需的最小能力，之后收口候选健康检查、原子切换和启动自动加载。
 Phase 10.3 External Source End-to-End: Phase 10.2 后执行，完成仓库管理和真实源验收。
@@ -1335,7 +1335,7 @@ Phase 10.1 采用通用 Manifest v2 的多插件声明；迁移期继续兼容 f
 
 状态：生命周期内核首个单元已完成；Phase 10.1 会复用最小加载和注册能力，完整热更新与原子切换在媒体发现最小闭环后恢复。
 
-当前进度：生命周期内核首个单元已完成，已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放。通用 Manifest v2 和目标 PluginType 已完成设计；多声明解析、候选健康检查、注册中心原子切换、manifest `requires/provides` 和启动自动激活仍待实现。
+当前进度：生命周期内核首个单元已完成，已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放。目标 PluginType、通用 Manifest v2 多声明解析、版本与字段校验和 flat v1 SOURCE 兼容已实现；v2 类型专用 Activation/Registry、候选健康检查、注册中心原子切换和启动自动激活仍待实现。
 
 交付物：
 

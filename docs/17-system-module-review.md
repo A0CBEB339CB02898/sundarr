@@ -61,7 +61,9 @@ api/plugins.py            插件管理 API
 
 已完成：基础模型、加载、注册、仓库 CRUD、更新、回滚、配置、SOURCE 列表展开，以及 PluginContext / PluginActivation 生命周期内核。
 
-待完成：`CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 类型和执行契约、通用 Manifest v2 多声明解析、能力声明、候选验证、原子切换、启动自动恢复和 Web Console。现有代码中的 `CLOUD_PROVIDER`、`CRAWLER`、`LINK_VALIDATOR`、`LINK_EXTRACTOR`、`TASK_PROCESSOR` 是待清理的旧占位枚举，不属于目标 v2 顶层类型。
+已完成：目标 `PluginType` 已替换旧占位枚举；通用 Manifest v2 可解析同仓库多插件并校验版本、类型、入口、配置和能力，flat v1 SOURCE 继续兼容。
+
+待完成：`CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 执行契约和类型专用 Registry、v2 Activation、候选验证、原子切换、启动自动恢复和 Web Console。旧单插件加载入口会明确拒绝 v2，不会按 v1 无参数入口误执行。
 
 ### 2.4 SMB 和媒体库
 
@@ -184,4 +186,4 @@ Phase 11：AI Friendly API 和可选 Cordis / DeepSeek Harness HTTP 桥接。
 
 不进入近期主线：Alist、真实网盘 Provider、Cloud Direct Download、通知和 Crawler 插件。
 
-通用 Manifest v2 已完成设计但尚未实现：同一仓库可声明多个独立插件，迁移期兼容当前 flat v1 SOURCE 清单。Manifest 不包含分页 UI、调度游标或任务状态。
+通用 Manifest v2 多插件解析和 flat v1 SOURCE 兼容已实现；类型专用 Activation 尚未接入。同一仓库可声明多个独立插件，Manifest 不包含分页 UI、调度游标或任务状态。

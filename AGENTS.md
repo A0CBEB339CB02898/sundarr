@@ -161,6 +161,7 @@ Web Console 是核心控制台，不做完整本地媒体库 UI。
 Phase 9 模块重构已完成：已删除 Ingest 模块和旧 storage_config_service，新增远程媒体库模型并统一同步绑定。
 Phase 9.5 收藏模型重构已完成：搜索默认不入库，资源和资源链接仅在用户主动收藏时持久化。
 Phase 10.0 质量基线收口已完成；当前优先任务调整为 Phase 10.1 媒体发现中心。Phase 10.1 恢复目录和想看插件所需的最小加载、注册和健康检查；完整热更新、原子切换及外部搜索源仓库闭环在后续阶段完成。
+通用 Manifest v2 多插件解析、目标 PluginType 和 flat v1 SOURCE 兼容已实现；v2 类型专用 Activation、Registry 和健康检查尚未实现，旧加载入口必须明确拒绝激活 v2。
 Sundarr Core 继续使用 Python + FastAPI，不引入 Cordis 或 Node.js 作为后端运行时。
 Python 插件系统采用 Cordis 启发的生命周期语义：显式能力依赖、Activation、可逆清理、候选加载、健康检查、原子切换和失败回滚。
 该设计只借鉴 Cordis 的组合思想，不依赖 Cordis 包，不把持久任务状态、数据库事务或 SMB Worker 交给插件运行时。

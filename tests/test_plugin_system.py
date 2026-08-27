@@ -31,7 +31,7 @@ def test_plugin_registry():
         description="用于测试的搜索源插件",
         author="测试",
         homepage_url="https://example.com",
-        adapter_api_version="1.0",
+        plugin_api_version="1.0",
         entry="test_source:create_source",
         config_schema={},
     )
@@ -79,12 +79,10 @@ def test_plugin_types():
 
     # 验证所有插件类型
     assert PluginType.SOURCE == "source", "SOURCE 应该为 'source'"
-    assert PluginType.CLOUD_PROVIDER == "cloud_provider", "CLOUD_PROVIDER 应该为 'cloud_provider'"
+    assert PluginType.CATALOG_PROVIDER == "catalog_provider", "CATALOG_PROVIDER 应该匹配"
+    assert PluginType.WATCHLIST_PROVIDER == "watchlist_provider", "WATCHLIST_PROVIDER 应该匹配"
+    assert PluginType.TRANSFER_DRIVER == "transfer_driver", "TRANSFER_DRIVER 应该匹配"
     assert PluginType.NOTIFICATION == "notification", "NOTIFICATION 应该为 'notification'"
-    assert PluginType.CRAWLER == "crawler", "CRAWLER 应该为 'crawler'"
-    assert PluginType.LINK_VALIDATOR == "link_validator", "LINK_VALIDATOR 应该为 'link_validator'"
-    assert PluginType.LINK_EXTRACTOR == "link_extractor", "LINK_EXTRACTOR 应该为 'link_extractor'"
-    assert PluginType.TASK_PROCESSOR == "task_processor", "TASK_PROCESSOR 应该为 'task_processor'"
 
     print("[OK] 插件类型测试通过")
 
@@ -101,7 +99,7 @@ def test_plugin_manifest():
         description="用于测试的插件",
         author="测试",
         homepage_url="https://example.com",
-        adapter_api_version="1.0",
+        plugin_api_version="1.0",
         entry="test:create",
         config_schema={"api_key": {"type": "string", "required": True}},
         dependencies=["dep-1", "dep-2"],
@@ -128,7 +126,7 @@ def test_loaded_plugin():
         description="用于测试的插件",
         author="测试",
         homepage_url="https://example.com",
-        adapter_api_version="1.0",
+        plugin_api_version="1.0",
         entry="test:create",
         config_schema={},
     )
@@ -183,7 +181,7 @@ def test_multiple_plugins():
                 description=f"搜索源 {i}",
                 author="测试",
                 homepage_url="https://example.com",
-                adapter_api_version="1.0",
+                plugin_api_version="1.0",
                 entry=f"source_{i}:create",
                 config_schema={},
             ),

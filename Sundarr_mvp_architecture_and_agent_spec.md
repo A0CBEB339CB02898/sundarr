@@ -74,6 +74,8 @@ Phase 11：AI Friendly API。
 Phase 12：Cloud Direct Download，非 MVP、非近期主线。
 ```
 
+通用 Manifest v2 多插件解析、目标 PluginType 和 flat v1 SOURCE 兼容已落地；v2 类型专用 Activation、Registry 与健康检查仍属于 Phase 10.1/10.2 待实现项。
+
 媒体发现中心使用内部 UUID 的 `MediaSubject` 作为规范媒体身份，并可绑定多个外部平台 ID；不以任何单一目录平台 ID 作为主键。
 
 媒体发现中心 MVP 以 TMDb 作为主 `CATALOG_PROVIDER`，豆瓣目录作为可选补充 `CATALOG_PROVIDER`；豆瓣想看使用独立 `WATCHLIST_PROVIDER` 并由 Core 调度。豆瓣能力失败不得阻断目录浏览和搜索。

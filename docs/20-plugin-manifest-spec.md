@@ -7,11 +7,11 @@
 ## 1. 状态说明
 
 ```text
-flat v1    当前 loader 已实现，只支持一个 SOURCE 声明。
-v2         已确认的通用目标，支持一个仓库声明多个独立插件；尚未实现。
+flat v1    当前 loader 已实现，只支持一个 SOURCE 声明和旧无参数入口。
+v2         多插件解析和静态校验已实现；类型专用 Activation、Registry 和健康检查尚未实现。
 ```
 
-Phase 10.1 实现 v2 的 `CATALOG_PROVIDER`、`WATCHLIST_PROVIDER` 最小加载闭环；Phase 10.2 再完成 requires/provides、候选原子切换和启动恢复。迁移期读取 flat v1，写文档、模板和新仓库时使用 v2。
+Phase 10.1 继续实现 v2 的 `CATALOG_PROVIDER`、`WATCHLIST_PROVIDER` 最小 Activation 闭环；Phase 10.2 再完成候选原子切换和启动恢复。迁移期继续读取 flat v1；新仓库使用 v2。旧单插件加载入口在 v2 Activation 接入前明确拒绝 v2，不会误用 v1 无参数调用方式执行。
 
 ---
 
@@ -220,7 +220,7 @@ options
 
 ## 8. 入口与 Activation
 
-v2 入口接受 `PluginContext`，通过类型专用 Registry 注册运行实例，并为全部副作用登记 cleanup。具体 Provider 方法协议由各类型规格定义。
+v2 目标入口接受 `PluginContext`，通过类型专用 Registry 注册运行实例，并为全部副作用登记 cleanup。当前只完成解析与静态校验，尚未执行 v2 入口。具体 Provider 方法协议由各类型规格定义。
 
 禁止在 import 阶段：
 

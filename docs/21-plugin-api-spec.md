@@ -32,7 +32,7 @@ POST /repositories 在多 Source 仓库返回列表时响应处理尚未完全�
 load-all 需要手动调用，应用启动不会自动执行。
 接口尚未暴露 Activation、依赖和 cleanup 状态。
 Web Console 尚未提供对应页面。
-当前响应按 flat v1 单插件假设实现，尚未支持通用 Manifest v2 的同仓库多声明。
+通用 Manifest v2 多声明已可解析，但当前管理 API 仍按 flat v1 单插件加载结果工作，尚未接入 v2 类型专用 Activation 和多插件响应。
 ```
 
 ---

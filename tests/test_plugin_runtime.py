@@ -32,7 +32,7 @@ def manifest() -> PluginManifest:
         description="用于测试 Activation 生命周期",
         author="Sundarr",
         homepage_url="https://example.com",
-        adapter_api_version="1.0",
+        plugin_api_version="1.0",
         entry="example:create_source",
         config_schema={},
     )

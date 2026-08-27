@@ -2,7 +2,7 @@
 
 本文档面向 Sundarr 外部 Python 搜索源仓库开发者。更新时间：2026-08-27。
 
-当前可运行 SDK 只承诺 flat v1 SOURCE 插件。通用 Manifest v2、CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 已完成设计但尚未实现；TRANSFER_DRIVER 和 NOTIFICATION 是后续扩展。
+当前可运行 SDK 只承诺 flat v1 SOURCE 插件。通用 Manifest v2 已可解析和校验，但 v2 Activation、CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 执行协议尚未接入；TRANSFER_DRIVER 和 NOTIFICATION 是后续扩展。
 
 ---
 
@@ -36,7 +36,7 @@ adapter_api_version = 1
 
 ```
 
-当前模板继续使用 flat v1。新仓库在通用 v2 loader 落地后迁移到 `manifest_version = 2` 和 `[[plugins]]`；目标格式及版本化 `requires/provides` 以 `docs/20-plugin-manifest-spec.md` 为准。在 Core 实现前插件不得依赖 v2 自动注入行为。
+当前可运行模板继续使用 flat v1。新仓库可以按 `manifest_version = 2` 和 `[[plugins]]` 编写并通过静态解析，但在 v2 Activation 落地前不能实际启用；目标格式及版本化 `requires/provides` 以 `docs/20-plugin-manifest-spec.md` 为准。
 
 ---
 

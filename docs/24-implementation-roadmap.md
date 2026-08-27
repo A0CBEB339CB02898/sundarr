@@ -63,7 +63,7 @@ B5 设计 MediaSubject、Resource、ResourceLink 与未来 AcquisitionRequest/Tr
 B6 实现最小 API、Web Console 和测试闭环。
 B7 在 Phase 10.1 恢复目录和想看插件所需的最小加载、注册和健康检查能力。
 B8 已确认插件类型按稳定业务合同划分：MVP 为 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER；未来保留 TRANSFER_DRIVER、NOTIFICATION。
-B9 已确认通用 Manifest v2 同仓库多插件结构、flat v1 SOURCE 兼容和 Manifest/运行状态/UI 边界。
+B9 已实现通用 Manifest v2 同仓库多插件解析、flat v1 SOURCE 兼容和静态校验；类型专用 Activation 仍由后续任务接入。
 ```
 
 验收门：
@@ -86,7 +86,7 @@ B9 已确认通用 Manifest v2 同仓库多插件结构、flat v1 SOURCE 兼容�
 
 ```text
 C1 已定义 PluginContext、PluginActivation、ActivationStatus。
-C2 实现通用 Manifest v2 多插件解析、flat v1 SOURCE 兼容和版本化 requires / provides。
+C2 部分完成：通用 Manifest v2 多插件解析、flat v1 SOURCE 兼容和版本化 requires / provides 静态校验已实现；Activation 注入与原子切换待完成。
 C3 已实现通用 cleanup callback、LIFO、失败续跑和并发幂等释放。
 C4 接入 Source 注册动作、候选配置校验和健康测试。
 C5 实现原子替换、失败保留旧 Activation 和确定清理语义。

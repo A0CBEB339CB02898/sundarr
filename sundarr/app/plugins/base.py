@@ -16,21 +16,17 @@ class PluginType(str, Enum):
 
     每种类型对应一种特定的功能扩展点：
     - SOURCE: 搜索源插件（如影视资源站、Bilibili 等）
-    - CLOUD_PROVIDER: 网盘 Provider 插件（如夸克、阿里云盘等）
-    - NOTIFICATION: 通知渠道插件（如钉钉、飞书等）
-    - CRAWLER: 爬虫插件（如豆瓣监控等）
-    - LINK_VALIDATOR: 链接验证器插件
-    - LINK_EXTRACTOR: 链接提取器插件
-    - TASK_PROCESSOR: 任务处理器插件
+    - CATALOG_PROVIDER: 媒体目录插件
+    - WATCHLIST_PROVIDER: 外部想看列表插件
+    - TRANSFER_DRIVER: 后续搬运驱动扩展点，当前不允许激活
+    - NOTIFICATION: 后续通知扩展点，当前不允许激活
     """
 
     SOURCE = "source"
-    CLOUD_PROVIDER = "cloud_provider"
+    CATALOG_PROVIDER = "catalog_provider"
+    WATCHLIST_PROVIDER = "watchlist_provider"
+    TRANSFER_DRIVER = "transfer_driver"
     NOTIFICATION = "notification"
-    CRAWLER = "crawler"
-    LINK_VALIDATOR = "link_validator"
-    LINK_EXTRACTOR = "link_extractor"
-    TASK_PROCESSOR = "task_processor"
 
 
 @dataclass
@@ -48,23 +44,35 @@ class PluginManifest:
         description: 插件描述
         author: 作者
         homepage_url: 项目主页 URL
-        adapter_api_version: 适配器 API 版本（必须与 Sundarr 版本兼容）
+        plugin_api_version: 插件 API 版本（必须与 Sundarr 版本兼容）
         entry: 入口点（"module:function" 格式）
         config_schema: 配置字段声明（JSON Schema 格式）
-        dependencies: 依赖的其他插件 ID 列表
+        manifest_version: 清单格式版本；flat v1 为 1，通用清单为 2
+        requires: 激活前需要的 Core 能力
+        provides: 激活成功后提供的插件能力
+        dependencies: flat v1 遗留兼容字段
     """
 
     id: str
     name: str
     version: str
     plugin_type: PluginType
-    description: str
-    author: str
-    homepage_url: str
-    adapter_api_version: str
     entry: str
-    config_schema: Dict[str, Any]
+    plugin_api_version: str
+    description: str = ""
+    author: str = ""
+    homepage_url: str = ""
+    config_schema: Dict[str, Any] = field(default_factory=dict)
+    manifest_version: int = 1
+    requires: List[str] = field(default_factory=list)
+    provides: List[str] = field(default_factory=list)
     dependencies: List[str] = field(default_factory=list)
+
+    @property
+    def adapter_api_version(self) -> str:
+        """兼容旧 API 字段名；新代码统一使用 plugin_api_version。"""
+
+        return self.plugin_api_version
 
 
 @dataclass

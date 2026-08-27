@@ -56,9 +56,7 @@ class PluginStats(BaseModel):
     error: int
     disabled: int
     source: int
-    cloud_provider: int
+    catalog_provider: int
+    watchlist_provider: int
+    transfer_driver: int
     notification: int
-    crawler: int
-    link_validator: int
-    link_extractor: int
-    task_processor: int

@@ -26,7 +26,7 @@
 ```text
 1. 收口 MediaSubject 与现有 Resource / ResourceLink 的最小关联，不提前引入 ResourceOffer / Artifact。
 2. 一次性定义 CATALOG_PROVIDER / WATCHLIST_PROVIDER 的 Core 方法合同、能力描述和 Mock。
-3. 实现 PluginType 与通用 Manifest v2 解析，保持 flat v1 SOURCE 测试兼容。
+3. 已实现 PluginType 与通用 Manifest v2 解析，并保持 flat v1 SOURCE 测试兼容；下一步接类型专用 Activation。
 4. 完成 Phase 10.1 最小 API、Web Console 和测试闭环。
 ```
 
@@ -61,7 +61,7 @@ Manifest v2 只保存静态插件声明，不保存 UI 分页、调度游标或�
 ```text
 PluginContext、PluginActivation、ActivationStatus 已实现。
 LIFO cleanup、失败续跑和并发幂等释放已测试。
-通用 Manifest v2 多声明解析、requires/provides、类型专用注册、健康检查、原子切换和启动加载待实现。
+通用 Manifest v2 多声明解析和 requires/provides 静态校验已实现；类型专用注册、Activation、健康检查、原子切换和启动加载待实现。
 ```
 
 ## 环境限制
