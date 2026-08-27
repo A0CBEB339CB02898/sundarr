@@ -414,6 +414,7 @@ SOURCE 产出具体资源链接候选。
 CATALOG_PROVIDER 产出规范化前的媒体目录候选。
 WATCHLIST_PROVIDER 读取外部列表项，由 Core 负责定时调度、游标、重试和持久状态。
 插件不得自行把长期同步循环作为 Activation 内定时器运行。
+CATALOG_PROVIDER 必须声明支持的目录筛选能力；不支持的筛选不得静默丢弃。
 ```
 
 ### 6.8 启动恢复

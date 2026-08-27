@@ -216,6 +216,8 @@ Sundarr 采用暖色操作台风格设计：
 
 发现首页默认使用内容流，展示热门电影、热门剧集、分类推荐和关注更新；输入目录关键词或应用筛选后切换为统一海报网格，并通过 URL query 保留搜索状态。
 
+MVP 筛选范围收口为媒体类型、题材、地区、年份范围和热度/评分/上映时间排序；高级人物、语言和复杂组合筛选暂不实现。
+
 **Phase 11 未开始**：稳定 AI Tool API 完成后，可提供可选 Cordis / DeepSeek Harness 桥接插件。Sundarr Core 保持 Python + FastAPI，不改为 Cordis/Node.js 运行时。
 
 ## 不做的事情

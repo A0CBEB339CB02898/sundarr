@@ -75,6 +75,7 @@ MVP 不做：
 - 媒体发现采用 A+ 数据策略：PostgreSQL 保存规范身份、外部 ID、最小展示快照和用户状态；易变目录详情、榜单和搜索结果只作为可过期缓存。
 - Web Console 使用统一 `/app/discover` 模块承载目录发现，详情使用 `/app/discover/:media_subject_id`；`/app/search` 保留为具体资源链接搜索。
 - `/app/discover` 默认展示分区内容流，搜索或筛选后切换为海报网格；搜索状态写入 URL，刷新和返回时可恢复。
+- 媒体发现 MVP 只提供媒体类型、题材、地区、年份范围和热度/评分/上映时间排序，不做演员、导演、语言等高级组合筛选。
 
 ## Product Tone
 

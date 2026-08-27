@@ -56,7 +56,8 @@ B2 已确认 TMDb 和豆瓣目录使用 CATALOG_PROVIDER，豆瓣想看使用独
 B3 已确认 A+ 持久化：核心身份、最小快照和用户状态入 PostgreSQL，易变目录详情和列表入 Redis。
 B4a 已确认 /app/discover 统一入口、独立详情路由以及 /app/search 资源搜索边界。
 B4b 已确认默认分区内容流、搜索后统一海报网格和 URL 状态恢复。
-B4c 当前确认筛选字段、分页方式和详情信息层级。
+B4c 已确认媒体类型、题材、地区、年份范围和三种排序的基础筛选集。
+B4d 当前确认题材/地区选择方式、分页方式和详情信息层级。
 B5 确认 MediaSubject、ResourceOffer、Artifact 与任务的关联。
 B6 实现最小 API、Web Console 和测试闭环。
 B7 在 Phase 10.1 恢复目录和想看插件所需的最小加载、注册和健康检查能力。

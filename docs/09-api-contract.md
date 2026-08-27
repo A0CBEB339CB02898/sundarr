@@ -697,7 +697,19 @@ Provider 失败时不得用 null 覆盖已知规范标题、年份或最后可�
 没有缓存、没有最小快照且 Provider 不可用时返回明确错误。
 ```
 
-Web Console 必须把目录关键词和已确认的筛选条件编码进 `/app/discover` 的 URL query。具体 query 字段将在筛选项确认后定义；URL 不得包含 API key、cookie 或插件私有配置。
+Web Console 必须把目录关键词和筛选条件编码进 `/app/discover` 的 URL query。计划中的规范字段为 `q`、`media_type`、`genre`、`region`、`year_from`、`year_to` 和 `sort`；具体枚举和 FastAPI 路由实现随 Phase 10.1 API 设计落地。URL 不得包含 API key、cookie 或插件私有配置。
+
+筛选语义：
+
+```text
+media_type: all / movie / series
+genre: 规范题材值；单选/多选编码待确认
+region: 规范地区值；单选/多选编码待确认
+year_from / year_to: 可单独或成对使用；单年搜索可使用相同值
+sort: popularity / rating / release_date
+```
+
+语言、评分区间、演员、导演、Provider 来源和复杂布尔组合不进入 MVP API。
 
 ---
 
