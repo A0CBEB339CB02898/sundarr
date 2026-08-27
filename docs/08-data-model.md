@@ -562,7 +562,7 @@ updated_at TIMESTAMP NOT NULL
 
 ```text
 plugin_id 为插件实例唯一标识，来自仓库清单。
-plugin_type 标识插件实例的主类型；当前枚举和 Manifest 解析已包含 source、catalog_provider 和 watchlist_provider，但后两者的运行协议与类型专用 Registry 尚未实现。
+plugin_type 标识插件实例的主类型；当前枚举、Manifest 解析、三类 MVP 最小运行协议和类型专用 Runtime Registry 已实现，但 v2 Activation 尚未把仓库入口实例注册到对应 Registry。
 config_data 存储 JSON 格式的插件配置。
 repository_id 关联来源仓库；一个仓库可以声明多个不同类型的插件实例。
 通用 Manifest v2 的每个 [[plugins]] 声明对应一个 plugin_id 和一条独立 PluginConfig；仓库 commit 仍由 PluginRepository 统一锁定。

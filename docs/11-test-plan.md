@@ -111,6 +111,9 @@ PluginActivation 候选加载和原子切换
 cleanup LIFO 顺序、幂等和失败隔离
 依赖缺失时不执行插件入口
 更新失败时旧 Activation 继续工作
+三类 MVP Runtime Registry 的类型校验、重复注册、显式替换和按实例身份安全注销
+CatalogQuery 的单题材、单地区、年份范围、limit 和不透明游标边界
+类型专用 SOURCE Registry 优先于 flat v1 兼容结果，且不重复返回同 ID SourceModel
 ```
 
 真实媒体源测试原则：

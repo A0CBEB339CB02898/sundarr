@@ -1,6 +1,6 @@
 # Python 插件系统与 Activation Runtime
 
-本文档是 Sundarr 通用插件体系的事实来源，定义插件分类、运行边界、任务流关系和生命周期。更新时间：2026-08-27。
+本文档是 Sundarr 通用插件体系的事实来源，定义插件分类、运行边界、任务流关系和生命周期。更新时间：2026-08-28。
 
 ---
 
@@ -159,6 +159,29 @@ TransferTask 状态和数据库事实
 
 “官方插件统一外置”不限制用户只配置一个仓库。Core 必须支持多个可信仓库及第三方实现；同一官方仓库内的插件共享锁定 commit 和仓库级原子更新边界，但配置、启停、健康状态和错误仍按 `plugin_id` 独立保存。
 
+### 4.2 当前 MVP 运行合同
+
+公共合同位于 `sundarr.app.plugins.contracts`：
+
+```text
+SOURCE
+  继续使用 SourceModel；v2 单插件实例的 SourceModel.id 必须等于 plugin_id。
+
+CATALOG_PROVIDER
+  describe_capabilities() -> CatalogCapabilities
+  search(CatalogQuery) -> CatalogPage
+  trending(CatalogQuery) -> CatalogPage
+  categories(CatalogQuery) -> CatalogPage
+  get_detail(external_id, media_type) -> CatalogItem
+
+WATCHLIST_PROVIDER
+  pull(WatchlistPullRequest) -> WatchlistPage
+```
+
+`CatalogQuery` 只包含已确认的关键词、媒体类型、单题材、单地区、年份范围、基础排序、limit 和不透明 continuation token。`CatalogItem` 与 `WatchlistItem` 是规范化前候选，不是 ORM 模型，也不是 `MediaSubject`。想看游标由 Core 持久化，插件只接收当前游标并返回下一游标。
+
+三类 active 实例分别进入 `source_registry`、`catalog_provider_registry` 和 `watchlist_provider_registry`。Registry 注册时检查合同和 `plugin_id`，普通 `register` 拒绝覆盖，`replace` 显式返回旧实例；cleanup 可携带 `expected_instance` 注销，避免旧 Activation 在切换后误删新实例。flat v1 多 Source 返回仍经旧 `PluginRegistry` 兼容，类型专用 SOURCE Registry 的同 ID 实例优先。
+
 ---
 
 ## 5. 当前实现与目标差异
@@ -179,12 +202,15 @@ SOURCE 入口返回 SourceModel 或 list[SourceModel]
 目标 PluginType 已替换旧占位枚举
 flat v1 SOURCE 与通用 v2 Manifest 解析
 v2 同仓库多插件、协议版本、类型、entry、requires/provides 和重复 id 校验
+SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 最小运行合同
+三类类型专用 Runtime Registry：合同校验、查询、显式替换和按实例身份安全注销
+SOURCE 查询兼容新 Runtime Registry 与 flat v1 PluginRegistry，v2 同 ID 实例优先
 ```
 
 ### 5.2 当前缺口
 
 ```text
-v2 类型专用 Activation、Registry 和健康检查尚未实现；当前只解析和静态校验。
+v2 入口 Activation、Registry 能力注入和健康检查尚未实现；当前尚未从仓库入口创建并注册类型实例。
 旧单插件加载入口尚不执行 v2，避免错误复用 flat v1 无参数入口。
 启动时未自动加载数据库中的 enabled 仓库。
 PluginContext 尚未接入受控 HTTP client 和各类型 registry 注册动作。
@@ -211,7 +237,7 @@ logger
 require(name) / provide(name, value)
 register_cleanup(callback)
 受控 HTTP client factory（待实现）
-类型专用 registry（待实现）
+类型专用 registry（实现已完成，Context 能力注入待实现）
 ```
 
 禁止通过 Context 暴露任意数据库 Session、SMB 密码、Worker 私有函数或全局任务状态机可写对象。

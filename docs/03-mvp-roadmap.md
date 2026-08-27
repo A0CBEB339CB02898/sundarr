@@ -39,7 +39,7 @@ Phase 10.0 质量基线已收口；当前优先完成 Phase 10.1 通用插件框
 
 ## 当前实现状态
 
-截至 2026-08-27，本项目阶段状态如下：
+截至 2026-08-28，本项目阶段状态如下：
 
 ```text
 Phase 0 Project Skeleton: 已完成。
@@ -1295,7 +1295,7 @@ sundarr start -> health -> stop 连续执行两次通过，端口和 PID 文件�
 
 状态：当前优先；生命周期内核、目标 PluginType、Manifest v2 多声明解析和 flat v1 SOURCE 兼容已完成。
 
-当前进度：已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放，以及目标 PluginType、通用 Manifest v2 多声明解析、版本与字段校验和 flat v1 SOURCE 兼容。v2 类型专用 Activation/Registry、候选健康检查、注册中心原子切换、启动自动激活和多仓库 API 闭环仍待实现。
+当前进度：已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放，以及目标 PluginType、通用 Manifest v2 多声明解析、版本与字段校验、flat v1 SOURCE 兼容、三类 MVP 公共运行协议和类型专用 Runtime Registry。v2 入口 Activation、Registry 能力注入、候选健康检查、仓库级原子切换、启动自动激活和多仓库 API 闭环仍待实现。
 
 交付物：
 

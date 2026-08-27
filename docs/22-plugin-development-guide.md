@@ -1,8 +1,8 @@
 # 外部插件开发指南
 
-本文档面向 Sundarr 外部 Python 插件仓库开发者；当前可运行示例仍以 SOURCE 为主。更新时间：2026-08-27。
+本文档面向 Sundarr 外部 Python 插件仓库开发者；当前可运行示例仍以 SOURCE 为主。更新时间：2026-08-28。
 
-当前可运行 SDK 只承诺 flat v1 SOURCE 插件。通用 Manifest v2 已可解析和校验，但 v2 Activation、CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 执行协议尚未接入；TRANSFER_DRIVER 和 NOTIFICATION 是后续扩展。
+当前可运行仓库入口仍只承诺 flat v1 SOURCE 插件。通用 Manifest v2 已可解析和校验，三类 MVP 公共合同与类型专用 Runtime Registry 已实现，但 v2 Activation、Context 能力注入和健康检查尚未接入；因此 CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 仍不能从外部仓库实际启用。TRANSFER_DRIVER 和 NOTIFICATION 是后续扩展。
 
 ---
 
@@ -91,12 +91,20 @@ Core 负责：
 
 ## 5. 生命周期约定
 
-Phase 10.1 后，插件应通过 `PluginContext` 获取受控服务并注册清理：
+Phase 10.1 B4 接入后，v2 插件应通过 `PluginContext` 获取受控 Registry，并登记按实例身份保护的清理回调：
 
 ```python
-def apply(context, config):
-    source = create_source(context.http_client, config)
-    context.register_source(source)
+def activate(context):
+    source = create_source(context.require("core.http.v1"), context.plugin_config)
+    registry = context.require("core.source_registry.v1")
+    registry.register(context.plugin_id, source)
+    context.register_cleanup(
+        lambda: registry.unregister(
+            context.plugin_id,
+            expected_instance=source,
+        )
+    )
+    return source
 ```
 
 插件不得在 import 阶段启动线程、创建长期连接、注册全局回调或执行网络请求。所有长期副作用必须发生在 Activation 内，并有对应 cleanup。

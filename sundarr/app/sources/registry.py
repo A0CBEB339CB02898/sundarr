@@ -33,8 +33,12 @@ def get_external_sources() -> List[SourceModel]:
     Returns:
         外部搜索源列表
     """
+    # 延迟导入，避免 plugins 合同加载 SourceModel 时形成包初始化环。
+    from sundarr.app.plugins.runtime_registry import source_registry
+
     external_plugins = plugin_registry.get_plugins_by_type(PluginType.SOURCE)
-    sources = []
+    sources = source_registry.get_all()
+    runtime_source_ids = {source.id for source in sources}
 
     for plugin in external_plugins:
         if plugin.status != "loaded":
@@ -43,14 +47,18 @@ def get_external_sources() -> List[SourceModel]:
         try:
             # 如果实例已经是 SourceModel，直接使用
             if isinstance(plugin.instance, SourceModel):
-                sources.append(plugin.instance)
+                if plugin.instance.id not in runtime_source_ids:
+                    sources.append(plugin.instance)
             # 如果实例是 callable（返回 SourceModel 或 List[SourceModel] 的函数）
             elif callable(plugin.instance):
                 result = plugin.instance()
                 if isinstance(result, list):
-                    sources.extend(result)
+                    sources.extend(
+                        source for source in result if source.id not in runtime_source_ids
+                    )
                 elif isinstance(result, SourceModel):
-                    sources.append(result)
+                    if result.id not in runtime_source_ids:
+                        sources.append(result)
                 else:
                     logger.warning(
                         f"插件 {plugin.manifest.id} 的入口函数返回了无效类型：{type(result)}"

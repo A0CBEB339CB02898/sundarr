@@ -600,7 +600,9 @@ API 密钥、cookie 或其他凭据不得写入仓库或日志。
 豆瓣想看的可用接入方式、稳定性和合规边界仍需单独验证，不能假定存在稳定的官方开放 API。
 ```
 
-尚待后续设计：`CATALOG_PROVIDER`、`WATCHLIST_PROVIDER` 的方法签名、字段级合并优先级、缓存时效和同步游标模型。
+已在 `sundarr.app.plugins.contracts` 落地 v1 最小运行合同：目录 Provider 支持能力描述、搜索、热门、分类和详情；想看 Provider 接受 Core 管理的不透明游标并返回下一游标。当前合同只包含规范化前最小候选字段，不替代 Phase 10.2 的 `MediaSubject` 数据模型和 API 模型。
+
+尚待后续设计：字段级合并优先级、缓存时效和同步游标持久化模型。
 
 ---
 

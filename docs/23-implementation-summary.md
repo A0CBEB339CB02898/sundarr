@@ -2,7 +2,7 @@
 
 本文档是当前实现状态的派生摘要。阶段事实来源以 `docs/03-mvp-roadmap.md` 为准，插件运行时事实来源以 `docs/20-plugin-system.md` 为准。
 
-更新时间：2026-08-27。
+更新时间：2026-08-28。
 
 ---
 
@@ -25,7 +25,7 @@ Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连�
 
 媒体身份已确认使用 Sundarr 内部 UUID 的 `MediaSubject`，并允许同时绑定多个外部平台 ID；具体表结构尚未实现。
 
-媒体发现的数据来源与插件分类已确认：TMDb 是主 `CATALOG_PROVIDER`，豆瓣目录是可选补充 `CATALOG_PROVIDER`，豆瓣想看是独立 `WATCHLIST_PROVIDER`。同一豆瓣仓库可以交付两个独立插件实例；具体方法签名尚未设计，代码尚未实现。
+媒体发现的数据来源与插件分类已确认：TMDb 是主 `CATALOG_PROVIDER`，豆瓣目录是可选补充 `CATALOG_PROVIDER`，豆瓣想看是独立 `WATCHLIST_PROVIDER`。同一豆瓣仓库可以交付两个独立插件实例；三类 MVP 最小运行合同和类型专用 Runtime Registry 已实现，真实插件与 v2 入口 Activation 尚未实现。
 
 媒体发现持久化边界已确认采用 A+：PostgreSQL 保存规范身份、外部 ID、最小展示快照和用户状态，Redis 保存可重建目录详情和列表缓存。该数据模型尚未实现。
 
@@ -99,7 +99,7 @@ SeedHub 已从 Core 移出
 Web Console 没有插件仓库新增、更新、回滚和诊断页面。
 当前环境未配置插件仓库，运行时搜索源为 0。
 外部 SeedHub 尚未完成 Core 侧端到端验收。
-CATALOG_PROVIDER / WATCHLIST_PROVIDER 已加入代码枚举和 v2 Manifest 解析，但类型专用执行协议、Registry 和 Activation 尚未实现。
+SOURCE / CATALOG_PROVIDER / WATCHLIST_PROVIDER 最小运行协议和类型专用 Runtime Registry 已实现，但 v2 入口 Activation、Context 能力注入和健康检查尚未实现。
 Docker Compose 未在当前 Windows 环境实跑。
 ```
 

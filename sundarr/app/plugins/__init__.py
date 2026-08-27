@@ -17,6 +17,29 @@ from .runtime import (
     PluginContext,
     PluginContextClosedError,
 )
+from .contracts import (
+    CatalogCapabilities,
+    CatalogFilter,
+    CatalogItem,
+    CatalogOperation,
+    CatalogPage,
+    CatalogProvider,
+    CatalogQuery,
+    CatalogSort,
+    MediaType,
+    SourceProvider,
+    WatchlistItem,
+    WatchlistPage,
+    WatchlistProvider,
+    WatchlistPullRequest,
+)
+from .runtime_registry import (
+    RuntimePluginRegistry,
+    catalog_provider_registry,
+    get_runtime_registry,
+    source_registry,
+    watchlist_provider_registry,
+)
 
 __all__ = [
     "PluginType",
@@ -29,4 +52,23 @@ __all__ = [
     "PluginActivation",
     "PluginContext",
     "PluginContextClosedError",
+    "CatalogCapabilities",
+    "CatalogFilter",
+    "CatalogItem",
+    "CatalogOperation",
+    "CatalogPage",
+    "CatalogProvider",
+    "CatalogQuery",
+    "CatalogSort",
+    "MediaType",
+    "SourceProvider",
+    "WatchlistItem",
+    "WatchlistPage",
+    "WatchlistProvider",
+    "WatchlistPullRequest",
+    "RuntimePluginRegistry",
+    "catalog_provider_registry",
+    "get_runtime_registry",
+    "source_registry",
+    "watchlist_provider_registry",
 ]
