@@ -1,6 +1,6 @@
 # 下一步执行清单
 
-更新时间：2026-08-28。完整路线见 `docs/24-implementation-roadmap.md`。
+更新时间：2026-08-29。完整路线见 `docs/24-implementation-roadmap.md`。
 
 ## 当前目标
 
@@ -27,7 +27,7 @@
 1. 已实现 PluginType、Manifest v2 多声明解析和 flat v1 SOURCE 兼容。
 2. 已定义 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 公共协议和类型专用 Runtime Registry。
 3. 已接入 v2 单 Manifest Activation、requires/provides 隔离与校验、配置校验和健康检查。
-4. 下一步完成仓库内多候选编排、原子切换和失败保留旧版本，再处理启动恢复和多仓库 API。
+4. 当前连续完成 B5-B9：仓库内多候选编排、原子切换、失败保留旧版本、启动恢复和多仓库 API；达到第一次技术验收前不提前停止。
 5. 使用本地 fixture 仓库完成框架初步验收后暂停。
 6. 验收通过后再实现 MediaSubject、发现 API/Web Console 和测试 Mock。
 7. 最后迁移官方外部仓库并逐个实现真实插件。
@@ -76,7 +76,7 @@ Manifest v2 只保存静态插件声明，不保存 UI 分页、调度游标或�
 ```text
 PluginContext、PluginActivation、ActivationStatus 已实现。
 LIFO cleanup、失败续跑和并发幂等释放已测试。
-通用 Manifest v2 多声明解析、三类公共运行协议、Runtime Registry、单 Manifest v2 入口 Activation、声明能力隔离、配置校验、类型健康检查和失败 cleanup 已实现；仓库级多候选原子切换、启动加载和管理 API 接入待实现。
+通用 Manifest v2 多声明解析、三类公共运行协议、Runtime Registry、单 Manifest v2 入口 Activation、声明能力隔离、配置校验、类型健康检查、失败 cleanup 和仓库级多候选原子切换已实现；启动加载和管理 API 接入待实现。
 完成上述缺口并通过本地三类型 fixture 仓库、重启恢复、失败保留旧版本和插件 API/Worker 冒烟后，立即暂停做第一次技术验收。
 ```
 

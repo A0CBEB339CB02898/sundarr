@@ -43,9 +43,16 @@ from .runtime_registry import (
 )
 from .activator import (
     CandidateActivationError,
+    PreparedPluginCandidate,
     PluginActivator,
     build_core_capabilities,
     plugin_activator,
+)
+from .coordinator import (
+    RepositoryActivationCoordinator,
+    RepositoryActivationError,
+    RepositoryActivationResult,
+    repository_activation_coordinator,
 )
 from .config import PluginConfigValidationError, validate_plugin_config
 
@@ -81,9 +88,14 @@ __all__ = [
     "source_registry",
     "watchlist_provider_registry",
     "CandidateActivationError",
+    "PreparedPluginCandidate",
     "PluginActivator",
     "build_core_capabilities",
     "plugin_activator",
     "PluginConfigValidationError",
     "validate_plugin_config",
+    "RepositoryActivationCoordinator",
+    "RepositoryActivationError",
+    "RepositoryActivationResult",
+    "repository_activation_coordinator",
 ]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from contextlib import contextmanager
 from threading import RLock
 from types import MappingProxyType
 from typing import Any, Generic, TypeVar
@@ -16,6 +17,7 @@ from .contracts import CatalogProvider, WatchlistProvider
 T = TypeVar("T")
 InstanceValidator = Callable[[str, Any], None]
 _UNSET = object()
+_RUNTIME_REGISTRY_LOCK = RLock()
 
 
 class RuntimePluginRegistry(Generic[T]):
@@ -29,7 +31,9 @@ class RuntimePluginRegistry(Generic[T]):
         self.plugin_type = plugin_type
         self._validator = validator
         self._instances: dict[str, T] = {}
-        self._lock = RLock()
+        # 三类 Registry 共用同一把可重入锁，仓库切换时读者只能看到切换前
+        # 或切换后的完整快照，不能看到跨类型的半切换状态。
+        self._lock = _RUNTIME_REGISTRY_LOCK
 
     def register(self, plugin_id: str, instance: T) -> None:
         """注册新实例；已有同 ID 时必须显式使用 replace。"""
@@ -108,6 +112,14 @@ class RuntimePluginRegistry(Generic[T]):
         if not plugin_id or not plugin_id.strip():
             raise ValueError("plugin_id 不能为空")
         self._validator(plugin_id, instance)
+
+
+@contextmanager
+def runtime_registry_transaction():
+    """锁住全部类型 Registry，供仓库级原子切换使用。"""
+
+    with _RUNTIME_REGISTRY_LOCK:
+        yield
 
 
 def _validate_source(plugin_id: str, instance: Any) -> None:

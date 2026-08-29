@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -69,6 +70,15 @@ class CandidateActivationError(RuntimeError):
         super().__init__(f"插件 {activation.plugin_id} 候选激活失败：{cause}")
 
 
+@dataclass(frozen=True)
+class PreparedPluginCandidate:
+    """已通过入口、合同和健康检查，但尚未对外可见的候选。"""
+
+    activation: PluginActivation
+    instance: Any
+    registry: RuntimePluginRegistry[Any]
+
+
 def build_core_capabilities(
     extra: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -109,10 +119,33 @@ class PluginActivator:
     ) -> PluginActivation:
         """激活单插件候选；失败时清理副作用并抛出诊断异常。"""
 
-        validated_config = validate_plugin_config(
-            manifest.config_schema,
-            plugin_config,
+        candidate = await self.prepare_candidate(
+            manifest,
+            repo_path,
+            plugin_config=plugin_config,
+            repository_id=repository_id,
+            commit_hash=commit_hash,
         )
+        try:
+            candidate.registry.register(manifest.id, candidate.instance)
+            candidate.activation.activate(candidate.instance)
+            return candidate.activation
+        except Exception as exc:
+            await candidate.activation.fail(exc)
+            raise CandidateActivationError(candidate.activation, exc) from exc
+
+    async def prepare_candidate(
+        self,
+        manifest: PluginManifest,
+        repo_path: Path,
+        *,
+        plugin_config: Mapping[str, Any] | None = None,
+        repository_id: str | None = None,
+        commit_hash: str | None = None,
+    ) -> PreparedPluginCandidate:
+        """准备一个不写入 Registry 的候选，供仓库级编排统一提交。"""
+
+        validated_config = validate_plugin_config(manifest.config_schema, plugin_config)
         declared_capabilities = {
             name: self.capabilities[name]
             for name in manifest.requires
@@ -152,9 +185,12 @@ class PluginActivator:
             for capability_name in sorted(actual_capabilities):
                 context.provide(capability_name, instance)
 
-            registry.register(manifest.id, instance)
-            activation.activate(instance)
-            return activation
+            activation.instance = instance
+            return PreparedPluginCandidate(
+                activation=activation,
+                instance=instance,
+                registry=registry,
+            )
         except Exception as exc:
             await activation.fail(exc)
             raise CandidateActivationError(activation, exc) from exc
