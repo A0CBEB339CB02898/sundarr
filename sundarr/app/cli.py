@@ -490,6 +490,8 @@ def _api_command(host: str, port: int, reload: bool) -> list[str]:
         host,
         "--port",
         str(port),
+        "--project-root",
+        str(PROJECT_ROOT),
     ]
     if reload:
         command.append("--reload")
@@ -503,7 +505,13 @@ def _web_command(host: str, port: int) -> list[str]:
 
 
 def _worker_command() -> list[str]:
-    return [sys.executable, "-m", "sundarr.app.worker"]
+    return [
+        sys.executable,
+        "-m",
+        "sundarr.app.worker",
+        "--project-root",
+        str(PROJECT_ROOT),
+    ]
 
 
 def _log_max_bytes() -> int:

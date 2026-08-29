@@ -305,11 +305,27 @@ def test_worker_is_managed_service() -> None:
 
 
 def test_worker_command_uses_module_entry() -> None:
-    assert cli._worker_command() == [sys.executable, "-m", "sundarr.app.worker"]
+    assert cli._worker_command() == [
+        sys.executable,
+        "-m",
+        "sundarr.app.worker",
+        "--project-root",
+        str(cli.PROJECT_ROOT),
+    ]
 
 
 def test_api_command_uses_module_entry() -> None:
-    assert cli._api_command("127.0.0.1", 8080, False) == [sys.executable, "-m", "sundarr.app.run_api", "--host", "127.0.0.1", "--port", "8080"]
+    assert cli._api_command("127.0.0.1", 8080, False) == [
+        sys.executable,
+        "-m",
+        "sundarr.app.run_api",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8080",
+        "--project-root",
+        str(cli.PROJECT_ROOT),
+    ]
 
 
 def test_log_max_bytes_defaults_to_100mb(monkeypatch: pytest.MonkeyPatch) -> None:

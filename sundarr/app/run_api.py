@@ -12,6 +12,7 @@ def main() -> None:
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--reload", action="store_true")
+    parser.add_argument("--project-root", help="CLI 进程归属标记，不改变运行目录。")
     args = parser.parse_args()
 
     configure_file_logging_from_env()
