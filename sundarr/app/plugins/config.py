@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from copy import deepcopy
+import logging
 from typing import Any
 
 
@@ -12,6 +13,7 @@ class PluginConfigValidationError(ValueError):
 
 
 _SUPPORTED_TYPES = {"string", "password", "integer", "boolean", "select"}
+REDACTED_VALUE = "***"
 
 
 def validate_plugin_config(
@@ -61,6 +63,79 @@ def validate_plugin_config(
         result[field_name] = value
 
     return result
+
+
+def redact_plugin_config(
+    schema: Mapping[str, Any],
+    config: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """按 Manifest 声明脱敏配置，未知字段也不对外回显。"""
+
+    result: dict[str, Any] = {}
+    values = config or {}
+    for field_name, field_schema in schema.items():
+        if field_name not in values or not isinstance(field_schema, Mapping):
+            continue
+        if field_schema.get("type") == "password" or field_schema.get("secret") is True:
+            result[field_name] = REDACTED_VALUE
+        else:
+            result[field_name] = deepcopy(values[field_name])
+    return result
+
+
+def redact_plugin_error(
+    error: BaseException | str,
+    schema: Mapping[str, Any],
+    config: Mapping[str, Any] | None,
+    *,
+    max_length: int = 1000,
+) -> str:
+    """替换错误中的已知敏感配置值，并限制持久化诊断长度。"""
+
+    message = str(error)
+    values = config or {}
+    for field_name, field_schema in schema.items():
+        if not isinstance(field_schema, Mapping):
+            continue
+        if field_schema.get("type") != "password" and field_schema.get("secret") is not True:
+            continue
+        value = values.get(field_name)
+        if isinstance(value, str) and value:
+            message = message.replace(value, REDACTED_VALUE)
+    return message[:max_length]
+
+
+class SensitiveValueLogFilter(logging.Filter):
+    """在 LogRecord 进入 handler 前替换已知敏感配置值。"""
+
+    def __init__(self, values: list[str]) -> None:
+        super().__init__()
+        self._values = tuple(item for item in values if item)
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        rendered = record.getMessage()
+        for value in self._values:
+            rendered = rendered.replace(value, REDACTED_VALUE)
+        record.msg = rendered
+        record.args = ()
+        return True
+
+
+def build_sensitive_log_filter(
+    schema: Mapping[str, Any],
+    config: Mapping[str, Any],
+) -> SensitiveValueLogFilter | None:
+    """根据 secret/password 声明创建日志脱敏过滤器。"""
+
+    values: list[str] = []
+    for field_name, field_schema in schema.items():
+        if not isinstance(field_schema, Mapping):
+            continue
+        is_secret = field_schema.get("type") == "password" or field_schema.get("secret") is True
+        value = config.get(field_name)
+        if is_secret and isinstance(value, str) and value:
+            values.append(value)
+    return SensitiveValueLogFilter(values) if values else None
 
 
 def _validate_field_value(

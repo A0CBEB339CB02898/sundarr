@@ -25,7 +25,7 @@ MVP 的目标是先跑通端到端闭环：
 ```text
 先后端闭环，后前端完善。
 CloudProvider 保留为可选扩展，近期不做真实网盘直接下载。
-Phase 10.0 质量基线已收口；当前优先完成 Phase 10.1 通用插件框架，初步验收后再实现媒体发现 Core 和官方外部真实插件。
+Phase 10.1 通用插件框架已达到第一次技术验收门；下一实现阶段是 Phase 10.2 媒体发现 Core，官方外部真实插件仍在 Phase 10.3。
 真实挂载目录下载到本地通过手动集成验收验证。
 先规则和用户确认，后模型辅助。
 先核心控制台，后媒体发现中心；不建设完整本地媒体库 UI。
@@ -39,7 +39,7 @@ Phase 10.0 质量基线已收口；当前优先完成 Phase 10.1 通用插件框
 
 ## 当前实现状态
 
-截至 2026-08-28，本项目阶段状态如下：
+截至 2026-08-29，本项目阶段状态如下：
 
 ```text
 Phase 0 Project Skeleton: 已完成。
@@ -55,8 +55,8 @@ Phase 7.8 Web Console UI Polish: 已完成。
 Phase 8 Download To Local: 已实现；真实挂载目录下载到本地仍需手动集成验收。
 Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一为 process_sync_task 同步路径，远程媒体库和同步绑定已就位。
 Phase 9.5 Resource Favorites Refactoring: 已完成；Resource / ResourceLink 已收缩为收藏模型，搜索默认不入库，Web Console 使用单一收藏入口。
-Phase 10.0 Quality Baseline Closure: 已完成；当前默认 pytest 231 项通过，前端构建、Alembic 链路和连续两轮 CLI 启停冒烟沿用此前通过结果。
-Phase 10.1 Plugin Framework Completion: 当前优先；Manifest v2、类型合同、Runtime Registry 和单插件候选 Activation 已完成，继续实现仓库级原子切换、启动恢复和多仓库管理闭环。
+Phase 10.0 Quality Baseline Closure: 已完成；质量基线由 Phase 10.1 验收继续覆盖。
+Phase 10.1 Plugin Framework Completion: 已完成第一次技术验收范围；Manifest v2、类型合同、仓库级原子 Activation、进程恢复、多仓库管理、脱敏和本地 fixture 闭环已实现。
 Phase 10.2 Media Discovery Core And Mock Acceptance: 插件框架初步验收后执行，使用 Core 测试 Mock 完成媒体发现数据、API 和 Web Console 垂直切片。
 Phase 10.3 Official External Plugins: 在独立官方仓库迁移到 Manifest v2 后，逐个实现和验收 TMDb、SeedHub、豆瓣目录与豆瓣想看插件。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
@@ -64,7 +64,7 @@ Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档�
 媒体发现中心：已纳入当前 MVP，但在插件框架初步验收后实施；不包括本地媒体库海报墙、播放或观影进度。
 ```
 
-Phase 0-10.0 已完成。后续插件交付必须持续保持该质量基线。
+Phase 0-10.1 第一次技术验收范围已完成。后续媒体发现和真实插件交付必须持续保持该质量基线。
 
 ---
 
@@ -1293,9 +1293,9 @@ sundarr start -> health -> stop 连续执行两次通过，端口和 PID 文件�
 
 ### Phase 10.1: Python Plugin Framework Completion
 
-状态：当前优先；生命周期内核、目标 PluginType、Manifest v2 多声明解析和 flat v1 SOURCE 兼容已完成。本轮按 B5-B9 连续推进到第一次技术验收，中途不以仅内部调用可用作为停止点。
+状态：已完成第一次技术验收范围；按 B1-B9 连续实现并停止在已确认验收门。
 
-当前进度：已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放，以及目标 PluginType、通用 Manifest v2 多声明解析、版本与字段校验、flat v1 SOURCE 兼容、三类 MVP 公共运行协议、类型专用 Runtime Registry、单 Manifest v2 入口调用、配置校验、声明能力隔离、实际 provides 校验、类型健康检查、注册和失败清理。仓库内多插件候选编排、跨类型 Registry 原子切换、失败保留旧 Activation 和旧版本清理已完成；启动自动激活和多仓库 API 闭环仍待实现。
+当前进度：已实现 `PluginContext`、`PluginActivation`、`ActivationStatus`、能力依赖检查、只读配置、受控 HTTP、能力提供、同步/异步 cleanup、LIFO 清理、失败续跑和并发幂等释放；目标 PluginType、通用 Manifest v2 多声明解析、flat v1 SOURCE 兼容、三类 MVP 公共运行协议、类型专用 Runtime Registry、配置和类型健康检查已完成。仓库内多插件候选编排、跨类型 Registry 原子切换、失败保留旧 Activation、API/Worker 锁定版本恢复、多插件 Manager/API、跨进程启停协调、敏感字段与日志脱敏，以及本地三类型 fixture 验收均已完成。
 
 交付物：
 

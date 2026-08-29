@@ -25,8 +25,9 @@ from sundarr.app.api.sources import router as sources_router
 from sundarr.app.api.sync import router as sync_router
 from sundarr.app.api.transfers import router as transfers_router
 from sundarr.app.config import get_settings, redact_url_password
-from sundarr.app.core.database import get_engine
+from sundarr.app.core.database import get_engine, get_session_factory
 from sundarr.app.db_admin import ensure_runtime_schema_for_engine
+from sundarr.app.plugins.manager import plugin_manager
 
 logger = logging.getLogger("sundarr.startup")
 
@@ -39,11 +40,13 @@ def create_app() -> FastAPI:
         logger.info("Sundarr API 启动中，版本：%s", settings.app_version)
         logger.info("数据库配置：%s", redact_url_password(settings.database_url))
         logger.info("Redis 配置：%s", redact_url_password(settings.redis_url))
+        database_ready = False
         try:
             with get_engine().connect() as connection:
                 connection.execute(text("select 1"))
             logger.info("数据库连接状态：ok")
             ensure_runtime_schema_for_engine(get_engine())
+            database_ready = True
         except Exception as exc:
             logger.error("数据库连接状态：error，原因：%s", exc)
         try:
@@ -51,7 +54,21 @@ def create_app() -> FastAPI:
             logger.info("Redis 连接状态：ok")
         except Exception as exc:
             logger.error("Redis 连接状态：error，原因：%s", exc)
-        yield
+        if database_ready:
+            try:
+                with get_session_factory()() as session:
+                    stats = await plugin_manager.load_all_repositories(session)
+                logger.info(
+                    "API 插件恢复完成：成功 %s，失败 %s",
+                    stats["loaded"],
+                    stats["error"],
+                )
+            except Exception as exc:
+                logger.error("API 插件恢复失败，主服务继续启动：%s", exc)
+        try:
+            yield
+        finally:
+            await plugin_manager.dispose_all()
 
     app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
     app.include_router(health_router)

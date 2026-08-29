@@ -55,6 +55,7 @@ from .coordinator import (
     repository_activation_coordinator,
 )
 from .config import PluginConfigValidationError, validate_plugin_config
+from .http import PluginHttpClient, PluginHttpClientFactory, plugin_http_client_factory
 
 __all__ = [
     "PluginType",
@@ -94,6 +95,9 @@ __all__ = [
     "plugin_activator",
     "PluginConfigValidationError",
     "validate_plugin_config",
+    "PluginHttpClient",
+    "PluginHttpClientFactory",
+    "plugin_http_client_factory",
     "RepositoryActivationCoordinator",
     "RepositoryActivationError",
     "RepositoryActivationResult",

@@ -11,7 +11,7 @@ from typing import Any
 from sundarr.app.sources.base import SourceModel
 
 from .base import PluginManifest, PluginType
-from .config import validate_plugin_config
+from .config import build_sensitive_log_filter, validate_plugin_config
 from .contracts import (
     CatalogCapabilities,
     CatalogOperation,
@@ -20,6 +20,7 @@ from .contracts import (
     WatchlistProvider,
 )
 from .loader import PluginLoader, plugin_loader
+from .http import plugin_http_client_factory
 from .runtime import PluginActivation, PluginContext
 from .runtime_registry import (
     RuntimePluginRegistry,
@@ -93,6 +94,7 @@ def build_core_capabilities(
         if name in capabilities:
             raise ValueError(f"不能覆盖内置 Core 能力：{name}")
         capabilities[name] = value
+    capabilities.setdefault("core.http.v1", plugin_http_client_factory)
     return capabilities
 
 
@@ -163,6 +165,10 @@ class PluginActivator:
             commit_hash=commit_hash,
             required_capabilities=manifest.requires,
         )
+        log_filter = build_sensitive_log_filter(manifest.config_schema, validated_config)
+        if log_filter is not None:
+            context.logger.addFilter(log_filter)
+            context.register_cleanup(lambda: context.logger.removeFilter(log_filter))
 
         try:
             self._validate_manifest_runtime_contract(manifest)

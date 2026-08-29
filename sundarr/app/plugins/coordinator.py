@@ -22,6 +22,7 @@ class RepositoryActivationResult:
     repository_id: str
     commit_hash: str
     activations: tuple[PluginActivation, ...]
+    previous_activations: tuple[PluginActivation, ...] = ()
 
     @property
     def plugin_ids(self) -> tuple[str, ...]:
@@ -31,10 +32,18 @@ class RepositoryActivationResult:
 class RepositoryActivationError(RuntimeError):
     """仓库候选中至少一个插件失败，旧版本保持不变。"""
 
-    def __init__(self, repository_id: str, commit_hash: str, cause: BaseException) -> None:
+    def __init__(
+        self,
+        repository_id: str,
+        commit_hash: str,
+        cause: BaseException,
+        *,
+        plugin_id: str | None = None,
+    ) -> None:
         self.repository_id = repository_id
         self.commit_hash = commit_hash
         self.cause = cause
+        self.plugin_id = plugin_id
         super().__init__(f"插件仓库 {repository_id} 候选 {commit_hash} 激活失败：{cause}")
 
 
@@ -57,6 +66,7 @@ class RepositoryActivationCoordinator:
         configs: Mapping[str, Mapping[str, Any]] | None = None,
         enabled_plugin_ids: set[str] | frozenset[str] | None = None,
         allowed_types: set[PluginType] | frozenset[PluginType] | None = None,
+        dispose_previous: bool = True,
     ) -> RepositoryActivationResult:
         """先完整准备全部候选，再让同仓库本进程插件一次性可见。"""
 
@@ -67,8 +77,10 @@ class RepositoryActivationCoordinator:
             and (allowed_types is None or manifest.plugin_type in allowed_types)
         ]
         prepared: list[PreparedPluginCandidate] = []
+        preparing_plugin_id: str | None = None
         try:
             for manifest in selected:
+                preparing_plugin_id = manifest.id
                 prepared.append(
                     await self.activator.prepare_candidate(
                         manifest,
@@ -80,7 +92,12 @@ class RepositoryActivationCoordinator:
                 )
         except Exception as exc:
             await self._fail_prepared(prepared, exc)
-            raise RepositoryActivationError(repository_id, commit_hash, exc) from exc
+            raise RepositoryActivationError(
+                repository_id,
+                commit_hash,
+                exc,
+                plugin_id=preparing_plugin_id,
+            ) from exc
 
         old_activations: list[PluginActivation] = []
         try:
@@ -126,13 +143,52 @@ class RepositoryActivationCoordinator:
             await self._fail_prepared(prepared, exc)
             raise RepositoryActivationError(repository_id, commit_hash, exc) from exc
 
-        for activation in old_activations:
-            await activation.dispose()
-        return RepositoryActivationResult(
+        result = RepositoryActivationResult(
             repository_id=repository_id,
             commit_hash=commit_hash,
             activations=tuple(item.activation for item in prepared),
+            previous_activations=tuple(old_activations),
         )
+        if dispose_previous:
+            await self.finalize_switch(result)
+        return result
+
+    @staticmethod
+    async def finalize_switch(result: RepositoryActivationResult) -> None:
+        """数据库提交成功后释放旧版本资源。"""
+
+        for activation in result.previous_activations:
+            await activation.dispose()
+
+    async def rollback_switch(self, result: RepositoryActivationResult) -> None:
+        """数据库提交失败时恢复仍未释放的旧版本，并清理新候选。"""
+
+        async with self._switch_lock:
+            current_map = self._by_repository.get(result.repository_id, {})
+            expected = {item.plugin_id: item for item in result.activations}
+            if any(current_map.get(plugin_id) is not activation for plugin_id, activation in expected.items()):
+                raise RuntimeError("插件仓库切换后已发生并发变化，不能回滚")
+            with runtime_registry_transaction():
+                for activation in result.activations:
+                    get_runtime_registry(activation.manifest.plugin_type).unregister(
+                        activation.plugin_id,
+                        expected_instance=activation.instance,
+                    )
+                restored = {item.plugin_id: item for item in result.previous_activations}
+                for activation in result.previous_activations:
+                    get_runtime_registry(activation.manifest.plugin_type).replace(
+                        activation.plugin_id,
+                        activation.instance,
+                    )
+                for plugin_id in current_map:
+                    self._by_plugin.pop(plugin_id, None)
+                if restored:
+                    self._by_repository[result.repository_id] = restored
+                    self._by_plugin.update(restored)
+                else:
+                    self._by_repository.pop(result.repository_id, None)
+        for activation in result.activations:
+            await activation.dispose()
 
     async def deactivate_plugin(self, plugin_id: str) -> bool:
         """从当前进程禁用一个插件并执行确定清理。"""
@@ -183,6 +239,9 @@ class RepositoryActivationCoordinator:
 
     def repository_snapshot(self, repository_id: str) -> Mapping[str, PluginActivation]:
         return MappingProxyType(dict(self._by_repository.get(repository_id, {})))
+
+    def repository_ids(self) -> tuple[str, ...]:
+        return tuple(self._by_repository)
 
     def _validate_ownership(
         self,

@@ -1,6 +1,6 @@
 # Python 插件系统与 Activation Runtime
 
-本文档是 Sundarr 通用插件体系的事实来源，定义插件分类、运行边界、任务流关系和生命周期。更新时间：2026-08-28。
+本文档是 Sundarr 通用插件体系的事实来源，定义插件分类、运行边界、任务流关系和生命周期。更新时间：2026-08-29。
 
 ---
 
@@ -182,7 +182,7 @@ WATCHLIST_PROVIDER
 
 三类 active 实例分别进入 `source_registry`、`catalog_provider_registry` 和 `watchlist_provider_registry`。Registry 注册时检查合同和 `plugin_id`，普通 `register` 拒绝覆盖，`replace` 显式返回旧实例；cleanup 可携带 `expected_instance` 注销，避免旧 Activation 在切换后误删新实例。flat v1 多 Source 返回仍经旧 `PluginRegistry` 兼容，类型专用 SOURCE Registry 的同 ID 实例优先。
 
-`PluginActivator` 当前按单 Manifest 执行：配置校验、Manifest 运行边界校验、requires 检查、带 `PluginContext` 调用入口、类型合同和实际 provides 校验、可选动态 `health_check() -> PluginHealthResult`、Registry 注册与 cleanup。Context 只注入 Manifest 明确声明的 requires；宿主拥有但插件未声明的能力对该插件不可见。Registry 注册和 cleanup 由 Core 管理，插件入口只返回实例并登记自身副作用。
+`PluginActivator` 按单 Manifest 准备不对外可见的候选：配置校验、Manifest 运行边界校验、requires 检查、带 `PluginContext` 调用入口、类型合同和实际 provides 校验、可选动态 `health_check() -> PluginHealthResult`。`RepositoryActivationCoordinator` 等同仓库全部候选通过后，使用三类 Registry 共用事务锁完成仓库级切换，再释放旧 Activation。Context 只注入 Manifest 明确声明的 requires；宿主拥有但插件未声明的能力对该插件不可见。
 
 ---
 
@@ -209,23 +209,23 @@ SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 最小运行合同
 SOURCE 查询兼容新 Runtime Registry 与 flat v1 PluginRegistry，v2 同 ID 实例优先
 单 Manifest v2 候选 Activation：配置默认值/校验、声明能力隔离、入口调用和失败 cleanup
 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 类型健康检查与实际 provides 校验
+仓库级多候选准备、跨类型 Registry 原子切换、失败保留旧 Activation 和确定清理
+PluginManager / API 的 v2 多插件配置、启停、更新、回滚、删除和脱敏诊断
+API 启动离线恢复 SOURCE/CATALOG_PROVIDER，Worker 启动离线恢复 WATCHLIST_PROVIDER
+Worker 按数据库期望状态增量协调跨进程启停，不重复 fetch 或无变化重载
+受控 HTTP client factory、敏感配置响应脱敏和插件 logger 敏感值过滤
+按仓库 URL 摘要隔离同名缓存目录，并兼容识别旧缓存目录
 ```
 
 ### 5.2 当前缺口
 
 ```text
-仓库内多个 v2 候选尚未统一编排，不能保证同一 commit 的全成功或全失败。
-旧 flat v1 加载入口不执行 v2；Manager/API 尚未切换到候选 Activation 流程。
-启动时未自动加载数据库中的 enabled 仓库。
-PluginContext 已按 requires 注入类型 Registry 和测试 HTTP 能力；生产受控 HTTP client factory 尚未实现。
-requires / provides 已完成 Manifest 解析和静态校验，但尚未完成运行时能力注入与依赖检查。
-更新过程不是候选验证后的原子切换。
-API 和 Worker 尚未分别恢复各自需要的插件 Activation。
 Web Console 没有仓库管理页面。
 当前默认数据库没有仓库，运行时搜索源为 0。
+真实 TMDb、豆瓣、SeedHub 等平台插件尚未迁移到官方 Manifest v2 仓库。
 ```
 
-Phase 10.1 先完成全部当前 MVP 类型共用的 v2 加载、类型专用 Registry、健康检查、候选原子切换、失败回滚和启动恢复。Phase 10.2 使用 Core 测试 Mock 完成媒体发现垂直切片；Phase 10.3 才在官方外部仓库逐个实现和验收 TMDb、SeedHub、豆瓣目录和豆瓣想看等真实插件。
+Phase 10.1 已完成当前 MVP 类型共用的 v2 加载、类型专用 Registry、健康检查、候选原子切换、失败回滚和启动恢复。Phase 10.2 使用 Core 测试 Mock 完成媒体发现垂直切片；Phase 10.3 才在官方外部仓库逐个实现和验收 TMDb、SeedHub、豆瓣目录和豆瓣想看等真实插件。
 
 ---
 
@@ -240,8 +240,8 @@ logger
 只读 plugin_config
 require(name) / provide(name, value)
 register_cleanup(callback)
-受控 HTTP client factory（待实现）
-类型专用 registry（单候选注入已实现）
+受控 HTTP client factory
+类型专用 registry
 ```
 
 禁止通过 Context 暴露任意数据库 Session、SMB 密码、Worker 私有函数或全局任务状态机可写对象。
@@ -276,7 +276,7 @@ checkout 明确 commit 到本地缓存
 提交 current_commit / previous_commit 和状态
 ```
 
-仓库内任一必须启用的插件候选失败时，默认不切换该仓库的 `current_commit`。旧 active Activation 继续工作，候选副作用全部清理，错误写入插件日志。后续若需要部分切换，必须另行定义仓库版本一致性规则。
+仓库内任一必须启用的插件候选失败时，不切换该仓库的 `current_commit`。旧 active Activation 继续工作，候选副作用全部清理，失败插件写入独立脱敏错误状态。后续若需要部分切换，必须另行定义仓库版本一致性规则。
 
 ---
 

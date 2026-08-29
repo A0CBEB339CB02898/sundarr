@@ -1,459 +1,587 @@
-"""
-插件管理器
+"""插件仓库、配置与进程内 Activation 的统一管理入口。"""
 
-负责插件的生命周期管理，包括加载、卸载、启用、禁用等。
-"""
+from __future__ import annotations
 
+import json
 import logging
-from typing import Any, Dict, List, Optional
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from pathlib import Path
+from typing import Any
+from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from .base import LoadedPlugin, PluginManifest, PluginType
-from .loader import plugin_loader
+from .base import PluginManifest, PluginType
+from .config import REDACTED_VALUE, redact_plugin_config, redact_plugin_error, validate_plugin_config
+from .coordinator import RepositoryActivationCoordinator, RepositoryActivationError, repository_activation_coordinator
+from .loader import PluginLoader, plugin_loader
 from .registry import plugin_registry
 
 logger = logging.getLogger(__name__)
 
 
+class PluginProcessRole(str, Enum):
+    API = "api"
+    WORKER = "worker"
+    ALL = "all"
+
+
+_ROLE_TYPES: dict[PluginProcessRole, frozenset[PluginType]] = {
+    PluginProcessRole.API: frozenset({PluginType.SOURCE, PluginType.CATALOG_PROVIDER}),
+    PluginProcessRole.WORKER: frozenset({PluginType.WATCHLIST_PROVIDER}),
+    PluginProcessRole.ALL: frozenset({PluginType.SOURCE, PluginType.CATALOG_PROVIDER, PluginType.WATCHLIST_PROVIDER}),
+}
+
+
+@dataclass(frozen=True)
+class ManagedRepositoryResult:
+    repository_id: str
+    commit_hash: str
+    plugin_ids: tuple[str, ...]
+
+
 class PluginManager:
-    """
-    插件管理器
+    """以数据库期望状态驱动当前进程的插件运行实例。"""
 
-    负责插件的生命周期管理，包括：
-    - 从数据库加载已配置的插件仓库
-    - 更新、回滚插件仓库
-    - 启用、禁用插件
-    - 管理插件配置
+    def __init__(
+        self,
+        *,
+        loader: PluginLoader | None = None,
+        coordinator: RepositoryActivationCoordinator | None = None,
+        process_role: PluginProcessRole = PluginProcessRole.API,
+    ) -> None:
+        self.loader = loader or plugin_loader
+        self.coordinator = coordinator or repository_activation_coordinator
+        self.process_role = process_role
+        self._repository_signatures: dict[str, tuple[Any, ...]] = {}
 
-    使用方式：
-        from sundarr.app.plugins.manager import plugin_manager
+    async def load_all_repositories(
+        self,
+        session: Session,
+        *,
+        process_role: PluginProcessRole | None = None,
+    ) -> dict[str, Any]:
+        """离线恢复 enabled 仓库的锁定版本；单仓库失败不阻断其他仓库。"""
 
-        # 加载所有已配置的仓库
-        plugin_manager.load_all_repositories(session)
-
-        # 更新仓库
-        plugin_manager.update_repository(session, repo_id)
-
-        # 启用/禁用插件
-        plugin_manager.enable_plugin(session, plugin_id)
-        plugin_manager.disable_plugin(session, plugin_id)
-    """
-
-    def load_all_repositories(self, session: Session) -> Dict[str, Any]:
-        """
-        加载所有已配置的仓库
-
-        从数据库中读取已配置的插件仓库，然后逐个加载。
-
-        Args:
-            session: 数据库会话
-
-        Returns:
-            加载结果统计
-        """
         from ..models.plugin import PluginRepository
 
-        repos = session.query(PluginRepository).filter(
-            PluginRepository.enabled == True
-        ).all()
-
-        stats = {
-            "total": len(repos),
-            "loaded": 0,
-            "error": 0,
-            "errors": [],
-        }
-
-        for repo in repos:
+        role = process_role or self.process_role
+        repositories = session.query(PluginRepository).filter(PluginRepository.enabled.is_(True)).all()
+        stats: dict[str, Any] = {"total": len(repositories), "loaded": 0, "error": 0, "errors": []}
+        for repository in repositories:
+            if not repository.current_commit:
+                continue
             try:
-                loaded = plugin_loader.load_from_repo(
-                    repo_url=repo.repo_url,
-                    branch=repo.branch,
-                    commit=repo.current_commit,
+                await self._activate_repository(
+                    session,
+                    repository,
+                    target_commit=repository.current_commit,
+                    fetch=False,
+                    process_role=role,
+                    advance_commit=False,
                 )
-                plugin_registry.register_external(loaded)
-
-                # 更新数据库状态
-                repo.status = "loaded"
-                repo.last_error = None
-                repo.current_commit = loaded.commit_hash
                 stats["loaded"] += 1
-
-            except Exception as e:
-                # 更新数据库状态
-                repo.status = "error"
-                repo.last_error = str(e)
+            except Exception as exc:
                 stats["error"] += 1
                 stats["errors"].append({
-                    "repo": repo.name,
-                    "error": str(e),
+                    "repository_id": repository.id,
+                    "error": repository.last_error or str(exc),
                 })
-
-                logger.error(f"加载插件仓库失败：{repo.name} - {e}")
-
-        session.commit()
-
-        logger.info(
-            f"插件仓库加载完成：总计 {stats['total']}，"
-            f"成功 {stats['loaded']}，失败 {stats['error']}"
-        )
-
         return stats
 
-    def update_repository(
+    async def reconcile_repositories(
         self,
         session: Session,
-        repo_id: str,
-        new_commit: Optional[str] = None,
-    ) -> LoadedPlugin:
-        """
-        更新仓库到最新或指定 commit
+        *,
+        process_role: PluginProcessRole | None = None,
+    ) -> dict[str, Any]:
+        """只在数据库期望状态变化时重载，用于 Worker 轮询跨进程启停。"""
 
-        Args:
-            session: 数据库会话
-            repo_id: 仓库 ID
-            new_commit: 新的 commit hash（如果为 None 则更新到最新）
-
-        Returns:
-            更新后的已加载插件实例
-
-        Raises:
-            ValueError: 如果仓库不存在
-        """
         from ..models.plugin import PluginRepository
 
-        repo = session.get(PluginRepository, repo_id)
-        if not repo:
-            raise ValueError(f"仓库不存在：{repo_id}")
-
-        # 保存旧 commit 用于回滚
-        repo.previous_commit = repo.current_commit
-
-        try:
-            # 更新仓库
-            actual_commit = plugin_loader.update_repo(
-                repo_url=repo.repo_url,
-                branch=repo.branch,
-                new_commit=new_commit,
-            )
-
-            # 重新加载插件
-            loaded = plugin_loader.load_from_repo(
-                repo_url=repo.repo_url,
-                branch=repo.branch,
-                commit=actual_commit,
-            )
-
-            # 注销旧插件
-            plugin_registry.unregister(loaded.manifest.id)
-
-            # 注册新插件
-            plugin_registry.register_external(loaded)
-
-            # 更新数据库状态
-            repo.current_commit = actual_commit
-            repo.status = "loaded"
-            repo.last_error = None
-
-            session.commit()
-
-            logger.info(f"仓库更新成功：{repo.name} -> {actual_commit}")
-            return loaded
-
-        except Exception as e:
-            # 更新数据库状态
-            repo.status = "error"
-            repo.last_error = str(e)
-            session.commit()
-
-            logger.error(f"仓库更新失败：{repo.name} - {e}")
-            raise
-
-    def rollback_repository(
-        self,
-        session: Session,
-        repo_id: str,
-    ) -> LoadedPlugin:
-        """
-        回滚仓库到上一个 commit
-
-        Args:
-            session: 数据库会话
-            repo_id: 仓库 ID
-
-        Returns:
-            回滚后的已加载插件实例
-
-        Raises:
-            ValueError: 如果仓库不存在或没有可回滚的版本
-        """
-        from ..models.plugin import PluginRepository
-
-        repo = session.get(PluginRepository, repo_id)
-        if not repo:
-            raise ValueError(f"仓库不存在：{repo_id}")
-
-        if not repo.previous_commit:
-            raise ValueError(f"没有可回滚的版本：{repo.name}")
-
-        return self.update_repository(session, repo_id, repo.previous_commit)
-
-    def enable_plugin(
-        self,
-        session: Session,
-        plugin_id: str,
-    ) -> None:
-        """
-        启用插件
-
-        Args:
-            session: 数据库会话
-            plugin_id: 插件 ID
-        """
-        from ..models.plugin import PluginConfig
-
-        plugin = plugin_registry.get_plugin(plugin_id)
-        if plugin:
-            plugin.status = "loaded"
-
-        # 更新数据库中的状态
-        config = session.query(PluginConfig).filter(
-            PluginConfig.plugin_id == plugin_id
-        ).first()
-
-        if config:
-            config.enabled = True
-            session.commit()
-
-        logger.info(f"插件已启用：{plugin_id}")
-
-    def disable_plugin(
-        self,
-        session: Session,
-        plugin_id: str,
-    ) -> None:
-        """
-        禁用插件
-
-        Args:
-            session: 数据库会话
-            plugin_id: 插件 ID
-        """
-        from ..models.plugin import PluginConfig
-
-        plugin = plugin_registry.get_plugin(plugin_id)
-        if plugin:
-            plugin.status = "disabled"
-
-        # 更新数据库中的状态
-        config = session.query(PluginConfig).filter(
-            PluginConfig.plugin_id == plugin_id
-        ).first()
-
-        if config:
-            config.enabled = False
-            session.commit()
-
-        logger.info(f"插件已禁用：{plugin_id}")
-
-    def get_plugin_config(
-        self,
-        session: Session,
-        plugin_id: str,
-    ) -> Dict[str, Any]:
-        """
-        获取插件配置
-
-        Args:
-            session: 数据库会话
-            plugin_id: 插件 ID
-
-        Returns:
-            插件配置字典
-        """
-        from ..models.plugin import PluginConfig
-
-        config = session.query(PluginConfig).filter(
-            PluginConfig.plugin_id == plugin_id
-        ).first()
-
-        return config.config_data if config else {}
-
-    def update_plugin_config(
-        self,
-        session: Session,
-        plugin_id: str,
-        config_data: Dict[str, Any],
-    ) -> None:
-        """
-        更新插件配置
-
-        Args:
-            session: 数据库会话
-            plugin_id: 插件 ID
-            config_data: 新的配置数据
-        """
-        from ..models.plugin import PluginConfig
-
-        config = session.query(PluginConfig).filter(
-            PluginConfig.plugin_id == plugin_id
-        ).first()
-
-        if not config:
-            # 获取插件类型
-            plugin = plugin_registry.get_plugin(plugin_id)
-            plugin_type = plugin.manifest.plugin_type.value if plugin else "unknown"
-
-            config = PluginConfig(
-                plugin_id=plugin_id,
-                plugin_type=plugin_type,
-                config_data=config_data,
-            )
-            session.add(config)
-        else:
-            config.config_data = config_data
-
-        session.commit()
-        logger.info(f"插件配置已更新：{plugin_id}")
-
-    def get_plugins_by_type(
-        self,
-        plugin_type: PluginType,
-    ) -> List[LoadedPlugin]:
-        """
-        获取指定类型的所有插件
-
-        Args:
-            plugin_type: 插件类型
-
-        Returns:
-            插件列表
-        """
-        return plugin_registry.get_plugins_by_type(plugin_type)
-
-    def get_all_plugins(self) -> List[LoadedPlugin]:
-        """
-        获取所有插件
-
-        Returns:
-            插件列表
-        """
-        return plugin_registry.get_all_plugins()
-
-    def get_plugin_stats(self) -> Dict[str, int]:
-        """
-        获取插件统计信息
-
-        Returns:
-            统计信息字典
-        """
-        return plugin_registry.get_plugin_count()
-
-    def remove_repository(
-        self,
-        session: Session,
-        repo_id: str,
-    ) -> None:
-        """
-        删除仓库
-
-        Args:
-            session: 数据库会话
-            repo_id: 仓库 ID
-        """
-        from ..models.plugin import PluginRepository, PluginConfig
-
-        repo = session.get(PluginRepository, repo_id)
-        if not repo:
-            raise ValueError(f"仓库不存在：{repo_id}")
-
-        # 从注册中心注销插件
-        # 重新加载以获取该仓库的所有插件 ID（可能是多个）
-        if repo.current_commit:
+        role = process_role or self.process_role
+        repositories = {
+            item.id: item
+            for item in session.query(PluginRepository)
+            .filter(PluginRepository.enabled.is_(True), PluginRepository.current_commit.is_not(None))
+            .all()
+        }
+        stats: dict[str, Any] = {"checked": len(repositories), "reloaded": 0, "disabled": 0, "error": 0}
+        for repository_id in self.coordinator.repository_ids():
+            if repository_id not in repositories:
+                await self.coordinator.deactivate_repository(repository_id)
+                self._repository_signatures.pop(repository_id, None)
+                stats["disabled"] += 1
+        for repository in repositories.values():
+            signature = self._repository_signature(repository, role)
+            if self._repository_signatures.get(repository.id) == signature:
+                continue
             try:
-                loaded = plugin_loader.load_from_repo(
-                    repo_url=repo.repo_url,
-                    branch=repo.branch,
-                    commit=repo.current_commit,
+                await self._activate_repository(
+                    session,
+                    repository,
+                    target_commit=repository.current_commit,
+                    fetch=False,
+                    process_role=role,
+                    advance_commit=False,
                 )
-                loaded_list = loaded if isinstance(loaded, list) else [loaded]
-                for plugin in loaded_list:
-                    plugin_registry.unregister(plugin.manifest.id)
-                    session.query(PluginConfig).filter(
-                        PluginConfig.plugin_id == plugin.manifest.id
-                    ).delete()
+                stats["reloaded"] += 1
             except Exception:
-                pass
+                stats["error"] += 1
+        return stats
 
-        # 删除本地仓库
-        plugin_loader.remove_repo(repo.repo_url)
-
-        # 删除数据库记录
-        session.delete(repo)
-        session.commit()
-
-        logger.info(f"仓库已删除：{repo.name}")
-
-    def add_repository(
+    async def add_repository(
         self,
         session: Session,
+        *,
         repo_url: str,
         branch: str = "main",
-        name: Optional[str] = None,
+        name: str | None = None,
         auto_update: bool = False,
-    ) -> LoadedPlugin | list[LoadedPlugin]:
-        """
-        添加新仓库
-
-        如果仓库加载返回多个插件（例如聚合了多个搜索源），
-        会逐个注册到注册中心。
-
-        Args:
-            session: 数据库会话
-            repo_url: Git 仓库 URL
-            branch: 分支名称
-            name: 仓库名称（如果为 None 则从 URL 提取）
-            auto_update: 是否自动更新
-
-        Returns:
-            加载的插件实例或实例列表
-        """
+        configs: Mapping[str, Mapping[str, Any]] | None = None,
+        disabled_plugin_ids: set[str] | None = None,
+    ) -> ManagedRepositoryResult:
         from ..models.plugin import PluginRepository
 
-        # 如果未提供名称，从 URL 提取
-        if name is None:
-            name = repo_url.split("/")[-1].replace(".git", "")
-
-        # 加载插件
-        loaded = plugin_loader.load_from_repo(
+        existing = session.query(PluginRepository).filter(PluginRepository.repo_url == repo_url).first()
+        if existing is not None:
+            raise ValueError(f"插件仓库已存在：{repo_url}")
+        repository = PluginRepository(
+            id=uuid4().hex,
+            name=name or self.loader.repository_path(repo_url).name,
             repo_url=repo_url,
             branch=branch,
-        )
-
-        # 统一为列表，方便后续处理
-        loaded_list = loaded if isinstance(loaded, list) else [loaded]
-
-        # 注册到注册中心
-        for plugin in loaded_list:
-            plugin_registry.register_external(plugin)
-
-        primary = loaded_list[0]
-        repo = PluginRepository(
-            name=name,
-            repo_url=repo_url,
-            branch=branch,
-            current_commit=primary.commit_hash,
             auto_update=auto_update,
             enabled=True,
-            status="loaded",
+            status="pending",
         )
-        session.add(repo)
+        session.add(repository)
+        session.flush()
+        try:
+            return await self._activate_repository(
+                session,
+                repository,
+                target_commit=None,
+                fetch=True,
+                process_role=self.process_role,
+                advance_commit=True,
+                config_overrides=configs,
+                disabled_plugin_ids=disabled_plugin_ids,
+            )
+        except Exception:
+            session.commit()
+            raise
+
+    async def update_repository(
+        self,
+        session: Session,
+        repo_id: str,
+        new_commit: str | None = None,
+    ) -> ManagedRepositoryResult:
+        repository = self._require_repository(session, repo_id)
+        return await self._activate_repository(
+            session,
+            repository,
+            target_commit=new_commit,
+            fetch=True,
+            process_role=self.process_role,
+            advance_commit=True,
+        )
+
+    async def rollback_repository(self, session: Session, repo_id: str) -> ManagedRepositoryResult:
+        repository = self._require_repository(session, repo_id)
+        if not repository.previous_commit:
+            raise ValueError(f"仓库没有可回滚版本：{repository.name}")
+        return await self._activate_repository(
+            session,
+            repository,
+            target_commit=repository.previous_commit,
+            fetch=True,
+            process_role=self.process_role,
+            advance_commit=True,
+        )
+
+    async def enable_plugin(self, session: Session, plugin_id: str) -> ManagedRepositoryResult | None:
+        config = self._require_plugin_config(session, plugin_id)
+        config.enabled = True
+        config.status = "pending"
+        config.last_error = None
         session.commit()
+        repository = config.repository
+        if repository is None or not repository.current_commit:
+            return None
+        if PluginType(config.plugin_type) not in _ROLE_TYPES[self.process_role]:
+            return None
+        return await self._activate_repository(
+            session,
+            repository,
+            target_commit=repository.current_commit,
+            fetch=False,
+            process_role=self.process_role,
+            advance_commit=False,
+        )
 
-        logger.info(f"仓库已添加：{name} ({repo_url})，含 {len(loaded_list)} 个插件")
-        return loaded
+    async def disable_plugin(self, session: Session, plugin_id: str) -> None:
+        config = self._require_plugin_config(session, plugin_id)
+        config.enabled = False
+        config.status = "disabled"
+        config.last_error = None
+        session.commit()
+        await self.coordinator.deactivate_plugin(plugin_id)
+
+    def get_plugin_config(self, session: Session, plugin_id: str) -> dict[str, Any]:
+        config = self._require_plugin_config(session, plugin_id)
+        manifest = self._find_manifest(config.repository, plugin_id)
+        return redact_plugin_config(manifest.config_schema, self._decode_config(config.config_data))
+
+    async def update_plugin_config(
+        self,
+        session: Session,
+        plugin_id: str,
+        config_data: Mapping[str, Any],
+    ) -> ManagedRepositoryResult | None:
+        config = self._require_plugin_config(session, plugin_id)
+        manifest = self._find_manifest(config.repository, plugin_id)
+        submitted = dict(config_data)
+        existing_values = self._decode_config(config.config_data)
+        for field_name, field_schema in manifest.config_schema.items():
+            if not isinstance(field_schema, Mapping):
+                continue
+            is_secret = field_schema.get("type") == "password" or field_schema.get("secret") is True
+            if is_secret and submitted.get(field_name) == REDACTED_VALUE and field_name in existing_values:
+                submitted[field_name] = existing_values[field_name]
+        validated = validate_plugin_config(manifest.config_schema, submitted)
+        config.config_data = self._encode_config(validated)
+        config.status = "pending" if config.enabled else "disabled"
+        config.last_error = None
+        session.commit()
+        repository = config.repository
+        if not config.enabled or repository is None or not repository.current_commit:
+            return None
+        if manifest.plugin_type not in _ROLE_TYPES[self.process_role]:
+            return None
+        return await self._activate_repository(
+            session,
+            repository,
+            target_commit=repository.current_commit,
+            fetch=False,
+            process_role=self.process_role,
+            advance_commit=False,
+        )
+
+    async def remove_repository(self, session: Session, repo_id: str) -> None:
+        from ..models.plugin import PluginConfig
+
+        repository = self._require_repository(session, repo_id)
+        await self.coordinator.deactivate_repository(repo_id)
+        configs = session.query(PluginConfig).filter(PluginConfig.repository_id == repo_id).all()
+        for config in configs:
+            plugin_registry.unregister(config.plugin_id)
+            session.delete(config)
+        repo_url = repository.repo_url
+        session.delete(repository)
+        session.commit()
+        self._repository_signatures.pop(repo_id, None)
+        self.loader.remove_repo(repo_url)
+
+    def list_plugins(self, session: Session) -> list[dict[str, Any]]:
+        """返回数据库声明状态和当前进程 Activation 的合并视图。"""
+
+        from ..models.plugin import PluginConfig
+
+        rows: list[dict[str, Any]] = []
+        for config in session.query(PluginConfig).all():
+            activation = self.coordinator.get(config.plugin_id)
+            manifest = activation.manifest if activation else self._find_manifest(config.repository, config.plugin_id)
+            rows.append({
+                "id": manifest.id,
+                "name": manifest.name,
+                "version": manifest.version,
+                "plugin_type": manifest.plugin_type.value,
+                "description": manifest.description,
+                "author": manifest.author,
+                "homepage_url": manifest.homepage_url,
+                "repository_id": config.repository_id,
+                "enabled": bool(config.enabled),
+                "status": activation.status.value if activation else config.status,
+                "error": config.last_error,
+                "commit_hash": activation.commit_hash if activation else None,
+                "requires": list(manifest.requires),
+                "provides": list(manifest.provides),
+                "cleanup_count": activation.context.cleanup_count if activation else 0,
+            })
+        return rows
+
+    def activation_diagnostics(self) -> list[dict[str, Any]]:
+        return [self._activation_diagnostic(item) for item in self.coordinator.snapshot().values()]
+
+    def activation_diagnostic(self, plugin_id: str) -> dict[str, Any] | None:
+        activation = self.coordinator.get(plugin_id)
+        return self._activation_diagnostic(activation) if activation else None
+
+    async def dispose_all(self) -> None:
+        await self.coordinator.dispose_all()
+
+    async def _activate_repository(
+        self,
+        session: Session,
+        repository: Any,
+        *,
+        target_commit: str | None,
+        fetch: bool,
+        process_role: PluginProcessRole,
+        advance_commit: bool,
+        config_overrides: Mapping[str, Mapping[str, Any]] | None = None,
+        disabled_plugin_ids: set[str] | None = None,
+    ) -> ManagedRepositoryResult:
+        locked_commit_before = repository.current_commit
+        repo_path, actual_commit = self.loader.prepare_repository(
+            repository.repo_url,
+            repository.branch,
+            target_commit,
+            fetch=fetch,
+        )
+        self.loader.invalidate_repository_modules(repo_path)
+        manifests = self.loader.parse_manifests(repo_path)
+        if manifests[0].manifest_version == 1:
+            return self._activate_legacy_repository(
+                session,
+                repository,
+                repo_path,
+                actual_commit,
+                advance_commit=advance_commit,
+            )
+
+        config_rows = self._ensure_config_rows(
+            session,
+            repository.id,
+            manifests,
+            config_overrides=config_overrides,
+            disabled_plugin_ids=disabled_plugin_ids,
+        )
+        session.flush()
+        config_values = {plugin_id: self._decode_config(row.config_data) for plugin_id, row in config_rows.items()}
+        enabled_ids = {plugin_id for plugin_id, row in config_rows.items() if row.enabled}
+        selected_manifests = [item for item in manifests if item.plugin_type in _ROLE_TYPES[process_role]]
+        try:
+            result = await self.coordinator.activate_repository(
+                repository_id=repository.id,
+                commit_hash=actual_commit,
+                repo_path=repo_path,
+                manifests=selected_manifests,
+                configs=config_values,
+                enabled_plugin_ids=enabled_ids,
+                allowed_types=_ROLE_TYPES[process_role],
+                dispose_previous=False,
+            )
+        except RepositoryActivationError as exc:
+            self._record_activation_error(repository, config_rows, manifests, config_values, exc)
+            session.commit()
+            if locked_commit_before:
+                try:
+                    self.loader.prepare_repository(
+                        repository.repo_url,
+                        repository.branch,
+                        locked_commit_before,
+                        fetch=False,
+                    )
+                except Exception:
+                    logger.exception("恢复插件仓库锁定 checkout 失败：repository_id=%s", repository.id)
+            raise
+
+        now = datetime.now(UTC)
+        active_ids = set(result.plugin_ids)
+        for manifest in selected_manifests:
+            row = config_rows[manifest.id]
+            row.status = "active" if manifest.id in active_ids else "disabled"
+            row.last_error = None
+        if advance_commit:
+            old_commit = repository.current_commit
+            if old_commit and old_commit != actual_commit:
+                repository.previous_commit = old_commit
+            repository.current_commit = actual_commit
+        repository.status = "loaded"
+        repository.last_error = None
+        repository.last_checked_at = now
+        repository.last_loaded_at = now
+        try:
+            session.commit()
+        except Exception:
+            session.rollback()
+            await self.coordinator.rollback_switch(result)
+            if locked_commit_before:
+                try:
+                    self.loader.prepare_repository(
+                        repository.repo_url,
+                        repository.branch,
+                        locked_commit_before,
+                        fetch=False,
+                    )
+                except Exception:
+                    logger.exception("数据库提交失败后恢复插件 checkout 失败：repository_id=%s", repository.id)
+            raise
+        await self.coordinator.finalize_switch(result)
+        self._repository_signatures[repository.id] = self._repository_signature(repository, process_role)
+        return ManagedRepositoryResult(repository.id, actual_commit, result.plugin_ids)
+
+    def _activate_legacy_repository(
+        self,
+        session: Session,
+        repository: Any,
+        repo_path: Path,
+        actual_commit: str,
+        *,
+        advance_commit: bool,
+    ) -> ManagedRepositoryResult:
+        loaded = self.loader.load_from_local(repo_path)
+        loaded_items = loaded if isinstance(loaded, list) else [loaded]
+        for item in loaded_items:
+            item.commit_hash = actual_commit
+            plugin_registry.register_external(item)
+        if advance_commit:
+            old_commit = repository.current_commit
+            if old_commit and old_commit != actual_commit:
+                repository.previous_commit = old_commit
+            repository.current_commit = actual_commit
+        repository.status = "loaded"
+        repository.last_error = None
+        repository.last_loaded_at = datetime.now(UTC)
+        session.commit()
+        return ManagedRepositoryResult(repository.id, actual_commit, tuple(item.manifest.id for item in loaded_items))
+
+    @staticmethod
+    def _ensure_config_rows(
+        session: Session,
+        repository_id: str,
+        manifests: Sequence[PluginManifest],
+        *,
+        config_overrides: Mapping[str, Mapping[str, Any]] | None,
+        disabled_plugin_ids: set[str] | None,
+    ) -> dict[str, Any]:
+        from ..models.plugin import PluginConfig
+
+        existing = {
+            item.plugin_id: item
+            for item in session.query(PluginConfig).filter(PluginConfig.repository_id == repository_id).all()
+        }
+        for manifest in manifests:
+            row = existing.get(manifest.id)
+            if row is None:
+                row = PluginConfig(
+                    id=uuid4().hex,
+                    plugin_id=manifest.id,
+                    plugin_type=manifest.plugin_type.value,
+                    config_data="{}",
+                    enabled=manifest.id not in (disabled_plugin_ids or set()),
+                    status="pending",
+                    repository_id=repository_id,
+                )
+                session.add(row)
+                existing[manifest.id] = row
+            else:
+                row.plugin_type = manifest.plugin_type.value
+            if config_overrides and manifest.id in config_overrides:
+                validated = validate_plugin_config(manifest.config_schema, config_overrides[manifest.id])
+                row.config_data = PluginManager._encode_config(validated)
+        return {manifest.id: existing[manifest.id] for manifest in manifests}
+
+    @staticmethod
+    def _record_activation_error(
+        repository: Any,
+        config_rows: Mapping[str, Any],
+        manifests: Sequence[PluginManifest],
+        configs: Mapping[str, Mapping[str, Any]],
+        error: RepositoryActivationError,
+    ) -> None:
+        manifest_map = {item.id: item for item in manifests}
+        failing_id = error.plugin_id
+        if failing_id and failing_id in manifest_map:
+            manifest = manifest_map[failing_id]
+            message = redact_plugin_error(error.cause, manifest.config_schema, configs.get(failing_id))
+            config_rows[failing_id].status = "error"
+            config_rows[failing_id].last_error = message
+        else:
+            message = str(error.cause)[:1000]
+        repository.status = "error"
+        repository.last_error = message
+        repository.last_checked_at = datetime.now(UTC)
+
+    def _find_manifest(self, repository: Any, plugin_id: str) -> PluginManifest:
+        if repository is None:
+            raise ValueError(f"插件缺少所属仓库：{plugin_id}")
+        repo_path = self.loader.repository_path(repository.repo_url)
+        for manifest in self.loader.parse_manifests(repo_path):
+            if manifest.id == plugin_id:
+                return manifest
+        raise ValueError(f"仓库清单中不存在插件：{plugin_id}")
+
+    @staticmethod
+    def _repository_signature(repository: Any, role: PluginProcessRole) -> tuple[Any, ...]:
+        relevant_types = {item.value for item in _ROLE_TYPES[role]}
+        configs = tuple(
+            sorted(
+                (
+                    item.plugin_id,
+                    item.plugin_type,
+                    bool(item.enabled),
+                    item.config_data or "{}",
+                )
+                for item in repository.configs
+                if item.plugin_type in relevant_types
+            )
+        )
+        return repository.current_commit, role.value, configs
+
+    @staticmethod
+    def _require_repository(session: Session, repo_id: str) -> Any:
+        from ..models.plugin import PluginRepository
+
+        repository = session.get(PluginRepository, repo_id)
+        if repository is None:
+            raise ValueError(f"插件仓库不存在：{repo_id}")
+        return repository
+
+    @staticmethod
+    def _require_plugin_config(session: Session, plugin_id: str) -> Any:
+        from ..models.plugin import PluginConfig
+
+        config = session.query(PluginConfig).filter(PluginConfig.plugin_id == plugin_id).first()
+        if config is None:
+            raise ValueError(f"插件不存在：{plugin_id}")
+        return config
+
+    @staticmethod
+    def _decode_config(value: str | Mapping[str, Any] | None) -> dict[str, Any]:
+        if isinstance(value, Mapping):
+            return dict(value)
+        try:
+            decoded = json.loads(value or "{}")
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise ValueError("插件配置不是有效 JSON") from exc
+        if not isinstance(decoded, dict):
+            raise ValueError("插件配置 JSON 必须是对象")
+        return decoded
+
+    @staticmethod
+    def _encode_config(value: Mapping[str, Any]) -> str:
+        return json.dumps(dict(value), ensure_ascii=False, separators=(",", ":"))
+
+    @staticmethod
+    def _activation_diagnostic(activation: Any) -> dict[str, Any]:
+        return {
+            "plugin_id": activation.plugin_id,
+            "repository_id": activation.repository_id,
+            "commit_hash": activation.commit_hash,
+            "status": activation.status.value,
+            "requires": list(activation.required_capabilities),
+            "provides": sorted(activation.provided_capabilities),
+            "cleanup_count": activation.context.cleanup_count,
+            "error": activation.error,
+            "activated_at": activation.activated_at.isoformat() if activation.activated_at else None,
+        }
 
 
-# 全局单例
 plugin_manager = PluginManager()

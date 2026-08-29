@@ -134,6 +134,11 @@ def ensure_runtime_schema_for_engine(engine: Engine) -> None:
         if "published_at" not in columns:
             statements.append(_add_column_sql(engine, "resource_links", "published_at", "TIMESTAMP"))
 
+    if "plugin_configs" in table_names:
+        columns = {column["name"] for column in inspector.get_columns("plugin_configs")}
+        if "last_error" not in columns:
+            statements.append(_add_column_sql(engine, "plugin_configs", "last_error", "TEXT"))
+
     if not statements:
         return
 

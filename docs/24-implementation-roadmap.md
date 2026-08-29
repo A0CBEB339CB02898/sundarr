@@ -46,7 +46,7 @@ PID 文件、端口和子进程均无残留。
 
 ## 里程碑 B：Phase 10.1 通用插件框架收口
 
-状态：当前优先；Manifest v2 解析和生命周期内核已完成。B5-B9 作为同一验收批次执行，完成仓库切换、进程恢复、管理闭环和本地 fixture 验收后再暂停。
+状态：已完成第一次技术验收范围；B1-B9 实现和本地验收已收口。
 
 任务：
 
@@ -56,10 +56,10 @@ B2 已实现目标 PluginType、通用 Manifest v2 多插件解析和 flat v1 SO
 B3 已实现 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 类型合同与 Runtime Registry。
 B4 已实现 v2 单 Manifest 入口调用、requires/provides 隔离与校验、配置校验和类型专用健康检查。
 B5 已实现候选加载、仓库级原子切换、失败保留旧 Activation 和确定清理语义。
-B6 API 与 Worker 启动时分别恢复 enabled 仓库的 locked current_commit。
-B7 修复 PluginManager 和 API 对同仓库多插件结果的完整支持。
-B8 使用本地 fixture 仓库完成三类插件调用、禁用、更新、回滚、重启和失败诊断。
-B9 确认敏感配置和日志脱敏，不依赖真实网络、GitHub、TMDb、豆瓣或 NAS。
+B6 已实现 API 与 Worker 启动时分别恢复 enabled 仓库的 locked current_commit。
+B7 已修复 PluginManager 和 API 对同仓库多插件结果的完整支持。
+B8 已使用本地 fixture 仓库完成三类插件调用、禁用、更新、回滚、重启和失败诊断。
+B9 已确认敏感配置和日志脱敏，验收不依赖真实网络、GitHub、TMDb、豆瓣或 NAS。
 ```
 
 验收门：

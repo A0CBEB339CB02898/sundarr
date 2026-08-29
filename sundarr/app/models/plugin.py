@@ -69,6 +69,7 @@ class PluginConfig(Base, TimestampMixin):
         config_data: 配置数据（JSON）
         enabled: 是否启用
         status: 状态（"active", "disabled", "error"）
+        last_error: 最近一次脱敏错误
         repository_id: 关联的仓库 ID
     """
 
@@ -80,6 +81,7 @@ class PluginConfig(Base, TimestampMixin):
     config_data = Column(Text, default="{}")  # JSON 字符串
     enabled = Column(Boolean, default=True)
     status = Column(String, default="active")  # active, disabled, error
+    last_error = Column(Text)
     repository_id = Column(String, ForeignKey("plugin_repositories.id"))
 
     # 关联

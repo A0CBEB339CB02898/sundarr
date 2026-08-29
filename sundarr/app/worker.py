@@ -22,6 +22,8 @@ from sundarr.app.models import (
     TransferTask,
 )
 from sundarr.app.storage import LocalWriter, SmbConfig, SmbWriter, StorageWriter
+from sundarr.app.plugins.coordinator import RepositoryActivationCoordinator
+from sundarr.app.plugins.manager import PluginManager, PluginProcessRole
 
 
 WORKER_ENABLED_KEY = "worker.enabled"
@@ -88,10 +90,18 @@ class LocalRuntimeConfig:
 
 
 class WorkerRuntime:
-    def __init__(self, poll_interval_seconds: float = 5.0) -> None:
+    def __init__(
+        self,
+        poll_interval_seconds: float = 5.0,
+        plugin_manager: PluginManager | None = None,
+    ) -> None:
         self.poll_interval_seconds = poll_interval_seconds
         self._running = True
         self._last_scan_times: dict[str, float] = {}
+        self.plugin_manager = plugin_manager or PluginManager(
+            process_role=PluginProcessRole.WORKER,
+            coordinator=RepositoryActivationCoordinator(),
+        )
 
     def stop(self, signum: int | None = None, frame: object | None = None) -> None:
         self._running = False
@@ -101,6 +111,19 @@ class WorkerRuntime:
         signal.signal(signal.SIGINT, self.stop)
         session_factory = get_session_factory()
         print("Sundarr Worker 已启动。", flush=True)
+        import asyncio
+
+        with session_factory() as session:
+            plugin_stats = asyncio.run(
+                self.plugin_manager.load_all_repositories(
+                    session,
+                    process_role=PluginProcessRole.WORKER,
+                )
+            )
+        print(
+            f"Worker 插件恢复完成：成功 {plugin_stats['loaded']}，失败 {plugin_stats['error']}。",
+            flush=True,
+        )
         with session_factory() as session:
             recovered_count = recover_running_tasks(session)
         if recovered_count:
@@ -109,6 +132,12 @@ class WorkerRuntime:
             claimed_ids: list[str] = []
             local_runtime: LocalRuntimeConfig | None = None
             with session_factory() as session:
+                asyncio.run(
+                    self.plugin_manager.reconcile_repositories(
+                        session,
+                        process_role=PluginProcessRole.WORKER,
+                    )
+                )
                 settings = load_worker_settings(session)
                 self._auto_scan_and_create_tasks(session)
                 claimed = claim_pending_tasks(session, settings)
@@ -118,10 +147,9 @@ class WorkerRuntime:
                 print("Sundarr Worker 已禁用，保持空转。", flush=True)
             elif claimed:
                 print(f"Sundarr Worker 已领取 {len(claimed)} 个任务。", flush=True)
-                import asyncio
-
                 asyncio.run(process_claimed_tasks(session_factory, claimed_ids, local_runtime))
             time.sleep(self.poll_interval_seconds)
+        asyncio.run(self.plugin_manager.dispose_all())
         print("Sundarr Worker 已停止。", flush=True)
 
     def _auto_scan_and_create_tasks(self, session: Session) -> None:

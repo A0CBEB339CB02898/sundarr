@@ -162,7 +162,7 @@ TRANSFER_DRIVER -> 后续统一搬运合同，不进入当前 MVP。
 
 ```text
 真实站点外部 Source 尚未完成端到端验收。
-应用启动尚未自动激活 enabled 插件仓库。
+API 与 Worker 启动会分别从本地缓存的 locked current_commit 激活 enabled 且属于本进程的插件；恢复不自动 fetch。
 插件更新尚未具备完整候选加载、健康检查、原子切换和失败回滚闭环。
 真实 SMB 发布门仍需在目标 NAS 环境重复验收。
 插件更新不是候选验证后的原子切换。
@@ -186,4 +186,4 @@ Phase 11：AI Friendly API 和可选 Cordis / DeepSeek Harness HTTP 桥接。
 
 不进入近期主线：Alist、真实网盘 Provider、Cloud Direct Download、通知和 Crawler 插件。
 
-通用 Manifest v2 多插件解析、flat v1 SOURCE 兼容和单 Manifest 候选 Activation 已实现；仓库级多候选原子切换、Manager/API 接入和启动恢复尚未完成。同一仓库可声明多个独立插件，Manifest 不包含分页 UI、调度游标或任务状态。
+通用 Manifest v2 多插件解析、flat v1 SOURCE 兼容、仓库级多候选原子切换、Manager/API 接入和启动恢复已完成。同一仓库可声明多个独立插件，Manifest 不包含分页 UI、调度游标或任务状态。

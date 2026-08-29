@@ -8,7 +8,7 @@
 
 ```text
 flat v1    当前 loader 已实现，只支持一个 SOURCE 声明和旧无参数入口。
-v2         多插件解析、单 Manifest 候选入口调用、配置/依赖/类型/能力健康校验、Runtime Registry 注册和失败 cleanup 已实现；仓库级原子切换与启动恢复尚未实现。
+v2         多插件解析、候选入口调用、配置/依赖/类型/能力健康校验、Runtime Registry、仓库级原子切换、失败 cleanup 与启动恢复已实现。
 ```
 
 Phase 10.1 下一步完成仓库内多候选编排、原子切换和启动恢复。Phase 10.2 使用 Core 测试 Mock 验证媒体发现合同；Phase 10.3 再把官方外部仓库迁移到 v2 并逐个接入真实插件。迁移期继续读取 flat v1；新插件使用 v2。旧 flat v1 加载入口继续明确拒绝 v2，避免绕过候选校验流程。
@@ -220,7 +220,7 @@ options
 
 ## 8. 入口与 Activation
 
-v2 入口接受一个 `PluginContext` 并返回符合主 PluginType 合同的实例。Core 负责类型专用 Registry 注册和对应 cleanup；插件只为自己创建的连接、回调等副作用登记 cleanup，不得自行覆盖 Registry active 映射。当前单 Manifest 候选入口已经执行；仓库级统一切换尚未接入。具体 Provider 方法协议由各类型规格定义。
+v2 入口接受一个 `PluginContext` 并返回符合主 PluginType 合同的实例。Core 负责类型专用 Registry 注册和对应 cleanup；插件只为自己创建的连接、回调等副作用登记 cleanup，不得自行覆盖 Registry active 映射。仓库级编排先准备同 commit 的全部必需候选，再统一切换 Registry。具体 Provider 方法协议由各类型规格定义。
 
 禁止在 import 阶段：
 

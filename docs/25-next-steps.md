@@ -4,7 +4,7 @@
 
 ## 当前目标
 
-完成 Phase 10.1 通用插件框架收口并做第一次技术验收。媒体发现 Core 后移到 Phase 10.2；TMDb、SeedHub、豆瓣等真实插件统一在独立官方仓库于 Phase 10.3 逐个交付。
+Phase 10.1 通用插件框架已达到第一次技术验收停止点。下一开发阶段是 Phase 10.2 媒体发现 Core 与 Mock 垂直切片；TMDb、SeedHub、豆瓣等真实插件继续保留到独立官方仓库的 Phase 10.3。
 
 ## 已完成的架构收口
 
@@ -24,13 +24,13 @@
 ## 当前交付顺序
 
 ```text
-1. 已实现 PluginType、Manifest v2 多声明解析和 flat v1 SOURCE 兼容。
-2. 已定义 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 公共协议和类型专用 Runtime Registry。
-3. 已接入 v2 单 Manifest Activation、requires/provides 隔离与校验、配置校验和健康检查。
-4. 当前连续完成 B5-B9：仓库内多候选编排、原子切换、失败保留旧版本、启动恢复和多仓库 API；达到第一次技术验收前不提前停止。
-5. 使用本地 fixture 仓库完成框架初步验收后暂停。
-6. 验收通过后再实现 MediaSubject、发现 API/Web Console 和测试 Mock。
-7. 最后迁移官方外部仓库并逐个实现真实插件。
+1. 已完成 PluginType、Manifest v2 多声明解析和 flat v1 SOURCE 兼容。
+2. 已完成 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER 公共协议和类型专用 Runtime Registry。
+3. 已完成候选 Activation、requires/provides 隔离、配置和健康检查。
+4. 已完成仓库级原子切换、失败保留旧版本、API/Worker 恢复和多仓库 API。
+5. 已使用本地 fixture 仓库完成框架第一次技术验收并在此暂停。
+6. 下一步经用户确认后实现 MediaSubject、发现 API/Web Console 和测试 Mock。
+7. Phase 10.3 再迁移官方外部仓库并逐个实现真实插件。
 ```
 
 当前不并行实现媒体发现 UI 或真实插件，避免业务实现反向固化不完整的插件框架。
@@ -76,8 +76,8 @@ Manifest v2 只保存静态插件声明，不保存 UI 分页、调度游标或�
 ```text
 PluginContext、PluginActivation、ActivationStatus 已实现。
 LIFO cleanup、失败续跑和并发幂等释放已测试。
-通用 Manifest v2 多声明解析、三类公共运行协议、Runtime Registry、单 Manifest v2 入口 Activation、声明能力隔离、配置校验、类型健康检查、失败 cleanup 和仓库级多候选原子切换已实现；启动加载和管理 API 接入待实现。
-完成上述缺口并通过本地三类型 fixture 仓库、重启恢复、失败保留旧版本和插件 API/Worker 冒烟后，立即暂停做第一次技术验收。
+通用 Manifest v2、多类型合同、Runtime Registry、候选 Activation、仓库级原子切换、启动恢复、管理 API、脱敏和跨进程启停协调已实现。
+本地三类型 fixture 仓库、失败保留旧版本、更新、回滚、删除、重启恢复、插件 API、Worker 和 `/health` 冒烟已覆盖；当前已到第一次技术验收停止点。
 ```
 
 ## 环境限制

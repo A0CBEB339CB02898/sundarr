@@ -16,6 +16,14 @@ class PluginRepositoryCreate(BaseModel):
     branch: str = Field("main", description="分支名称")
     name: Optional[str] = Field(None, description="仓库显示名称")
     auto_update: bool = Field(False, description="是否自动更新")
+    configs: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="按 plugin_id 提供的初始配置",
+    )
+    disabled_plugin_ids: List[str] = Field(
+        default_factory=list,
+        description="安装时保持禁用的插件 ID",
+    )
 
 
 class PluginRepositoryUpdate(BaseModel):

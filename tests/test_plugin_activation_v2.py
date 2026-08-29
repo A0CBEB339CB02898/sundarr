@@ -117,6 +117,7 @@ async def test_missing_capability_fails_without_registry_residue(
         if item.id == "fixture-catalog"
     )
     activator = PluginActivator(loader=loader)
+    activator.capabilities.pop("core.http.v1")
 
     with pytest.raises(CandidateActivationError) as error:
         await activator.activate_candidate(
@@ -180,6 +181,30 @@ async def test_health_failure_cleans_candidate_side_effects(tmp_path: Path) -> N
 
     assert error.value.activation.status == ActivationStatus.FAILED
     assert len(catalog_provider_registry) == 0
+
+
+async def test_plugin_logger_redacts_manifest_secret_values(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    loader = _loader(tmp_path)
+    manifest = next(
+        item
+        for item in loader.parse_manifests(FIXTURE_REPO)
+        if item.id == "fixture-catalog"
+    )
+    activation = await PluginActivator(loader=loader).activate_candidate(
+        manifest,
+        FIXTURE_REPO,
+        plugin_config={"api_key": "log-secret"},
+    )
+
+    with caplog.at_level("INFO", logger="sundarr.plugin.fixture-catalog"):
+        activation.context.logger.info("目录密钥=%s", "log-secret")
+
+    assert "log-secret" not in caplog.text
+    assert "目录密钥=***" in caplog.text
+    await activation.dispose()
 
 
 async def test_wrong_entry_contract_fails_before_registration(tmp_path: Path) -> None:

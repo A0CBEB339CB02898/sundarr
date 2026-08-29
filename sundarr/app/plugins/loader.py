@@ -5,6 +5,7 @@
 """
 
 import importlib
+import hashlib
 import logging
 import re
 import subprocess
@@ -107,9 +108,7 @@ class PluginLoader:
         if self.allowed_repos and repo_url not in self.allowed_repos:
             raise ValueError(f"仓库不在允许列表中：{repo_url}")
 
-        # 提取仓库名称作为目录名
-        repo_name = repo_url.split("/")[-1].replace(".git", "")
-        repo_path = self.repos_dir / repo_name
+        repo_path = self.repository_path(repo_url)
 
         # Clone 或 fetch 仓库
         actual_commit = self._clone_or_fetch(repo_url, branch, commit, repo_path)
@@ -161,6 +160,83 @@ class PluginLoader:
 
         logger.info(f"插件加载成功：{manifest.name} ({manifest.id})")
         return loaded
+
+    def prepare_repository(
+        self,
+        repo_url: str,
+        branch: str = "main",
+        commit: Optional[str] = None,
+        *,
+        fetch: bool = True,
+    ) -> tuple[Path, str]:
+        """准备仓库工作目录；启动恢复可禁止网络 fetch 并只切换锁定 commit。"""
+
+        if self.allowed_repos and repo_url not in self.allowed_repos:
+            raise ValueError(f"仓库不在允许列表中：{repo_url}")
+        repo_path = self.repository_path(repo_url)
+        if fetch:
+            actual_commit = self._clone_or_fetch(repo_url, branch, commit, repo_path)
+        else:
+            if not commit:
+                raise ValueError("离线恢复必须指定锁定 commit")
+            if not repo_path.is_dir():
+                raise FileNotFoundError(f"插件仓库本地缓存不存在：{repo_path}")
+            subprocess.run(
+                ["git", "checkout", "--detach", commit],
+                cwd=str(repo_path),
+                check=True,
+                capture_output=True,
+            )
+            actual_commit = self._current_commit(repo_path)
+            if actual_commit != self._resolve_commit(repo_path, commit):
+                raise RuntimeError("插件仓库未能恢复到锁定 commit")
+        return repo_path, actual_commit
+
+    def repository_path(self, repo_url: str) -> Path:
+        """返回仓库 URL 对应的受控本地缓存目录。"""
+
+        normalized_url = repo_url.rstrip("/\\").replace("\\", "/")
+        repo_name = normalized_url.rsplit("/", 1)[-1]
+        if repo_name.endswith(".git"):
+            repo_name = repo_name[:-4]
+        repo_name = re.sub(r"[^A-Za-z0-9._-]+", "-", repo_name).strip(".-")
+        if not repo_name or repo_name in {".", ".."}:
+            raise ValueError("无法从仓库 URL 推导本地目录")
+        legacy_path = self.repos_dir / repo_name
+        if legacy_path.is_dir():
+            try:
+                remote = subprocess.run(
+                    ["git", "config", "--get", "remote.origin.url"],
+                    cwd=str(legacy_path),
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout.strip()
+                if remote == repo_url:
+                    return legacy_path
+            except subprocess.CalledProcessError:
+                pass
+        digest = hashlib.sha256(repo_url.encode("utf-8")).hexdigest()[:12]
+        return self.repos_dir / f"{repo_name[:32]}-{digest}"
+
+    def invalidate_repository_modules(self, repo_path: Path) -> None:
+        """丢弃该仓库的导入缓存，使候选版本重新执行仓库代码。"""
+
+        resolved_repo = Path(repo_path).resolve()
+        with _IMPORT_LOCK:
+            stale_names: list[str] = []
+            for module_name, module in tuple(sys.modules.items()):
+                module_file = getattr(module, "__file__", None)
+                if not module_file:
+                    continue
+                try:
+                    if Path(module_file).resolve().is_relative_to(resolved_repo):
+                        stale_names.append(module_name)
+                except (OSError, ValueError):
+                    continue
+            for module_name in stale_names:
+                sys.modules.pop(module_name, None)
+            importlib.invalidate_caches()
 
     def load_from_local(
         self,
@@ -296,8 +372,23 @@ class PluginLoader:
             return commit
 
         # 获取当前 commit hash
+        return self._current_commit(repo_path)
+
+    @staticmethod
+    def _current_commit(repo_path: Path) -> str:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
+            cwd=str(repo_path),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+
+    @staticmethod
+    def _resolve_commit(repo_path: Path, commit: str) -> str:
+        result = subprocess.run(
+            ["git", "rev-parse", commit],
             cwd=str(repo_path),
             capture_output=True,
             text=True,
@@ -516,6 +607,18 @@ class PluginLoader:
             sys.path.insert(0, repo_path_text)
             try:
                 importlib.invalidate_caches()
+                existing = sys.modules.get(module_path)
+                existing_file = getattr(existing, "__file__", None)
+                if existing_file:
+                    try:
+                        belongs_to_repository = Path(existing_file).resolve().is_relative_to(repo_path)
+                    except (OSError, ValueError):
+                        belongs_to_repository = False
+                    if not belongs_to_repository:
+                        root_name = module_path.split(".", 1)[0]
+                        for name in tuple(sys.modules):
+                            if name == root_name or name.startswith(f"{root_name}."):
+                                sys.modules.pop(name, None)
                 module = importlib.import_module(module_path)
                 module_file = getattr(module, "__file__", None)
                 if module_file is None:
@@ -582,8 +685,7 @@ class PluginLoader:
         Returns:
             新的 commit hash
         """
-        repo_name = repo_url.split("/")[-1].replace(".git", "")
-        repo_path = self.repos_dir / repo_name
+        repo_path = self.repository_path(repo_url)
 
         if not repo_path.exists():
             raise FileNotFoundError(f"仓库不存在：{repo_path}")
@@ -600,13 +702,25 @@ class PluginLoader:
         Returns:
             是否成功删除
         """
+        import os
         import shutil
+        import stat
 
-        repo_name = repo_url.split("/")[-1].replace(".git", "")
-        repo_path = self.repos_dir / repo_name
+        repo_path = self.repository_path(repo_url)
 
         if repo_path.exists():
-            shutil.rmtree(repo_path)
+            resolved_root = self.repos_dir.resolve()
+            resolved_repo = repo_path.resolve()
+            if resolved_repo == resolved_root or not resolved_repo.is_relative_to(resolved_root):
+                raise ValueError("拒绝删除插件缓存根目录之外的路径")
+
+            def make_writable_and_retry(function, path, error):
+                if not isinstance(error, PermissionError):
+                    raise error
+                os.chmod(path, stat.S_IWRITE)
+                function(path)
+
+            shutil.rmtree(resolved_repo, onexc=make_writable_and_retry)
             logger.info(f"已删除仓库：{repo_path}")
             return True
 

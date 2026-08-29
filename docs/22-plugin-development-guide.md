@@ -2,7 +2,7 @@
 
 本文档面向 Sundarr 外部 Python 插件仓库开发者；当前可运行示例仍以 SOURCE 为主。更新时间：2026-08-28。
 
-当前生产仓库管理入口仍只承诺 flat v1 SOURCE 插件。通用 Manifest v2 已可解析，三类 MVP 公共合同、Runtime Registry 和单 Manifest 候选 Activation 已实现并由本地 fixture 验证；但仓库级多候选原子切换、Manager/API 接入和启动恢复尚未完成，因此 CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 仍不能通过生产配置启用。TRANSFER_DRIVER 和 NOTIFICATION 是后续扩展。
+当前生产仓库管理入口同时支持 flat v1 SOURCE 兼容和通用 Manifest v2。三类 MVP 公共合同、Runtime Registry、仓库级候选原子切换、Manager/API 接入和 API/Worker 启动恢复已由本地 fixture 验证，SOURCE、CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 均可通过生产配置启用。TRANSFER_DRIVER 和 NOTIFICATION 是后续扩展。
 
 ---
 

@@ -1,6 +1,6 @@
 # 插件管理 API 规范
 
-本文档记录当前 API 和 Phase 10 目标扩展。更新时间：2026-08-28。
+本文档记录当前 API 和 Phase 10 目标扩展。更新时间：2026-08-29。
 
 基础前缀：`/plugins`。
 
@@ -17,22 +17,23 @@ DELETE /plugins/repositories/{repo_id}
 
 GET    /plugins/plugins
 GET    /plugins/plugins/{plugin_id}
+GET    /plugins/plugins/{plugin_id}/config
 PUT    /plugins/plugins/{plugin_id}/config
 POST   /plugins/plugins/{plugin_id}/enable
 POST   /plugins/plugins/{plugin_id}/disable
 
 GET    /plugins/stats
+GET    /plugins/activations
+GET    /plugins/activations/{plugin_id}
 POST   /plugins/load-all
 ```
 
 当前限制：
 
 ```text
-POST /repositories 在多插件、多仓库返回列表时响应处理尚未完全兼容。
-load-all 需要手动调用，应用启动不会自动执行。
-接口尚未暴露 Activation、依赖和 cleanup 状态。
 Web Console 尚未提供对应页面。
-通用 Manifest v2 多声明和单 Manifest 候选 Activation 已实现，但当前管理 API 仍按 flat v1 单插件加载结果工作，尚未接入仓库级候选编排、原子切换和多插件响应。
+通用 Manifest v2 多声明、候选 Activation、仓库级原子切换、多插件响应和进程内诊断已接入正式管理 API。
+API 与 Worker 会从数据库 enabled 状态和本地 locked current_commit 分别恢复所需类型；启动恢复不 fetch 远程仓库。
 ```
 
 ---
@@ -50,7 +51,7 @@ Web Console 尚未提供对应页面。
   "enabled": true,
   "status": "loaded",
   "last_error": null,
-  "loaded_plugin_ids": ["seedhub"],
+  "plugin_ids": ["seedhub"],
   "last_checked_at": null,
   "last_loaded_at": "2026-08-26T10:00:00Z"
 }
@@ -60,13 +61,18 @@ Web Console 尚未提供对应页面。
 
 ---
 
-## 3. Phase 10 Activation 扩展
+## 3. Activation 诊断
 
-新增只读诊断接口：
+已实现只读诊断接口：
 
 ```text
 GET /plugins/activations
 GET /plugins/activations/{plugin_id}
+```
+
+以下增强接口仍未实现，不属于第一次技术验收门：
+
+```text
 GET /plugins/plugins/{plugin_id}/logs
 POST /plugins/repositories/{repo_id}/check-update
 POST /plugins/repositories/{repo_id}/test-candidate
@@ -89,6 +95,7 @@ Activation 响应：
 ```
 
 对外响应不得暴露 Python module 对象、函数引用、密码、Cookie、Token 或完整私有链接。
+配置读取只返回脱敏值；`password` 或 `secret=true` 字段统一返回 `***`，错误信息还要替换已知敏感值并限制长度。
 
 ---
 

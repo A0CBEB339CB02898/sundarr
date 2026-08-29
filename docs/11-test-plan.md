@@ -381,8 +381,8 @@ pytest 可运行。
 ```text
 前端 npm run build 通过。
 API / Web / Worker 启动和 /health 冒烟通过。
-默认 pytest：231 passed，无需预启动 API、无需 --ignore、无需真实网络。
-Alembic heads/current：唯一 head 为 0008，当前数据库位于 0008。
+默认 pytest：244 passed，无需预启动 API、无需 --ignore、无需真实网络。
+Alembic heads/current：唯一 head 为 0013_plugin_config_diagnostics，当前数据库位于该 head。
 API / Web / Worker 连续两轮 start / status / health / stop 冒烟通过。
 API / Web PID 文件与监听进程一致；停止后测试端口、PID 文件和服务进程无残留。
 Plugin Activation 生命周期新增 8 项测试，覆盖依赖等待、能力读写、上下文封闭、LIFO、同步/异步清理、失败续跑、候选失败清理和并发幂等释放。
