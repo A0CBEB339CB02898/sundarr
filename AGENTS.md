@@ -163,7 +163,7 @@ Web Console 是核心控制台，不做完整本地媒体库 UI。
 同步绑定连接：远程媒体库（来源） -> 本地媒体库（目标）。
 Phase 9 模块重构已完成：已删除 Ingest 模块和旧 storage_config_service，新增远程媒体库模型并统一同步绑定。
 Phase 9.5 收藏模型重构已完成：搜索默认不入库，资源和资源链接仅在用户主动收藏时持久化。
-Phase 10.0 质量基线收口、Phase 10.1 通用插件宿主和 Phase 10.2 媒体发现 Core 结构性收口已完成。当前优先任务是 Phase 10.3：在官方外部仓库开发真实插件，并用真实数据持续回归 Core；首个 TMDb 端到端通过并修正暴露的合同问题后冻结 Plugin API v2，再集中扩展其他插件。Phase 10.2 完成不等于真实目录链路已通过生产验收。
+Phase 10.0 质量基线收口、Phase 10.1 通用插件宿主和 Phase 10.2 媒体发现 Core 结构性收口已完成。Phase 10.3 的首个 TMDb 真实纵向切片已于 2026-08-31 通过：真实搜索、热门、分类、详情、分页、海报墙、最小快照降级、正式配置加密和离线/实时回归均已验收，Plugin API v2 自此冻结。当前优先任务转为 SeedHub SOURCE 的 Manifest v2 迁移与 Core 真实回归；之后再开发豆瓣目录和豆瓣想看插件。冻结后兼容性修改必须保持向后兼容，破坏性变更需要新的协议版本。
 正式插件的 API key、Token、Cookie 等运行时配置由 Web Console / Core 配置 API 写入 PluginConfig，并以 PostgreSQL 为事实来源；宿主进程环境变量不作为正式插件业务配置入口。外部插件仓库的隔离实时测试可从当前测试进程环境变量临时读取凭据。
 PluginConfig 中由 Manifest 标记为 secret/password 的敏感字段必须在真实凭据人工验收前完成静态加密；加密主密钥属于数据库外的部署级 Secret，不得与密文保存在同一数据库。
 Core 提供统一配置就绪状态；Web Console 启动后以非阻断方式提示缺失配置，并允许当前浏览器按缺口 fingerprint 选择下次不再询问。浏览器提醒偏好只存 localStorage，不写入数据库；缺口集合变化后可以重新提醒。
