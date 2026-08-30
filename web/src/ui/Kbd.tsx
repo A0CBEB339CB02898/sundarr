@@ -1,7 +1,7 @@
 import React from 'react'
 
 /**
- * Kbd · docs/16-design-system.md §6.15
+ * Kbd · docs/11-前端设计系统.md §6.15
  * 小 keycap 样式。使用 HTML 语义 <kbd>。
  */
 export function Kbd({ children, className }: { children: React.ReactNode; className?: string }) {

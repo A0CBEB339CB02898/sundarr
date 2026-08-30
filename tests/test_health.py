@@ -37,7 +37,7 @@ def test_health_returns_ok() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    # Scalar fields (legacy contract, docs/09-api-contract.md §2).
+    # Scalar fields (legacy contract, docs/07-接口契约.md §2).
     assert body["status"] == "ok"
     assert body["database"] == "ok"
     assert body["redis"] == "ok"

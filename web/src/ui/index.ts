@@ -1,5 +1,5 @@
 /**
- * Sundarr UI primitives · docs/16-design-system.md §6
+ * Sundarr UI primitives · docs/11-前端设计系统.md §6
  *
  * 所有页面重做（Phase 7.8 Step 5）只从这里按需引入，避免散落 className。
  */

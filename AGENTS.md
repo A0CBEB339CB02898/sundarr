@@ -65,27 +65,24 @@ API、数据模型、状态机变化
 文档更新应优先写入对应事实来源：
 
 ```text
-产品范围和 MVP 边界 -> docs/01-product-scope.md
-技术选型和架构理由 -> docs/02-architecture-decisions.md
-开发顺序和阶段验收 -> docs/03-mvp-roadmap.md
-多源搜索接入规则 -> docs/04-source-adapter-spec.md
-搜索处理管线 -> docs/05-search-pipeline-spec.md
-SMB / Storage Writer -> docs/06-storage-writer-spec.md
-任务状态机 -> docs/07-transfer-state-machine.md
-数据模型 -> docs/08-data-model.md
-API 契约 -> docs/09-api-contract.md
-配置规则 -> docs/10-configuration.md
-测试要求 -> docs/11-test-plan.md
-本地开发 -> docs/12-local-development.md
-Web Console -> docs/13-web-console-spec.md
-AI Tool API -> docs/14-ai-tool-api-spec.md
-下载到本地 -> docs/15-download-to-local-spec.md
-前端设计系统 -> docs/16-design-system.md
-系统模块梳理 -> docs/17-system-module-review.md
-网盘直链下载 -> docs/18-cloud-direct-download-spec.md
-官方外部插件仓库 -> docs/19-source-repository-plugin-spec.md
-通用插件分类和运行边界 -> docs/20-plugin-system.md
-通用插件 Manifest -> docs/20-plugin-manifest-spec.md
+文档导航和归属 -> docs/00-文档索引.md
+产品范围和 MVP 边界 -> docs/01-产品范围.md
+技术选型和架构理由 -> docs/02-架构决策.md
+开发顺序和阶段验收 -> docs/03-开发路线图.md
+资源搜索、Source Adapter 和搜索管线 -> docs/04-资源搜索.md
+SMB、媒体库同步和任务状态机 -> docs/05-媒体库同步与传输.md
+数据模型 -> docs/06-数据模型.md
+API 契约和插件诊断 API -> docs/07-接口契约.md
+配置规则和本地开发 -> docs/08-配置与本地开发.md
+测试要求 -> docs/09-测试与验收.md
+Web Console -> docs/10-网页控制台.md
+前端设计系统 -> docs/11-前端设计系统.md
+AI Tool API -> docs/12-人工智能工具接口.md
+系统模块梳理 -> docs/13-系统模块.md
+通用插件分类和运行边界 -> docs/14-插件系统.md
+通用插件 Manifest -> docs/15-插件清单.md
+官方外部插件仓库和开发指南 -> docs/16-插件仓库与开发.md
+非 MVP 远期方向 -> docs/17-远期功能.md
 Agent 工作规则 -> AGENTS.md
 ```
 
@@ -145,8 +142,8 @@ Web Console 使用统一 `/app/discover` 媒体发现模块承载目录搜索、
 题材和地区在 MVP Web Console 中均为单选；Core 查询模型使用列表结构但 MVP 最多接受一个值，传入多个值必须明确报参数错误，不得静默截断，为未来多选保留兼容空间。
 分页交互、默认页大小等属于 Web Console 实现细节，不进入插件 Manifest；Core Provider 协议使用不透明 continuation token，Adapter 负责映射外部平台页码或 cursor。
 媒体库管理仍是目录绑定管理能力；媒体发现海报墙不等于本地媒体库海报墙、播放器、观影进度或完整媒体管理 UI。
-当前已实现的是媒体源框架和示例源，不是真实网站 Adapter。
-真实媒体源后续通过代码型 Source Adapter 逐站点接入。
+Core 只内置媒体源框架、合同和离线示例，不内置真实网站 Adapter；`sundarr-sources` 已有 SeedHub 真实实现，仍需在 Phase 10.3 完成 Manifest v2 与 Core 端到端验收。
+新增真实媒体源继续通过外部代码型 Source Adapter 逐站点接入。
 所有项目官方真实插件实现统一放在 Sundarr Core 之外的 Git 仓库；Sundarr Core 只保存仓库地址、分支和锁定 commit，并从本地缓存中的已锁定 commit 受控加载。
 外部插件仓库使用通用 Plugin Manifest v2 声明一个或多个插件；迁移期兼容 flat v1 SOURCE 清单。SourceModel 继续作为 SOURCE 的最小运行时执行协议。
 官方 SOURCE 仓库为 `https://github.com/A0CBEB339CB02898/sundarr-sources.git`；它保留为敏感资源搜索仓库，只维护具体资源链接搜索 SOURCE，不迁入其他官方插件集合。
@@ -177,7 +174,7 @@ CloudProvider 是后续搬运驱动可能使用的连接能力或测试抽象，
 当前 SMB 同步状态机和 SmbWriter 是 Core 内置实现；未来可先实现 TRANSFER_DRIVER 协议的内置 SMB 驱动，再接入 qBittorrent 等外部驱动，但 BT/磁力仍不进入 MVP。
 Manifest 只声明静态身份、入口、协议版本、配置 schema 和 requires/provides，不保存 UI 分页、调度游标、任务状态或敏感配置值。
 Phase 11 AI Friendly API 完成后，可以提供可选的 Cordis / DeepSeek Harness 桥接插件；桥接插件只调用 Sundarr API，不直接访问数据库、SMB 或 Worker 内部对象。
-前端设计系统基线文档位于 docs/16-design-system.md，在 Phase 7.8 Web Console UI Polish 中落地。
+前端设计系统基线文档位于 docs/11-前端设计系统.md，在 Phase 7.8 Web Console UI Polish 中落地。
 前端视觉基调：暖色操作台风格，强调色为 terracotta（暗色 #d97642 / 亮色 #b05623），字体 Inter + JetBrains Mono，支持亮色 / 暗色 / 跟随系统三种主题。
 本地 CLI 启动时 PID 文件必须指向真实 API / Web / Worker 服务进程，不使用日志包装进程改变 PID 语义；Docker Compose 模式日志默认走 stdout/stderr，由 Docker logging driver 控制大小。
 搜索结果默认不写入 Resource / ResourceLink；只有用户主动收藏资源或收藏资源链接时才入库。
@@ -261,7 +258,7 @@ rclone 作为 MVP 核心传输层
 
 ## 6. 开发顺序
 
-Agent 应按 `docs/03-mvp-roadmap.md` 的 Phase 顺序推进。
+Agent 应按 `docs/03-开发路线图.md` 的 Phase 顺序推进。
 
 默认顺序：
 

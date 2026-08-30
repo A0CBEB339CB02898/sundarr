@@ -5,7 +5,7 @@ type CardProps = React.HTMLAttributes<HTMLDivElement> & {
 }
 
 /**
- * Card · docs/16-design-system.md §6.4
+ * Card · docs/11-前端设计系统.md §6.4
  * 新版容器：surface-1/2/sunken + hairline border + radius-lg。
  * 用 className 合并以兼容调用方自定义样式。
  */

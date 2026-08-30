@@ -9,7 +9,7 @@ type StateProps = {
 }
 
 /**
- * Loading / Empty / Error 三件套 · docs/16-design-system.md §6.13
+ * Loading / Empty / Error 三件套 · docs/11-前端设计系统.md §6.13
  * 三者共用同一布局，只在 tone 与默认 icon 上有差异。
  */
 function StateBlock({

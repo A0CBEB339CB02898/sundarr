@@ -161,8 +161,8 @@ Wordmark 写作 `Sundar·r`。中点用 terracotta，表达 Sunday 日轮和 Ser
 
 ## Source Documents
 
-- `docs/13-web-console-spec.md`
-- `docs/16-design-system.md`
+- `docs/10-网页控制台.md`
+- `docs/11-前端设计系统.md`
 - `docs/assets/brand/README.md`
 - `web/src/styles.css`
 - `web/src/ui/Brand.tsx`

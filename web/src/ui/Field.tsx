@@ -10,7 +10,7 @@ type FieldProps = {
 }
 
 /**
- * Field · docs/16-design-system.md §6.8
+ * Field · docs/11-前端设计系统.md §6.8
  * 包一层 label + input/select/textarea + helper/error。
  * 不强制 input 类型，调用方放 <input /> 或 <select /> 等即可。
  */

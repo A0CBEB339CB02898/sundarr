@@ -9,7 +9,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 }
 
 /**
- * Button · docs/16-design-system.md §6.5
+ * Button · docs/11-前端设计系统.md §6.5
  * variant: primary / secondary / ghost / danger
  * size:    sm / md (默认) / lg
  */

@@ -69,12 +69,12 @@ Phase 0-9.5：已完成。
 Phase 10.0：已完成，质量基线已恢复。
 Phase 10.1：已完成 Python Plugin Framework 第一次技术验收。
 Phase 10.2：已完成媒体发现 Core 与 Web Console 的结构性收口，没有建设面向用户的 Mock 数据链。
-Phase 10.3：当前优先；初始化 `sundarr-plugin` 通用 Manifest v2 官方仓库，保留 `sundarr-sources` 独立 SOURCE 仓库，逐个实现真实插件并用真实数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
+Phase 10.3：当前优先；`sundarr-plugin` 已初始化，`sundarr-sources` 保持独立 SOURCE 边界；按 TMDb、SeedHub、豆瓣目录、豆瓣想看的顺序交付并用真实数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
 Phase 11：AI Friendly API。
 Phase 12：Cloud Direct Download，非 MVP、非近期主线。
 ```
 
-通用 Manifest v2 多插件解析、目标 PluginType 和 flat v1 SOURCE 兼容已落地；v2 类型专用 Activation、Registry、健康检查、候选原子切换与启动恢复属于 Phase 10.1 待实现项。
+通用 Manifest v2 多插件解析、目标 PluginType、flat v1 SOURCE 兼容、类型专用 Activation/Registry、健康检查、候选原子切换与启动恢复均已落地；当前缺口是外部真实插件和真实数据回归。
 项目官方真实插件统一放在 Core 之外的 Git 仓库：`sundarr-sources` 只维护敏感资源搜索 SOURCE，`sundarr-plugin` 维护其他官方插件。Core 只保留宿主合同、运行时、业务编排、离线测试替身和契约测试，同时支持多个可信第三方仓库。
 
 媒体发现中心使用内部 UUID 的 `MediaSubject` 作为规范媒体身份，并可绑定多个外部平台 ID；不以任何单一目录平台 ID 作为主键。

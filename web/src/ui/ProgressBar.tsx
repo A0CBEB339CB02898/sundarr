@@ -10,7 +10,7 @@ type ProgressBarProps = {
 }
 
 /**
- * ProgressBar · docs/16-design-system.md §6.12
+ * ProgressBar · docs/11-前端设计系统.md §6.12
  * 轨道 6px，填充 --accent。indeterminate 时横向扫动。
  */
 export function ProgressBar({

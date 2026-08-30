@@ -9,7 +9,7 @@ type SkeletonProps = {
 }
 
 /**
- * Skeleton · docs/16-design-system.md §6.13
+ * Skeleton · docs/11-前端设计系统.md §6.13
  * 提供 width / height / radius 三个便捷 prop；否则靠外层控制尺寸。
  */
 export function Skeleton({ width, height, radius, className, style }: SkeletonProps) {

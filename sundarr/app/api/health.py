@@ -49,7 +49,7 @@ async def health() -> dict:
     # Each probe records its own `checked_at` timestamp so the web console
     # can show per-component freshness instead of a single wall-clock stamp.
     # Scalar fields (`status`, `database`, `redis`, `worker`) are retained
-    # for backward compatibility with docs/09-api-contract.md §2 and any
+    # for backward compatibility with docs/07-接口契约.md §2 and any
     # external monitors.
     api_checked_at = _utc_now_iso()
 

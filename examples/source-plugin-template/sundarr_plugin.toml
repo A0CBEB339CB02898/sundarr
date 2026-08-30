@@ -1,5 +1,5 @@
 # 插件清单示例
-# 参考：docs/20-plugin-manifest-spec.md
+# 参考：docs/15-插件清单.md
 
 id = "my-source"
 name = "我的搜索源"
