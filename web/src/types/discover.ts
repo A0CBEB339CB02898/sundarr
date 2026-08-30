@@ -7,6 +7,8 @@ export type CatalogProvider = {
   media_types: string[]
   filters: string[]
   sorts: string[]
+  operation_filters?: Record<string, string[]>
+  operation_sorts?: Record<string, string[]>
   filter_options: Record<string, CatalogFilterOption[]>
 }
 

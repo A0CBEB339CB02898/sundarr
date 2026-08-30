@@ -37,6 +37,18 @@ const emptyFilters: FilterState = {
   sort: '',
 }
 
+function filtersForOperation(provider: CatalogProvider | undefined, operation: string) {
+  return provider?.operation_filters && operation in provider.operation_filters
+    ? provider.operation_filters[operation]
+    : provider?.filters || []
+}
+
+function sortsForOperation(provider: CatalogProvider | undefined, operation: string) {
+  return provider?.operation_sorts && operation in provider.operation_sorts
+    ? provider.operation_sorts[operation]
+    : provider?.sorts || []
+}
+
 function filtersFromUrl(): FilterState {
   const params = new URLSearchParams(window.location.search)
   return {
@@ -66,6 +78,9 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
   const [locationVersion, setLocationVersion] = useState(0)
 
   const activeProvider = providers[0]
+  const activeOperation = filters.q.trim() ? 'search' : 'categories'
+  const availableFilters = filtersForOperation(activeProvider, activeOperation)
+  const availableSorts = sortsForOperation(activeProvider, activeOperation)
   const genreOptions = activeProvider?.filter_options.genre || []
   const regionOptions = activeProvider?.filter_options.region || []
   const hasCriteria = Object.values(filters).some(Boolean)
@@ -154,6 +169,21 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     setLocationVersion((value) => value + 1)
   }
 
+  function updateKeyword(value: string) {
+    const operation = value.trim() ? 'search' : 'categories'
+    const nextFilters = filtersForOperation(activeProvider, operation)
+    const nextSorts = sortsForOperation(activeProvider, operation)
+    setFilters({
+      ...filters,
+      q: value,
+      genre: nextFilters.includes('genre') ? filters.genre : '',
+      region: nextFilters.includes('region') ? filters.region : '',
+      year_from: nextFilters.includes('year') ? filters.year_from : '',
+      year_to: nextFilters.includes('year') ? filters.year_to : '',
+      sort: nextSorts.includes(filters.sort) ? filters.sort : '',
+    })
+  }
+
   function clearFilters() {
     setFilters(emptyFilters)
     window.history.pushState({}, '', '/app/discover')
@@ -216,13 +246,13 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
       ) : (
         <>
           <form className="dc-filters" onSubmit={submit}>
-            <label className="dc-search-field"><span>目录搜索</span><input value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} placeholder="输入电影或剧集名称" /></label>
-            <label><span>类型</span><select value={filters.media_type} onChange={(event) => setFilters({ ...filters, media_type: event.target.value })}><option value="">全部</option><option value="movie">电影</option><option value="series">剧集</option></select></label>
-            {genreOptions.length ? <label><span>题材</span><select value={filters.genre} onChange={(event) => setFilters({ ...filters, genre: event.target.value })}><option value="">全部</option>{genreOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label> : null}
-            {regionOptions.length ? <label><span>地区</span><select value={filters.region} onChange={(event) => setFilters({ ...filters, region: event.target.value })}><option value="">全部</option>{regionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label> : null}
-            <label><span>起始年份</span><input type="number" min="1" value={filters.year_from} onChange={(event) => setFilters({ ...filters, year_from: event.target.value })} /></label>
-            <label><span>结束年份</span><input type="number" min="1" value={filters.year_to} onChange={(event) => setFilters({ ...filters, year_to: event.target.value })} /></label>
-            <label><span>排序</span><select value={filters.sort} onChange={(event) => setFilters({ ...filters, sort: event.target.value })}><option value="">Provider 默认</option><option value="popularity">热度</option><option value="rating">评分</option><option value="release_date">上映时间</option></select></label>
+            <label className="dc-search-field"><span>目录搜索</span><input value={filters.q} onChange={(event) => updateKeyword(event.target.value)} placeholder="输入电影或剧集名称" /></label>
+            <label><span>类型</span><select value={filters.media_type} disabled={!availableFilters.includes('media_type')} onChange={(event) => setFilters({ ...filters, media_type: event.target.value })}><option value="">全部</option>{activeProvider?.media_types.includes('movie') !== false ? <option value="movie">电影</option> : null}{activeProvider?.media_types.includes('series') !== false ? <option value="series">剧集</option> : null}</select></label>
+            {genreOptions.length ? <label><span>题材{availableFilters.includes('genre') ? '' : '（当前操作不可用）'}</span><select value={filters.genre} disabled={!availableFilters.includes('genre')} onChange={(event) => setFilters({ ...filters, genre: event.target.value })}><option value="">全部</option>{genreOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label> : null}
+            {regionOptions.length ? <label><span>地区{availableFilters.includes('region') ? '' : '（当前操作不可用）'}</span><select value={filters.region} disabled={!availableFilters.includes('region')} onChange={(event) => setFilters({ ...filters, region: event.target.value })}><option value="">全部</option>{regionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label> : null}
+            <label><span>起始年份{availableFilters.includes('year') ? '' : '（当前操作不可用）'}</span><input type="number" min="1" disabled={!availableFilters.includes('year')} value={filters.year_from} onChange={(event) => setFilters({ ...filters, year_from: event.target.value })} /></label>
+            <label><span>结束年份{availableFilters.includes('year') ? '' : '（当前操作不可用）'}</span><input type="number" min="1" disabled={!availableFilters.includes('year')} value={filters.year_to} onChange={(event) => setFilters({ ...filters, year_to: event.target.value })} /></label>
+            <label><span>排序{availableSorts.length ? '' : '（当前操作不可用）'}</span><select value={filters.sort} disabled={!availableSorts.length} onChange={(event) => setFilters({ ...filters, sort: event.target.value })}><option value="">Provider 默认</option>{availableSorts.includes('popularity') ? <option value="popularity">热度</option> : null}{availableSorts.includes('rating') ? <option value="rating">评分</option> : null}{availableSorts.includes('release_date') ? <option value="release_date">上映时间</option> : null}</select></label>
             <div className="dc-filter-actions"><Button variant="primary" type="submit">应用</Button>{hasCriteria ? <Button variant="ghost" onClick={clearFilters}>清除</Button> : null}</div>
           </form>
 

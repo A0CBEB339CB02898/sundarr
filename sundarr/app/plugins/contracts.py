@@ -82,6 +82,12 @@ class CatalogCapabilities:
     )
     filters: frozenset[CatalogFilter] = field(default_factory=frozenset)
     sorts: frozenset[CatalogSort] = field(default_factory=frozenset)
+    operation_filters: Mapping[CatalogOperation, frozenset[CatalogFilter]] = field(
+        default_factory=dict
+    )
+    operation_sorts: Mapping[CatalogOperation, frozenset[CatalogSort]] = field(
+        default_factory=dict
+    )
     identity_namespaces: frozenset[str] = field(default_factory=frozenset)
     filter_options: Mapping[CatalogFilter, tuple[CatalogFilterOption, ...]] = field(
         default_factory=dict
@@ -92,6 +98,44 @@ class CatalogCapabilities:
         object.__setattr__(self, "media_types", frozenset(self.media_types))
         object.__setattr__(self, "filters", frozenset(self.filters))
         object.__setattr__(self, "sorts", frozenset(self.sorts))
+        normalized_operation_filters = {
+            operation: frozenset(filters)
+            for operation, filters in self.operation_filters.items()
+        }
+        normalized_operation_sorts = {
+            operation: frozenset(sorts)
+            for operation, sorts in self.operation_sorts.items()
+        }
+        if any(
+            operation not in self.operations
+            for operation in normalized_operation_filters
+        ):
+            raise ValueError("目录按操作筛选能力只能属于已声明支持的操作")
+        if any(
+            operation not in self.operations
+            for operation in normalized_operation_sorts
+        ):
+            raise ValueError("目录按操作排序能力只能属于已声明支持的操作")
+        if any(
+            not filters.issubset(self.filters)
+            for filters in normalized_operation_filters.values()
+        ):
+            raise ValueError("目录按操作筛选能力必须属于全局筛选能力并集")
+        if any(
+            not sorts.issubset(self.sorts)
+            for sorts in normalized_operation_sorts.values()
+        ):
+            raise ValueError("目录按操作排序能力必须属于全局排序能力并集")
+        object.__setattr__(
+            self,
+            "operation_filters",
+            MappingProxyType(normalized_operation_filters),
+        )
+        object.__setattr__(
+            self,
+            "operation_sorts",
+            MappingProxyType(normalized_operation_sorts),
+        )
         normalized_namespaces = frozenset(
             namespace.strip() for namespace in self.identity_namespaces if namespace.strip()
         )
@@ -107,6 +151,16 @@ class CatalogCapabilities:
         object.__setattr__(self, "filter_options", MappingProxyType(normalized_options))
         if not self.operations:
             raise ValueError("目录 Provider 至少需要支持一个操作")
+
+    def filters_for(self, operation: CatalogOperation) -> frozenset[CatalogFilter]:
+        """返回某操作的实际筛选能力；缺少声明时兼容旧 Provider。"""
+
+        return self.operation_filters.get(operation, self.filters)
+
+    def sorts_for(self, operation: CatalogOperation) -> frozenset[CatalogSort]:
+        """返回某操作的实际排序能力；缺少声明时兼容旧 Provider。"""
+
+        return self.operation_sorts.get(operation, self.sorts)
 
 
 @dataclass(frozen=True)

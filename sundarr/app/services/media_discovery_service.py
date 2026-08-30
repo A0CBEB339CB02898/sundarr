@@ -58,6 +58,14 @@ class MediaDiscoveryService:
                     media_types=sorted(item.value for item in capabilities.media_types),
                     filters=sorted(item.value for item in capabilities.filters),
                     sorts=sorted(item.value for item in capabilities.sorts),
+                    operation_filters={
+                        operation.value: sorted(item.value for item in filters)
+                        for operation, filters in capabilities.operation_filters.items()
+                    },
+                    operation_sorts={
+                        operation.value: sorted(item.value for item in sorts)
+                        for operation, sorts in capabilities.operation_sorts.items()
+                    },
                     filter_options={
                         key.value: [
                             {"value": option.value, "label": option.label}
@@ -420,13 +428,13 @@ class MediaDiscoveryService:
             requested_filters.append("region")
         if query.year_from is not None or query.year_to is not None:
             requested_filters.append("year")
-        supported_filters = {item.value for item in capabilities.filters}
+        supported_filters = {item.value for item in capabilities.filters_for(operation)}
         unsupported = [item for item in requested_filters if item not in supported_filters]
         if unsupported:
             raise CatalogQueryUnsupportedError(
                 f"目录 Provider 不支持筛选：{'、'.join(unsupported)}"
             )
-        if query.sort is not None and query.sort not in capabilities.sorts:
+        if query.sort is not None and query.sort not in capabilities.sorts_for(operation):
             raise CatalogQueryUnsupportedError(f"目录 Provider 不支持排序：{query.sort.value}")
 
     async def _call_provider(

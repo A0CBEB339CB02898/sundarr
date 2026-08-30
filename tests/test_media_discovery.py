@@ -49,6 +49,18 @@ class ContractCatalogProvider:
             operations=frozenset(CatalogOperation),
             filters=frozenset(CatalogFilter),
             sorts=frozenset(CatalogSort),
+            operation_filters={
+                CatalogOperation.SEARCH: frozenset(
+                    {CatalogFilter.MEDIA_TYPE, CatalogFilter.GENRE, CatalogFilter.YEAR}
+                ),
+                CatalogOperation.TRENDING: frozenset({CatalogFilter.MEDIA_TYPE}),
+                CatalogOperation.CATEGORIES: frozenset(CatalogFilter),
+            },
+            operation_sorts={
+                CatalogOperation.SEARCH: frozenset(),
+                CatalogOperation.TRENDING: frozenset(),
+                CatalogOperation.CATEGORIES: frozenset(CatalogSort),
+            },
             identity_namespaces=frozenset({"tmdb.movie"}),
             filter_options={
                 CatalogFilter.GENRE: (CatalogFilterOption("878", "科幻"),),
@@ -148,6 +160,8 @@ def test_discover_search_detail_and_follow_use_public_contract(db_session: Sessi
     assert providers.status_code == 200
     assert providers.json()[0]["identity_namespaces"] == ["tmdb.movie"]
     assert providers.json()[0]["filter_options"]["genre"] == [{"value": "878", "label": "科幻"}]
+    assert providers.json()[0]["operation_filters"]["search"] == ["genre", "media_type", "year"]
+    assert providers.json()[0]["operation_sorts"]["search"] == []
 
     response = client.get("/discover/search", params={"q": "黑客帝国", "refresh": "true"})
 
@@ -188,6 +202,23 @@ def test_discover_rejects_multiple_genres_and_missing_provider(db_session: Sessi
     invalid = client.get("/discover/search?q=test&genre=科幻&genre=动作")
     assert invalid.status_code == 422
     assert "最多接受一个题材" in invalid.json()["detail"]
+
+
+def test_discover_validates_filters_and_sorts_for_each_operation(db_session: Session) -> None:
+    catalog_provider_registry.register("contract-catalog", ContractCatalogProvider())
+    client = make_client(db_session)
+
+    unsupported_region = client.get("/discover/search?q=test&region=US")
+    unsupported_sort = client.get("/discover/search?q=test&sort=rating")
+    supported_categories = client.get(
+        "/discover/categories?region=US&sort=rating&refresh=true"
+    )
+
+    assert unsupported_region.status_code == 422
+    assert "不支持筛选：region" in unsupported_region.json()["detail"]
+    assert unsupported_sort.status_code == 422
+    assert "不支持排序：rating" in unsupported_sort.json()["detail"]
+    assert supported_categories.status_code == 200
 
 
 def test_external_ids_merge_exactly_and_conflicts_are_rejected(db_session: Session) -> None:

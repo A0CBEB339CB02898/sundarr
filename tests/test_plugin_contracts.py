@@ -164,6 +164,36 @@ async def test_catalog_query_enforces_confirmed_mvp_boundaries() -> None:
         CatalogQuery(limit=0)
 
 
+async def test_catalog_capabilities_support_operation_specific_subsets() -> None:
+    capabilities = CatalogCapabilities(
+        operations=frozenset({CatalogOperation.SEARCH, CatalogOperation.CATEGORIES}),
+        filters=frozenset({CatalogFilter.MEDIA_TYPE, CatalogFilter.REGION}),
+        sorts=frozenset({CatalogSort.POPULARITY}),
+        operation_filters={CatalogOperation.SEARCH: frozenset()},
+        operation_sorts={CatalogOperation.SEARCH: frozenset()},
+    )
+
+    assert capabilities.filters_for(CatalogOperation.SEARCH) == frozenset()
+    assert capabilities.filters_for(CatalogOperation.CATEGORIES) == capabilities.filters
+    assert capabilities.sorts_for(CatalogOperation.SEARCH) == frozenset()
+    assert capabilities.sorts_for(CatalogOperation.CATEGORIES) == capabilities.sorts
+
+    with pytest.raises(ValueError, match="已声明支持的操作"):
+        CatalogCapabilities(
+            operations=frozenset({CatalogOperation.SEARCH}),
+            operation_filters={
+                CatalogOperation.CATEGORIES: frozenset({CatalogFilter.REGION})
+            },
+        )
+    with pytest.raises(ValueError, match="全局筛选能力并集"):
+        CatalogCapabilities(
+            operations=frozenset({CatalogOperation.SEARCH}),
+            operation_filters={
+                CatalogOperation.SEARCH: frozenset({CatalogFilter.REGION})
+            },
+        )
+
+
 async def test_type_specific_registries_reject_wrong_contract_and_id() -> None:
     source = _source("source-a")
     catalog = FakeCatalogProvider("catalog-a")

@@ -17,6 +17,8 @@ class CatalogProviderResponse(BaseModel):
     media_types: list[str]
     filters: list[str]
     sorts: list[str]
+    operation_filters: dict[str, list[str]] = Field(default_factory=dict)
+    operation_sorts: dict[str, list[str]] = Field(default_factory=dict)
     filter_options: dict[str, list[CatalogFilterOptionResponse]] = Field(default_factory=dict)
 
 
