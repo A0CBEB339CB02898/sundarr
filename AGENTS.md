@@ -133,7 +133,7 @@ Web Console 中配置类页面默认先展示列表，通过新增按钮打开�
 TMDb 目录和豆瓣目录均以 CATALOG_PROVIDER 插件接入；豆瓣想看以独立 WATCHLIST_PROVIDER 插件接入，由 Core 负责定时调度和持久游标。
 同一外部仓库可以交付多个插件实例；douban-catalog 与 douban-watchlist 必须能够独立配置、启停、测试和报错。
 SOURCE 只表示具体资源链接搜索源，不表示影片目录或想看列表。
-自动化测试使用 MockCatalogProvider，不依赖 TMDb、豆瓣或其他实时外部服务。
+不建设面向用户或作为阶段交付物的 MockCatalogProvider 数据链；媒体发现的人工验收和插件集成验收必须使用真实 Provider 数据。默认自动化测试仍使用离线可重复的测试替身与 fixture，不依赖 TMDb、豆瓣或其他实时外部服务；实时访问通过显式集成测试执行。
 媒体发现数据采用“核心身份与最小展示快照持久化，易变目录详情缓存”的 A+ 策略。
 PostgreSQL 永久保存 MediaSubject UUID、媒体类型、规范标题、年份、外部 ID、最后可用海报地址、来源与更新时间，以及用户关注/想看等状态；Redis 缓存简介、演员、类型、各平台评分、完整图片信息、搜索、热门、分类和插件原始响应。
 Redis 缓存丢失不得导致媒体身份或用户状态丢失；目录 Provider 失败时优先返回 PostgreSQL 中的最小展示快照并明确标记降级。MVP 不下载或永久保存海报二进制文件，不把目录原始响应作为业务事实写入 PostgreSQL。
@@ -151,7 +151,7 @@ Web Console 使用统一 `/app/discover` 媒体发现模块承载目录搜索、
 外部插件仓库使用通用 Plugin Manifest v2 声明一个或多个插件；迁移期兼容 flat v1 SOURCE 清单。SourceModel 继续作为 SOURCE 的最小运行时执行协议。
 当前官方外部仓库及迁移起点为 `https://github.com/A0CBEB339CB02898/sundarr-sources.git`，默认分支 `master`；该仓库当前仍是历史 SOURCE-only 布局，后续迁移为通用 Manifest v2 官方插件仓库。是否改名为更通用的仓库名称尚未确认，不得擅自创建、重命名或推送。
 “官方插件统一外置”不禁止用户加载其他可信第三方仓库；PluginRepository 必须继续支持多个仓库。
-Core 仓库必须保留插件公共协议、SDK 类型、Manifest/Loader、Activation、Registry、配置与诊断 API，以及不访问真实外部服务的测试夹具和 Mock；不得把这些宿主能力误移到外部插件仓库。
+Core 仓库必须保留插件公共协议、SDK 类型、Manifest/Loader、Activation、Registry、配置与诊断 API，以及不访问真实外部服务的测试夹具和离线测试替身；不得把这些宿主能力误移到外部插件仓库。
 TMDb、豆瓣、SeedHub 等平台专用实现、配置 schema、解析 fixture 和实时集成测试属于官方外部插件仓库，不得回写 Core。
 Web Console 不上传、不编辑、不保存可执行 Python 代码，只负责插件仓库配置、检查更新、应用更新、回滚、测试和诊断。
 Web Console 只管理已安装 Adapter 的启用、禁用、参数、测试和错误查看，不在线编辑代码型 Source Adapter。
@@ -164,7 +164,7 @@ Web Console 是核心控制台，不做完整本地媒体库 UI。
 同步绑定连接：远程媒体库（来源） -> 本地媒体库（目标）。
 Phase 9 模块重构已完成：已删除 Ingest 模块和旧 storage_config_service，新增远程媒体库模型并统一同步绑定。
 Phase 9.5 收藏模型重构已完成：搜索默认不入库，资源和资源链接仅在用户主动收藏时持久化。
-Phase 10.0 质量基线收口已完成；当前优先任务调整为 Phase 10.1 通用插件框架收口。框架通过初步验收后，Phase 10.2 再实现媒体发现 Core 与 Mock 垂直切片，Phase 10.3 在官方外部仓库逐个实现并验收真实插件。
+Phase 10.0 质量基线收口和 Phase 10.1 通用插件宿主已完成。当前优先任务是 Phase 10.2 媒体发现 Core 通用消费框架收口；完成数据、编排、API、Web Console 和契约测试工具后进入 Phase 10.3。Phase 10.3 在官方外部仓库开发真实插件，并用真实数据持续回归 Core；首个 TMDb 端到端通过并修正暴露的合同问题后冻结 Plugin API v2，再集中扩展其他插件。
 通用 Manifest v2 多插件解析、目标 PluginType、flat v1 SOURCE 兼容、三类 MVP 公共运行协议、类型专用 Runtime Registry、仓库级候选原子切换、Manager/API 接入、API/Worker 启动恢复、配置与日志脱敏已实现；旧 flat v1 加载入口必须继续明确拒绝直接执行 v2。
 Sundarr Core 继续使用 Python + FastAPI，不引入 Cordis 或 Node.js 作为后端运行时。
 Python 插件系统采用 Cordis 启发的生命周期语义：显式能力依赖、Activation、可逆清理、候选加载、健康检查、原子切换和失败回滚。

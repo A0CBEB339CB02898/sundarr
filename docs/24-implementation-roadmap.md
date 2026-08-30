@@ -1,6 +1,6 @@
 # Sundarr 当前实施路线
 
-本文档把 `docs/03-mvp-roadmap.md` 的阶段计划转换为当前可执行交付顺序。更新时间：2026-08-28。
+本文档把 `docs/03-mvp-roadmap.md` 的阶段计划转换为当前可执行交付顺序。更新时间：2026-08-30。
 
 ---
 
@@ -9,8 +9,8 @@
 ```text
 保持 Python + FastAPI Core，不切换到 Cordis / Node.js 后端。
 可信质量基线已经恢复。
-当前先完成通用插件框架，再做媒体发现 Core，最后在独立官方仓库逐个交付真实插件。
-先自动化和本地替身验收，再执行真实 SMB / 真实站点手动验收。
+通用插件宿主已完成初步验收；当前先收口媒体发现 Core，再在独立官方仓库逐个交付真实插件。
+自动化和离线测试替身负责稳定回归；真实插件数据负责生产可用验收，二者缺一不可。
 Phase 11 API 稳定后才开发可选 Cordis / DeepSeek Harness 桥接。
 Cloud Direct Download、Alist 和真实网盘 Provider 不属于 MVP 或近期主线。
 ```
@@ -76,7 +76,7 @@ pytest、插件 API 和 Worker 冒烟通过。
 
 ---
 
-## 里程碑 C：Phase 10.2 媒体发现 Core 与 Mock 垂直切片
+## 里程碑 C：Phase 10.2 媒体发现 Core 通用消费框架
 
 状态：B 验收后执行；产品边界已确认，尚未实现。
 
@@ -85,7 +85,7 @@ pytest、插件 API 和 Worker 冒烟通过。
 ```text
 C1 实现 MediaSubject、外部 ID、最小快照和关注状态数据模型。
 C2 实现 CATALOG_PROVIDER / WATCHLIST_PROVIDER Core 查询和同步服务。
-C3 使用测试 Mock 覆盖搜索、热门、分类、详情、想看和降级，不发布生产 Mock 插件。
+C3 使用离线测试替身和 fixture 覆盖搜索、热门、分类、详情、想看和降级，不建设面向用户的数据替身链路。
 C4 实现 `/app/discover` API、详情 API 和基础筛选。
 C5 实现 Web Console 内容流、海报网格、详情和资源搜索跳转。
 C6 验证 PostgreSQL/Redis 分层、Provider 失败隔离和 URL 状态恢复。
@@ -94,15 +94,15 @@ C6 验证 PostgreSQL/Redis 分层、Provider 失败隔离和 URL 状态恢复。
 验收门：
 
 ```text
-不连接真实 TMDb 或豆瓣即可完成发现中心产品垂直切片验收。
-Mock 不进入生产插件目录或官方外部仓库发布物。
+Core 数据、编排、API、Web Console 和契约测试可以完成结构验收，但不得据此宣称真实目录链路已经可用或冻结 Plugin API v2。
+Core 不包含平台专用实现；离线测试替身不进入生产插件目录或官方外部仓库发布物。
 缓存清空不丢失媒体身份和用户状态。
 前后端回归、构建和页面冒烟通过。
 ```
 
 ---
 
-## 里程碑 D：Phase 10.3 官方外部插件仓库与真实插件
+## 里程碑 D：Phase 10.3 官方外部插件与真实数据 Core 回归
 
 状态：B/C 完成后执行。
 
@@ -116,6 +116,8 @@ D4 实现豆瓣 CATALOG_PROVIDER 作为可选补充。
 D5 实现豆瓣 WATCHLIST_PROVIDER，并由 Core 调度持久游标。
 D6 每个真实插件独立配置、启停、fixture、健康检查、错误和显式实时验收。
 D7 Web Console 增加多仓库管理、检查更新、应用、回滚和诊断。
+D8 每次真实插件新增或修改都回归 Provider 合同、Core 规范化、缓存、API 和受影响的 Web Console 主路径。
+D9 首个 TMDb 端到端通过后修正通用合同缺陷并冻结 Plugin API v2；随后开发力量主要转向插件仓库。
 ```
 
 验收门：
@@ -125,6 +127,7 @@ Core 仓库不包含 TMDb、豆瓣、SeedHub 平台实现或平台 fixture。
 官方仓库可从锁定 commit 加载全部已启用插件。
 每个插件失败不阻断其他插件，仓库更新失败保留旧版本。
 TMDb 支持发现中心真实主目录，SeedHub 支持资源搜索，豆瓣能力可独立降级。
+Plugin API v2 只在真实 TMDb 搜索、热门、分类、详情和海报墙端到端验收通过后冻结。
 系统继续允许添加其他可信第三方插件仓库。
 ```
 

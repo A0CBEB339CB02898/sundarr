@@ -584,7 +584,7 @@ TMDb 是媒体发现中心 MVP 的主目录数据提供方，以 CATALOG_PROVIDE
 WATCHLIST_PROVIDER 的定时调度、同步游标、重试和持久状态由 Core 管理，插件不自行维护永久后台循环。
 SOURCE 只负责搜索具体资源链接，不承担影片目录或想看列表职责。
 豆瓣目录或想看接入不可用时，不得阻断 TMDb 目录浏览、用户搜索或其他发现入口。
-自动化测试使用 MockCatalogProvider，不实时调用 TMDb、豆瓣或其他外部服务。
+不建设面向用户或作为阶段交付物的 MockCatalogProvider 数据链。默认自动化测试使用离线可重复的测试替身与 fixture，不实时调用 TMDb、豆瓣或其他外部服务；媒体发现人工验收和插件显式集成测试必须使用真实 Provider 数据。
 ```
 
 边界和约束：
@@ -765,15 +765,15 @@ Manifest 只保存静态身份、入口、协议版本、配置 schema 和能力
 
 ```text
 Phase 10.1 当前优先完成通用插件框架，不再由媒体发现功能反向驱动一个不完整的临时运行时。
-框架初步验收后，Phase 10.2 使用 Core 测试 Mock 完成媒体发现 Core 垂直切片。
-Phase 10.3 才在官方外部插件仓库逐个实现和验收 TMDb、豆瓣目录、豆瓣想看、SeedHub 等真实插件。
+框架初步验收后，Phase 10.2 先完成媒体发现 Core 的通用数据、编排、API、Web Console 和契约测试工具，不内置平台实现，也不以 Mock 数据链作为产品验收结果。
+Phase 10.3 在官方外部插件仓库逐个实现 TMDb、豆瓣目录、豆瓣想看、SeedHub 等真实插件。插件开发期间必须以真实数据持续回归 Core；首个 TMDb 端到端通过并修正合同问题后冻结 Plugin API v2，再集中扩展其他插件。
 Sundarr Core 不保存任何项目官方真实平台插件实现、平台配置 schema 或站点解析 fixture。
 ```
 
 仓库边界：
 
 ```text
-Core 仓库：公共协议和 SDK 类型、Manifest、Loader、Activation、Registry、配置/诊断 API、契约测试和不访问真实服务的 Mock。
+Core 仓库：公共协议和 SDK 类型、Manifest、Loader、Activation、Registry、配置/诊断 API、契约测试和不访问真实服务的离线测试替身。
 官方插件仓库：真实插件入口、平台客户端、平台配置 schema、解析 fixture、离线测试和显式实时集成测试。
 当前官方仓库迁移起点：https://github.com/A0CBEB339CB02898/sundarr-sources.git，默认分支 master。
 该仓库当前仍是 flat v1 SOURCE-only 历史布局；迁移为通用 v2 前不能宣称已承载目录或想看插件。
@@ -786,7 +786,7 @@ Core 仓库：公共协议和 SDK 类型、Manifest、Loader、Activation、Regi
 “统一外置”指项目官方插件集中维护，不是强制所有第三方插件进入唯一仓库。
 Core 必须支持配置多个可信 PluginRepository。
 外部插件仓库依赖 Core 发布的稳定插件协议，但不得导入 ORM、服务层或 Worker 私有实现。
-框架初步验收不得依赖真实 TMDb、豆瓣、SeedHub、GitHub 或 NAS；使用本地 fixture 仓库和 Mock 运行协议。
+框架初步结构验收不得依赖真实 TMDb、豆瓣、SeedHub、GitHub 或 NAS；使用本地 fixture 仓库和离线测试替身验证运行协议。该结果不等于生产可用验收，Plugin API v2 必须等待真实 TMDb 端到端回归后才能冻结。
 官方仓库的写入、重命名、迁移和 push 属于独立外部变更，需要用户明确授权。
 ```
 

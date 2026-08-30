@@ -153,9 +153,9 @@ TransferTask 状态和数据库事实
 
 ### 4.1 仓库边界
 
-项目官方维护的真实插件统一放在独立 Git 仓库，不进入 Sundarr Core。Core 仍必须保留插件合同、SDK 类型、Manifest/Loader、Activation/Registry、配置和诊断接口、业务编排、测试 Mock 与契约 fixture，因为这些属于宿主能力，不能外置。
+项目官方维护的真实插件统一放在独立 Git 仓库，不进入 Sundarr Core。Core 仍必须保留插件合同、SDK 类型、Manifest/Loader、Activation/Registry、配置和诊断接口、业务编排、离线测试替身与契约 fixture，因为这些属于宿主能力，不能外置。离线测试替身不构成面向用户的数据链或阶段验收结果。
 
-当前官方仓库迁移起点是 `https://github.com/A0CBEB339CB02898/sundarr-sources.git` 的 `master` 分支。该仓库目前仍是 SOURCE-only / flat v1 历史结构；Phase 10.3 才迁移为通用 Manifest v2 官方插件仓库。是否改名尚未确认。
+当前官方仓库迁移起点是 `https://github.com/A0CBEB339CB02898/sundarr-sources.git` 的 `master` 分支。该仓库目前仍是 SOURCE-only / flat v1 历史结构；Phase 10.3 迁移为通用 Manifest v2 官方插件仓库。是否改名尚未确认。
 
 “官方插件统一外置”不限制用户只配置一个仓库。Core 必须支持多个可信仓库及第三方实现；同一官方仓库内的插件共享锁定 commit 和仓库级原子更新边界，但配置、启停、健康状态和错误仍按 `plugin_id` 独立保存。
 
@@ -225,7 +225,7 @@ Web Console 没有仓库管理页面。
 真实 TMDb、豆瓣、SeedHub 等平台插件尚未迁移到官方 Manifest v2 仓库。
 ```
 
-Phase 10.1 已完成当前 MVP 类型共用的 v2 加载、类型专用 Registry、健康检查、候选原子切换、失败回滚和启动恢复。Phase 10.2 使用 Core 测试 Mock 完成媒体发现垂直切片；Phase 10.3 才在官方外部仓库逐个实现和验收 TMDb、SeedHub、豆瓣目录和豆瓣想看等真实插件。
+Phase 10.1 已完成当前 MVP 类型共用的 v2 加载、类型专用 Registry、健康检查、候选原子切换、失败回滚和启动恢复。Phase 10.2 完成媒体发现 Core 通用消费框架，不建设面向用户的 Mock 数据链。Phase 10.3 在官方外部仓库逐个实现 TMDb、SeedHub、豆瓣目录和豆瓣想看等真实插件，并用真实数据持续回归 Core；首个 TMDb 端到端通过并修正通用合同问题后冻结 Plugin API v2。
 
 ---
 

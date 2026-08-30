@@ -9,7 +9,7 @@
 Sundarr Core 与真实平台插件代码分离：
 
 ```text
-Sundarr Core 保留稳定插件合同、SDK 类型、加载和 Activation Runtime、业务编排、测试 Mock 与 Web Console。
+Sundarr Core 保留稳定插件合同、SDK 类型、加载和 Activation Runtime、业务编排、离线测试替身、契约测试与 Web Console。
 项目官方维护的真实 SOURCE、CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 实现集中放在一个独立 Git 仓库中。
 Sundarr 只保存插件仓库地址、分支和锁定 commit。
 系统从本地缓存中的已锁定 commit 加载插件，不默认执行远程最新代码。
@@ -60,7 +60,7 @@ douban-catalog    -> PluginType.CATALOG_PROVIDER
 douban-watchlist  -> PluginType.WATCHLIST_PROVIDER
 ```
 
-两个实例必须具有独立配置、启用状态、健康检查和错误状态。每个实例保留一个主 `PluginType`，`provides` 用于声明该类型下的细粒度能力。Phase 10.1 先完成通用仓库、类型专用 Registry 与 Activation 基础设施；Phase 10.2 使用 Core 测试 Mock 验证目录和想看协议；Phase 10.3 才在官方外部仓库接入真实平台。
+两个实例必须具有独立配置、启用状态、健康检查和错误状态。每个实例保留一个主 `PluginType`，`provides` 用于声明该类型下的细粒度能力。Phase 10.1 已完成通用仓库、类型专用 Registry 与 Activation 基础设施；Phase 10.2 完成 Core 通用消费框架；Phase 10.3 在官方外部仓库接入真实平台，并用真实数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
 
 外部仓库接入不直接扩展当前 `SourceModel` 承载所有信息。持久声明、加载结果、运行 Activation 和执行协议分层：
 
@@ -188,7 +188,7 @@ SearchService 可以在内置源和外部源之间保持统一管线。
 边界必须保持：
 
 ```text
-Sundarr Core 仓库：协议、SDK、Loader、Activation、Registry、配置/诊断 API、业务编排、Mock 和契约测试。
+Sundarr Core 仓库：协议、SDK、Loader、Activation、Registry、配置/诊断 API、业务编排、离线测试替身和契约测试。
 官方插件仓库：TMDb、豆瓣、SeedHub 等真实平台实现、平台映射、离线 fixture 和插件级测试。
 第三方仓库：使用相同 Manifest v2 和合同接入；Core 不假设系统只有一个仓库。
 ```
@@ -502,7 +502,7 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
 
 ## 9. 当前交付状态
 
-截至 2026-08-28：
+截至 2026-08-30：
 
 ```text
 已实现通用插件框架：
@@ -516,17 +516,15 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
   目标 PluginType、通用 Manifest v2 多插件解析和 flat v1 SOURCE 兼容
   manifest_version、plugin_api_version、旧类型、重复 id、entry 和 requires/provides 校验
   tests/test_plugin_manifest.py
-
-已完成：
   Phase 10.0 默认测试、迁移链、SMB 错误码和 Windows PID 质量收口
-
-待实现：
   CATALOG_PROVIDER / WATCHLIST_PROVIDER 最小执行契约
   仓库内多个 v2 候选的统一编排和版本一致性校验
   Phase 10.1 仓库级候选切换、原子切换和启动恢复闭环
   启动自动加载 enabled 仓库的 locked current_commit
-  多插件、多仓库的所有 API 路径兼容
-  Phase 10.2 Core Mock 垂直切片验收
-  Phase 10.3 将现有官方仓库迁移到通用 v2，并逐个交付真实插件
+  多插件、多仓库的 Manager/API 路径兼容
+
+待实现：
+  Phase 10.2 Core 通用消费框架验收
+  Phase 10.3 将现有官方仓库迁移到通用 v2，逐个交付真实插件并持续执行真实数据 Core 回归
   Web Console 插件管理页面
 ```

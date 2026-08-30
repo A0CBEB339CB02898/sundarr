@@ -125,8 +125,10 @@ CatalogQuery 的单题材、单地区、年份范围、limit 和不透明游标�
 每个真实网站 Adapter 必须有 fixture 测试。
 默认自动化测试不依赖实时外部网站。
 实时网站访问作为手动集成验收或显式集成测试，不纳入默认 pytest。
-媒体发现中心使用 MockCatalogProvider 覆盖搜索、筛选、热门、分类、详情和海报字段。
+不建设面向用户或阶段演示的 MockCatalogProvider 数据链；Core 单元与契约测试可使用离线测试替身和固定 fixture 覆盖搜索、筛选、热门、分类、详情和海报字段。
 默认 pytest 不调用 TMDb、豆瓣或其他实时目录服务。
+每个真实插件新增或修改后必须执行显式实时集成测试，使用真实响应回归 Provider 合同、Core 规范化、缓存降级、API 和受影响的 Web Console 主路径。
+首个 TMDb 插件必须完成搜索、热门、分类、详情和海报墙端到端真实数据验收，验收前不得冻结 Plugin API v2。
 同一仓库中的 douban-catalog 与 douban-watchlist 必须分别测试启用、禁用、失败和配置错误。
 同仓库任一必须启用声明候选失败时 current_commit 不切换，旧 Activation 保持可用。
 豆瓣补充失败时 TMDb 主目录仍可返回；想看同步失败时不得影响目录查询。

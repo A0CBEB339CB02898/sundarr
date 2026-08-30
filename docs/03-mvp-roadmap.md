@@ -25,7 +25,7 @@ MVP 的目标是先跑通端到端闭环：
 ```text
 先后端闭环，后前端完善。
 CloudProvider 保留为可选扩展，近期不做真实网盘直接下载。
-Phase 10.1 通用插件框架已达到第一次技术验收门；下一实现阶段是 Phase 10.2 媒体发现 Core，官方外部真实插件仍在 Phase 10.3。
+Phase 10.1 通用插件框架已达到第一次技术验收门；下一实现阶段是 Phase 10.2 媒体发现 Core 通用消费框架。Phase 10.3 开发官方外部真实插件，并以真实数据持续回归和修正 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
 真实挂载目录下载到本地通过手动集成验收验证。
 先规则和用户确认，后模型辅助。
 先核心控制台，后媒体发现中心；不建设完整本地媒体库 UI。
@@ -57,8 +57,8 @@ Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一�
 Phase 9.5 Resource Favorites Refactoring: 已完成；Resource / ResourceLink 已收缩为收藏模型，搜索默认不入库，Web Console 使用单一收藏入口。
 Phase 10.0 Quality Baseline Closure: 已完成；质量基线由 Phase 10.1 验收继续覆盖。
 Phase 10.1 Plugin Framework Completion: 已完成第一次技术验收范围；Manifest v2、类型合同、仓库级原子 Activation、进程恢复、多仓库管理、脱敏和本地 fixture 闭环已实现。
-Phase 10.2 Media Discovery Core And Mock Acceptance: 插件框架初步验收后执行，使用 Core 测试 Mock 完成媒体发现数据、API 和 Web Console 垂直切片。
-Phase 10.3 Official External Plugins: 在独立官方仓库迁移到 Manifest v2 后，逐个实现和验收 TMDb、SeedHub、豆瓣目录与豆瓣想看插件。
+Phase 10.2 Media Discovery Core Completion: 插件框架初步验收后执行，完成媒体发现数据、通用编排、API、Web Console 和契约测试工具，不建设面向用户的 Mock 数据链。
+Phase 10.3 Official External Plugins And Live Core Regression: 在独立官方仓库迁移到 Manifest v2 后逐个实现真实插件；开发过程中使用真实数据持续回归 Core，首个 TMDb 垂直切片通过后冻结 Plugin API v2。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
 Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档，后续单独实现。
 媒体发现中心：已纳入当前 MVP，但在插件框架初步验收后实施；不包括本地媒体库海报墙、播放或观影进度。
@@ -1324,7 +1324,7 @@ pytest 与插件 API/Worker 冒烟通过，工作区已提交。
 
 此处允许暂停做第一次技术验收；不要求真实 TMDb、豆瓣、SeedHub 或媒体发现 UI。
 
-### Phase 10.2: Media Discovery Core And Mock Acceptance
+### Phase 10.2: Media Discovery Core Completion
 
 状态：Phase 10.1 初步验收后执行；产品边界已收口，数据/API 和实现尚未完成。
 
@@ -1333,7 +1333,7 @@ pytest 与插件 API/Worker 冒烟通过，工作区已提交。
 ```text
 MediaSubject、外部 ID、最小展示快照和用户关注状态。
 CATALOG_PROVIDER / WATCHLIST_PROVIDER Core 方法合同和能力描述。
-使用 Core 测试 Mock 的搜索、热门、分类、详情和想看同步。
+搜索、热门、分类、详情和想看同步的通用业务编排与离线契约测试。
 /app/discover、详情路由、基础筛选、海报墙和资源搜索跳转。
 PostgreSQL 最小事实与 Redis 易变缓存降级。
 ```
@@ -1341,15 +1341,25 @@ PostgreSQL 最小事实与 Redis 易变缓存降级。
 边界：
 
 ```text
-Mock 只属于 Core 自动化测试和开发验收，不作为生产插件发布。
+不建设面向用户、演示或阶段验收使用的 Mock 数据链；默认自动化测试保留离线可重复的测试替身和 fixture。
 不在 Core 实现 TMDb、豆瓣或其他真实平台客户端。
 不做本地媒体库海报墙、播放器、观影进度或完整本地媒体管理。
 分页交互不进入 Manifest，Core Provider 协议使用不透明 continuation token。
 ```
 
-### Phase 10.3: Official External Plugins
+验收标准：
 
-状态：Phase 10.1 框架与 Phase 10.2 媒体发现 Core 验收后执行。
+```text
+未知平台的合规 CATALOG_PROVIDER / WATCHLIST_PROVIDER 可以仅通过公共合同接入 Core。
+MediaSubject、外部 ID、最小快照、缓存降级和想看游标具备持久化与恢复能力。
+Discover API 和 /app/discover 不包含 TMDb、豆瓣等平台专用分支。
+契约测试、pytest、前端构建和相关冒烟测试通过。
+不以伪造目录内容或硬编码海报数据宣称 Core 可用。
+```
+
+### Phase 10.3: Official External Plugins And Live Core Regression
+
+状态：Phase 10.1 框架与 Phase 10.2 媒体发现 Core 验收后执行。插件实现期间允许并要求修正真实数据暴露出的 Core 合同缺陷；这不表示平台代码可以进入 Core。
 
 交付物：
 
@@ -1358,6 +1368,9 @@ Mock 只属于 Core 自动化测试和开发验收，不作为生产插件发布
 官方真实插件只在该独立仓库实现，Core 不复制平台代码或 fixture。
 按顺序交付：TMDb CATALOG_PROVIDER -> SeedHub SOURCE -> 豆瓣 CATALOG_PROVIDER -> 豆瓣 WATCHLIST_PROVIDER。
 每个插件分别提供配置 schema、离线 fixture、契约测试、健康检查和显式实时集成验收。
+每开发或修改一个真实插件，都必须运行该插件的实时集成验收，并回归 Core 的 Provider 合同、API 和 UI 主路径。
+首个 TMDb 搜索、热门、分类、详情和海报墙端到端通过后，修正已发现的通用合同问题并冻结 Plugin API v2。
+协议冻结后开发力量主要转向外部插件仓库；Core 只接受通用合同缺陷修复，不为单一平台增加专用分支。
 Web Console 仓库新增、检查更新、应用更新、回滚、测试和诊断。
 重启恢复已启用插件和 SOURCE 目录同步。
 继续允许用户配置其他可信第三方插件仓库。
