@@ -11,6 +11,7 @@ from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
 from sundarr.app.models import MediaExternalId, MediaSubject, WatchlistSyncState
 from sundarr.app.plugins.contracts import (
+    CatalogAttribution,
     CatalogCapabilities,
     CatalogFilter,
     CatalogFilterOption,
@@ -61,6 +62,11 @@ class ContractCatalogProvider:
                 CatalogOperation.TRENDING: frozenset(),
                 CatalogOperation.CATEGORIES: frozenset(CatalogSort),
             },
+            attribution=CatalogAttribution(
+                provider_name="测试目录",
+                homepage_url="https://catalog.example.invalid",
+                notice="测试目录来源声明",
+            ),
             identity_namespaces=frozenset({"tmdb.movie"}),
             filter_options={
                 CatalogFilter.GENRE: (CatalogFilterOption("878", "科幻"),),
@@ -162,6 +168,12 @@ def test_discover_search_detail_and_follow_use_public_contract(db_session: Sessi
     assert providers.json()[0]["filter_options"]["genre"] == [{"value": "878", "label": "科幻"}]
     assert providers.json()[0]["operation_filters"]["search"] == ["genre", "media_type", "year"]
     assert providers.json()[0]["operation_sorts"]["search"] == []
+    assert providers.json()[0]["attribution"] == {
+        "provider_name": "测试目录",
+        "homepage_url": "https://catalog.example.invalid",
+        "notice": "测试目录来源声明",
+        "logo_url": None,
+    }
 
     response = client.get("/discover/search", params={"q": "黑客帝国", "refresh": "true"})
 

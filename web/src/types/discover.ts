@@ -1,5 +1,12 @@
 export type CatalogFilterOption = { value: string; label: string }
 
+export type CatalogAttribution = {
+  provider_name: string
+  homepage_url: string
+  notice: string
+  logo_url: string | null
+}
+
 export type CatalogProvider = {
   id: string
   identity_namespaces: string[]
@@ -9,6 +16,7 @@ export type CatalogProvider = {
   sorts: string[]
   operation_filters?: Record<string, string[]>
   operation_sorts?: Record<string, string[]>
+  attribution: CatalogAttribution | null
   filter_options: Record<string, CatalogFilterOption[]>
 }
 

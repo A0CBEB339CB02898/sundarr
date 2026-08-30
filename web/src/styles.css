@@ -2960,6 +2960,47 @@ h2 {
   font-size: 19px;
 }
 
+.dc-attribution {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline);
+  color: var(--text-muted);
+}
+
+.dc-attribution > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.dc-attribution span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dc-attribution a {
+  color: var(--text);
+}
+
+.dc-attribution img {
+  display: block;
+  width: auto;
+  max-width: 112px;
+  height: 24px;
+}
+
+.dc-attribution p {
+  max-width: 720px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: right;
+}
+
 .dc-degraded,
 .dc-poster-state {
   border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--hairline));
@@ -3167,6 +3208,13 @@ h2 {
   }
   .dc-detail-poster {
     width: min(68vw, 280px);
+  }
+  .dc-attribution {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .dc-attribution p {
+    text-align: left;
   }
 }
 

@@ -10,6 +10,13 @@ class CatalogFilterOptionResponse(BaseModel):
     label: str
 
 
+class CatalogAttributionResponse(BaseModel):
+    provider_name: str
+    homepage_url: str
+    notice: str
+    logo_url: str | None = None
+
+
 class CatalogProviderResponse(BaseModel):
     id: str
     identity_namespaces: list[str]
@@ -19,6 +26,7 @@ class CatalogProviderResponse(BaseModel):
     sorts: list[str]
     operation_filters: dict[str, list[str]] = Field(default_factory=dict)
     operation_sorts: dict[str, list[str]] = Field(default_factory=dict)
+    attribution: CatalogAttributionResponse | None = None
     filter_options: dict[str, list[CatalogFilterOptionResponse]] = Field(default_factory=dict)
 
 

@@ -66,6 +66,16 @@ class MediaDiscoveryService:
                         operation.value: sorted(item.value for item in sorts)
                         for operation, sorts in capabilities.operation_sorts.items()
                     },
+                    attribution=(
+                        {
+                            "provider_name": capabilities.attribution.provider_name,
+                            "homepage_url": capabilities.attribution.homepage_url,
+                            "notice": capabilities.attribution.notice,
+                            "logo_url": capabilities.attribution.logo_url,
+                        }
+                        if capabilities.attribution is not None
+                        else None
+                    ),
                     filter_options={
                         key.value: [
                             {"value": option.value, "label": option.label}

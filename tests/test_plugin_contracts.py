@@ -6,6 +6,7 @@ import pytest
 
 from sundarr.app.plugins.base import LoadedPlugin, PluginManifest, PluginType
 from sundarr.app.plugins.contracts import (
+    CatalogAttribution,
     CatalogCapabilities,
     CatalogFilter,
     CatalogItem,
@@ -184,6 +185,13 @@ async def test_catalog_capabilities_support_operation_specific_subsets() -> None
             operation_filters={
                 CatalogOperation.CATEGORIES: frozenset({CatalogFilter.REGION})
             },
+        )
+
+    with pytest.raises(ValueError, match="必须使用 HTTPS"):
+        CatalogAttribution(
+            provider_name="不安全目录",
+            homepage_url="http://example.invalid",
+            notice="来源声明",
         )
     with pytest.raises(ValueError, match="全局筛选能力并集"):
         CatalogCapabilities(

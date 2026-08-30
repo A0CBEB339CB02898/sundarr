@@ -263,6 +263,17 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
           {!isLoading && !error && !results ? sections.map((section) => <ResultSection key={section.key} title={section.title} description={section.error || section.description} items={section.items} degraded={Boolean(section.error)} onOpen={openDetail} onSearch={searchResources} />) : null}
         </>
       )}
+      {activeProvider?.attribution ? (
+        <aside className="dc-attribution" aria-label="数据来源">
+          <div>
+            <span>数据来源</span>
+            <a href={activeProvider.attribution.homepage_url} target="_blank" rel="noreferrer">
+              {activeProvider.attribution.logo_url ? <img src={activeProvider.attribution.logo_url} alt={activeProvider.attribution.provider_name} /> : <strong>{activeProvider.attribution.provider_name}</strong>}
+            </a>
+          </div>
+          <p>{activeProvider.attribution.notice}</p>
+        </aside>
+      ) : null}
     </section>
   )
 }

@@ -73,6 +73,24 @@ class CatalogFilterOption:
 
 
 @dataclass(frozen=True)
+class CatalogAttribution:
+    """外部目录 Provider 的公开来源署名。"""
+
+    provider_name: str
+    homepage_url: str
+    notice: str
+    logo_url: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.provider_name.strip() or not self.notice.strip():
+            raise ValueError("目录来源名称和声明不能为空")
+        if not self.homepage_url.startswith("https://"):
+            raise ValueError("目录来源主页必须使用 HTTPS")
+        if self.logo_url is not None and not self.logo_url.startswith("https://"):
+            raise ValueError("目录来源标识必须使用 HTTPS")
+
+
+@dataclass(frozen=True)
 class CatalogCapabilities:
     """目录 Provider 在当前配置下实际支持的能力。"""
 
@@ -88,6 +106,7 @@ class CatalogCapabilities:
     operation_sorts: Mapping[CatalogOperation, frozenset[CatalogSort]] = field(
         default_factory=dict
     )
+    attribution: CatalogAttribution | None = None
     identity_namespaces: frozenset[str] = field(default_factory=frozenset)
     filter_options: Mapping[CatalogFilter, tuple[CatalogFilterOption, ...]] = field(
         default_factory=dict

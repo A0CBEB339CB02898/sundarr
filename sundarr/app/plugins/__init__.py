@@ -18,6 +18,7 @@ from .runtime import (
     PluginContextClosedError,
 )
 from .contracts import (
+    CatalogAttribution,
     CatalogCapabilities,
     CatalogFilter,
     CatalogItem,
@@ -68,6 +69,7 @@ __all__ = [
     "PluginActivation",
     "PluginContext",
     "PluginContextClosedError",
+    "CatalogAttribution",
     "CatalogCapabilities",
     "CatalogFilter",
     "CatalogItem",
