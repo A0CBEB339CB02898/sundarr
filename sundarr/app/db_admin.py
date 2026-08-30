@@ -17,6 +17,7 @@ from sundarr.app.services.source_service import source_service
 DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
     "worker.enabled": {"enabled": True},
     "worker.concurrency": {"value": 2},
+    "discovery.watchlist_sync_interval_seconds": {"value": 900},
     "cloud.local": {"staging_root": "/Sundarr/_staging"},
     "download_to_local.config": {
         "delete_source_after_success": True,

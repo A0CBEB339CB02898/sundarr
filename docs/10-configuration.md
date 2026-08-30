@@ -329,7 +329,19 @@ Web Console 可管理：
 
 Git Plugin Repository 模式已进入 Phase 10：系统保存仓库配置和锁定 commit，但仍不得保存可执行 Python 代码。
 
-通用 Manifest v2 已允许插件仓库声明 `SOURCE`、`CATALOG_PROVIDER` 和 `WATCHLIST_PROVIDER`。同一豆瓣仓库可以声明 `douban-catalog` 和 `douban-watchlist` 两个独立插件实例；两者分别保存 `PluginConfig`、启用状态和脱敏错误状态。Phase 10.1 运行框架已完成第一次技术验收范围；Phase 10.2 收口 Core 通用消费框架，Phase 10.3 接入真实平台配置并持续执行真实数据回归。TMDb API 密钥以及未来可能使用的豆瓣 cookie 均属于敏感配置；API 以 `***` 返回敏感字段，更新时 `***` 表示保留原值，持久错误和受控插件 logger 会替换已知敏感值。
+通用 Manifest v2 已允许插件仓库声明 `SOURCE`、`CATALOG_PROVIDER` 和 `WATCHLIST_PROVIDER`。同一豆瓣仓库可以声明 `douban-catalog` 和 `douban-watchlist` 两个独立插件实例；两者分别保存 `PluginConfig`、启用状态和脱敏错误状态。Phase 10.1 运行框架与 Phase 10.2 Core 通用消费框架已完成结构性收口；Phase 10.3 接入真实平台配置并持续执行真实数据回归。TMDb API 密钥以及未来可能使用的豆瓣 cookie 均属于敏感配置；API 以 `***` 返回敏感字段，更新时 `***` 表示保留原值，持久错误和受控插件 logger 会替换已知敏感值。
+
+媒体发现 Core 缓存配置使用环境变量，不进入插件 Manifest：
+
+```text
+SUNDARR_CATALOG_CACHE_TTL_SECONDS=900
+SUNDARR_CATALOG_DETAIL_CACHE_TTL_SECONDS=21600
+SUNDARR_CATALOG_STALE_TTL_SECONDS=604800
+```
+
+新鲜 TTL 决定普通请求何时重新访问 Provider；stale TTL 只决定 Provider 故障时最多允许使用多旧的 Redis 降级响应。`refresh=true` 可以绕过新鲜缓存，但不能绕过敏感配置保护。
+
+Worker 的想看同步周期保存在数据库 Setting `discovery.watchlist_sync_interval_seconds`，默认 900 秒，最小 60 秒。插件只实现单次 `pull`，不得创建自己的永久轮询线程。
 
 通用 Manifest v2 只声明 `config_schema`，不保存配置值。Web Console 的分页方式、Provider 运行中 continuation token、想看同步游标和重试状态也不属于 Manifest；分页状态属于前端/API，游标和调度状态由 Core 持久化。
 

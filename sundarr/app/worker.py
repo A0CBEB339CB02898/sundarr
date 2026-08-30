@@ -24,6 +24,7 @@ from sundarr.app.models import (
 from sundarr.app.storage import LocalWriter, SmbConfig, SmbWriter, StorageWriter
 from sundarr.app.plugins.coordinator import RepositoryActivationCoordinator
 from sundarr.app.plugins.manager import PluginManager, PluginProcessRole
+from sundarr.app.plugins.runtime_registry import watchlist_provider_registry
 
 
 WORKER_ENABLED_KEY = "worker.enabled"
@@ -31,8 +32,10 @@ WORKER_CONCURRENCY_KEY = "worker.concurrency"
 LOCAL_CLOUD_KEY = "cloud.local"
 LOCAL_STORAGE_KEY = "storage.local"
 DTL_CONFIG_KEY = "download_to_local.config"
+WATCHLIST_SYNC_INTERVAL_KEY = "discovery.watchlist_sync_interval_seconds"
 DEFAULT_WORKER_ENABLED = True
 DEFAULT_WORKER_CONCURRENCY = 2
+DEFAULT_WATCHLIST_SYNC_INTERVAL_SECONDS = 900
 WORKER_RECOVERY_ERROR_CODE = "WORKER_RECOVERY_REQUIRED"
 DEFAULT_SYNC_DELETE_SOURCE = True
 DEFAULT_SYNC_DELETE_EMPTY_DIRS = True
@@ -98,6 +101,7 @@ class WorkerRuntime:
         self.poll_interval_seconds = poll_interval_seconds
         self._running = True
         self._last_scan_times: dict[str, float] = {}
+        self._last_watchlist_sync_times: dict[str, float] = {}
         self.plugin_manager = plugin_manager or PluginManager(
             process_role=PluginProcessRole.WORKER,
             coordinator=RepositoryActivationCoordinator(),
@@ -140,6 +144,8 @@ class WorkerRuntime:
                 )
                 settings = load_worker_settings(session)
                 self._auto_scan_and_create_tasks(session)
+                if settings.enabled:
+                    self._auto_sync_watchlists(session)
                 claimed = claim_pending_tasks(session, settings)
                 claimed_ids = [task.id for task in claimed]
                 local_runtime = load_local_runtime_config(session)
@@ -177,11 +183,42 @@ class WorkerRuntime:
             except Exception as exc:
                 print(f"Worker 自动扫描 [{binding.name}] 失败: {exc}", flush=True)
 
+    def _auto_sync_watchlists(self, session: Session) -> None:
+        import asyncio
+
+        interval = load_watchlist_sync_interval(session)
+        now = time.time()
+        for provider_id in watchlist_provider_registry.snapshot():
+            last = self._last_watchlist_sync_times.get(provider_id, 0)
+            if now - last < interval:
+                continue
+            self._last_watchlist_sync_times[provider_id] = now
+            try:
+                from sundarr.app.services.watchlist_service import watchlist_service
+
+                result = asyncio.run(watchlist_service.sync(session, provider_id))
+                print(
+                    f"Worker 想看同步 [{provider_id}] 完成，新增或刷新 {result.pulled_count} 项。",
+                    flush=True,
+                )
+            except Exception as exc:
+                print(f"Worker 想看同步 [{provider_id}] 失败: {exc}", flush=True)
+
 
 def load_worker_settings(session: Session) -> WorkerSettings:
     enabled = _read_bool_setting(session, WORKER_ENABLED_KEY, DEFAULT_WORKER_ENABLED, "enabled")
     concurrency = _read_int_setting(session, WORKER_CONCURRENCY_KEY, DEFAULT_WORKER_CONCURRENCY, "value")
     return WorkerSettings(enabled=enabled, concurrency=max(1, concurrency))
+
+
+def load_watchlist_sync_interval(session: Session) -> int:
+    value = _read_int_setting(
+        session,
+        WATCHLIST_SYNC_INTERVAL_KEY,
+        DEFAULT_WATCHLIST_SYNC_INTERVAL_SECONDS,
+        "value",
+    )
+    return max(60, value)
 
 
 def claim_pending_tasks(session: Session, settings: WorkerSettings) -> list[TransferTask]:

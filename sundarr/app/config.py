@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     database_url: str = "postgresql+psycopg://sundarr:sundarr@localhost:5432/sundarr"
     redis_url: str = "redis://localhost:6379/0"
+    catalog_cache_ttl_seconds: int = 900
+    catalog_detail_cache_ttl_seconds: int = 21600
+    catalog_stale_ttl_seconds: int = 604800
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

@@ -15,6 +15,7 @@ from sqlalchemy import text
 
 
 from sundarr.app.api.health import router as health_router
+from sundarr.app.api.discover import router as discover_router
 from sundarr.app.api.media_libraries import router as media_libraries_router
 from sundarr.app.api.plugins import router as plugins_router
 from sundarr.app.api.remote_media_libraries import router as remote_media_libraries_router
@@ -28,6 +29,7 @@ from sundarr.app.config import get_settings, redact_url_password
 from sundarr.app.core.database import get_engine, get_session_factory
 from sundarr.app.db_admin import ensure_runtime_schema_for_engine
 from sundarr.app.plugins.manager import plugin_manager
+from sundarr.app.services.catalog_cache import catalog_cache
 
 logger = logging.getLogger("sundarr.startup")
 
@@ -69,9 +71,11 @@ def create_app() -> FastAPI:
             yield
         finally:
             await plugin_manager.dispose_all()
+            await catalog_cache.close()
 
     app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
     app.include_router(health_router)
+    app.include_router(discover_router)
     app.include_router(search_router)
     app.include_router(resources_router)
     app.include_router(sources_router)

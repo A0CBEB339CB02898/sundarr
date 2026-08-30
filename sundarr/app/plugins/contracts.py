@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from types import MappingProxyType
 from typing import Protocol, runtime_checkable
@@ -61,6 +61,18 @@ class PluginHealthResult:
 
 
 @dataclass(frozen=True)
+class CatalogFilterOption:
+    """Provider 当前配置下可用于筛选的规范值和展示名称。"""
+
+    value: str
+    label: str
+
+    def __post_init__(self) -> None:
+        if not self.value.strip() or not self.label.strip():
+            raise ValueError("目录筛选选项的 value 和 label 不能为空")
+
+
+@dataclass(frozen=True)
 class CatalogCapabilities:
     """目录 Provider 在当前配置下实际支持的能力。"""
 
@@ -70,12 +82,29 @@ class CatalogCapabilities:
     )
     filters: frozenset[CatalogFilter] = field(default_factory=frozenset)
     sorts: frozenset[CatalogSort] = field(default_factory=frozenset)
+    identity_namespaces: frozenset[str] = field(default_factory=frozenset)
+    filter_options: Mapping[CatalogFilter, tuple[CatalogFilterOption, ...]] = field(
+        default_factory=dict
+    )
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "operations", frozenset(self.operations))
         object.__setattr__(self, "media_types", frozenset(self.media_types))
         object.__setattr__(self, "filters", frozenset(self.filters))
         object.__setattr__(self, "sorts", frozenset(self.sorts))
+        normalized_namespaces = frozenset(
+            namespace.strip() for namespace in self.identity_namespaces if namespace.strip()
+        )
+        if len(normalized_namespaces) != len(self.identity_namespaces):
+            raise ValueError("目录身份命名空间不能为空或包含重复值")
+        object.__setattr__(self, "identity_namespaces", normalized_namespaces)
+        normalized_options = {
+            key: tuple(options)
+            for key, options in self.filter_options.items()
+        }
+        if any(key not in self.filters for key in normalized_options):
+            raise ValueError("目录筛选选项只能属于已声明支持的筛选字段")
+        object.__setattr__(self, "filter_options", MappingProxyType(normalized_options))
         if not self.operations:
             raise ValueError("目录 Provider 至少需要支持一个操作")
 
@@ -124,22 +153,41 @@ class CatalogItem:
     external_id: str
     title: str
     media_type: MediaType
+    external_id_provider: str | None = None
     year: int | None = None
     poster_url: str | None = None
     external_ids: Mapping[str, str] = field(default_factory=dict)
+    original_title: str | None = None
+    overview: str | None = None
+    release_date: date | None = None
+    genres: tuple[str, ...] = ()
+    regions: tuple[str, ...] = ()
+    rating: float | None = None
+    vote_count: int | None = None
+    backdrop_url: str | None = None
+    image_urls: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.external_id.strip():
             raise ValueError("external_id 不能为空")
         if not self.title.strip():
             raise ValueError("title 不能为空")
+        if self.external_id_provider is not None and not self.external_id_provider.strip():
+            raise ValueError("external_id_provider 不能为空字符串")
         if self.year is not None and self.year < 1:
             raise ValueError("year 必须是正整数")
+        if self.rating is not None and not 0 <= self.rating <= 10:
+            raise ValueError("rating 必须在 0 到 10 之间")
+        if self.vote_count is not None and self.vote_count < 0:
+            raise ValueError("vote_count 不能为负数")
         object.__setattr__(
             self,
             "external_ids",
             MappingProxyType(dict(self.external_ids)),
         )
+        object.__setattr__(self, "genres", tuple(self.genres))
+        object.__setattr__(self, "regions", tuple(self.regions))
+        object.__setattr__(self, "image_urls", tuple(self.image_urls))
 
 
 @dataclass(frozen=True)

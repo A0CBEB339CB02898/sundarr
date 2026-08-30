@@ -1,4 +1,10 @@
 from sundarr.app.models.media_library import MediaLibrary
+from sundarr.app.models.media_subject import (
+    MediaExternalId,
+    MediaSubject,
+    MediaWatchlistEntry,
+    WatchlistSyncState,
+)
 from sundarr.app.models.plugin import PluginConfig, PluginLog, PluginRepository
 from sundarr.app.models.remote_media_library import RemoteMediaLibrary
 from sundarr.app.models.resource import Resource, ResourceLink
@@ -10,6 +16,9 @@ from sundarr.app.models.transfer import TransferFile, TransferLog, TransferTask
 
 __all__ = [
     "MediaLibrary",
+    "MediaExternalId",
+    "MediaSubject",
+    "MediaWatchlistEntry",
     "PluginConfig",
     "PluginLog",
     "PluginRepository",
@@ -24,4 +33,5 @@ __all__ = [
     "TransferFile",
     "TransferLog",
     "TransferTask",
+    "WatchlistSyncState",
 ]

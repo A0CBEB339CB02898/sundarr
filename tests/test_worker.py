@@ -24,6 +24,7 @@ from sundarr.app.worker import (
     claim_pending_tasks,
     cleanup_cloud_staging,
     load_local_runtime_config,
+    load_watchlist_sync_interval,
     load_worker_settings,
     process_sync_task,
     process_transfer_task,
@@ -56,6 +57,21 @@ def test_load_worker_settings_clamps_concurrency(db_session) -> None:
     settings = load_worker_settings(db_session)
 
     assert settings.concurrency == 1
+
+
+def test_watchlist_sync_interval_uses_default_and_minimum(db_session) -> None:
+    assert load_watchlist_sync_interval(db_session) == 900
+
+    db_session.add(
+        Setting(
+            key="discovery.watchlist_sync_interval_seconds",
+            value_json={"value": 10},
+            is_sensitive=False,
+        )
+    )
+    db_session.commit()
+
+    assert load_watchlist_sync_interval(db_session) == 60
 
 
 def test_claim_pending_tasks_respects_concurrency(db_session) -> None:

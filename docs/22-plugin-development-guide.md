@@ -1,6 +1,6 @@
 # 外部插件开发指南
 
-本文档面向 Sundarr 外部 Python 插件仓库开发者；当前可运行示例仍以 SOURCE 为主。更新时间：2026-08-28。
+本文档面向 Sundarr 外部 Python 插件仓库开发者。更新时间：2026-08-30。
 
 当前生产仓库管理入口同时支持 flat v1 SOURCE 兼容和通用 Manifest v2。三类 MVP 公共合同、Runtime Registry、仓库级候选原子切换、Manager/API 接入和 API/Worker 启动恢复已由本地 fixture 验证，SOURCE、CATALOG_PROVIDER 和 WATCHLIST_PROVIDER 均可通过生产配置启用。TRANSFER_DRIVER 和 NOTIFICATION 是后续扩展。
 
@@ -9,7 +9,7 @@
 ## 1. 最小结构
 
 ```text
-my-source-repository/
+my-plugin-repository/
   sundarr_plugin.toml
   my_source/
     __init__.py
@@ -23,7 +23,7 @@ my-source-repository/
 
 ---
 
-## 2. 当前 flat v1 清单
+## 2. Manifest 选择
 
 ```toml
 id = "example-source"
@@ -36,13 +36,13 @@ adapter_api_version = 1
 
 ```
 
-当前可运行模板继续使用 flat v1。新仓库可以按 `manifest_version = 2` 和 `[[plugins]]` 编写并通过静态解析，但在 v2 Activation 落地前不能实际启用；目标格式及版本化 `requires/provides` 以 `docs/20-plugin-manifest-spec.md` 为准。
+flat v1 只用于兼容历史 SOURCE 仓库。所有新插件和官方仓库迁移必须使用 `manifest_version = 2` 与 `[[plugins]]`；v2 已支持真实 Activation、仓库级原子切换和启动恢复。完整格式及版本化 `requires/provides` 以 `docs/20-plugin-manifest-spec.md` 为准。
 
 ---
 
 ## 3. 入口协议
 
-入口可以返回一个或多个 `SourceModel`：
+SOURCE 入口返回 `SourceModel`；CATALOG_PROVIDER 返回 `CatalogProvider`；WATCHLIST_PROVIDER 返回 `WatchlistProvider`。v2 每个声明只有一个主类型和独立 `plugin_id`：
 
 ```python
 def create_source() -> SourceModel:
@@ -50,9 +50,17 @@ def create_source() -> SourceModel:
 
 def create_sources() -> list[SourceModel]:
     ...
+
+def create_catalog_provider(context) -> CatalogProvider:
+    ...
+
+def create_watchlist_provider(context) -> WatchlistProvider:
+    ...
 ```
 
 每个 Source 必须返回 `RawSearchItem`，不能返回 ORM `Resource`、`ResourceLink` 或 `TransferTask`。
+
+目录 Provider 返回 `CatalogItem` / `CatalogPage`，想看 Provider 返回 `WatchlistItem` / `WatchlistPage`。`CatalogItem.external_id_provider` 应填写稳定身份命名空间，例如 `douban`；TMDb 电影与剧集 ID 应分别使用 `tmdb.movie`、`tmdb.tv`，因为只写 `tmdb` 可能把不同媒体子域的同号 ID 错误合并。目录 Provider 还必须在 `CatalogCapabilities.identity_namespaces` 声明自己能回查的稳定命名空间。Core 同时保存插件 ID 别名，跨插件精确合并依赖 `external_ids` 中相同的稳定平台 ID，不得只靠标题静默合并。
 
 ---
 
@@ -61,9 +69,9 @@ def create_sources() -> list[SourceModel]:
 插件负责：
 
 ```text
-请求目标站点。
-解析列表页和必要详情页。
-输出 RawSearchItem。
+请求目标平台。
+解析列表、搜索、详情或想看响应。
+输出对应类型的公共合同对象。
 提供离线 fixture 测试。
 对站点异常给出可诊断错误。
 ```
@@ -71,7 +79,8 @@ def create_sources() -> list[SourceModel]:
 Core 负责：
 
 ```text
-链接提取、标准化、去重和排序。
+媒体身份匹配、最小快照、缓存降级、想看游标和调度。
+SOURCE 链接提取、标准化、去重和排序。
 链接有效性检测。
 收藏标记和收藏持久化。
 任务创建、数据库和 SMB。
@@ -112,13 +121,35 @@ def activate(context):
 ## 6. 测试要求
 
 ```text
-默认测试只使用 fixture，不访问实时网站。
+默认 pytest 使用 fixture 和离线测试替身，不访问实时网站。
 覆盖正常解析、空结果、页面变化、超时和无效链接。
 覆盖 SourceModel.id 与 RawSearchItem.source_id 一致性。
 多 Source 仓库覆盖全部入口返回值。
 不得把 tests/test_*.py 写成导入时执行真实 HTTP 请求的脚本。
 实时站点测试放入显式集成测试或独立手动命令。
+每个真实插件新增或修改后必须运行实时集成测试；首个 TMDb 插件必须覆盖搜索、热门、分类、详情和海报字段。
 ```
+
+外部仓库可以直接复用 Core 的公共 conformance runner，让真实请求按 Provider 声明能力逐项回归：
+
+```python
+from sundarr.app.plugins.conformance import (
+    CatalogConformanceProbe,
+    run_catalog_provider_conformance,
+)
+from sundarr.app.plugins.contracts import CatalogQuery, MediaType
+
+report = await run_catalog_provider_conformance(
+    provider,
+    CatalogConformanceProbe(
+        query=CatalogQuery(keyword="黑客帝国"),
+        detail_external_id="603",
+        detail_media_type=MediaType.MOVIE,
+    ),
+)
+```
+
+该 runner 不制造测试数据；查询词和详情 ID 由插件仓库的显式实时集成测试提供。默认离线 pytest 仍必须独立可重复，实时测试结果则负责发现 Core 合同与平台真实响应之间的偏差。
 
 ---
 

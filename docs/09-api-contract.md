@@ -684,9 +684,27 @@ binding 不明确时创建指向 unclassified 本地媒体库的同步任务。
 
 加载所有已启用仓库的插件。
 
-### 9.13 媒体发现响应缓存语义（Phase 10.2 计划）
+### 9.13 媒体发现 API（Phase 10.2）
 
-媒体发现 Web 路由已确认为 `/app/discover` 和 `/app/discover/:media_subject_id`；对应 FastAPI 路由随 Phase 10.2 数据/API 规格落地。响应必须遵守：
+媒体发现 Web 路由为 `/app/discover` 和 `/app/discover/:media_subject_id`。FastAPI 提供：
+
+```text
+GET    /discover/providers
+GET    /discover/search
+GET    /discover/trending
+GET    /discover/categories
+GET    /discover/{media_subject_id}
+POST   /discover/{media_subject_id}/follow
+DELETE /discover/{media_subject_id}/follow
+GET    /discover/watchlist
+POST   /discover/watchlist/{provider_id}/sync
+```
+
+`GET /discover/providers` 返回每个 active Provider 的 `identity_namespaces`、operations、media_types、filters、sorts 和 `filter_options`。`identity_namespaces` 声明该目录 Provider 能识别的稳定外部 ID 命名空间；它不等于可变的插件实例 ID。如果外部 ID 只在媒体子域内唯一，必须声明为 `tmdb.movie`、`tmdb.tv` 这类精确命名空间，不得笼统合并为 `tmdb`。题材、地区等单选项必须来自 Provider 的实时能力描述，Web Console 不得硬编码某个平台的私有枚举；没有返回选项时不展示对应筛选控件。
+
+列表接口共同接受 `provider_id`、`media_type`、`genre`、`region`、`year_from`、`year_to`、`sort`、`limit`、`continuation_token` 和 `refresh`；`search` 额外要求非空 `q`。`provider_id` 为空时使用当前 Registry 顺序中的首个 active Provider，官方仓库必须把 TMDb 主目录声明在补充目录之前。`refresh=true` 跳过新鲜缓存，用于人工验收和实时回归，但 Provider 失败时仍可返回降级缓存。
+
+响应必须遵守：
 
 ```text
 不直接返回 CATALOG_PROVIDER 私有原始响应。
@@ -697,7 +715,31 @@ Provider 失败时不得用 null 覆盖已知规范标题、年份或最后可�
 没有缓存、没有最小快照且 Provider 不可用时返回明确错误。
 ```
 
-Web Console 必须把目录关键词和筛选条件编码进 `/app/discover` 的 URL query。计划中的规范字段为 `q`、`media_type`、`genre`、`region`、`year_from`、`year_to` 和 `sort`；具体枚举和 FastAPI 路由实现随 Phase 10.2 API 设计落地。URL 不得包含 API key、cookie 或插件私有配置。
+列表响应至少包含：
+
+```text
+items[]
+  media_subject_id
+  media_type
+  canonical_title
+  release_year
+  poster_url
+  provider_id
+  external_id
+  followed
+  watchlisted
+  degraded
+continuation_token
+provider_id
+degraded
+cached_at
+```
+
+详情响应在上述最小字段外可包含 `original_title`、`overview`、`release_date`、`genres`、`regions`、`rating`、`vote_count`、`backdrop_url` 和 `image_urls`。评分必须同时返回 `rating_provider`，不得输出无来源的合并评分。
+
+`POST /discover/watchlist/{provider_id}/sync` 只触发一次受限增量拉取；游标、重试和最后错误由 Core 持久化。永久定时调度属于 Worker，不由插件自行创建后台循环。
+
+Web Console 必须把目录关键词和筛选条件编码进 `/app/discover` 的 URL query。规范字段为 `q`、`media_type`、`genre`、`region`、`year_from`、`year_to` 和 `sort`。URL 不得包含 API key、cookie 或插件私有配置。
 
 筛选语义：
 

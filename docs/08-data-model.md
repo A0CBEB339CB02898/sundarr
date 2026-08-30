@@ -48,7 +48,7 @@ Web Console 不允许创建、编辑、删除搜索源，也不在数据库中�
 
 ---
 
-## 2.1 media_subjects（已确认设计，尚未实现）
+## 2.1 media_subjects（已实现）
 
 用途：表示媒体发现中心中的规范媒体实体，例如一部电影或一部剧集。它描述“这是什么媒体”，不表示某个可下载链接，也不表示 NAS 中的实际文件。
 
@@ -90,6 +90,56 @@ created_at
 updated_at
 ```
 
+MVP 实际表结构：
+
+```text
+media_subjects
+  id TEXT PRIMARY KEY（UUID 字符串）
+  media_type TEXT NOT NULL
+  canonical_title TEXT NOT NULL
+  release_year INTEGER
+  last_known_poster_url TEXT
+  snapshot_source TEXT NOT NULL
+  snapshot_updated_at TIMESTAMP NOT NULL
+  followed_at TIMESTAMP
+  watchlisted_at TIMESTAMP
+  created_at TIMESTAMP NOT NULL
+  updated_at TIMESTAMP NOT NULL
+
+media_external_ids
+  id TEXT PRIMARY KEY
+  media_subject_id TEXT NOT NULL
+  provider TEXT NOT NULL
+  external_id TEXT NOT NULL
+  created_at TIMESTAMP NOT NULL
+  updated_at TIMESTAMP NOT NULL
+  UNIQUE(provider, external_id)
+
+watchlist_sync_states
+  provider_id TEXT PRIMARY KEY
+  cursor TEXT
+  last_synced_at TIMESTAMP
+  last_error TEXT
+  retry_count INTEGER NOT NULL DEFAULT 0
+  created_at TIMESTAMP NOT NULL
+  updated_at TIMESTAMP NOT NULL
+
+media_watchlist_entries
+  id TEXT PRIMARY KEY
+  provider_id TEXT NOT NULL
+  external_record_id TEXT NOT NULL
+  media_subject_id TEXT NOT NULL
+  added_at TIMESTAMP
+  last_seen_at TIMESTAMP NOT NULL
+  active BOOLEAN NOT NULL DEFAULT TRUE
+  created_at TIMESTAMP NOT NULL
+  updated_at TIMESTAMP NOT NULL
+```
+
+`media_watchlist_entries` 对 `(provider_id, external_record_id)` 建唯一约束；当 Provider 不提供 `external_record_id` 时，Core 使用 provider + MediaSubject 的稳定组合标识，避免重复同步。
+
+`media_external_ids.provider` 表示稳定身份命名空间，不限于平台品牌名。如果同一平台的 ID 只在媒体子域内唯一，命名空间必须包含该子域，例如 `tmdb.movie` 与 `tmdb.tv`，不得都压缩为 `tmdb` 后静默合并。
+
 持久化边界：
 
 ```text
@@ -101,14 +151,14 @@ MVP 只保存最后可用海报 URL，不保存海报二进制文件。
 Provider 请求失败或返回空值时，不得把已知最小快照字段覆盖为空。
 ```
 
-尚待确认：
+已确认实现选择：
 
 ```text
-external_ids 使用独立关联表还是 JSONB。
-MediaSubject 与现有 Resource / ResourceLink 的关系。
-剧集、季、集的层级模型。
-目录缓存的具体 TTL、缓存键和刷新抖动策略。
-最小快照字段来源采用整组来源还是字段级来源。
+external_ids 使用独立关联表，以数据库唯一约束保证 provider + external_id 精确身份不冲突。
+MediaSubject 与现有 Resource / ResourceLink 在 MVP 不建立直接外键；从媒体详情进入资源搜索时传递规范标题、年份和媒体类型。
+MVP 只建 movie / series 主体，不创建季、集层级；季集模型等待真实插件数据和后续产品范围确认。
+目录列表默认新鲜缓存 15 分钟，详情默认新鲜缓存 6 小时，降级缓存最长保留 7 天；具体秒数由 Core 配置提供，不进入插件 Manifest。
+最小快照按最近一次成功返回的 Provider 整组记录 snapshot_source / snapshot_updated_at，但空标题、空年份和空海报不得覆盖已知非空值。
 ```
 
 ---
