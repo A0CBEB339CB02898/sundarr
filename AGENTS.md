@@ -147,9 +147,11 @@ Web Console 使用统一 `/app/discover` 媒体发现模块承载目录搜索、
 媒体库管理仍是目录绑定管理能力；媒体发现海报墙不等于本地媒体库海报墙、播放器、观影进度或完整媒体管理 UI。
 当前已实现的是媒体源框架和示例源，不是真实网站 Adapter。
 真实媒体源后续通过代码型 Source Adapter 逐站点接入。
-所有项目官方真实插件实现统一放在独立 Git 仓库，不进入 Sundarr Core；Sundarr Core 只保存仓库地址、分支和锁定 commit，并从本地缓存中的已锁定 commit 受控加载。
+所有项目官方真实插件实现统一放在 Sundarr Core 之外的 Git 仓库；Sundarr Core 只保存仓库地址、分支和锁定 commit，并从本地缓存中的已锁定 commit 受控加载。
 外部插件仓库使用通用 Plugin Manifest v2 声明一个或多个插件；迁移期兼容 flat v1 SOURCE 清单。SourceModel 继续作为 SOURCE 的最小运行时执行协议。
-当前官方外部仓库及迁移起点为 `https://github.com/A0CBEB339CB02898/sundarr-sources.git`，默认分支 `master`；该仓库当前仍是历史 SOURCE-only 布局，后续迁移为通用 Manifest v2 官方插件仓库。是否改名为更通用的仓库名称尚未确认，不得擅自创建、重命名或推送。
+官方 SOURCE 仓库为 `https://github.com/A0CBEB339CB02898/sundarr-sources.git`；它保留为敏感资源搜索仓库，只维护具体资源链接搜索 SOURCE，不迁入其他官方插件集合。
+其他官方插件仓库为 `https://github.com/A0CBEB339CB02898/sundarr-plugin.git`；它使用通用 Manifest v2，维护 CATALOG_PROVIDER、WATCHLIST_PROVIDER 以及未来其他非 SOURCE 官方插件。
+两个官方仓库分别锁定 commit、更新和回滚；不得把 SOURCE 官方实现移入 `sundarr-plugin`，也不得把非 SOURCE 官方插件写入 `sundarr-sources`。
 “官方插件统一外置”不禁止用户加载其他可信第三方仓库；PluginRepository 必须继续支持多个仓库。
 Core 仓库必须保留插件公共协议、SDK 类型、Manifest/Loader、Activation、Registry、配置与诊断 API，以及不访问真实外部服务的测试夹具和离线测试替身；不得把这些宿主能力误移到外部插件仓库。
 TMDb、豆瓣、SeedHub 等平台专用实现、配置 schema、解析 fixture 和实时集成测试属于官方外部插件仓库，不得回写 Core。

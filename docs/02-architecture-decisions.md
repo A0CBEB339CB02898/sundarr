@@ -757,7 +757,7 @@ Manifest 只保存静态身份、入口、协议版本、配置 schema 和能力
 
 ---
 
-## ADR-019: 先完成插件框架并把官方真实插件统一外置
+## ADR-019: 先完成插件框架并按内容边界外置官方真实插件
 
 状态：已确认。
 
@@ -773,20 +773,19 @@ Sundarr Core 不保存任何项目官方真实平台插件实现、平台配置 
 
 ```text
 Core 仓库：公共协议和 SDK 类型、Manifest、Loader、Activation、Registry、配置/诊断 API、契约测试和不访问真实服务的离线测试替身。
-官方插件仓库：真实插件入口、平台客户端、平台配置 schema、解析 fixture、离线测试和显式实时集成测试。
-当前官方仓库迁移起点：https://github.com/A0CBEB339CB02898/sundarr-sources.git，默认分支 master。
-该仓库当前仍是 flat v1 SOURCE-only 历史布局；迁移为通用 v2 前不能宣称已承载目录或想看插件。
-仓库是否改名尚未确认；Core 文档和配置不得虚构不存在的新远程地址。
+SOURCE 官方仓库：https://github.com/A0CBEB339CB02898/sundarr-sources.git；只维护具体资源链接搜索源，保留 flat v1 兼容并可按自身节奏迁移 v2。
+其他官方插件仓库：https://github.com/A0CBEB339CB02898/sundarr-plugin.git；维护 CATALOG_PROVIDER、WATCHLIST_PROVIDER 以及未来其他非 SOURCE 官方插件，使用通用 Manifest v2。
+两个官方仓库分别锁定 commit、更新和回滚；插件实例仍按 plugin_id 独立配置、启停、测试和报告错误。
 ```
 
 约束：
 
 ```text
-“统一外置”指项目官方插件集中维护，不是强制所有第三方插件进入唯一仓库。
+“统一外置”指平台实现离开 Core，不表示所有官方 PluginType 必须进入同一 Git 仓库。
 Core 必须支持配置多个可信 PluginRepository。
 外部插件仓库依赖 Core 发布的稳定插件协议，但不得导入 ORM、服务层或 Worker 私有实现。
 框架初步结构验收不得依赖真实 TMDb、豆瓣、SeedHub、GitHub 或 NAS；使用本地 fixture 仓库和离线测试替身验证运行协议。该结果不等于生产可用验收，Plugin API v2 必须等待真实 TMDb 端到端回归后才能冻结。
 官方仓库的写入、重命名、迁移和 push 属于独立外部变更，需要用户明确授权。
 ```
 
-理由：框架先行可以一次性固定生命周期、跨进程恢复、错误隔离和兼容规则，避免每新增一个真实插件就修改 Core。真实插件外置可以独立更新站点适配代码；保留多仓库能力则避免官方仓库成为第三方扩展的唯一发布通道。
+理由：框架先行可以一次性固定生命周期、跨进程恢复、错误隔离和兼容规则，避免每新增一个真实插件就修改 Core。资源搜索具有更敏感的内容和分发边界，保留独立 SOURCE 仓库可以隔离更新、分发和审查影响；目录、想看等其他官方插件集中维护则避免过早按 PluginType 制造多仓成本。保留多仓库能力也避免官方仓库成为第三方扩展的唯一发布通道。

@@ -43,7 +43,7 @@ Phase 0-9.5 已完成。
 Phase 10.0 质量基线收口已完成。
 Phase 10.1 通用插件框架第一次技术验收已完成。
 Phase 10.2 媒体发现 Core 与 Web Console 结构性收口已完成，没有建设面向用户的 Mock 数据链。
-Phase 10.3 当前优先：将官方外部仓库迁移为通用 Manifest v2，逐个实现真实插件并使用真实数据持续回归 Core；首个 TMDb 端到端通过后冻结 Plugin API v2。
+Phase 10.3 当前优先：初始化 `sundarr-plugin` 通用 Manifest v2 官方仓库，保留 `sundarr-sources` 独立 SOURCE 仓库，逐个实现真实插件并使用真实数据持续回归 Core；首个 TMDb 端到端通过后冻结 Plugin API v2。
 Phase 11 AI Friendly API 未开始。
 Phase 12 Cloud Direct Download 非 MVP、非近期主线。
 ```

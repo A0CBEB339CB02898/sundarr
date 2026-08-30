@@ -143,7 +143,7 @@ Response: ResourceCandidate（含 links）
 
 ### 5.2 SeedHub（官方外部插件仓库）
 - Core 已支持两阶段 `SourceModel.fetch_detail_function`。
-- SeedHub 的 `search()` 和 `fetch_detail()` 实现属于官方外部插件仓库，不再位于 Sundarr Core。当前 `sundarr-sources` 是迁移起点，不表示最终仓库名已经确认。
+- SeedHub 的 `search()` 和 `fetch_detail()` 实现属于独立 SOURCE 官方仓库 `sundarr-sources`，不再位于 Sundarr Core，也不迁入非 SOURCE 官方插件仓库 `sundarr-plugin`。
 - 外部 SeedHub 必须用离线 fixture 覆盖列表页、详情页和跳转链接解析。
 
 ### 5.3 SearchService（`sundarr/app/services/search_service.py`）

@@ -109,9 +109,9 @@ Core 不包含平台专用实现；离线测试替身不进入生产插件目录
 任务：
 
 ```text
-D1 以当前 `sundarr-sources` master 作为迁移起点，升级为通用 Manifest v2 官方插件仓库；改名需用户另行确认。
-D2 首先实现 TMDb CATALOG_PROVIDER，完成媒体发现真实主目录验收。
-D3 实现 SeedHub SOURCE，恢复具体资源链接搜索。
+D1 初始化 `sundarr-plugin` 通用 Manifest v2 官方仓库；保留 `sundarr-sources` 作为独立 SOURCE 仓库。
+D2 在 `sundarr-plugin` 首先实现 TMDb CATALOG_PROVIDER，完成媒体发现真实主目录验收。
+D3 在 `sundarr-sources` 实现或迁移 SeedHub SOURCE，恢复具体资源链接搜索。
 D4 实现豆瓣 CATALOG_PROVIDER 作为可选补充。
 D5 实现豆瓣 WATCHLIST_PROVIDER，并由 Core 调度持久游标。
 D6 每个真实插件独立配置、启停、fixture、健康检查、错误和显式实时验收。

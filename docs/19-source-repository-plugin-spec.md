@@ -157,48 +157,50 @@ SearchService 可以在内置源和外部源之间保持统一管线。
 
 ## 4. 官方外部仓库结构
 
-当前迁移起点：
+已确认的双仓边界：
 
 ```text
-仓库：https://github.com/A0CBEB339CB02898/sundarr-sources.git
-默认分支：master
-当前状态：SOURCE-only / flat v1 历史结构
+SOURCE 官方仓库：https://github.com/A0CBEB339CB02898/sundarr-sources.git
+职责：只维护具体资源链接搜索源，包括 SeedHub 等 SOURCE 插件
+状态：保留现有仓库和历史兼容，不迁入其他官方插件集合
+
+其他官方插件仓库：https://github.com/A0CBEB339CB02898/sundarr-plugin.git
+职责：维护 CATALOG_PROVIDER、WATCHLIST_PROVIDER 以及未来其他非 SOURCE 官方插件
+状态：新建仓库，从通用 Manifest v2 和 TMDb CATALOG_PROVIDER 开始
 ```
 
-`sundarr-sources` 是已存在仓库的历史名称，不代表最终通用仓库名已经确认。是否改名或迁移远程地址必须由用户另行确认；在此之前不得擅自创建、重命名或推送新的外部仓库。
+资源搜索具有更敏感的内容和分发边界，因此 `sundarr-sources` 继续作为独立发布、锁定和回滚单元。`sundarr-plugin` 是其他官方插件的集合仓库，不是第三方插件市场，也不承载 SOURCE 官方实现。
 
-通用 v2 目标结构示意：
+`sundarr-plugin` 通用 v2 目标结构示意：
 
 ```text
-<official-plugin-repository>/
+<sundarr-plugin>/
   sundarr_plugin.toml
   plugins/
     tmdb_catalog/
-    seedhub_source/
     douban_catalog/
     douban_watchlist/
   tests/
     contract/
     fixtures/
   docs/
-  sources/
-    ...                  # 迁移期兼容历史 flat v1 SOURCE 结构
 ```
 
 边界必须保持：
 
 ```text
 Sundarr Core 仓库：协议、SDK、Loader、Activation、Registry、配置/诊断 API、业务编排、离线测试替身和契约测试。
-官方插件仓库：TMDb、豆瓣、SeedHub 等真实平台实现、平台映射、离线 fixture 和插件级测试。
+sundarr-sources：SeedHub 等真实 SOURCE 实现、解析 fixture 和搜索源级测试。
+sundarr-plugin：TMDb、豆瓣目录、豆瓣想看等非 SOURCE 真实实现、平台映射、离线 fixture 和插件级测试。
 第三方仓库：使用相同 Manifest v2 和合同接入；Core 不假设系统只有一个仓库。
 ```
 
-官方插件统一放在一个仓库，便于版本锁定和发布；但每个插件声明仍独立配置、启停、测试和报错。仓库更新默认以 commit 为原子一致性边界，不能把“统一仓库”误解为所有插件共用配置或生命周期。
+每个官方仓库独立锁定 commit 和原子更新。`sundarr-plugin` 内的每个插件声明仍独立配置、启停、测试和报错，不能把“集合仓库”误解为所有插件共用配置或生命周期。
 
 SOURCE 插件的最小示例仍可采用以下结构：
 
 ```text
-<official-plugin-repository>/
+<sundarr-sources>/
   plugins/
     example_source/
       plugin.py

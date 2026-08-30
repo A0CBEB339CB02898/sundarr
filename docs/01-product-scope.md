@@ -347,8 +347,9 @@ Cordis 启发的生命周期层不替代 PostgreSQL 任务事实来源、Alembic
 通用 Manifest v2 支持同一仓库声明多个独立插件，且不保存 UI、调度或任务运行状态。
 项目官方真实插件实现全部外置到独立 Git 仓库；Core 不内置 TMDb、豆瓣、SeedHub 等平台实现。
 Core 继续拥有稳定插件协议、SDK 类型、加载和生命周期、配置与诊断 API，以及仅用于自动化测试的 Mock/fixture 插件。
-当前官方仓库迁移起点为 https://github.com/A0CBEB339CB02898/sundarr-sources.git 的 master 分支；当前仓库仍是历史 SOURCE-only 结构。
-官方插件仓库可以集中交付多个类型的项目官方插件；用户仍可配置其他可信第三方仓库。
+SOURCE 官方实现继续由 https://github.com/A0CBEB339CB02898/sundarr-sources.git 独立维护，不迁入其他官方插件集合；该仓库只承载具体资源链接搜索源。
+CATALOG_PROVIDER、WATCHLIST_PROVIDER 及后续其他非 SOURCE 官方插件统一由 https://github.com/A0CBEB339CB02898/sundarr-plugin.git 维护。
+拆分原因是具体资源搜索具有更敏感的内容和分发边界；仓库拆分不改变 Core 的 PluginType 合同，也不限制用户配置其他可信第三方仓库。
 Phase 11 AI Friendly API 稳定后，可提供可选 Cordis / DeepSeek Harness 桥接插件。
 桥接插件只调用公开 Sundarr API，不直接访问数据库、SMB 凭据、NAS 文件或 Worker 内部对象。
 ```

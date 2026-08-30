@@ -38,14 +38,14 @@ Core 结构性收口已经完成。后续真实插件开发与 Core 回归必须
 ## 官方外部插件仓库
 
 ```text
-当前迁移起点：https://github.com/A0CBEB339CB02898/sundarr-sources.git
-默认分支：master
-当前事实：公开仓库存在，但仍是 SOURCE-only / flat v1 历史布局。
-目标：迁移为 Manifest v2 多类型官方插件仓库，集中维护 TMDb、SeedHub、豆瓣目录和豆瓣想看。
-未确认：是否把仓库改名为 sundarr-plugins；未确认前不创建新地址、不重命名、不 push。
+SOURCE 仓库：https://github.com/A0CBEB339CB02898/sundarr-sources.git
+SOURCE 边界：保留具体资源链接搜索源，包括 SeedHub；不迁入其他官方插件仓库。
+其他官方插件仓库：https://github.com/A0CBEB339CB02898/sundarr-plugin.git
+其他插件边界：使用 Manifest v2，集中维护 TMDb、豆瓣目录和豆瓣想看等非 SOURCE 官方插件。
+两个仓库分别锁定 commit、更新和回滚；Core 继续支持更多可信第三方仓库。
 ```
 
-Core 仍支持多个 `PluginRepository`，因此官方插件集中仓库不会阻止用户加载其他可信第三方仓库。
+Core 仍支持多个 `PluginRepository`，因此官方双仓边界不会阻止用户加载其他可信第三方仓库。
 
 ## 已确认边界
 

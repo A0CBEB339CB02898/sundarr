@@ -13,13 +13,13 @@ Phase 0-9.5 已完成。
 Phase 10.0 质量基线收口已完成。
 Phase 10.1 通用插件框架已达到第一次技术验收停止点；仓库级原子切换、API/Worker 恢复、多插件管理和脱敏闭环已实现。
 Phase 10.2 媒体发现 Core 的通用数据、编排、API、Web Console 和契约测试工具已完成结构性验收。
-Phase 10.3 当前优先：将官方外部仓库迁移到通用 Manifest v2，并逐个实现真实插件和仓库管理闭环；以真实数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
+Phase 10.3 当前优先：初始化 `sundarr-plugin` 通用 Manifest v2 官方仓库并逐个实现非 SOURCE 真实插件；`sundarr-sources` 保留为独立资源搜索仓库。以真实数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
 Phase 11 AI Friendly API 未开始。
 Phase 12 Cloud Direct Download 非 MVP、非近期主线。
 媒体发现中心已进入当前 MVP，通用 Core 和页面已实现；真实目录 Provider 尚未实现，因此真实目录链路尚未通过生产验收。
 ```
 
-Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连接、本地/远程媒体库、同步绑定、任务状态机、搜索管线和收藏模块。Core 内已无真实站点 Adapter；项目官方真实插件统一在独立 Python 插件仓库维护，Core 同时支持用户配置多个可信第三方仓库。当前官方迁移起点 `sundarr-sources` 仍是 SOURCE-only / flat v1 历史结构。
+Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连接、本地/远程媒体库、同步绑定、任务状态机、搜索管线和收藏模块。Core 内已无真实站点 Adapter；官方 SOURCE 实现在 `sundarr-sources` 维护，其他官方插件在 `sundarr-plugin` 维护，Core 同时支持用户配置多个可信第三方仓库。
 
 媒体发现中心已实现筛选、热门、分类、详情、关注列表和发现型海报墙的通用消费链路。它不等于本地媒体库 UI，不包含播放、观影进度或完整本地媒体管理。
 
@@ -101,7 +101,7 @@ API/Worker 分类型恢复 locked current_commit
 Web Console 没有插件仓库新增、更新、回滚和诊断页面。
 当前环境未配置插件仓库，运行时搜索源为 0。
 外部 SeedHub 尚未完成 Core 侧端到端验收。
-真实 TMDb、豆瓣目录、豆瓣想看和 SeedHub 插件尚未在官方外部仓库按 Manifest v2 交付。
+真实 TMDb、豆瓣目录和豆瓣想看尚未在 `sundarr-plugin` 按 Manifest v2 交付；SeedHub SOURCE 继续在 `sundarr-sources` 演进。
 Docker Compose 未在当前 Windows 环境实跑。
 ```
 

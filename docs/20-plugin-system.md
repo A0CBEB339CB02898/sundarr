@@ -153,11 +153,11 @@ TransferTask 状态和数据库事实
 
 ### 4.1 仓库边界
 
-项目官方维护的真实插件统一放在独立 Git 仓库，不进入 Sundarr Core。Core 仍必须保留插件合同、SDK 类型、Manifest/Loader、Activation/Registry、配置和诊断接口、业务编排、离线测试替身与契约 fixture，因为这些属于宿主能力，不能外置。离线测试替身不构成面向用户的数据链或阶段验收结果。
+项目官方维护的真实插件统一放在 Core 之外的 Git 仓库。Core 仍必须保留插件合同、SDK 类型、Manifest/Loader、Activation/Registry、配置和诊断接口、业务编排、离线测试替身与契约 fixture，因为这些属于宿主能力，不能外置。离线测试替身不构成面向用户的数据链或阶段验收结果。
 
-当前官方仓库迁移起点是 `https://github.com/A0CBEB339CB02898/sundarr-sources.git` 的 `master` 分支。该仓库目前仍是 SOURCE-only / flat v1 历史结构；Phase 10.3 迁移为通用 Manifest v2 官方插件仓库。是否改名尚未确认。
+官方仓库分为两个发布边界：`https://github.com/A0CBEB339CB02898/sundarr-sources.git` 保留为 SOURCE-only 资源搜索仓库；`https://github.com/A0CBEB339CB02898/sundarr-plugin.git` 维护 CATALOG_PROVIDER、WATCHLIST_PROVIDER 及未来其他非 SOURCE 官方插件。后者从 Manifest v2 开始，不继承 flat v1 历史布局。
 
-“官方插件统一外置”不限制用户只配置一个仓库。Core 必须支持多个可信仓库及第三方实现；同一官方仓库内的插件共享锁定 commit 和仓库级原子更新边界，但配置、启停、健康状态和错误仍按 `plugin_id` 独立保存。
+官方仓库拆分不等于按每个 PluginType 建仓。Core 必须支持多个可信仓库及第三方实现；同一仓库内的插件共享锁定 commit 和仓库级原子更新边界，但配置、启停、健康状态和错误仍按 `plugin_id` 独立保存。
 
 ### 4.2 当前 MVP 运行合同
 

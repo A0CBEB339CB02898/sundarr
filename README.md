@@ -206,9 +206,9 @@ Sundarr 采用暖色操作台风格设计：
 
 **Phase 10 进行中**：通用 Manifest v2、类型专用 Activation/Registry、候选健康检查、仓库级原子切换和启动恢复已经完成。媒体发现 Core 的数据、编排、API、Web Console 与契约测试工具也已完成结构性收口。当前进入独立插件仓库的真实 Provider 开发和持续回归阶段。
 
-**Phase 10.2 已完成结构性验收**：Core 已实现媒体身份、外部 ID、最小快照、目录缓存与降级、想看游标、Discover API 和 Web Console；用户界面没有伪造目录或海报数据。Phase 10.3 在独立官方插件仓库逐个接入真实 TMDb、SeedHub 和豆瓣插件，并使用真实数据持续回归 Core。首个 TMDb 端到端通过并修正通用合同问题后冻结 Plugin API v2，再集中扩展其他插件。媒体发现 MVP 不做本地媒体库播放、观影进度或完整媒体管理 UI。
+**Phase 10.2 已完成结构性验收**：Core 已实现媒体身份、外部 ID、最小快照、目录缓存与降级、想看游标、Discover API 和 Web Console；用户界面没有伪造目录或海报数据。Phase 10.3 在官方外部仓库逐个接入真实 TMDb、SeedHub 和豆瓣插件，并使用真实数据持续回归 Core。首个 TMDb 端到端通过并修正通用合同问题后冻结 Plugin API v2，再集中扩展其他插件。媒体发现 MVP 不做本地媒体库播放、观影进度或完整媒体管理 UI。
 
-项目官方维护的真实插件不放在本仓库。当前迁移起点为 [`sundarr-sources`](https://github.com/A0CBEB339CB02898/sundarr-sources) 的 `master` 分支；它目前仍是 SOURCE-only / flat v1 历史结构，仓库是否改名尚未确认。Sundarr Core 继续保留稳定插件合同、运行时、配置与诊断能力、离线测试替身和契约测试，并支持用户配置多个可信插件仓库。
+项目官方维护的真实插件不放在本仓库。[`sundarr-sources`](https://github.com/A0CBEB339CB02898/sundarr-sources) 保留为敏感资源搜索 SOURCE 仓库；[`sundarr-plugin`](https://github.com/A0CBEB339CB02898/sundarr-plugin) 维护 TMDb、豆瓣目录、豆瓣想看等其他官方插件。Sundarr Core 继续保留稳定插件合同、运行时、配置与诊断能力、离线测试替身和契约测试，并支持用户配置多个可信插件仓库。
 
 媒体发现中心使用 `CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 公共合同；下一步以 TMDb 作为真实主目录，豆瓣目录作为可选补充，豆瓣想看作为独立列表 Provider。外部服务不可用时返回缓存、持久化最小快照或明确降级。
 

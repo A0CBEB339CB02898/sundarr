@@ -1200,7 +1200,7 @@ npm run build 通过。
 
 ## Phase 10: Plugin Framework And External Plugins
 
-目标：先完成可独立验收的 Python 插件框架，再以同一稳定合同承载媒体目录、想看列表和资源搜索插件。项目官方真实插件全部在独立 Git 仓库维护，Sundarr Core 只保存仓库地址、分支和锁定 commit，不内置平台实现。
+目标：先完成可独立验收的 Python 插件框架，再以同一稳定合同承载媒体目录、想看列表和资源搜索插件。项目官方真实插件全部在外部 Git 仓库维护：SOURCE 保留独立 `sundarr-sources` 仓库，其他官方插件集中到 `sundarr-plugin`；Sundarr Core 只保存仓库地址、分支和锁定 commit，不内置平台实现。
 
 交付物：
 
@@ -1364,9 +1364,10 @@ Discover API 和 /app/discover 不包含 TMDb、豆瓣等平台专用分支。
 交付物：
 
 ```text
-把当前 https://github.com/A0CBEB339CB02898/sundarr-sources.git 的 master 分支从 SOURCE-only 历史结构迁移为通用 Manifest v2；仓库是否改名需另行确认。
-官方真实插件只在该独立仓库实现，Core 不复制平台代码或 fixture。
-按顺序交付：TMDb CATALOG_PROVIDER -> SeedHub SOURCE -> 豆瓣 CATALOG_PROVIDER -> 豆瓣 WATCHLIST_PROVIDER。
+初始化 https://github.com/A0CBEB339CB02898/sundarr-plugin.git，并使用通用 Manifest v2 交付所有非 SOURCE 官方插件。
+保留 https://github.com/A0CBEB339CB02898/sundarr-sources.git 作为独立 SOURCE 官方仓库，不迁入 `sundarr-plugin`。
+官方真实插件只在对应外部仓库实现，Core 不复制平台代码或 fixture。
+按顺序交付：TMDb CATALOG_PROVIDER（sundarr-plugin）-> SeedHub SOURCE（sundarr-sources）-> 豆瓣 CATALOG_PROVIDER（sundarr-plugin）-> 豆瓣 WATCHLIST_PROVIDER（sundarr-plugin）。
 每个插件分别提供配置 schema、离线 fixture、契约测试、健康检查和显式实时集成验收。
 每开发或修改一个真实插件，都必须运行该插件的实时集成验收，并回归 Core 的 Provider 合同、API 和 UI 主路径。
 首个 TMDb 搜索、热门、分类、详情和海报墙端到端通过后，修正已发现的通用合同问题并冻结 Plugin API v2。
