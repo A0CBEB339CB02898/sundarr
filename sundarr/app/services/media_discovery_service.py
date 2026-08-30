@@ -17,6 +17,7 @@ from sundarr.app.plugins.contracts import (
     CatalogPage,
     CatalogProvider,
     CatalogQuery,
+    MediaType,
 )
 from sundarr.app.plugins.runtime_registry import catalog_provider_registry
 from sundarr.app.schemas.discover import (
@@ -141,14 +142,21 @@ class MediaDiscoveryService:
 
         cache_key = catalog_cache.make_key(
             "detail",
-            {"provider_id": selected_id, "external_id": external.external_id},
+            {
+                "provider_id": selected_id,
+                "external_id": external.external_id,
+                "media_type": subject.media_type,
+            },
         )
         cached = await catalog_cache.get(cache_key)
         if cached and not refresh and self._is_fresh(cached, get_settings().catalog_detail_cache_ttl_seconds):
             return self._cached_detail(db, cached, degraded=False)
 
         try:
-            item = await provider.get_detail(external.external_id, None)
+            item = await provider.get_detail(
+                external.external_id,
+                MediaType(subject.media_type),
+            )
             stored = self.upsert_item(db, selected_id, item)
             db.commit()
             db.refresh(stored)

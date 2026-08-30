@@ -42,6 +42,7 @@ from sundarr.app.services.media_discovery_service import (
 @dataclass
 class ContractCatalogProvider:
     id: str = "contract-catalog"
+    detail_media_type: MediaType | None = None
 
     def describe_capabilities(self) -> CatalogCapabilities:
         return CatalogCapabilities(
@@ -65,6 +66,7 @@ class ContractCatalogProvider:
         return CatalogPage(items=(self._item(query.genres[0] if query.genres else "分类电影"),))
 
     async def get_detail(self, external_id: str, media_type: MediaType | None = None) -> CatalogItem:
+        self.detail_media_type = media_type
         return self._item("真实合同详情", external_id=external_id)
 
     def _item(self, title: str, external_id: str = "603") -> CatalogItem:
@@ -138,7 +140,8 @@ def make_client(db_session: Session) -> TestClient:
 
 
 def test_discover_search_detail_and_follow_use_public_contract(db_session: Session) -> None:
-    catalog_provider_registry.register("contract-catalog", ContractCatalogProvider())
+    provider = ContractCatalogProvider()
+    catalog_provider_registry.register("contract-catalog", provider)
     client = make_client(db_session)
 
     providers = client.get("/discover/providers")
@@ -162,6 +165,7 @@ def test_discover_search_detail_and_follow_use_public_contract(db_session: Sessi
     assert detail["overview"] == "一名程序员发现世界并非表面所见。"
     assert detail["rating"] == 8.7
     assert detail["rating_provider"] == "contract-catalog"
+    assert provider.detail_media_type == MediaType.MOVIE
 
     followed = client.post(f"/discover/{media_subject_id}/follow")
     assert followed.status_code == 200

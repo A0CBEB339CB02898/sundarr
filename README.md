@@ -210,7 +210,7 @@ Sundarr 采用暖色操作台风格设计：
 
 项目官方维护的真实插件不放在本仓库。[`sundarr-sources`](https://github.com/A0CBEB339CB02898/sundarr-sources) 保留为敏感资源搜索 SOURCE 仓库；[`sundarr-plugin`](https://github.com/A0CBEB339CB02898/sundarr-plugin) 维护 TMDb、豆瓣目录、豆瓣想看等其他官方插件。Sundarr Core 继续保留稳定插件合同、运行时、配置与诊断能力、离线测试替身和契约测试，并支持用户配置多个可信插件仓库。
 
-媒体发现中心使用 `CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 公共合同；下一步以 TMDb 作为真实主目录，豆瓣目录作为可选补充，豆瓣想看作为独立列表 Provider。外部服务不可用时返回缓存、持久化最小快照或明确降级。
+媒体发现中心使用 `CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 公共合同；TMDb 主目录插件已完成离线实现与 Core API 集成，当前待真实数据和 Web Console 验收。之后再开发豆瓣可选补充目录与独立豆瓣想看 Provider。外部服务不可用时返回缓存、持久化最小快照或明确降级。
 
 媒体发现数据采用 A+ 策略：PostgreSQL 保存 `MediaSubject` 身份、外部 ID、最小展示快照和用户状态；Redis 缓存易变详情、评分、榜单和搜索结果。缓存丢失不会丢失收藏或关注，Provider 故障时可以退化为最小卡片。
 
