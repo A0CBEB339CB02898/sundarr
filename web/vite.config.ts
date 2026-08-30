@@ -9,6 +9,7 @@ export default defineConfig({
       '/health': 'http://localhost:8080',
       '/search': 'http://localhost:8080',
       '/discover': 'http://localhost:8080',
+      '/configuration': 'http://localhost:8080',
       '/plugins': 'http://localhost:8080',
       '/resources': 'http://localhost:8080',
       '/resource-links': 'http://localhost:8080',

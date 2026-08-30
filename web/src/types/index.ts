@@ -10,3 +10,5 @@ export type { DtlMediaType, MediaLibraryResponse, MediaLibraryListResponse, DtlC
 export type { SyncMediaType, SyncConfigResponse, SyncBindingResponse, SyncBindingListResponse, SyncDiscoveredFileResponse, SyncDiscoveredListResponse, SyncScanResponse, SyncTaskCreateResponse, SyncBindingTestResponse, SyncBindingFormState, SyncConfigFormState } from './sync'
 export type { RemoteMediaLibraryFormState, RemoteMediaLibraryResponse, RemoteMediaLibraryListResponse } from './remote-library'
 export type { CatalogFilterOption, CatalogProvider, MediaSubjectSummary, DiscoverPageResponse, MediaSubjectDetail, WatchlistPageResponse } from './discover'
+export type { PluginConfigFieldSchema, PluginRepositoryResponse, PluginResponse, PluginMutationResponse } from './plugin'
+export type { ConfigurationIssue, ConfigurationReadinessResponse } from './configuration'

@@ -16,6 +16,24 @@ _SUPPORTED_TYPES = {"string", "password", "integer", "boolean", "select"}
 REDACTED_VALUE = "***"
 
 
+def missing_required_plugin_config(
+    schema: Mapping[str, Any],
+    config: Mapping[str, Any] | None,
+) -> list[str]:
+    """返回缺少且没有默认值的必填配置字段。"""
+
+    values = config or {}
+    missing: list[str] = []
+    for field_name, field_schema in schema.items():
+        if not isinstance(field_schema, Mapping):
+            continue
+        if field_schema.get("required") is not True or "default" in field_schema:
+            continue
+        if values.get(field_name) in (None, ""):
+            missing.append(field_name)
+    return missing
+
+
 def validate_plugin_config(
     schema: Mapping[str, Any],
     config: Mapping[str, Any] | None,

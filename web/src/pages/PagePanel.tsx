@@ -9,6 +9,7 @@ import SourcesPanel from './SourcesPage'
 import LibrariesPanel from './LibrariesPage'
 import RemoteLibrariesPanel from './RemoteLibrariesPage'
 import DiscoverPanel from './DiscoverPage'
+import PluginsPanel from './PluginsPage'
 
 export function PagePanel({
   activePage,
@@ -40,6 +41,7 @@ export function PagePanel({
       <div className={activePage === 'search' ? 'panel-visible' : 'panel-hidden'}><SearchPanel showToast={showToast} /></div>
       <div className={activePage === 'favorites' ? 'panel-visible' : 'panel-hidden'}><FavoritesPanel showToast={showToast} /></div>
       <div className={activePage === 'sources' ? 'panel-visible' : 'panel-hidden'}><SourcesPanel /></div>
+      <div className={activePage === 'plugins' ? 'panel-visible' : 'panel-hidden'}><PluginsPanel showToast={showToast} /></div>
       <div className={activePage === 'libraries' ? 'panel-visible' : 'panel-hidden'}><LibrariesPanel showToast={showToast} /></div>
       <div className={activePage === 'remote-libraries' ? 'panel-visible' : 'panel-hidden'}><RemoteLibrariesPanel showToast={showToast} /></div>
     </>

@@ -115,8 +115,26 @@ async def test_manager_installs_multi_plugin_repo_and_redacts_config(db_session,
         {"api_key": "***", "health_ok": True},
     )
     row = db_session.query(PluginConfig).filter(PluginConfig.plugin_id == "fixture-catalog").one()
-    assert "super-secret" in row.config_data
+    assert row.config_data.startswith("fernet:v1:")
+    assert "super-secret" not in row.config_data
     assert "***" not in row.config_data
+    assert manager._decode_config(row.config_data)["api_key"] == "super-secret"
+
+
+async def test_manager_installs_missing_required_config_as_disabled(db_session, tmp_path: Path) -> None:
+    origin, _ = _create_origin(tmp_path)
+    manager = _manager(tmp_path)
+
+    result = await manager.add_repository(db_session, repo_url=origin.as_posix(), branch="main")
+
+    assert set(result.plugin_ids) == {"fixture-source"}
+    rows = {item.plugin_id: item for item in db_session.query(PluginConfig).all()}
+    assert rows["fixture-source"].enabled is True
+    assert rows["fixture-catalog"].enabled is False
+    assert rows["fixture-watchlist"].enabled is False
+    assert source_registry.get("fixture-source") is not None
+    assert catalog_provider_registry.get("fixture-catalog") is None
+    assert watchlist_provider_registry.get("fixture-watchlist") is None
 
 
 async def test_failed_update_keeps_locked_commit_and_old_instances(db_session, tmp_path: Path) -> None:

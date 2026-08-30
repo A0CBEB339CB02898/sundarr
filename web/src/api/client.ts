@@ -51,6 +51,17 @@ function createApiClient() {
       }
       return responseJson<T>(response)
     },
+    async put<T>(path: string, body?: unknown): Promise<T> {
+      const response = await fetch(`${baseUrl}${path}`, {
+        body: body === undefined ? undefined : JSON.stringify(body),
+        headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+        method: 'PUT',
+      })
+      if (!response.ok) {
+        throw new Error(await responseErrorMessage(response))
+      }
+      return responseJson<T>(response)
+    },
     async delete<T>(path: string): Promise<T> {
       const response = await fetch(`${baseUrl}${path}`, { method: 'DELETE' })
       if (!response.ok) {

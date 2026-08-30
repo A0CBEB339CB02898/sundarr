@@ -5,6 +5,7 @@ description = "Personal cloud media search, staging, and NAS archive automation.
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.14.0",
+  "cryptography>=43.0.0",
   "fastapi>=0.115.0",
   "pydantic-settings>=2.6.0",
   "psycopg[binary]>=3.2.0",

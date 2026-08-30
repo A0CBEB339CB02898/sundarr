@@ -14,6 +14,7 @@ import { storedThemeMode, applyThemeMode } from './utils/theme'
 import { pageFromPath } from './utils/navigation'
 import { ThemeSwitcher } from './components/ThemeSwitcher'
 import { GlobalTransferPanel } from './components/GlobalTransferPanel'
+import { ConfigurationGuide } from './components/ConfigurationGuide'
 import { PagePanel } from './pages/PagePanel'
 
 export default function App() {
@@ -110,12 +111,18 @@ export default function App() {
   }
 
   function navigate(item: NavItem) {
-    window.history.pushState({}, '', item.path)
-    setActivePage(item.key)
+    navigatePath(item.path)
     setIsDrawerOpen(false)
     if (item.key === 'transfers') {
       setIsTransferPanelOpen(false)
     }
+  }
+
+  function navigatePath(path: string) {
+    window.history.pushState({}, '', path)
+    setActivePage(pageFromPath(new URL(path, window.location.origin).pathname))
+    setIsDrawerOpen(false)
+    window.dispatchEvent(new CustomEvent('sundarr:navigation', { detail: { path } }))
   }
 
   function navigateToTransfers(taskId?: string) {
@@ -175,6 +182,7 @@ export default function App() {
       </div>
 
       <main className="content-shell">
+        <ConfigurationGuide onNavigate={navigatePath} />
         <PagePanel
           activePage={activePage}
           onTransfersChanged={loadTransfers}

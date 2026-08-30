@@ -83,6 +83,8 @@ MVP 不做：
 - 项目官方真实插件统一存放在独立仓库；Core 只保留稳定插件协议、SDK、Loader、Activation、Registry、配置/诊断 API 和测试 Mock，不内置 TMDb、豆瓣或 SeedHub 实现。
 - 官方仓库已经拆分：`sundarr-sources` 保留敏感 SOURCE 实现，`sundarr-plugin` 维护 TMDb、豆瓣目录、豆瓣想看等非 SOURCE 插件；两者分别锁定、更新和回滚。
 - 官方插件集中维护不限制用户添加其他可信第三方插件仓库。
+- 正式插件凭据通过 `/app/plugins` 和 Core 配置 API 管理，敏感字段使用数据库外主密钥静态加密；插件仓库实时测试的环境变量不作为正式运行入口。
+- Core 统一判定配置缺口，Web Console 使用非阻断引导；当前浏览器可以按缺口 fingerprint 选择不再提醒。
 
 ## Product Tone
 

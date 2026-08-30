@@ -166,6 +166,8 @@ Phase 9.5 收藏模型重构已完成：搜索默认不入库，资源和资源�
 Phase 10.0 质量基线收口、Phase 10.1 通用插件宿主和 Phase 10.2 媒体发现 Core 结构性收口已完成。当前优先任务是 Phase 10.3：在官方外部仓库开发真实插件，并用真实数据持续回归 Core；首个 TMDb 端到端通过并修正暴露的合同问题后冻结 Plugin API v2，再集中扩展其他插件。Phase 10.2 完成不等于真实目录链路已通过生产验收。
 正式插件的 API key、Token、Cookie 等运行时配置由 Web Console / Core 配置 API 写入 PluginConfig，并以 PostgreSQL 为事实来源；宿主进程环境变量不作为正式插件业务配置入口。外部插件仓库的隔离实时测试可从当前测试进程环境变量临时读取凭据。
 PluginConfig 中由 Manifest 标记为 secret/password 的敏感字段必须在真实凭据人工验收前完成静态加密；加密主密钥属于数据库外的部署级 Secret，不得与密文保存在同一数据库。
+Core 提供统一配置就绪状态；Web Console 启动后以非阻断方式提示缺失配置，并允许当前浏览器按缺口 fingerprint 选择下次不再询问。浏览器提醒偏好只存 localStorage，不写入数据库；缺口集合变化后可以重新提醒。
+本地 CLI 的 run/start/restart 成功后必须打印可访问的 Web Console 地址；默认显示 `http://127.0.0.1:<web_port>`，不在启动摘要中额外打印 API 端口。
 通用 Manifest v2 多插件解析、目标 PluginType、flat v1 SOURCE 兼容、三类 MVP 公共运行协议、类型专用 Runtime Registry、仓库级候选原子切换、Manager/API 接入、API/Worker 启动恢复、配置与日志脱敏已实现；旧 flat v1 加载入口必须继续明确拒绝直接执行 v2。
 CATALOG_PROVIDER 的筛选和排序能力必须按 CatalogOperation 声明；全局 filters / sorts 仅表示能力并集和旧 Provider 兼容回退，Core 与 Web Console 优先使用 operation_filters / operation_sorts，显式空集合不得回退。
 Sundarr Core 继续使用 Python + FastAPI，不引入 Cordis 或 Node.js 作为后端运行时。

@@ -328,6 +328,22 @@ def test_api_command_uses_module_entry() -> None:
     ]
 
 
+@pytest.mark.parametrize("bind_host", ["0.0.0.0", "::"])
+def test_web_console_address_uses_loopback_for_wildcard_host(
+    bind_host: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    cli._print_web_console_address(bind_host, 5173)
+
+    assert capsys.readouterr().out == "Web 控制台：http://127.0.0.1:5173\n"
+
+
+def test_web_console_address_preserves_explicit_host(capsys: pytest.CaptureFixture[str]) -> None:
+    cli._print_web_console_address("192.0.2.10", 4173)
+
+    assert capsys.readouterr().out == "Web 控制台：http://192.0.2.10:4173\n"
+
+
 def test_log_max_bytes_defaults_to_100mb(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(cli.LOG_MAX_BYTES_ENV, raising=False)
 

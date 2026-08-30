@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -15,10 +14,17 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from .base import PluginManifest, PluginType
-from .config import REDACTED_VALUE, redact_plugin_config, redact_plugin_error, validate_plugin_config
+from .config import (
+    REDACTED_VALUE,
+    missing_required_plugin_config,
+    redact_plugin_config,
+    redact_plugin_error,
+    validate_plugin_config,
+)
 from .coordinator import RepositoryActivationCoordinator, RepositoryActivationError, repository_activation_coordinator
 from .loader import PluginLoader, plugin_loader
 from .registry import plugin_registry
+from .secrets import config_requires_encryption, decode_plugin_config, encode_plugin_config
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +260,7 @@ class PluginManager:
             if is_secret and submitted.get(field_name) == REDACTED_VALUE and field_name in existing_values:
                 submitted[field_name] = existing_values[field_name]
         validated = validate_plugin_config(manifest.config_schema, submitted)
-        config.config_data = self._encode_config(validated)
+        config.config_data = self._encode_config(validated, manifest.config_schema)
         config.status = "pending" if config.enabled else "disabled"
         config.last_error = None
         session.commit()
@@ -296,6 +302,13 @@ class PluginManager:
         for config in session.query(PluginConfig).all():
             activation = self.coordinator.get(config.plugin_id)
             manifest = activation.manifest if activation else self._find_manifest(config.repository, config.plugin_id)
+            try:
+                config_values = self._decode_config(config.config_data)
+                config_error = None
+            except ValueError as exc:
+                config_values = {}
+                config_error = str(exc)
+            missing_fields = missing_required_plugin_config(manifest.config_schema, config_values)
             rows.append({
                 "id": manifest.id,
                 "name": manifest.name,
@@ -307,8 +320,12 @@ class PluginManager:
                 "repository_id": config.repository_id,
                 "enabled": bool(config.enabled),
                 "status": activation.status.value if activation else config.status,
-                "error": config.last_error,
+                "error": config.last_error or config_error,
                 "commit_hash": activation.commit_hash if activation else None,
+                "config": redact_plugin_config(manifest.config_schema, config_values),
+                "config_schema": manifest.config_schema,
+                "missing_required_config": missing_fields,
+                "configuration_required": bool(missing_fields),
                 "requires": list(manifest.requires),
                 "provides": list(manifest.provides),
                 "cleanup_count": activation.context.cleanup_count if activation else 0,
@@ -469,6 +486,7 @@ class PluginManager:
         }
         for manifest in manifests:
             row = existing.get(manifest.id)
+            created = row is None
             if row is None:
                 row = PluginConfig(
                     id=uuid4().hex,
@@ -485,7 +503,25 @@ class PluginManager:
                 row.plugin_type = manifest.plugin_type.value
             if config_overrides and manifest.id in config_overrides:
                 validated = validate_plugin_config(manifest.config_schema, config_overrides[manifest.id])
-                row.config_data = PluginManager._encode_config(validated)
+                row.config_data = PluginManager._encode_config(validated, manifest.config_schema)
+            elif created:
+                initial_values = {
+                    field_name: field_schema["default"]
+                    for field_name, field_schema in manifest.config_schema.items()
+                    if isinstance(field_schema, Mapping) and "default" in field_schema
+                }
+                missing_fields = missing_required_plugin_config(manifest.config_schema, initial_values)
+                if missing_fields:
+                    row.enabled = False
+                    row.status = "disabled"
+                    row.config_data = PluginManager._encode_config(initial_values, manifest.config_schema)
+                else:
+                    validated = validate_plugin_config(manifest.config_schema, initial_values)
+                    row.config_data = PluginManager._encode_config(validated, manifest.config_schema)
+            else:
+                values = PluginManager._decode_config(row.config_data)
+                if config_requires_encryption(row.config_data, values, manifest.config_schema):
+                    row.config_data = PluginManager._encode_config(values, manifest.config_schema)
         return {manifest.id: existing[manifest.id] for manifest in manifests}
 
     @staticmethod
@@ -555,19 +591,11 @@ class PluginManager:
 
     @staticmethod
     def _decode_config(value: str | Mapping[str, Any] | None) -> dict[str, Any]:
-        if isinstance(value, Mapping):
-            return dict(value)
-        try:
-            decoded = json.loads(value or "{}")
-        except (TypeError, json.JSONDecodeError) as exc:
-            raise ValueError("插件配置不是有效 JSON") from exc
-        if not isinstance(decoded, dict):
-            raise ValueError("插件配置 JSON 必须是对象")
-        return decoded
+        return decode_plugin_config(value)
 
     @staticmethod
-    def _encode_config(value: Mapping[str, Any]) -> str:
-        return json.dumps(dict(value), ensure_ascii=False, separators=(",", ":"))
+    def _encode_config(value: Mapping[str, Any], schema: Mapping[str, Any] | None = None) -> str:
+        return encode_plugin_config(value, schema)
 
     @staticmethod
     def _activation_diagnostic(activation: Any) -> dict[str, Any]:

@@ -109,6 +109,7 @@ def _run_foreground(api_host: str, api_port: int, web_host: str, web_port: int, 
     web_process = subprocess.Popen(_web_command(web_host, web_port), cwd=WEB_DIR)
     worker_process = subprocess.Popen(_worker_command())
     print("Sundarr 完整项目已前台启动，按 Ctrl+C 停止。")
+    _print_web_console_address(web_host, web_port)
     try:
         while True:
             api_code = api_process.poll()
@@ -140,6 +141,14 @@ def _start_background(api_host: str, api_port: int, web_host: str, web_port: int
     _start_service(WEB_SERVICE, _web_command(web_host, web_port), cwd=WEB_DIR, host=web_host, port=web_port)
     _start_service(WORKER_SERVICE, _worker_command(), cwd=None)
     print("Sundarr 完整项目已后台启动。")
+    _print_web_console_address(web_host, web_port)
+
+
+def _print_web_console_address(host: str, port: int) -> None:
+    display_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
+    if ":" in display_host and not display_host.startswith("["):
+        display_host = f"[{display_host}]"
+    print(f"Web 控制台：http://{display_host}:{port}")
 
 
 def _setup_project() -> None:
