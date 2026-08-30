@@ -40,8 +40,22 @@ export default function SearchPage({ showToast }: { showToast: (type: 'success' 
     (window.localStorage.getItem('sundarr.viewMode') as ViewMode) || 'list'
   )
 
-  async function runSearch() {
-    const keyword = form.q.trim()
+  useEffect(() => {
+    function applyDiscoverHandoff() {
+      if (window.location.pathname !== '/app/search') return
+      const params = new URLSearchParams(window.location.search)
+      const keyword = (params.get('q') || '').trim()
+      if (!keyword) return
+      setForm({ q: keyword })
+      void runSearch(keyword, params.get('year'))
+    }
+    applyDiscoverHandoff()
+    window.addEventListener('popstate', applyDiscoverHandoff)
+    return () => window.removeEventListener('popstate', applyDiscoverHandoff)
+  }, [])
+
+  async function runSearch(keywordOverride?: string, yearOverride?: string | null) {
+    const keyword = (keywordOverride ?? form.q).trim()
     if (!keyword) {
       setError('请输入搜索关键词。')
       return
@@ -51,6 +65,7 @@ export default function SearchPage({ showToast }: { showToast: (type: 'success' 
     setError(null)
     try {
       const params = new URLSearchParams({ q: keyword, limit: '20' })
+      if (yearOverride) params.set('year', yearOverride)
       const result = await api.get<SearchResponse>(`/search?${params.toString()}`)
       setResponse(result)
       setActiveResultTab('all')

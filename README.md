@@ -202,19 +202,19 @@ Sundarr 采用暖色操作台风格设计：
 
 **Phase 0-9.5 已完成**：项目骨架、持久化模型、搜索与收藏、SMB 写入、任务管理、Web Console、远程媒体库同步和模块重构已经落地。
 
-**Phase 10.0 已完成**：默认 pytest、Alembic 迁移链、Windows 真实服务 PID 语义和 SMB 错误码均已收口；当前基线为后端 231 项测试通过，前端生产构建及 API / Web / Worker 连续两轮启停冒烟沿用此前通过结果。
+**Phase 10.0 已完成**：默认 pytest、Alembic 迁移链、Windows 真实服务 PID 语义和 SMB 错误码均已收口。
 
-**Phase 10 进行中**：Core 已移除内置真实站点，搜索源统一来自外部 Python 插件仓库；Activation 生命周期内核、目标 PluginType、通用 Manifest v2 多插件解析和 flat v1 SOURCE 兼容已完成，仍需接入 v2 类型专用 Activation/Registry、候选健康检查、原子切换、启动自动加载、Web Console 仓库管理和首个外部 SeedHub 端到端验收。
+**Phase 10 进行中**：通用 Manifest v2、类型专用 Activation/Registry、候选健康检查、仓库级原子切换和启动恢复已经完成。媒体发现 Core 的数据、编排、API、Web Console 与契约测试工具也已完成结构性收口。当前进入独立插件仓库的真实 Provider 开发和持续回归阶段。
 
-**通用插件宿主已完成初步技术验收**：当前 Phase 10.2 先收口媒体发现 Core 的数据、编排、API、Web Console 和契约测试工具，不建设面向用户的 Mock 数据链；Phase 10.3 在独立官方插件仓库逐个接入真实 TMDb、SeedHub 和豆瓣插件，并使用真实数据持续回归 Core。首个 TMDb 端到端通过并修正通用合同问题后冻结 Plugin API v2，再集中扩展其他插件。媒体发现 MVP 支持筛选、热门、分类、详情、关注列表和发现型海报墙，但不做本地媒体库播放、观影进度或完整媒体管理 UI。
+**Phase 10.2 已完成结构性验收**：Core 已实现媒体身份、外部 ID、最小快照、目录缓存与降级、想看游标、Discover API 和 Web Console；用户界面没有伪造目录或海报数据。Phase 10.3 在独立官方插件仓库逐个接入真实 TMDb、SeedHub 和豆瓣插件，并使用真实数据持续回归 Core。首个 TMDb 端到端通过并修正通用合同问题后冻结 Plugin API v2，再集中扩展其他插件。媒体发现 MVP 不做本地媒体库播放、观影进度或完整媒体管理 UI。
 
 项目官方维护的真实插件不放在本仓库。当前迁移起点为 [`sundarr-sources`](https://github.com/A0CBEB339CB02898/sundarr-sources) 的 `master` 分支；它目前仍是 SOURCE-only / flat v1 历史结构，仓库是否改名尚未确认。Sundarr Core 继续保留稳定插件合同、运行时、配置与诊断能力、离线测试替身和契约测试，并支持用户配置多个可信插件仓库。
 
-媒体发现中心计划使用 TMDb 作为主目录、豆瓣目录作为可选补充，两者均以 `CATALOG_PROVIDER` 插件接入；豆瓣想看使用独立 `WATCHLIST_PROVIDER` 插件，由 Core 调度。外部服务不可用时必须支持缓存或明确降级。
+媒体发现中心使用 `CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 公共合同；下一步以 TMDb 作为真实主目录，豆瓣目录作为可选补充，豆瓣想看作为独立列表 Provider。外部服务不可用时返回缓存、持久化最小快照或明确降级。
 
 媒体发现数据采用 A+ 策略：PostgreSQL 保存 `MediaSubject` 身份、外部 ID、最小展示快照和用户状态；Redis 缓存易变详情、评分、榜单和搜索结果。缓存丢失不会丢失收藏或关注，Provider 故障时可以退化为最小卡片。
 
-规划路由中，`/app/discover` 是统一媒体发现模块，`/app/discover/:media_subject_id` 是媒体详情；现有 `/app/search` 保留为具体资源链接搜索。在发现模块实现前，README 中的启动入口仍指向当前可用的 `/app/search`。
+`/app/discover` 已作为统一媒体发现模块，媒体详情由 `/app/discover/:media_subject_id` 承载；现有 `/app/search` 保留为具体资源链接搜索。未启用真实目录 Provider 时，发现页显示真实空状态，不填充演示数据。
 
 发现首页默认使用内容流，展示热门电影、热门剧集、分类推荐和关注更新；输入目录关键词或应用筛选后切换为统一海报网格，并通过 URL query 保留搜索状态。
 

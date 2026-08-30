@@ -225,7 +225,7 @@ Web Console 没有仓库管理页面。
 真实 TMDb、豆瓣、SeedHub 等平台插件尚未迁移到官方 Manifest v2 仓库。
 ```
 
-Phase 10.1 已完成当前 MVP 类型共用的 v2 加载、类型专用 Registry、健康检查、候选原子切换、失败回滚和启动恢复。Phase 10.2 完成媒体发现 Core 通用消费框架，不建设面向用户的 Mock 数据链。Phase 10.3 在官方外部仓库逐个实现 TMDb、SeedHub、豆瓣目录和豆瓣想看等真实插件，并用真实数据持续回归 Core；首个 TMDb 端到端通过并修正通用合同问题后冻结 Plugin API v2。
+Phase 10.1 已完成当前 MVP 类型共用的 v2 加载、类型专用 Registry、健康检查、候选原子切换、失败回滚和启动恢复。Phase 10.2 已完成媒体发现 Core 通用消费框架的结构性验收，没有建设面向用户的 Mock 数据链。当前 Phase 10.3 在官方外部仓库逐个实现 TMDb、SeedHub、豆瓣目录和豆瓣想看等真实插件，并用真实数据持续回归 Core；首个 TMDb 端到端通过并修正通用合同问题后冻结 Plugin API v2。
 
 ---
 

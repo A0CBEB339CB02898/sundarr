@@ -2,7 +2,7 @@
 
 本文档是当前实现状态的派生摘要。阶段事实来源以 `docs/03-mvp-roadmap.md` 为准，插件运行时事实来源以 `docs/20-plugin-system.md` 为准。
 
-更新时间：2026-08-29。
+更新时间：2026-08-30。
 
 ---
 
@@ -12,24 +12,24 @@
 Phase 0-9.5 已完成。
 Phase 10.0 质量基线收口已完成。
 Phase 10.1 通用插件框架已达到第一次技术验收停止点；仓库级原子切换、API/Worker 恢复、多插件管理和脱敏闭环已实现。
-Phase 10.2 完成媒体发现 Core 的通用数据、编排、API、Web Console 和契约测试工具；Phase 10.3 以真实插件数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
-Phase 10.3 将官方外部仓库迁移到通用 Manifest v2，并逐个实现真实插件和仓库管理闭环。
+Phase 10.2 媒体发现 Core 的通用数据、编排、API、Web Console 和契约测试工具已完成结构性验收。
+Phase 10.3 当前优先：将官方外部仓库迁移到通用 Manifest v2，并逐个实现真实插件和仓库管理闭环；以真实数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
 Phase 11 AI Friendly API 未开始。
 Phase 12 Cloud Direct Download 非 MVP、非近期主线。
-媒体发现中心已进入当前 MVP，但在插件框架初步验收后实施；当前尚未实现。
+媒体发现中心已进入当前 MVP，通用 Core 和页面已实现；真实目录 Provider 尚未实现，因此真实目录链路尚未通过生产验收。
 ```
 
 Sundarr 已具备 API、Web Console、Worker、PostgreSQL、Redis、SMB 多连接、本地/远程媒体库、同步绑定、任务状态机、搜索管线和收藏模块。Core 内已无真实站点 Adapter；项目官方真实插件统一在独立 Python 插件仓库维护，Core 同时支持用户配置多个可信第三方仓库。当前官方迁移起点 `sundarr-sources` 仍是 SOURCE-only / flat v1 历史结构。
 
-媒体发现中心的计划范围包括筛选、热门、分类、详情、关注列表和发现型海报墙。它不等于本地媒体库 UI，不包含播放、观影进度或完整本地媒体管理。
+媒体发现中心已实现筛选、热门、分类、详情、关注列表和发现型海报墙的通用消费链路。它不等于本地媒体库 UI，不包含播放、观影进度或完整本地媒体管理。
 
-媒体身份已确认使用 Sundarr 内部 UUID 的 `MediaSubject`，并允许同时绑定多个外部平台 ID；具体表结构尚未实现。
+媒体身份使用 Sundarr 内部 UUID 的 `MediaSubject`，并允许同时绑定多个外部平台 ID；相关表结构和迁移已实现。
 
 媒体发现的数据来源与插件分类已确认：TMDb 是主 `CATALOG_PROVIDER`，豆瓣目录是可选补充 `CATALOG_PROVIDER`，豆瓣想看是独立 `WATCHLIST_PROVIDER`。同一豆瓣仓库可以交付两个独立插件实例；三类 MVP 最小运行合同、Runtime Registry、仓库级 Activation 和启用链路已实现，真实平台插件尚未实现。
 
-媒体发现持久化边界已确认采用 A+：PostgreSQL 保存规范身份、外部 ID、最小展示快照和用户状态，Redis 保存可重建目录详情和列表缓存。该数据模型尚未实现。
+媒体发现持久化边界采用 A+：PostgreSQL 保存规范身份、外部 ID、最小展示快照和用户状态，Redis 保存可重建目录详情和列表缓存；缓存失败时降级而不丢失持久身份和用户状态。
 
-媒体发现顶层信息架构已确认：`/app/discover` 是统一发现入口，`/app/discover/:media_subject_id` 是详情，现有 `/app/search` 保持为具体资源搜索。发现路由尚未实现。
+媒体发现顶层信息架构已实现：`/app/discover` 是统一发现入口，`/app/discover/:media_subject_id` 是详情，现有 `/app/search` 保持为具体资源搜索。
 
 发现首页交互已确认采用双模式：默认分区内容流，搜索/筛选后统一海报网格，状态进入 URL query。
 

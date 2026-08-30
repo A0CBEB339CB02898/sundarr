@@ -25,7 +25,7 @@ MVP 的目标是先跑通端到端闭环：
 ```text
 先后端闭环，后前端完善。
 CloudProvider 保留为可选扩展，近期不做真实网盘直接下载。
-Phase 10.1 通用插件框架已达到第一次技术验收门；下一实现阶段是 Phase 10.2 媒体发现 Core 通用消费框架。Phase 10.3 开发官方外部真实插件，并以真实数据持续回归和修正 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
+Phase 10.1 通用插件框架和 Phase 10.2 媒体发现 Core 已达到结构性验收门；当前进入 Phase 10.3 官方外部真实插件开发，并以真实数据持续回归和修正 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
 真实挂载目录下载到本地通过手动集成验收验证。
 先规则和用户确认，后模型辅助。
 先核心控制台，后媒体发现中心；不建设完整本地媒体库 UI。
@@ -57,8 +57,8 @@ Phase 9 Module Refactoring: 已完成；旧 DTL 模块已删除，Worker 统一�
 Phase 9.5 Resource Favorites Refactoring: 已完成；Resource / ResourceLink 已收缩为收藏模型，搜索默认不入库，Web Console 使用单一收藏入口。
 Phase 10.0 Quality Baseline Closure: 已完成；质量基线由 Phase 10.1 验收继续覆盖。
 Phase 10.1 Plugin Framework Completion: 已完成第一次技术验收范围；Manifest v2、类型合同、仓库级原子 Activation、进程恢复、多仓库管理、脱敏和本地 fixture 闭环已实现。
-Phase 10.2 Media Discovery Core Completion: 插件框架初步验收后执行，完成媒体发现数据、通用编排、API、Web Console 和契约测试工具，不建设面向用户的 Mock 数据链。
-Phase 10.3 Official External Plugins And Live Core Regression: 在独立官方仓库迁移到 Manifest v2 后逐个实现真实插件；开发过程中使用真实数据持续回归 Core，首个 TMDb 垂直切片通过后冻结 Plugin API v2。
+Phase 10.2 Media Discovery Core Completion: 已完成结构性验收；媒体发现数据、通用编排、API、Web Console 和契约测试工具已实现，没有建设面向用户的 Mock 数据链。
+Phase 10.3 Official External Plugins And Live Core Regression: 当前优先；在独立官方仓库迁移到 Manifest v2 后逐个实现真实插件，开发过程中使用真实数据持续回归 Core，首个 TMDb 垂直切片通过后冻结 Plugin API v2。
 Phase 11 AI Friendly API: 未开始，原 Phase 8 后移。
 Phase 12 Cloud Direct Download: 非 MVP，高级功能；仅保留规格文档，后续单独实现。
 媒体发现中心：已纳入当前 MVP，但在插件框架初步验收后实施；不包括本地媒体库海报墙、播放或观影进度。
@@ -1326,7 +1326,7 @@ pytest 与插件 API/Worker 冒烟通过，工作区已提交。
 
 ### Phase 10.2: Media Discovery Core Completion
 
-状态：Phase 10.1 初步验收后执行；产品边界已收口，数据/API 和实现尚未完成。
+状态：已完成结构性验收。真实平台端到端与 Plugin API v2 冻结属于 Phase 10.3，不包含在本阶段完成声明中。
 
 范围：
 
@@ -1359,7 +1359,7 @@ Discover API 和 /app/discover 不包含 TMDb、豆瓣等平台专用分支。
 
 ### Phase 10.3: Official External Plugins And Live Core Regression
 
-状态：Phase 10.1 框架与 Phase 10.2 媒体发现 Core 验收后执行。插件实现期间允许并要求修正真实数据暴露出的 Core 合同缺陷；这不表示平台代码可以进入 Core。
+状态：当前优先。插件实现期间允许并要求修正真实数据暴露出的 Core 合同缺陷；这不表示平台代码可以进入 Core。
 
 交付物：
 

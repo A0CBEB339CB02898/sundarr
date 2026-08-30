@@ -4,7 +4,7 @@
 
 ## 当前目标
 
-Phase 10.1 通用插件框架已达到第一次技术验收停止点。下一开发阶段是 Phase 10.2 媒体发现 Core 通用消费框架；完成数据、编排、API、Web Console 和契约测试工具后，Phase 10.3 在独立官方仓库开发 TMDb、SeedHub、豆瓣等真实插件，并使用真实数据持续回归 Core。首个 TMDb 端到端通过后冻结 Plugin API v2，再集中扩展其他插件。
+Phase 10.1 通用插件框架和 Phase 10.2 媒体发现 Core 已达到结构性验收停止点。当前进入 Phase 10.3：在独立官方仓库先实现 TMDb，再实现 SeedHub 和豆瓣插件，并使用真实数据持续回归 Core。首个 TMDb 端到端通过后冻结 Plugin API v2，再集中扩展其他插件。
 
 ## 已完成的架构收口
 
@@ -29,11 +29,11 @@ Phase 10.1 通用插件框架已达到第一次技术验收停止点。下一开
 3. 已完成候选 Activation、requires/provides 隔离、配置和健康检查。
 4. 已完成仓库级原子切换、失败保留旧版本、API/Worker 恢复和多仓库 API。
 5. 已使用本地 fixture 仓库完成框架第一次技术验收并在此暂停。
-6. 下一步实现 MediaSubject、发现 API/Web Console、离线契约测试工具；完成 Core 后进入真实插件开发和持续回归。
-7. Phase 10.3 迁移官方外部仓库并逐个实现真实插件；每次改动使用真实数据回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
+6. 已完成 MediaSubject、发现 API/Web Console、缓存降级、想看游标和离线契约测试工具。
+7. 下一步迁移官方外部仓库并首先实现 TMDb CATALOG_PROVIDER；每次改动使用真实数据回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
 ```
 
-当前不并行实现媒体发现 UI 或真实插件，避免业务实现反向固化不完整的插件框架。
+Core 结构性收口已经完成。后续真实插件开发与 Core 回归必须成对推进：平台实现留在外部仓库，真实数据暴露出的通用合同缺陷回到 Core 修复。
 
 ## 官方外部插件仓库
 

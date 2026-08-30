@@ -70,8 +70,8 @@ MVP Web Console 不做：
 MVP 页面：
 
 ```text
-/app/discover         计划中的统一媒体发现模块
-/app/discover/:media_subject_id  计划中的媒体详情
+/app/discover         已实现的统一媒体发现模块
+/app/discover/:media_subject_id  已实现的媒体详情
 /app/sources           已安装媒体源列表和测试
 /app/search            具体资源链接搜索和候选资源
 /app/favorites         收藏资源和收藏链接
@@ -84,7 +84,7 @@ MVP 页面：
 
 当前没有独立 `/app/sync` 页面；同步绑定和扫描操作由远程媒体库页面承载。Phase 10.3 将增加插件仓库管理入口，但不会提供 Python 代码编辑器。
 
-媒体发现中心已进入当前 MVP，Phase 10.1 通用插件宿主已完成初步验收。Phase 10.2 先实现不绑定具体平台的 Core 与 Web Console，不建设面向用户的 Mock 数据链；Phase 10.3 接入真实插件并使用真实数据持续回归页面和 Core。TMDb 是主 `CATALOG_PROVIDER`，豆瓣目录是可选补充 `CATALOG_PROVIDER`，豆瓣想看是独立 `WATCHLIST_PROVIDER`；数据采用核心身份与最小快照持久化、易变详情缓存的 A+ 策略。`/app/discover` 和详情路由已经确认但尚未实现；当前 `/app/search` 仍表示已实现的具体资源关键词聚合搜索，不得把发现中心写成已完成。
+媒体发现 Core 与 Web Console 已完成结构性收口，不建设面向用户的 Mock 数据链；Phase 10.3 接入真实插件并使用真实数据持续回归页面和 Core。TMDb 是主 `CATALOG_PROVIDER`，豆瓣目录是可选补充 `CATALOG_PROVIDER`，豆瓣想看是独立 `WATCHLIST_PROVIDER`；数据采用核心身份与最小快照持久化、易变详情缓存的 A+ 策略。`/app/discover` 和详情路由已实现；未启用真实 Provider 时展示明确空状态。当前 `/app/search` 仍表示具体资源关键词聚合搜索。
 
 Web Console 页面路由使用 `/app/*` 前缀，避免与 FastAPI API 路由 `/search`、`/sources`、`/storage`、`/transfers`、`/health` 在 Vite dev proxy 下冲突。
 
@@ -145,7 +145,7 @@ Phase 7 期间仍不启动真实供应商开发或真实集成测试；这些工
 保存到网盘是后续模块入口，当前只保留操作位置。
 ```
 
-### 5.1 计划中的统一媒体发现中心
+### 5.1 统一媒体发现中心
 
 已确认的产品范围：
 
@@ -165,7 +165,7 @@ Phase 7 期间仍不启动真实供应商开发或真实集成测试；这些工
 不展示本地媒体库海报墙。
 不提供播放和观影进度。
 不承担完整本地媒体管理。
-已纳入当前 MVP；TMDb 是主目录、豆瓣目录是可选补充，豆瓣想看是独立列表接入；A+ 持久化策略和顶层路由已确认，模块内页面信息架构尚待确认。
+已纳入当前 MVP并完成通用 Core 与页面；TMDb 是下一步真实主目录、豆瓣目录是可选补充，豆瓣想看是独立列表接入。
 媒体身份已确认使用内部 UUID，并可绑定多个外部平台 ID。
 统一入口为 /app/discover，详情为 /app/discover/:media_subject_id。
 /app/search 只搜索具体资源链接；媒体详情可以进入资源搜索，但具体关联参数尚待确认。

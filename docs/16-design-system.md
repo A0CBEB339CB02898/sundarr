@@ -517,7 +517,7 @@ Display keyboard hints on hover for major actions. Keycap (`kbd.kbd`):
 - Grid of source cards (3-col desktop, 2-col tablet, 1-col mobile), each showing: adapter icon · name (`title`) · status badge · description (`body-sm`) · last tested timestamp (mono) · actions (Test, View).
 - Viewing opens a read-only side drawer (right, 480px), not a full modal.
 
-### 7.2 `/app/discover` — 媒体发现（计划）
+### 7.2 `/app/discover` — 媒体发现
 
 - 顶部使用全宽目录搜索框和一行快捷筛选，搜索状态同步到 URL query。
 - 筛选栏仅包含媒体类型、题材、地区、年份范围和排序；高级筛选不使用隐藏抽屉提前进入 MVP。

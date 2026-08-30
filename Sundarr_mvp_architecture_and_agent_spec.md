@@ -67,9 +67,9 @@ Phase 11 提供稳定 AI Tool API。之后可以开发独立 Cordis / DeepSeek H
 ```text
 Phase 0-9.5：已完成。
 Phase 10.0：已完成，质量基线已恢复。
-Phase 10.1：当前优先，完成 Python Plugin Framework、类型专用 Activation/Registry、健康检查、原子切换和启动恢复，并做第一次技术验收。
-Phase 10.2：完成媒体发现 Core 与 Web Console 的通用消费框架，不建设面向用户的 Mock 数据链；Phase 10.3 使用真实插件数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
-Phase 10.3：把官方外部仓库迁移到通用 Manifest v2，逐个实现真实插件和仓库管理闭环。
+Phase 10.1：已完成 Python Plugin Framework 第一次技术验收。
+Phase 10.2：已完成媒体发现 Core 与 Web Console 的结构性收口，没有建设面向用户的 Mock 数据链。
+Phase 10.3：当前优先；把官方外部仓库迁移到通用 Manifest v2，逐个实现真实插件并用真实数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
 Phase 11：AI Friendly API。
 Phase 12：Cloud Direct Download，非 MVP、非近期主线。
 ```

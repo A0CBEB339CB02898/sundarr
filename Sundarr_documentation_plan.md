@@ -41,9 +41,9 @@
 ```text
 Phase 0-9.5 已完成。
 Phase 10.0 质量基线收口已完成。
-Phase 10.1 通用插件框架收口当前优先，完成后可做第一次技术验收。
-Phase 10.2 完成媒体发现 Core 与 Web Console 的通用消费框架，不建设面向用户的 Mock 数据链；Phase 10.3 使用真实插件数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
-Phase 10.3 将官方外部仓库迁移为通用 Manifest v2，并逐个实现真实插件与仓库管理闭环。
+Phase 10.1 通用插件框架第一次技术验收已完成。
+Phase 10.2 媒体发现 Core 与 Web Console 结构性收口已完成，没有建设面向用户的 Mock 数据链。
+Phase 10.3 当前优先：将官方外部仓库迁移为通用 Manifest v2，逐个实现真实插件并使用真实数据持续回归 Core；首个 TMDb 端到端通过后冻结 Plugin API v2。
 Phase 11 AI Friendly API 未开始。
 Phase 12 Cloud Direct Download 非 MVP、非近期主线。
 ```

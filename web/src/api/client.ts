@@ -51,6 +51,13 @@ function createApiClient() {
       }
       return responseJson<T>(response)
     },
+    async delete<T>(path: string): Promise<T> {
+      const response = await fetch(`${baseUrl}${path}`, { method: 'DELETE' })
+      if (!response.ok) {
+        throw new Error(await responseErrorMessage(response))
+      }
+      return responseJson<T>(response)
+    },
   }
 }
 

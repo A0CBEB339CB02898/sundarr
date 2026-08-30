@@ -8,6 +8,7 @@ import FavoritesPanel from './FavoritesPage'
 import SourcesPanel from './SourcesPage'
 import LibrariesPanel from './LibrariesPage'
 import RemoteLibrariesPanel from './RemoteLibrariesPage'
+import DiscoverPanel from './DiscoverPage'
 
 export function PagePanel({
   activePage,
@@ -32,6 +33,7 @@ export function PagePanel({
 }) {
   return (
     <>
+      <div className={activePage === 'discover' ? 'panel-visible' : 'panel-hidden'}><DiscoverPanel showToast={showToast} /></div>
       <div className={activePage === 'status' ? 'panel-visible' : 'panel-hidden'}><StatusPanel /></div>
       <div className={activePage === 'transfers' ? 'panel-visible' : 'panel-hidden'}><TransfersPanel onTransfersChanged={onTransfersChanged} page={transferPage} pageSize={transferPageSize} totalCount={transferTotalCount} onPageChange={onTransferPageChange} onPageSizeChange={onTransferPageSizeChange} transfers={transfers} showToast={showToast} /></div>
       <div className={activePage === 'storage' ? 'panel-visible' : 'panel-hidden'}><StoragePanel showToast={showToast} /></div>

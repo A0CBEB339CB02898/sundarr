@@ -60,7 +60,7 @@ douban-catalog    -> PluginType.CATALOG_PROVIDER
 douban-watchlist  -> PluginType.WATCHLIST_PROVIDER
 ```
 
-两个实例必须具有独立配置、启用状态、健康检查和错误状态。每个实例保留一个主 `PluginType`，`provides` 用于声明该类型下的细粒度能力。Phase 10.1 已完成通用仓库、类型专用 Registry 与 Activation 基础设施；Phase 10.2 完成 Core 通用消费框架；Phase 10.3 在官方外部仓库接入真实平台，并用真实数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
+两个实例必须具有独立配置、启用状态、健康检查和错误状态。每个实例保留一个主 `PluginType`，`provides` 用于声明该类型下的细粒度能力。Phase 10.1 通用仓库、类型专用 Registry 与 Activation 基础设施和 Phase 10.2 Core 通用消费框架均已完成结构性验收；当前 Phase 10.3 在官方外部仓库接入真实平台，并用真实数据持续回归 Core，首个 TMDb 端到端通过后冻结 Plugin API v2。
 
 外部仓库接入不直接扩展当前 `SourceModel` 承载所有信息。持久声明、加载结果、运行 Activation 和执行协议分层：
 
@@ -524,7 +524,6 @@ pytest 覆盖 manifest 解析、路径越界防护、加载失败、id 冲突和
   多插件、多仓库的 Manager/API 路径兼容
 
 待实现：
-  Phase 10.2 Core 通用消费框架验收
   Phase 10.3 将现有官方仓库迁移到通用 v2，逐个交付真实插件并持续执行真实数据 Core 回归
   Web Console 插件管理页面
 ```
