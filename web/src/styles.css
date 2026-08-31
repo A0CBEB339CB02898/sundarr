@@ -2907,6 +2907,10 @@ h2 {
   background: var(--surface-1);
 }
 
+.dc-filters.dc-filters-multi {
+  grid-template-columns: minmax(240px, 1.8fr) minmax(140px, .9fr) repeat(6, minmax(112px, 1fr)) auto;
+}
+
 .dc-filters label {
   display: grid;
   gap: 6px;
@@ -3171,7 +3175,8 @@ h2 {
 }
 
 @media (max-width: 1280px) {
-  .dc-filters {
+  .dc-filters,
+  .dc-filters.dc-filters-multi {
     grid-template-columns: repeat(4, minmax(140px, 1fr));
   }
   .dc-search-field {
@@ -3190,7 +3195,8 @@ h2 {
   .dc-header h2 {
     font-size: 24px;
   }
-  .dc-filters {
+  .dc-filters,
+  .dc-filters.dc-filters-multi {
     grid-template-columns: 1fr 1fr;
     padding: 14px;
   }

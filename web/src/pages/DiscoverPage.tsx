@@ -18,6 +18,7 @@ type DiscoverSection = {
 }
 
 type FilterState = {
+  provider_id: string
   q: string
   media_type: string
   genre: string
@@ -28,6 +29,7 @@ type FilterState = {
 }
 
 const emptyFilters: FilterState = {
+  provider_id: '',
   q: '',
   media_type: '',
   genre: '',
@@ -52,6 +54,7 @@ function sortsForOperation(provider: CatalogProvider | undefined, operation: str
 function filtersFromUrl(): FilterState {
   const params = new URLSearchParams(window.location.search)
   return {
+    provider_id: params.get('provider_id') || '',
     q: params.get('q') || '',
     media_type: params.get('media_type') || '',
     genre: params.get('genre') || '',
@@ -77,13 +80,16 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
   const [error, setError] = useState<string | null>(null)
   const [locationVersion, setLocationVersion] = useState(0)
 
-  const activeProvider = providers[0]
+  const activeProvider = providers.find((provider) => provider.id === filters.provider_id) || providers[0]
   const activeOperation = filters.q.trim() ? 'search' : 'categories'
   const availableFilters = filtersForOperation(activeProvider, activeOperation)
   const availableSorts = sortsForOperation(activeProvider, activeOperation)
   const genreOptions = activeProvider?.filter_options.genre || []
   const regionOptions = activeProvider?.filter_options.region || []
-  const hasCriteria = Object.values(filters).some(Boolean)
+  const hasCriteria = Boolean(
+    filters.q || filters.media_type || filters.genre || filters.region
+    || filters.year_from || filters.year_to || filters.sort,
+  )
 
   useEffect(() => {
     const onPopState = () => {
@@ -102,9 +108,14 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     try {
       const providerItems = await api.get<CatalogProvider[]>('/discover/providers')
       setProviders(providerItems)
+      const selectedProvider = providerItems.find((provider) => provider.id === filters.provider_id) || providerItems[0]
+      const providerId = selectedProvider?.id
       const detailId = detailIdFromPath()
       if (detailId) {
-        const suffix = forceRefresh ? '?refresh=true' : ''
+        const params = new URLSearchParams()
+        if (providerId) params.set('provider_id', providerId)
+        if (forceRefresh) params.set('refresh', 'true')
+        const suffix = params.size ? `?${params.toString()}` : ''
         setDetail(await api.get<MediaSubjectDetail>(`/discover/${encodeURIComponent(detailId)}${suffix}`))
         setResults(null)
         setSections([])
@@ -117,13 +128,13 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
         return
       }
       if (hasCriteria) {
-        const params = queryParams(forceRefresh)
+        const params = queryParams(forceRefresh, filters, providerId)
         const endpoint = filters.q.trim() ? '/discover/search' : '/discover/categories'
         setResults(await api.get<DiscoverPageResponse>(`${endpoint}?${params.toString()}`))
         setSections([])
       } else {
         setResults(null)
-        await loadHomeSections(forceRefresh)
+        await loadHomeSections(forceRefresh, providerId)
       }
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : '无法加载媒体发现内容。')
@@ -132,12 +143,14 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     }
   }
 
-  async function loadHomeSections(forceRefresh: boolean) {
-    const refresh = forceRefresh ? '&refresh=true' : ''
+  async function loadHomeSections(forceRefresh: boolean, providerId?: string) {
+    const catalogParams = new URLSearchParams({ limit: '12' })
+    if (providerId) catalogParams.set('provider_id', providerId)
+    if (forceRefresh) catalogParams.set('refresh', 'true')
     const definitions = [
-      { key: 'movie', title: '热门电影', description: '当前目录 Provider 返回的电影趋势', path: `/discover/trending?media_type=movie&limit=12${refresh}` },
-      { key: 'series', title: '热门剧集', description: '当前目录 Provider 返回的剧集趋势', path: `/discover/trending?media_type=series&limit=12${refresh}` },
-      { key: 'category', title: '分类推荐', description: '按当前目录能力生成的推荐', path: `/discover/categories?limit=12${refresh}` },
+      { key: 'movie', title: '热门电影', description: '当前目录 Provider 返回的电影趋势', path: `/discover/trending?media_type=movie&${catalogParams.toString()}` },
+      { key: 'series', title: '热门剧集', description: '当前目录 Provider 返回的剧集趋势', path: `/discover/trending?media_type=series&${catalogParams.toString()}` },
+      { key: 'category', title: '分类推荐', description: '按当前目录能力生成的推荐', path: `/discover/categories?${catalogParams.toString()}` },
       { key: 'watchlist', title: '关注更新', description: '外部想看列表同步到 Sundarr 的条目', path: '/discover/watchlist?limit=12' },
     ]
     const loaded = await Promise.allSettled(definitions.map((item) => api.get<DiscoverPageResponse | WatchlistPageResponse>(item.path)))
@@ -150,11 +163,12 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     }))
   }
 
-  function queryParams(forceRefresh = false) {
+  function queryParams(forceRefresh = false, state = filters, providerId?: string) {
     const params = new URLSearchParams()
-    Object.entries(filters).forEach(([key, value]) => {
+    Object.entries(state).forEach(([key, value]) => {
       if (value.trim()) params.set(key, value.trim())
     })
+    if (providerId) params.set('provider_id', providerId)
     params.set('limit', '24')
     if (forceRefresh) params.set('refresh', 'true')
     return params
@@ -184,15 +198,43 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     })
   }
 
+  function changeProvider(providerId: string) {
+    const provider = providers.find((item) => item.id === providerId)
+    if (!provider) return
+    const operation = filters.q.trim() ? 'search' : 'categories'
+    const nextFilters = filtersForOperation(provider, operation)
+    const nextSorts = sortsForOperation(provider, operation)
+    const genreValues = new Set((provider.filter_options.genre || []).map((item) => item.value))
+    const regionValues = new Set((provider.filter_options.region || []).map((item) => item.value))
+    const nextState: FilterState = {
+      ...filters,
+      provider_id: providerId,
+      genre: nextFilters.includes('genre') && genreValues.has(filters.genre) ? filters.genre : '',
+      region: nextFilters.includes('region') && regionValues.has(filters.region) ? filters.region : '',
+      year_from: nextFilters.includes('year') ? filters.year_from : '',
+      year_to: nextFilters.includes('year') ? filters.year_to : '',
+      sort: nextSorts.includes(filters.sort) ? filters.sort : '',
+    }
+    setFilters(nextState)
+    const params = queryParams(false, nextState, providerId)
+    params.delete('limit')
+    window.history.pushState({}, '', `/app/discover?${params.toString()}`)
+    setLocationVersion((value) => value + 1)
+  }
+
   function clearFilters() {
-    setFilters(emptyFilters)
-    window.history.pushState({}, '', '/app/discover')
+    const nextState = { ...emptyFilters, provider_id: activeProvider?.id || '' }
+    setFilters(nextState)
+    const query = nextState.provider_id ? `?provider_id=${encodeURIComponent(nextState.provider_id)}` : ''
+    window.history.pushState({}, '', `/app/discover${query}`)
     setLocationVersion((value) => value + 1)
   }
 
   function openDetail(item: MediaSubjectSummary) {
     const discoverReturn = `${window.location.pathname}${window.location.search}`
-    window.history.pushState({ discoverReturn }, '', `/app/discover/${encodeURIComponent(item.media_subject_id)}`)
+    const providerId = activeProvider?.id || item.provider_id
+    const query = providerId ? `?provider_id=${encodeURIComponent(providerId)}` : ''
+    window.history.pushState({ discoverReturn }, '', `/app/discover/${encodeURIComponent(item.media_subject_id)}${query}`)
     setLocationVersion((value) => value + 1)
   }
 
@@ -245,8 +287,9 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
         <DetailView detail={detail} onBack={returnToDiscover} onFollow={() => void toggleFollow()} onSearch={() => searchResources(detail)} />
       ) : (
         <>
-          <form className="dc-filters" onSubmit={submit}>
+          <form className={`dc-filters${providers.length > 1 ? ' dc-filters-multi' : ''}`} onSubmit={submit}>
             <label className="dc-search-field"><span>目录搜索</span><input value={filters.q} onChange={(event) => updateKeyword(event.target.value)} placeholder="输入电影或剧集名称" /></label>
+            {providers.length > 1 ? <label className="dc-provider-field"><span>数据来源</span><select value={activeProvider?.id || ''} onChange={(event) => changeProvider(event.target.value)}>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.attribution?.provider_name || provider.id}</option>)}</select></label> : null}
             <label><span>类型</span><select value={filters.media_type} disabled={!availableFilters.includes('media_type')} onChange={(event) => setFilters({ ...filters, media_type: event.target.value })}><option value="">全部</option>{activeProvider?.media_types.includes('movie') !== false ? <option value="movie">电影</option> : null}{activeProvider?.media_types.includes('series') !== false ? <option value="series">剧集</option> : null}</select></label>
             {genreOptions.length ? <label><span>题材{availableFilters.includes('genre') ? '' : '（当前操作不可用）'}</span><select value={filters.genre} disabled={!availableFilters.includes('genre')} onChange={(event) => setFilters({ ...filters, genre: event.target.value })}><option value="">全部</option>{genreOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label> : null}
             {regionOptions.length ? <label><span>地区{availableFilters.includes('region') ? '' : '（当前操作不可用）'}</span><select value={filters.region} disabled={!availableFilters.includes('region')} onChange={(event) => setFilters({ ...filters, region: event.target.value })}><option value="">全部</option>{regionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label> : null}
