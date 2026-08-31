@@ -128,6 +128,8 @@ Web Console 中配置类页面默认先展示列表，通过新增按钮打开�
 存在相同外部平台 ID 时可以精确匹配；缺少外部 ID 时只能生成标题、年份和类型候选匹配，低可信候选不得静默自动合并。
 媒体发现中心 MVP 使用 TMDb 作为主目录数据提供方，负责搜索、筛选、热门、分类、详情和海报；豆瓣目录作为可选补充数据提供方，失败不得阻断媒体发现中心。
 TMDb 目录和豆瓣目录均以 CATALOG_PROVIDER 插件接入；豆瓣想看以独立 WATCHLIST_PROVIDER 插件接入，由 Core 负责定时调度和持久游标。
+豆瓣目录实现以 `Marvae/douban-cli` 的公开接口覆盖和解析方式作为参考，但使用 Python 重新实现公共 `CATALOG_PROVIDER` 合同；Core 和官方插件运行时不引入 Node.js，也不在运行时依赖该参考仓库。
+多个目录 Provider 并存时，Web Console 必须让用户显式选择数据来源并把 `provider_id` 写入 URL；缺少共同稳定外部 ID 时不得仅按标题和年份静默聚合或覆盖字段。
 同一外部仓库可以交付多个插件实例；douban-catalog 与 douban-watchlist 必须能够独立配置、启停、测试和报错。
 SOURCE 只表示具体资源链接搜索源，不表示影片目录或想看列表。
 不建设面向用户或作为阶段交付物的 MockCatalogProvider 数据链；媒体发现的人工验收和插件集成验收必须使用真实 Provider 数据。默认自动化测试仍使用离线可重复的测试替身与 fixture，不依赖 TMDb、豆瓣或其他实时外部服务；实时访问通过显式集成测试执行。
