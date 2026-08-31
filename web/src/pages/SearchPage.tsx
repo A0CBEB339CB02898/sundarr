@@ -199,7 +199,7 @@ export default function SearchPage({ showToast }: { showToast: (type: 'success' 
         <div>
           <p className="ui-eyebrow">搜索</p>
           <h2 id="search-title">聚合搜索</h2>
-          <p className="sx-overview-lead">从代码内置搜索源聚合结果，按真实链接去重，并同步检测链接有效性。</p>
+          <p className="sx-overview-lead">从已启用的 SOURCE 插件聚合结果，按真实链接去重，并同步检测链接有效性。</p>
         </div>
       </div>
       </Card>
