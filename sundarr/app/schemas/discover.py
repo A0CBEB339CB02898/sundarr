@@ -53,6 +53,17 @@ class DiscoverPageResponse(BaseModel):
     cached_at: datetime | None = None
 
 
+class YearHydrationRequest(BaseModel):
+    provider_id: str = Field(min_length=1)
+    media_subject_ids: list[str] = Field(min_length=1, max_length=12)
+
+
+class YearHydrationResponse(BaseModel):
+    provider_id: str
+    years: dict[str, int] = Field(default_factory=dict)
+    unresolved_ids: list[str] = Field(default_factory=list)
+
+
 class MediaSubjectDetail(MediaSubjectSummary):
     original_title: str | None = None
     overview: str | None = None

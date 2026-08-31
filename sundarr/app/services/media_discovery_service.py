@@ -26,6 +26,7 @@ from sundarr.app.schemas.discover import (
     FollowResponse,
     MediaSubjectDetail,
     MediaSubjectSummary,
+    YearHydrationResponse,
 )
 from sundarr.app.services.catalog_cache import catalog_cache
 
@@ -192,6 +193,51 @@ class MediaDiscoveryService:
                 return self._cached_detail(db, cached, degraded=True)
             subject = db.get(MediaSubject, media_subject_id)
             return self._snapshot_detail(db, subject, degraded=True) if subject else None
+
+    async def hydrate_years(
+        self,
+        db: Session,
+        provider_id: str,
+        media_subject_ids: list[str],
+    ) -> YearHydrationResponse:
+        selected_id, provider = self._select_provider(provider_id)
+        capabilities = provider.describe_capabilities()
+        if CatalogOperation.DETAIL not in capabilities.operations:
+            raise CatalogQueryUnsupportedError(
+                f"目录 Provider {selected_id} 不支持详情补全"
+            )
+
+        unique_ids = list(dict.fromkeys(media_subject_ids))
+        subjects = {
+            subject.id: subject
+            for subject in db.query(MediaSubject)
+            .filter(MediaSubject.id.in_(unique_ids))
+            .all()
+        }
+        years: dict[str, int] = {}
+        unresolved_ids: list[str] = []
+        for media_subject_id in unique_ids:
+            subject = subjects.get(media_subject_id)
+            if subject is None:
+                unresolved_ids.append(media_subject_id)
+                continue
+            if subject.release_year is not None:
+                years[media_subject_id] = subject.release_year
+                continue
+            detail = await self.get_detail(
+                db,
+                media_subject_id,
+                provider_id=selected_id,
+            )
+            if detail is None or detail.release_year is None:
+                unresolved_ids.append(media_subject_id)
+                continue
+            years[media_subject_id] = detail.release_year
+        return YearHydrationResponse(
+            provider_id=selected_id,
+            years=years,
+            unresolved_ids=unresolved_ids,
+        )
 
     def set_followed(self, db: Session, media_subject_id: str, followed: bool) -> FollowResponse | None:
         subject = db.get(MediaSubject, media_subject_id)
@@ -506,6 +552,9 @@ class MediaDiscoveryService:
             subject = subjects.get(item.media_subject_id)
             if subject is None:
                 continue
+            item.canonical_title = subject.canonical_title
+            item.release_year = subject.release_year
+            item.poster_url = subject.last_known_poster_url
             item.followed = subject.followed_at is not None
             item.watchlisted = subject.watchlisted_at is not None
 

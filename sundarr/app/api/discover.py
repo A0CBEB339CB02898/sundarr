@@ -12,6 +12,8 @@ from sundarr.app.schemas.discover import (
     MediaSubjectDetail,
     WatchlistPageResponse,
     WatchlistSyncResponse,
+    YearHydrationRequest,
+    YearHydrationResponse,
 )
 from sundarr.app.services.media_discovery_service import (
     CatalogProviderUnavailableError,
@@ -103,6 +105,23 @@ def list_watchlist(
     db: Session = Depends(get_db),
 ) -> WatchlistPageResponse:
     return watchlist_service.list_entries(db, provider_id=provider_id, limit=limit)
+
+
+@router.post("/hydrate-years", response_model=YearHydrationResponse)
+async def hydrate_discover_years(
+    data: YearHydrationRequest,
+    db: Session = Depends(get_db),
+) -> YearHydrationResponse:
+    try:
+        return await media_discovery_service.hydrate_years(
+            db,
+            data.provider_id,
+            data.media_subject_ids,
+        )
+    except CatalogQueryUnsupportedError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except CatalogProviderUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post("/watchlist/{provider_id}/sync", response_model=WatchlistSyncResponse)
