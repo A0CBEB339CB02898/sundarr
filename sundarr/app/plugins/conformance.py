@@ -17,6 +17,9 @@ from sundarr.app.plugins.contracts import (
     WatchlistProvider,
     WatchlistPullRequest,
 )
+from sundarr.app.parsers import extract_cloud_links
+from sundarr.app.schemas.search import RawSearchItem, SearchQuery
+from sundarr.app.sources import SourceModel
 
 
 class PluginConformanceError(RuntimeError):
@@ -30,6 +33,14 @@ class CatalogConformanceProbe:
     query: CatalogQuery
     detail_external_id: str | None = None
     detail_media_type: MediaType | None = None
+
+
+@dataclass(frozen=True)
+class SourceConformanceProbe:
+    """由真实 SOURCE 测试提供的搜索条件和可选详情样本。"""
+
+    query: SearchQuery
+    detail_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -110,6 +121,44 @@ async def run_watchlist_provider_conformance(
     return ConformanceReport(plugin_id=provider.id, checks={"pull": len(page.items)})
 
 
+async def run_source_conformance(
+    source: SourceModel,
+    probe: SourceConformanceProbe,
+) -> ConformanceReport:
+    """执行真实 SOURCE 搜索，并在声明详情能力时校验链接结果。"""
+
+    if not isinstance(source, SourceModel):
+        raise PluginConformanceError("运行实例不符合 SourceModel 合同")
+    try:
+        items = await source.search_function(probe.query)
+    except Exception as exc:
+        raise PluginConformanceError(f"插件 {source.id} 的 search 真实调用失败：{exc}") from exc
+    if not isinstance(items, list):
+        raise PluginConformanceError("search 必须返回 RawSearchItem 列表")
+    if not items:
+        raise PluginConformanceError("用于合同验收的真实 search 必须至少返回一个候选")
+    for index, item in enumerate(items):
+        _validate_source_item(item, source.id, f"search.items[{index}]")
+
+    checks = {"search": len(items)}
+    if source.fetch_detail_function is not None:
+        detail_url = probe.detail_url or items[0].raw_url
+        if not detail_url:
+            raise PluginConformanceError("验证 detail 时必须提供真实详情地址")
+        try:
+            detail = await source.fetch_detail_function(detail_url)
+        except Exception as exc:
+            raise PluginConformanceError(f"插件 {source.id} 的 detail 真实调用失败：{exc}") from exc
+        if detail is None:
+            raise PluginConformanceError("detail 必须返回包含可识别链接的 RawSearchItem")
+        _validate_source_item(detail, source.id, "detail")
+        link_count = len(extract_cloud_links(detail.raw_content))
+        if link_count == 0:
+            raise PluginConformanceError("detail 至少需要返回一个 Core 可识别链接")
+        checks["detail"] = link_count
+    return ConformanceReport(plugin_id=source.id, checks=checks)
+
+
 def _validate_page(
     page: object,
     operation: str,
@@ -142,3 +191,12 @@ def _validate_item(
             raise PluginConformanceError(
                 f"{location} 的 external_id_provider 未包含在 Provider identity_namespaces 中"
             )
+
+
+def _validate_source_item(item: object, source_id: str, location: str) -> None:
+    if not isinstance(item, RawSearchItem):
+        raise PluginConformanceError(f"{location} 必须是 RawSearchItem")
+    if item.source_id != source_id:
+        raise PluginConformanceError(f"{location}.source_id 必须与 SourceModel.id 一致")
+    if not item.raw_title.strip():
+        raise PluginConformanceError(f"{location}.raw_title 不得为空")

@@ -35,4 +35,5 @@ def generate_link_name(title: str, quality: str | None) -> str:
 def clean_title(raw_title: str) -> str:
     title = TITLE_TAG_PATTERN.sub("", raw_title)
     title = YEAR_PATTERN.sub("", title)
+    title = re.sub(r"[（(\[【{]\s*[）)\]】}]", " ", title)
     return " ".join(title.split())

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
 from sundarr.app.models import Source
+from sundarr.app.plugins.conformance import SourceConformanceProbe, run_source_conformance
 from sundarr.app.schemas.search import RawSearchItem, SearchQuery
 from sundarr.app.sources import SourceModel
 
@@ -22,6 +23,17 @@ async def static_search(query: SearchQuery) -> list[RawSearchItem]:
             fetched_at=datetime.now(UTC),
         )
     ]
+
+
+async def static_detail(detail_url: str) -> RawSearchItem:
+    return RawSearchItem(
+        source_id="legacy",
+        source_type="code",
+        raw_title="测试影片 (2024)",
+        raw_url=detail_url,
+        raw_content="夸克：https://pan.quark.cn/s/source-detail 提取码：abcd",
+        fetched_at=datetime.now(UTC),
+    )
 
 def make_client(db_session: Session) -> TestClient:
     app = create_app()
@@ -98,3 +110,23 @@ def test_unknown_source_returns_404(db_session: Session) -> None:
     response = client.post("/sources/not_exists/test")
 
     assert response.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_public_source_conformance_runner_covers_search_and_detail() -> None:
+    source = SourceModel(
+        id="legacy",
+        name="Legacy",
+        description="合同测试源",
+        homepage_url="https://example.invalid",
+        search_function=static_search,
+        fetch_detail_function=static_detail,
+    )
+
+    report = await run_source_conformance(
+        source,
+        SourceConformanceProbe(query=SearchQuery(keyword="测试影片", limit=1)),
+    )
+
+    assert report.plugin_id == "legacy"
+    assert report.checks == {"search": 1, "detail": 1}

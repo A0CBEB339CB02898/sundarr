@@ -13,6 +13,7 @@ from sundarr.app.services.link_validator import LinkValidator
 from sundarr.app.services.resource_library_service import ResourceLibraryService
 from sundarr.app.services.search_service import SearchService
 from sundarr.app.sources import SourceModel
+from sundarr.app.sources.utils import clean_title
 
 
 async def failing_search(query: SearchQuery) -> list[RawSearchItem]:
@@ -80,6 +81,18 @@ def test_extract_cloud_links_supports_more_netdisk_providers() -> None:
     links = extract_cloud_links("UC https://drive.uc.cn/s/abc 123 https://www.123pan.com/s/a-b 天翼 https://cloud.189.cn/t/ABC")
 
     assert {link.provider for link in links} >= {"uc", "123pan", "tianyi"}
+
+
+@pytest.mark.parametrize(
+    ("raw_title", "expected"),
+    [
+        ("测试影片 (2024)", "测试影片"),
+        ("测试影片（2024）", "测试影片"),
+        ("测试影片 [2024] 1080p", "测试影片"),
+    ],
+)
+def test_clean_title_removes_empty_year_brackets(raw_title: str, expected: str) -> None:
+    assert clean_title(raw_title) == expected
 
 
 @pytest.mark.anyio

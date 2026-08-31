@@ -5,7 +5,7 @@ from typing import Any
 from sundarr.app.schemas.search import RawSearchItem, SearchQuery
 
 SearchFunction = Callable[[SearchQuery], Awaitable[list[RawSearchItem]]]
-FetchDetailFunction = Callable[[str], Awaitable[RawSearchItem]]
+FetchDetailFunction = Callable[[str], Awaitable[RawSearchItem | None]]
 SourceTestFunction = Callable[[SearchQuery], Awaitable["SourceTestExecution"]]
 
 
