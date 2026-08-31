@@ -364,3 +364,29 @@ def test_fetch_detail_api(db_session: Session, monkeypatch: pytest.MonkeyPatch) 
     body = response.json()
     assert body["title"] == "星际穿越"
     assert body["links"][0]["provider"] == "quark"
+    assert body["links"][0]["is_favorited"] is False
+    assert db_session.query(Resource).count() == 0
+    assert db_session.query(ResourceLink).count() == 0
+
+    favorite_response = client.post(
+        "/resource-links/favorite",
+        json={
+            "resource": {
+                "id": body["id"],
+                "title": body["title"],
+                "normalized_title": body["normalized_title"],
+                "original_title": body["original_title"],
+                "year": body["year"],
+            },
+            "link": body["links"][0],
+        },
+    )
+    assert favorite_response.status_code == 200
+
+    marked_response = client.post(
+        "/search/detail",
+        json={"source_id": "static", "detail_url": "https://example.invalid/detail/1"},
+    )
+    assert marked_response.status_code == 200
+    assert marked_response.json()["is_favorited"] is False
+    assert marked_response.json()["links"][0]["is_favorited"] is True

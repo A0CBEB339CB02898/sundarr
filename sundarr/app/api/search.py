@@ -28,8 +28,12 @@ async def search(
 
 
 @router.post("/search/detail", response_model=ResourceCandidate)
-async def fetch_detail(request: FetchDetailRequest) -> ResourceCandidate:
+async def fetch_detail(
+    request: FetchDetailRequest,
+    db: Session = Depends(get_db),
+) -> ResourceCandidate:
     result = await search_service.fetch_detail(request.source_id, request.detail_url)
     if result is None:
         raise HTTPException(status_code=404, detail="无法获取该资源的详情。")
+    resource_library_service.mark_favorites(db, [result])
     return result
