@@ -334,7 +334,7 @@ function MediaPoster({ item, onOpen, onSearch }: { item: MediaSubjectSummary; on
   return (
     <article className="dc-poster">
       <button className="dc-poster-image" type="button" onClick={onOpen} aria-label={`查看 ${item.canonical_title} 详情`}>
-        {item.poster_url ? <img src={item.poster_url} alt="" loading="lazy" /> : <span aria-hidden="true">暂无海报</span>}
+        <PosterImage item={item} alt="" loading="lazy" />
         {item.watchlisted || item.followed ? <span className="dc-poster-state">{item.watchlisted ? '想看' : '关注'}</span> : null}
       </button>
       <div className="dc-poster-copy"><button type="button" onClick={onOpen}>{item.canonical_title}</button><p>{item.release_year || '年份未知'} · {item.media_type === 'movie' ? '电影' : '剧集'}</p></div>
@@ -348,7 +348,7 @@ function DetailView({ detail, onBack, onFollow, onSearch }: { detail: MediaSubje
     <div className="dc-detail">
       <Button variant="ghost" onClick={onBack}>返回发现</Button>
       <div className="dc-detail-layout">
-        <div className="dc-detail-poster">{detail.poster_url ? <img src={detail.poster_url} alt={`${detail.canonical_title} 海报`} /> : <span>暂无海报</span>}</div>
+        <div className="dc-detail-poster"><PosterImage item={detail} alt={`${detail.canonical_title} 海报`} /></div>
         <div className="dc-detail-copy">
           <p className="ui-eyebrow">{detail.media_type === 'movie' ? '电影' : '剧集'} · {detail.release_year || '年份未知'}</p>
           {detail.original_title ? <p className="dc-original-title">{detail.original_title}</p> : null}
@@ -364,5 +364,33 @@ function DetailView({ detail, onBack, onFollow, onSearch }: { detail: MediaSubje
         </div>
       </div>
     </div>
+  )
+}
+
+function PosterImage({ item, alt, loading }: {
+  item: MediaSubjectSummary
+  alt: string
+  loading?: 'eager' | 'lazy'
+}) {
+  const [source, setSource] = useState(item.poster_url)
+  const [failed, setFailed] = useState(false)
+  const relayUrl = `/discover/${encodeURIComponent(item.media_subject_id)}/poster?provider_id=${encodeURIComponent(item.provider_id)}`
+
+  useEffect(() => {
+    setSource(item.poster_url)
+    setFailed(false)
+  }, [item.media_subject_id, item.poster_url, item.provider_id])
+
+  if (!source || failed) return <span aria-hidden="true">暂无海报</span>
+  return (
+    <img
+      src={source}
+      alt={alt}
+      loading={loading}
+      onError={() => {
+        if (source !== relayUrl) setSource(relayUrl)
+        else setFailed(true)
+      }}
+    />
   )
 }

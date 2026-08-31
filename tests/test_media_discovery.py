@@ -38,6 +38,11 @@ from sundarr.app.services.media_discovery_service import (
     MediaIdentityConflictError,
     media_discovery_service,
 )
+from sundarr.app.services.poster_proxy_service import (
+    PosterFetchError,
+    PosterPayload,
+    poster_proxy_service,
+)
 
 
 @dataclass
@@ -66,6 +71,7 @@ class ContractCatalogProvider:
                 provider_name="测试目录",
                 homepage_url="https://catalog.example.invalid",
                 notice="测试目录来源声明",
+                image_referer_url="https://catalog.example.invalid/",
             ),
             identity_namespaces=frozenset({"tmdb.movie"}),
             filter_options={
@@ -173,6 +179,7 @@ def test_discover_search_detail_and_follow_use_public_contract(db_session: Sessi
         "homepage_url": "https://catalog.example.invalid",
         "notice": "测试目录来源声明",
         "logo_url": None,
+        "image_referer_url": "https://catalog.example.invalid/",
     }
 
     response = client.get("/discover/search", params={"q": "黑客帝国", "refresh": "true"})
@@ -201,6 +208,75 @@ def test_discover_search_detail_and_follow_use_public_contract(db_session: Sessi
     unfollowed = client.delete(f"/discover/{media_subject_id}/follow")
     assert unfollowed.status_code == 200
     assert unfollowed.json()["followed"] is False
+
+
+def test_poster_relay_uses_persisted_url_and_provider_referer(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    catalog_provider_registry.register("contract-catalog", ContractCatalogProvider())
+    client = make_client(db_session)
+    search = client.get("/discover/search", params={"q": "黑客帝国", "refresh": "true"})
+    media_subject_id = search.json()["items"][0]["media_subject_id"]
+    calls: list[tuple[str, str | None]] = []
+
+    async def download(url: str, referer: str | None) -> PosterPayload:
+        calls.append((url, referer))
+        return PosterPayload(body=b"real-image", media_type="image/jpeg")
+
+    monkeypatch.setattr(poster_proxy_service, "_download", download)
+    response = client.get(
+        f"/discover/{media_subject_id}/poster",
+        params={"provider_id": "contract-catalog"},
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"real-image"
+    assert response.headers["content-type"] == "image/jpeg"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert calls == [
+        (
+            "https://image.example.invalid/poster.jpg",
+            "https://catalog.example.invalid/",
+        )
+    ]
+
+
+def test_poster_relay_rejects_open_proxy_and_isolates_upstream_failure(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    catalog_provider_registry.register("contract-catalog", ContractCatalogProvider())
+    client = make_client(db_session)
+    search = client.get("/discover/search", params={"q": "黑客帝国", "refresh": "true"})
+    media_subject_id = search.json()["items"][0]["media_subject_id"]
+
+    arbitrary = client.get(
+        f"/discover/{media_subject_id}/poster",
+        params={
+            "provider_id": "contract-catalog",
+            "url": "https://attacker.example/secret",
+        },
+    )
+    mismatch = client.get(
+        f"/discover/{media_subject_id}/poster",
+        params={"provider_id": "another-provider"},
+    )
+
+    async def fail_download(url: str, referer: str | None) -> PosterPayload:
+        raise PosterFetchError("上游海报读取失败")
+
+    monkeypatch.setattr(poster_proxy_service, "_download", fail_download)
+    upstream_failure = client.get(
+        f"/discover/{media_subject_id}/poster",
+        params={"provider_id": "contract-catalog"},
+    )
+
+    assert arbitrary.status_code == 422
+    assert "url" in arbitrary.json()["detail"]
+    assert mismatch.status_code == 409
+    assert upstream_failure.status_code == 502
+    assert upstream_failure.json()["detail"] == "上游海报读取失败"
 
 
 def test_discover_rejects_multiple_genres_and_missing_provider(db_session: Session) -> None:

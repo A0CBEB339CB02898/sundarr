@@ -193,6 +193,13 @@ async def test_catalog_capabilities_support_operation_specific_subsets() -> None
             homepage_url="http://example.invalid",
             notice="来源声明",
         )
+    with pytest.raises(ValueError, match="图片 Referer 必须使用 HTTPS"):
+        CatalogAttribution(
+            provider_name="不安全图片来源",
+            homepage_url="https://example.invalid",
+            notice="来源声明",
+            image_referer_url="http://images.example.invalid",
+        )
     with pytest.raises(ValueError, match="全局筛选能力并集"):
         CatalogCapabilities(
             operations=frozenset({CatalogOperation.SEARCH}),

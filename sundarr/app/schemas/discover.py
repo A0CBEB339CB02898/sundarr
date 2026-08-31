@@ -15,6 +15,7 @@ class CatalogAttributionResponse(BaseModel):
     homepage_url: str
     notice: str
     logo_url: str | None = None
+    image_referer_url: str | None = None
 
 
 class CatalogProviderResponse(BaseModel):

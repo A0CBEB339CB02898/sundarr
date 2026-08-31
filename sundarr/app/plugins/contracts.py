@@ -80,6 +80,7 @@ class CatalogAttribution:
     homepage_url: str
     notice: str
     logo_url: str | None = None
+    image_referer_url: str | None = None
 
     def __post_init__(self) -> None:
         if not self.provider_name.strip() or not self.notice.strip():
@@ -88,6 +89,10 @@ class CatalogAttribution:
             raise ValueError("目录来源主页必须使用 HTTPS")
         if self.logo_url is not None and not self.logo_url.startswith("https://"):
             raise ValueError("目录来源标识必须使用 HTTPS")
+        if self.image_referer_url is not None and not self.image_referer_url.startswith(
+            "https://"
+        ):
+            raise ValueError("目录图片 Referer 必须使用 HTTPS")
 
 
 @dataclass(frozen=True)

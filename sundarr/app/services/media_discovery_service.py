@@ -72,6 +72,9 @@ class MediaDiscoveryService:
                             "homepage_url": capabilities.attribution.homepage_url,
                             "notice": capabilities.attribution.notice,
                             "logo_url": capabilities.attribution.logo_url,
+                            "image_referer_url": (
+                                capabilities.attribution.image_referer_url
+                            ),
                         }
                         if capabilities.attribution is not None
                         else None

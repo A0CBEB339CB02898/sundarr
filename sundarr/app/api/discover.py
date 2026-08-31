@@ -1,6 +1,6 @@
 """媒体发现 Core API。"""
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
@@ -18,6 +18,13 @@ from sundarr.app.services.media_discovery_service import (
     CatalogQueryUnsupportedError,
     MediaIdentityConflictError,
     media_discovery_service,
+)
+from sundarr.app.services.poster_proxy_service import (
+    PosterFetchError,
+    PosterNotFoundError,
+    PosterProviderUnavailableError,
+    PosterSourceMismatchError,
+    poster_proxy_service,
 )
 from sundarr.app.services.watchlist_service import (
     WatchlistProviderUnavailableError,
@@ -133,6 +140,37 @@ async def get_media_subject(
     if result is None:
         raise HTTPException(status_code=404, detail="媒体主体不存在")
     return result
+
+
+@router.get("/{media_subject_id}/poster", response_class=Response)
+async def get_media_subject_poster(
+    media_subject_id: str,
+    request: Request,
+    provider_id: str = Query(min_length=1),
+    db: Session = Depends(get_db),
+) -> Response:
+    unknown_parameters = set(request.query_params.keys()) - {"provider_id"}
+    if unknown_parameters:
+        names = "、".join(sorted(unknown_parameters))
+        raise HTTPException(status_code=422, detail=f"海报中继不接受参数：{names}")
+    try:
+        payload = await poster_proxy_service.fetch(db, media_subject_id, provider_id)
+    except PosterNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PosterSourceMismatchError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except PosterProviderUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except PosterFetchError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return Response(
+        content=payload.body,
+        media_type=payload.media_type,
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.post("/{media_subject_id}/follow", response_model=FollowResponse)

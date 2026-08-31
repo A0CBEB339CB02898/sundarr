@@ -5,6 +5,7 @@ export type CatalogAttribution = {
   homepage_url: string
   notice: string
   logo_url: string | null
+  image_referer_url: string | null
 }
 
 export type CatalogProvider = {
