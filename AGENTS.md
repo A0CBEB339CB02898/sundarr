@@ -142,7 +142,7 @@ Web Console 使用统一 `/app/discover` 媒体发现模块承载目录搜索、
 题材和地区在 MVP Web Console 中均为单选；Core 查询模型使用列表结构但 MVP 最多接受一个值，传入多个值必须明确报参数错误，不得静默截断，为未来多选保留兼容空间。
 分页交互、默认页大小等属于 Web Console 实现细节，不进入插件 Manifest；Core Provider 协议使用不透明 continuation token，Adapter 负责映射外部平台页码或 cursor。
 媒体库管理仍是目录绑定管理能力；媒体发现海报墙不等于本地媒体库海报墙、播放器、观影进度或完整媒体管理 UI。
-Core 只内置媒体源框架、合同和离线示例，不内置真实网站 Adapter；`sundarr-sources` 已有 SeedHub 真实实现，仍需在 Phase 10.3 完成 Manifest v2 与 Core 端到端验收。
+Core 只内置媒体源框架、合同和离线示例，不内置真实网站 Adapter；`sundarr-sources` 的 SeedHub Manifest v2、本地锁定提交、实时 API、收藏、启动恢复和 Web Console 验收已通过，尚待官方 GitHub 发布与官方 URL 重新锁定。
 新增真实媒体源继续通过外部代码型 Source Adapter 逐站点接入。
 所有项目官方真实插件实现统一放在 Sundarr Core 之外的 Git 仓库；Sundarr Core 只保存仓库地址、分支和锁定 commit，并从本地缓存中的已锁定 commit 受控加载。
 外部插件仓库使用通用 Plugin Manifest v2 声明一个或多个插件；迁移期兼容 flat v1 SOURCE 清单。SourceModel 继续作为 SOURCE 的最小运行时执行协议。
@@ -163,7 +163,7 @@ Web Console 是核心控制台，不做完整本地媒体库 UI。
 同步绑定连接：远程媒体库（来源） -> 本地媒体库（目标）。
 Phase 9 模块重构已完成：已删除 Ingest 模块和旧 storage_config_service，新增远程媒体库模型并统一同步绑定。
 Phase 9.5 收藏模型重构已完成：搜索默认不入库，资源和资源链接仅在用户主动收藏时持久化。
-Phase 10.0 质量基线收口、Phase 10.1 通用插件宿主和 Phase 10.2 媒体发现 Core 结构性收口已完成。Phase 10.3 的首个 TMDb 真实纵向切片已于 2026-08-31 通过：真实搜索、热门、分类、详情、分页、海报墙、最小快照降级、正式配置加密和离线/实时回归均已验收，Plugin API v2 自此冻结。当前优先任务转为 SeedHub SOURCE 的 Manifest v2 迁移与 Core 真实回归；之后再开发豆瓣目录和豆瓣想看插件。冻结后兼容性修改必须保持向后兼容，破坏性变更需要新的协议版本。
+Phase 10.0 质量基线收口、Phase 10.1 通用插件宿主和 Phase 10.2 媒体发现 Core 结构性收口已完成。Phase 10.3 的 TMDb 真实纵向切片已于 2026-08-31 通过并冻结 Plugin API v2；SeedHub SOURCE 的 Manifest v2、本地锁定提交、实时 API、详情收藏、启动恢复和 Web Console 真实回归也已通过。当前优先任务是完成 SeedHub 官方 GitHub 发布并从官方 URL 锁定同一提交；随后开发豆瓣目录和豆瓣想看插件。冻结后兼容性修改必须保持向后兼容，破坏性变更需要新的协议版本。
 正式插件的 API key、Token、Cookie 等运行时配置由 Web Console / Core 配置 API 写入 PluginConfig，并以 PostgreSQL 为事实来源；宿主进程环境变量不作为正式插件业务配置入口。外部插件仓库的隔离实时测试可从当前测试进程环境变量临时读取凭据。
 PluginConfig 中由 Manifest 标记为 secret/password 的敏感字段必须在真实凭据人工验收前完成静态加密；加密主密钥属于数据库外的部署级 Secret，不得与密文保存在同一数据库。
 Core 提供统一配置就绪状态；Web Console 启动后以非阻断方式提示缺失配置，并允许当前浏览器按缺口 fingerprint 选择下次不再询问。浏览器提醒偏好只存 localStorage，不写入数据库；缺口集合变化后可以重新提醒。
