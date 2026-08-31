@@ -206,7 +206,7 @@ Sundarr 采用暖色操作台风格设计：
 
 **Phase 10 进行中**：通用 Manifest v2、类型专用 Activation/Registry、候选健康检查、仓库级原子切换和启动恢复已经完成。媒体发现 Core 的数据、编排、API、Web Console 与契约测试工具也已完成结构性收口。当前进入独立插件仓库的真实 Provider 开发和持续回归阶段。
 
-**Phase 10.2 已完成结构性验收**：Core 已实现媒体身份、外部 ID、最小快照、目录缓存与降级、想看游标、Discover API 和 Web Console；用户界面没有伪造目录或海报数据。Phase 10.3 的 TMDb 真实纵向切片已通过并冻结 Plugin API v2；SeedHub SOURCE v2 已从官方 GitHub 仓库锁定 `a10b902`，真实 API、详情收藏、启动恢复和 Web Console 验收均已通过。当前进入豆瓣目录插件开发，随后实现豆瓣想看插件。媒体发现 MVP 不做本地媒体库播放、观影进度或完整媒体管理 UI。
+**Phase 10.2 已完成结构性验收**：Core 已实现媒体身份、外部 ID、最小快照、目录缓存与降级、想看游标、Discover API 和 Web Console；用户界面没有伪造目录或海报数据。Phase 10.3 的 TMDb 真实纵向切片已通过并冻结 Plugin API v2；SeedHub SOURCE v2 已从官方 GitHub 仓库锁定 `a10b902`，豆瓣目录已从官方插件仓库锁定 `3271203`，两者的真实 API、启动恢复和 Web Console 验收均已通过。当前下一项是独立豆瓣想看插件。媒体发现 MVP 不做本地媒体库播放、观影进度或完整媒体管理 UI。
 
 Phase 10.3 的运行配置入口已完成：`/app/plugins` 管理可信仓库、锁定 commit、插件启停、配置和诊断；secret/password 配置使用数据库外主密钥静态加密。Web Console 会按 Core 返回的真实配置缺口给出非阻断引导，本地 CLI 启动后会打印可访问的 Web Console 地址。
 
