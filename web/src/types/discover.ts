@@ -43,6 +43,12 @@ export type DiscoverPageResponse = {
   cached_at: string | null
 }
 
+export type YearHydrationResponse = {
+  provider_id: string
+  years: Record<string, number>
+  unresolved_ids: string[]
+}
+
 export type MediaSubjectDetail = MediaSubjectSummary & {
   original_title: string | null
   overview: string | null

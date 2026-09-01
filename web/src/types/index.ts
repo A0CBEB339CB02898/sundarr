@@ -9,6 +9,6 @@ export type { SourceResponse, SourceListResponse, SourceTestResponse, SourceTest
 export type { DtlMediaType, MediaLibraryResponse, MediaLibraryListResponse, DtlConfigResponse, DtlBindingResponse, DtlBindingListResponse, DtlDiscoveredFileResponse, DtlDiscoveredListResponse, DtlScanResponse, DtlTaskCreateResponse, DtlBindingTestResponse, DtlBindingFormState, DtlConfigFormState, MediaLibraryFormState } from './library'
 export type { SyncMediaType, SyncConfigResponse, SyncBindingResponse, SyncBindingListResponse, SyncDiscoveredFileResponse, SyncDiscoveredListResponse, SyncScanResponse, SyncTaskCreateResponse, SyncBindingTestResponse, SyncBindingFormState, SyncConfigFormState } from './sync'
 export type { RemoteMediaLibraryFormState, RemoteMediaLibraryResponse, RemoteMediaLibraryListResponse } from './remote-library'
-export type { CatalogFilterOption, CatalogProvider, MediaSubjectSummary, DiscoverPageResponse, MediaSubjectDetail, WatchlistPageResponse } from './discover'
+export type { CatalogFilterOption, CatalogProvider, MediaSubjectSummary, DiscoverPageResponse, MediaSubjectDetail, WatchlistPageResponse, YearHydrationResponse } from './discover'
 export type { PluginConfigFieldSchema, PluginRepositoryResponse, PluginResponse, PluginMutationResponse } from './plugin'
 export type { ConfigurationIssue, ConfigurationReadinessResponse } from './configuration'

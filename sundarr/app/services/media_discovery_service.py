@@ -202,9 +202,11 @@ class MediaDiscoveryService:
     ) -> YearHydrationResponse:
         selected_id, provider = self._select_provider(provider_id)
         capabilities = provider.describe_capabilities()
-        if CatalogOperation.DETAIL not in capabilities.operations:
+        if not capabilities.operations.intersection(
+            {CatalogOperation.SEARCH, CatalogOperation.DETAIL}
+        ):
             raise CatalogQueryUnsupportedError(
-                f"目录 Provider {selected_id} 不支持详情补全"
+                f"目录 Provider {selected_id} 不支持年份补全"
             )
 
         unique_ids = list(dict.fromkeys(media_subject_ids))
@@ -224,20 +226,65 @@ class MediaDiscoveryService:
             if subject.release_year is not None:
                 years[media_subject_id] = subject.release_year
                 continue
-            detail = await self.get_detail(
-                db,
-                media_subject_id,
-                provider_id=selected_id,
-            )
-            if detail is None or detail.release_year is None:
+            year = None
+            if CatalogOperation.SEARCH in capabilities.operations:
+                year = await self._hydrate_year_from_search(
+                    db,
+                    selected_id,
+                    provider,
+                    subject,
+                )
+            if year is None and CatalogOperation.DETAIL in capabilities.operations:
+                detail = await self.get_detail(
+                    db,
+                    media_subject_id,
+                    provider_id=selected_id,
+                )
+                year = detail.release_year if detail is not None else None
+            if year is None:
                 unresolved_ids.append(media_subject_id)
-                continue
-            years[media_subject_id] = detail.release_year
+            else:
+                years[media_subject_id] = year
         return YearHydrationResponse(
             provider_id=selected_id,
             years=years,
             unresolved_ids=unresolved_ids,
         )
+
+    async def _hydrate_year_from_search(
+        self,
+        db: Session,
+        provider_id: str,
+        provider: CatalogProvider,
+        subject: MediaSubject,
+    ) -> int | None:
+        external = self._find_provider_external_id(
+            db,
+            subject.id,
+            provider_id,
+            provider,
+        )
+        if external is None:
+            return None
+        try:
+            page = await provider.search(
+                CatalogQuery(
+                    keyword=subject.canonical_title,
+                    media_type=MediaType(subject.media_type),
+                    limit=10,
+                )
+            )
+            for item in page.items:
+                exact_ids = {item.external_id, *item.external_ids.values()}
+                if external.external_id not in exact_ids or item.year is None:
+                    continue
+                stored = self.upsert_item(db, provider_id, item)
+                db.commit()
+                db.refresh(stored)
+                return stored.release_year
+        except Exception:
+            db.rollback()
+        return None
 
     def set_followed(self, db: Session, media_subject_id: str, followed: bool) -> FollowResponse | None:
         subject = db.get(MediaSubject, media_subject_id)

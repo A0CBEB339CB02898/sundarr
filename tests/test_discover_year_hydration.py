@@ -70,6 +70,51 @@ class YearlessCatalogProvider:
         )
 
 
+@dataclass
+class SearchYearCatalogProvider(YearlessCatalogProvider):
+    search_calls: int = 0
+
+    def describe_capabilities(self) -> CatalogCapabilities:
+        return CatalogCapabilities(
+            operations=frozenset(
+                {
+                    CatalogOperation.SEARCH,
+                    CatalogOperation.TRENDING,
+                    CatalogOperation.DETAIL,
+                }
+            ),
+            identity_namespaces=frozenset({"test.movie"}),
+        )
+
+    async def search(self, query: CatalogQuery) -> CatalogPage:
+        self.search_calls += 1
+        return CatalogPage(
+            items=(
+                CatalogItem(
+                    external_id="similar-but-wrong",
+                    external_id_provider="test.movie",
+                    title=query.keyword or "",
+                    media_type=MediaType.MOVIE,
+                    year=1999,
+                ),
+                CatalogItem(
+                    external_id="yearless-603",
+                    external_id_provider="test.movie",
+                    title=query.keyword or "",
+                    media_type=MediaType.MOVIE,
+                    year=2027,
+                ),
+            )
+        )
+
+    async def get_detail(
+        self,
+        external_id: str,
+        media_type: MediaType | None = None,
+    ) -> CatalogItem:
+        raise AssertionError("外部 ID 精确搜索已得到年份时不应读取详情")
+
+
 @pytest.fixture(autouse=True)
 def clear_catalog_registry():
     catalog_provider_registry.clear()
@@ -150,3 +195,30 @@ def test_year_hydration_validates_provider_and_batch_size(
 
     assert missing_provider.status_code == 503
     assert oversized.status_code == 422
+
+
+def test_year_hydration_prefers_exact_external_id_search(
+    db_session: Session,
+) -> None:
+    provider = SearchYearCatalogProvider(id=f"search-year-{uuid4().hex}")
+    catalog_provider_registry.register(provider.id, provider)
+    client = make_client(db_session)
+    first_page = client.get(
+        "/discover/trending",
+        params={"provider_id": provider.id, "refresh": "true"},
+    ).json()
+    media_subject_id = first_page["items"][0]["media_subject_id"]
+
+    hydrated = client.post(
+        "/discover/hydrate-years",
+        json={
+            "provider_id": provider.id,
+            "media_subject_ids": [media_subject_id],
+        },
+    )
+
+    assert hydrated.status_code == 200
+    assert hydrated.json()["years"] == {media_subject_id: 2027}
+    assert provider.search_calls == 1
+    assert provider.detail_calls == 0
+    assert db_session.get(MediaSubject, media_subject_id).release_year == 2027
