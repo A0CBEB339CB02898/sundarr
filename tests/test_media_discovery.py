@@ -49,6 +49,7 @@ from sundarr.app.services.poster_proxy_service import (
 class ContractCatalogProvider:
     id: str = "contract-catalog"
     detail_media_type: MediaType | None = None
+    last_query: CatalogQuery | None = None
 
     def describe_capabilities(self) -> CatalogCapabilities:
         return CatalogCapabilities(
@@ -81,12 +82,14 @@ class ContractCatalogProvider:
         )
 
     async def search(self, query: CatalogQuery) -> CatalogPage:
+        self.last_query = query
         return CatalogPage(items=(self._item(query.keyword or "搜索结果"),), continuation_token="next-2")
 
     async def trending(self, query: CatalogQuery) -> CatalogPage:
         return CatalogPage(items=(self._item("热门电影"),))
 
     async def categories(self, query: CatalogQuery) -> CatalogPage:
+        self.last_query = query
         return CatalogPage(items=(self._item(query.genres[0] if query.genres else "分类电影"),))
 
     async def get_detail(self, external_id: str, media_type: MediaType | None = None) -> CatalogItem:
@@ -286,10 +289,14 @@ def test_discover_rejects_multiple_genres_and_missing_provider(db_session: Sessi
     assert no_provider.status_code == 503
     assert "没有已启用" in no_provider.json()["detail"]
 
-    catalog_provider_registry.register("contract-catalog", ContractCatalogProvider())
-    invalid = client.get("/discover/search?q=test&genre=科幻&genre=动作")
-    assert invalid.status_code == 422
-    assert "最多接受一个题材" in invalid.json()["detail"]
+    provider = ContractCatalogProvider()
+    catalog_provider_registry.register("contract-catalog", provider)
+    multiple_genres = client.get(
+        "/discover/search?q=test&genre=科幻&genre=动作&refresh=true"
+    )
+    assert multiple_genres.status_code == 200
+    assert provider.last_query is not None
+    assert provider.last_query.genres == ("科幻", "动作")
 
 
 def test_discover_validates_filters_and_sorts_for_each_operation(db_session: Session) -> None:

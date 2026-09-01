@@ -75,8 +75,9 @@ MVP 不做：
 - 媒体发现采用 A+ 数据策略：PostgreSQL 保存规范身份、外部 ID、最小展示快照和用户状态；易变目录详情、榜单和搜索结果只作为可过期缓存。
 - Web Console 使用统一 `/app/discover` 模块承载目录发现，详情使用 `/app/discover/:media_subject_id`；`/app/search` 保留为具体资源链接搜索。
 - `/app/discover` 默认展示分区内容流，搜索或筛选后切换为海报网格；搜索状态写入 URL，刷新和返回时可恢复。
-- 媒体发现 MVP 只提供媒体类型、题材、地区、年份范围和热度/评分/上映时间排序，不做演员、导演、语言等高级组合筛选。
-- 题材和地区在 MVP 界面均为单选；Core 内部保留列表结构，未来可以兼容扩展为多选。
+- 媒体发现使用“热门 / 电影 / 剧集 / 动漫 / 综艺”一级探索导航；搜索框独立位于导航右侧，筛选使用平铺标签并同步 URL。
+- 题材支持 AND 语义的简单多选，地区保持单选；年份先按近三年和年代分组，再按需展开精确年份。
+- IMDb 评分、评分人数、资源质量、语言和字幕类型归入默认收起的“更多筛选”，只在公共合同与 Provider 支持时启用；当前没有事实字段的最新发布、收藏最多和观看最多不得伪造排序。
 - 插件类型按稳定业务合同划分，不要求每个任务依次流过所有类型。当前 MVP 只实现 `SOURCE`、`CATALOG_PROVIDER`、`WATCHLIST_PROVIDER`；`TRANSFER_DRIVER` 与 `NOTIFICATION` 作为后续扩展。
 - 当前 SMB 同步是 Core 内置主链路。未来 `TRANSFER_DRIVER` 可统一 SMB、HTTP、网盘或下载客户端，但 BT/磁力仍不进入 MVP。
 - 通用 Manifest v2 支持一个可信 Git 仓库声明多个独立插件；Manifest 不承载 Web Console 分页、Core 调度游标或任务状态。

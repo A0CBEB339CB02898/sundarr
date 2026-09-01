@@ -143,20 +143,18 @@ async def test_catalog_and_watchlist_contracts_can_be_called() -> None:
     assert watchlist_page.next_cursor == "cursor-2"
 
 
-async def test_catalog_query_enforces_confirmed_mvp_boundaries() -> None:
+async def test_catalog_query_enforces_confirmed_filter_boundaries() -> None:
     query = CatalogQuery(
-        genres=["科幻"],
+        genres=["科幻", "动作"],
         regions=["美国"],
         year_from=2020,
         year_to=2026,
         sort=CatalogSort.POPULARITY,
     )
 
-    assert query.genres == ("科幻",)
+    assert query.genres == ("科幻", "动作")
     assert query.regions == ("美国",)
 
-    with pytest.raises(ValueError, match="最多接受一个题材"):
-        CatalogQuery(genres=("科幻", "剧情"))
     with pytest.raises(ValueError, match="最多接受一个地区"):
         CatalogQuery(regions=("中国", "美国"))
     with pytest.raises(ValueError, match="不能晚于"):

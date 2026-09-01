@@ -204,8 +204,6 @@ class CatalogQuery:
     def __post_init__(self) -> None:
         object.__setattr__(self, "genres", tuple(self.genres))
         object.__setattr__(self, "regions", tuple(self.regions))
-        if len(self.genres) > 1:
-            raise ValueError("MVP 目录查询最多接受一个题材")
         if len(self.regions) > 1:
             raise ValueError("MVP 目录查询最多接受一个地区")
         if self.year_from is not None and self.year_from < 1:
