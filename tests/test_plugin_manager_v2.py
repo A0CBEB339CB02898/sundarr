@@ -206,7 +206,7 @@ async def test_database_commit_failure_rolls_back_new_runtime(
     assert db_session.query(PluginRepository).count() == 0
 
 
-async def test_api_and_worker_restore_only_their_locked_plugin_types(db_session, tmp_path: Path) -> None:
+async def test_api_and_worker_restore_their_locked_plugin_types(db_session, tmp_path: Path) -> None:
     origin, _ = _create_origin(tmp_path)
     api_manager = _manager(tmp_path, PluginProcessRole.API)
     installed = await api_manager.add_repository(
@@ -214,8 +214,12 @@ async def test_api_and_worker_restore_only_their_locked_plugin_types(db_session,
         repo_url=origin.as_posix(),
         configs=_configs(),
     )
-    assert set(installed.plugin_ids) == {"fixture-source", "fixture-catalog"}
-    assert len(watchlist_provider_registry) == 0
+    assert set(installed.plugin_ids) == {
+        "fixture-source",
+        "fixture-catalog",
+        "fixture-watchlist",
+    }
+    assert watchlist_provider_registry.require("fixture-watchlist").user_id == "user-1"
     await api_manager.dispose_all()
 
     unavailable_origin = tmp_path / f"origin-offline-{uuid4().hex}"

@@ -36,7 +36,13 @@ class PluginProcessRole(str, Enum):
 
 
 _ROLE_TYPES: dict[PluginProcessRole, frozenset[PluginType]] = {
-    PluginProcessRole.API: frozenset({PluginType.SOURCE, PluginType.CATALOG_PROVIDER}),
+    PluginProcessRole.API: frozenset(
+        {
+            PluginType.SOURCE,
+            PluginType.CATALOG_PROVIDER,
+            PluginType.WATCHLIST_PROVIDER,
+        }
+    ),
     PluginProcessRole.WORKER: frozenset({PluginType.WATCHLIST_PROVIDER}),
     PluginProcessRole.ALL: frozenset({PluginType.SOURCE, PluginType.CATALOG_PROVIDER, PluginType.WATCHLIST_PROVIDER}),
 }
