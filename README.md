@@ -206,13 +206,13 @@ Sundarr 采用暖色操作台风格设计：
 
 **Phase 10 进行中**：通用 Manifest v2、类型专用 Activation/Registry、候选健康检查、仓库级原子切换和启动恢复已经完成。媒体发现 Core 的数据、编排、API、Web Console 与契约测试工具也已完成结构性收口。当前进入独立插件仓库的真实 Provider 开发和持续回归阶段。
 
-**Phase 10.2 已完成结构性验收**：Core 已实现媒体身份、外部 ID、最小快照、目录缓存与降级、想看游标、Discover API 和 Web Console；用户界面没有伪造目录或海报数据。Phase 10.3 的 TMDb 真实纵向切片已通过并冻结 Plugin API v2；SeedHub SOURCE v2 已从官方 GitHub 仓库锁定 `a10b902`，豆瓣目录已从官方插件仓库锁定 `56f47c1`，两者的真实 API、启动恢复和 Web Console 验收均已通过，豆瓣海报防盗链由直连优先与受控同源中继兼容。当前下一项是独立豆瓣想看插件。媒体发现 MVP 不做本地媒体库播放、观影进度或完整媒体管理 UI。
+**Phase 10.2 已完成结构性验收**：Core 已实现媒体身份、外部 ID、最小快照、目录缓存与降级、想看游标、Discover API 和 Web Console；用户界面没有伪造目录或海报数据。Phase 10.3 的 TMDb 真实纵向切片已通过并冻结 Plugin API v2；SeedHub SOURCE v2 已从官方 GitHub 仓库锁定 `a10b902`，豆瓣目录已从官方插件仓库锁定 `56f47c1`，两者的真实 API、启动恢复和 Web Console 验收均已通过，豆瓣海报防盗链由直连优先与受控同源中继兼容。独立豆瓣想看插件已发布到 `sundarr-plugin@87c6c69`，当前正在完成 Core 锁定、持久游标和 Web Console 真实数据验收。媒体发现 MVP 不做本地媒体库播放、观影进度或完整媒体管理 UI。
 
 Phase 10.3 的运行配置入口已完成：`/app/plugins` 管理可信仓库、锁定 commit、插件启停、配置和诊断；secret/password 配置使用数据库外主密钥静态加密。Web Console 会按 Core 返回的真实配置缺口给出非阻断引导，本地 CLI 启动后会打印可访问的 Web Console 地址。
 
 项目官方维护的真实插件不放在本仓库。[`sundarr-sources`](https://github.com/A0CBEB339CB02898/sundarr-sources) 保留为敏感资源搜索 SOURCE 仓库；[`sundarr-plugin`](https://github.com/A0CBEB339CB02898/sundarr-plugin) 维护 TMDb、豆瓣目录、豆瓣想看等其他官方插件。Sundarr Core 继续保留稳定插件合同、运行时、配置与诊断能力、离线测试替身和契约测试，并支持用户配置多个可信插件仓库。
 
-媒体发现中心使用 `CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 公共合同；TMDb 主目录插件已经通过真实 Token、Core API、Web Console 海报墙与详情页验收。外部服务不可用时返回缓存、持久化最小快照或明确降级。豆瓣可选补充目录与独立豆瓣想看 Provider 尚未开发。
+媒体发现中心使用 `CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 公共合同；TMDb 主目录和豆瓣补充目录已经通过 Core API 与 Web Console 真实数据验收。豆瓣想看 Provider 已实现公开列表的电影/电视剧双流分页和不透明复合游标；Core API 负责手动增量同步，Worker 负责定时同步，二者从同一数据库恢复游标和锁定版本。外部服务不可用时返回缓存、持久化最小快照或明确错误。
 
 媒体发现数据采用 A+ 策略：PostgreSQL 保存 `MediaSubject` 身份、外部 ID、最小展示快照和用户状态；Redis 缓存易变详情、评分、榜单和搜索结果。缓存丢失不会丢失收藏或关注，Provider 故障时可以退化为最小卡片。
 
