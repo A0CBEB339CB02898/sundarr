@@ -19,6 +19,7 @@ class MediaSubject(TimestampMixin, Base):
     canonical_title: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     release_year: Mapped[int | None] = mapped_column(Integer, index=True)
     last_known_poster_url: Mapped[str | None] = mapped_column(Text)
+    last_known_poster_source: Mapped[str | None] = mapped_column(Text)
     snapshot_source: Mapped[str] = mapped_column(Text, nullable=False)
     snapshot_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     followed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)

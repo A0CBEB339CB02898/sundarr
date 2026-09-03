@@ -27,6 +27,7 @@ export type MediaSubjectSummary = {
   canonical_title: string
   release_year: number | null
   poster_url: string | null
+  poster_provider_id: string | null
   provider_id: string
   external_id: string
   external_ids: Record<string, string>

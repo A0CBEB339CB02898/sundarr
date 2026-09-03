@@ -58,7 +58,7 @@ class PosterProxyService:
         subject = db.get(MediaSubject, media_subject_id)
         if subject is None or not subject.last_known_poster_url:
             raise PosterNotFoundError("媒体主体不存在或没有可用海报")
-        if subject.snapshot_source != provider_id:
+        if subject.last_known_poster_source != provider_id:
             raise PosterSourceMismatchError("海报来源与请求的目录 Provider 不一致")
 
         provider = catalog_provider_registry.get(provider_id)

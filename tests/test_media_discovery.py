@@ -389,6 +389,9 @@ def test_watchlist_sync_persists_cursor_and_reuses_media_identity(db_session: Se
     assert watchlist["count"] == 1
     assert watchlist["items"][0]["media_subject_id"] == media_subject_id
     assert watchlist["items"][0]["watchlisted"] is True
+    subject = db_session.get(MediaSubject, media_subject_id)
+    assert subject.snapshot_source == "contract-watchlist"
+    assert subject.last_known_poster_source == "contract-catalog"
 
 
 def test_watchlist_first_identity_can_use_catalog_detail_provider(db_session: Session) -> None:

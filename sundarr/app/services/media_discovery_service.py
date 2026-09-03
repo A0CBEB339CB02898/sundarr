@@ -273,7 +273,11 @@ class MediaDiscoveryService:
             if subject is None:
                 unresolved_ids.append(media_subject_id)
                 continue
-            if subject.last_known_poster_url and subject.release_year is not None:
+            if (
+                subject.last_known_poster_url
+                and subject.last_known_poster_source == selected_id
+                and subject.release_year is not None
+            ):
                 items.append(
                     self.summary_from_subject(
                         db,
@@ -296,6 +300,7 @@ class MediaDiscoveryService:
                     db,
                     media_subject_id,
                     provider_id=selected_id,
+                    refresh=subject.last_known_poster_source != selected_id,
                 )
             except (CatalogQueryUnsupportedError, MediaIdentityConflictError):
                 unresolved_ids.append(media_subject_id)
@@ -408,6 +413,7 @@ class MediaDiscoveryService:
                 canonical_title=item.title.strip(),
                 release_year=item.year,
                 last_known_poster_url=item.poster_url,
+                last_known_poster_source=provider_id if item.poster_url else None,
                 snapshot_source=provider_id,
                 snapshot_updated_at=now,
             )
@@ -421,6 +427,7 @@ class MediaDiscoveryService:
             subject.release_year = item.year
         if item.poster_url:
             subject.last_known_poster_url = item.poster_url
+            subject.last_known_poster_source = provider_id
         subject.snapshot_source = provider_id
         subject.snapshot_updated_at = now
 
@@ -465,6 +472,7 @@ class MediaDiscoveryService:
             canonical_title=subject.canonical_title,
             release_year=subject.release_year,
             poster_url=subject.last_known_poster_url,
+            poster_provider_id=subject.last_known_poster_source,
             provider_id=selected_provider,
             external_id=external_id or "unknown",
             external_ids=external_map,

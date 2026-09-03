@@ -263,7 +263,26 @@ def test_snapshot_hydration_uses_stable_identity_and_persists_poster(
     assert provider.detail_calls == 1
     stored = db_session.get(MediaSubject, subject.id)
     assert stored.last_known_poster_url == "https://image.example.invalid/yearless.jpg"
+    assert stored.last_known_poster_source == provider.id
     assert stored.snapshot_source == provider.id
+
+    stored.last_known_poster_source = "fixture-watchlist"
+    stored.snapshot_source = "fixture-watchlist"
+    db_session.commit()
+    repaired = client.post(
+        "/discover/hydrate-snapshots",
+        json={
+            "provider_id": provider.id,
+            "media_subject_ids": [subject.id],
+        },
+    )
+
+    assert repaired.status_code == 200
+    assert repaired.json()["unresolved_ids"] == []
+    assert repaired.json()["items"][0]["provider_id"] == provider.id
+    assert provider.detail_calls == 2
+    repaired_subject = db_session.get(MediaSubject, subject.id)
+    assert repaired_subject.last_known_poster_source == provider.id
 
 
 def test_snapshot_hydration_validates_provider_and_batch_size(

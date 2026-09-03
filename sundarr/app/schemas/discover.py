@@ -37,6 +37,7 @@ class MediaSubjectSummary(BaseModel):
     canonical_title: str
     release_year: int | None = None
     poster_url: str | None = None
+    poster_provider_id: str | None = None
     provider_id: str
     external_id: str
     external_ids: dict[str, str] = Field(default_factory=dict)

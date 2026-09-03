@@ -305,7 +305,9 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     if (detail || isLoading || !activeProvider || !activeProvider.operations.includes('detail')) return
     const visibleItems = results?.items || sections.find((section) => section.key === activeHomeTab)?.items || []
     const subjectIds = visibleItems
-      .filter((item) => !item.poster_url && providerRecognizesItem(activeProvider, item))
+      .filter((item) => (
+        !item.poster_url || item.provider_id !== activeProvider.id
+      ) && providerRecognizesItem(activeProvider, item))
       .map((item) => item.media_subject_id)
       .filter((subjectId) => !attemptedPosterKeys.current.has(`${activeProvider.id}:${subjectId}`))
       .slice(0, 4)
@@ -1001,7 +1003,7 @@ function ResultSection({ title, description, items, degraded, hydrationProviderI
         <>
           <div className="dc-poster-grid">{items.map((item) => {
             const hydrationKey = `${hydrationProviderId || item.provider_id}:${item.media_subject_id}`
-            return <MediaPoster key={item.media_subject_id} item={item} isHydratingYear={hydratingYearKeys.has(hydrationKey)} isHydratingPoster={hydratingPosterKeys.has(hydrationKey)} onOpen={() => onOpen(item)} onSearch={() => onSearch(item)} />
+            return <MediaPoster key={item.media_subject_id} item={item} posterProviderId={hydrationProviderId} isHydratingYear={hydratingYearKeys.has(hydrationKey)} isHydratingPoster={hydratingPosterKeys.has(hydrationKey)} onOpen={() => onOpen(item)} onSearch={() => onSearch(item)} />
           })}</div>
           {hasMore ? <div className="dc-load-more"><Button variant="secondary" disabled={isLoadingMore} onClick={onLoadMore}>{isLoadingMore ? '正在加载…' : '加载更多'}</Button></div> : null}
         </>
@@ -1010,11 +1012,11 @@ function ResultSection({ title, description, items, degraded, hydrationProviderI
   )
 }
 
-function MediaPoster({ item, isHydratingYear, isHydratingPoster, onOpen, onSearch }: { item: MediaSubjectSummary; isHydratingYear: boolean; isHydratingPoster: boolean; onOpen: () => void; onSearch: () => void }) {
+function MediaPoster({ item, posterProviderId, isHydratingYear, isHydratingPoster, onOpen, onSearch }: { item: MediaSubjectSummary; posterProviderId?: string; isHydratingYear: boolean; isHydratingPoster: boolean; onOpen: () => void; onSearch: () => void }) {
   return (
     <article className="dc-poster">
       <button className="dc-poster-image" type="button" onClick={onOpen} aria-label={`查看 ${item.canonical_title} 详情`}>
-        <PosterImage item={item} alt="" loading="lazy" isHydrating={isHydratingPoster} />
+        <PosterImage item={item} alt="" loading="lazy" isHydrating={isHydratingPoster} providerId={posterProviderId} />
         {item.watchlisted || item.followed ? <span className="dc-poster-state">{item.watchlisted ? '想看' : '关注'}</span> : null}
       </button>
       <div className="dc-poster-copy"><button type="button" onClick={onOpen}>{item.canonical_title}</button><p>{item.release_year || (isHydratingYear ? '正在补全年份' : '年份待补充')} · {item.media_type === 'movie' ? '电影' : '剧集'}</p></div>
@@ -1047,20 +1049,22 @@ function DetailView({ detail, onBack, onFollow, onSearch }: { detail: MediaSubje
   )
 }
 
-function PosterImage({ item, alt, loading, isHydrating = false }: {
+function PosterImage({ item, alt, loading, isHydrating = false, providerId }: {
   item: MediaSubjectSummary
   alt: string
   loading?: 'eager' | 'lazy'
   isHydrating?: boolean
+  providerId?: string
 }) {
   const [source, setSource] = useState(item.poster_url)
   const [failed, setFailed] = useState(false)
-  const relayUrl = `/discover/${encodeURIComponent(item.media_subject_id)}/poster?provider_id=${encodeURIComponent(item.provider_id)}`
+  const relayProviderId = item.poster_provider_id || providerId || item.provider_id
+  const relayUrl = `/discover/${encodeURIComponent(item.media_subject_id)}/poster?provider_id=${encodeURIComponent(relayProviderId)}`
 
   useEffect(() => {
     setSource(item.poster_url)
     setFailed(false)
-  }, [item.media_subject_id, item.poster_url, item.provider_id])
+  }, [item.media_subject_id, item.poster_url, item.poster_provider_id, item.provider_id, relayProviderId])
 
   if (!source || failed) return <span aria-hidden="true">{isHydrating ? '正在补全海报' : '暂无海报'}</span>
   return (
