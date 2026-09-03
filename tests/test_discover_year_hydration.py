@@ -19,6 +19,7 @@ from sundarr.app.plugins.contracts import (
     MediaType,
 )
 from sundarr.app.plugins.runtime_registry import catalog_provider_registry
+from sundarr.app.services.media_discovery_service import media_discovery_service
 
 
 @dataclass
@@ -222,3 +223,64 @@ def test_year_hydration_prefers_exact_external_id_search(
     assert provider.search_calls == 1
     assert provider.detail_calls == 0
     assert db_session.get(MediaSubject, media_subject_id).release_year == 2027
+
+
+def test_snapshot_hydration_uses_stable_identity_and_persists_poster(
+    db_session: Session,
+) -> None:
+    provider = YearlessCatalogProvider(id=f"snapshot-{uuid4().hex}")
+    catalog_provider_registry.register(provider.id, provider)
+    subject = media_discovery_service.upsert_item(
+        db_session,
+        "fixture-watchlist",
+        CatalogItem(
+            external_id="yearless-603",
+            external_id_provider="test.movie",
+            external_ids={"test.movie": "yearless-603"},
+            title="等待快照的电影",
+            media_type=MediaType.MOVIE,
+        ),
+    )
+    db_session.commit()
+    client = make_client(db_session)
+
+    hydrated = client.post(
+        "/discover/hydrate-snapshots",
+        json={
+            "provider_id": provider.id,
+            "media_subject_ids": [subject.id, "missing-subject", subject.id],
+        },
+    )
+
+    assert hydrated.status_code == 200
+    payload = hydrated.json()
+    assert payload["provider_id"] == provider.id
+    assert payload["unresolved_ids"] == ["missing-subject"]
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["poster_url"] == "https://image.example.invalid/yearless.jpg"
+    assert payload["items"][0]["release_year"] == 2026
+    assert payload["items"][0]["provider_id"] == provider.id
+    assert provider.detail_calls == 1
+    stored = db_session.get(MediaSubject, subject.id)
+    assert stored.last_known_poster_url == "https://image.example.invalid/yearless.jpg"
+    assert stored.snapshot_source == provider.id
+
+
+def test_snapshot_hydration_validates_provider_and_batch_size(
+    db_session: Session,
+) -> None:
+    client = make_client(db_session)
+    missing_provider = client.post(
+        "/discover/hydrate-snapshots",
+        json={"provider_id": "missing", "media_subject_ids": ["subject"]},
+    )
+    oversized = client.post(
+        "/discover/hydrate-snapshots",
+        json={
+            "provider_id": "missing",
+            "media_subject_ids": [f"subject-{index}" for index in range(13)],
+        },
+    )
+
+    assert missing_provider.status_code == 503
+    assert oversized.status_code == 422

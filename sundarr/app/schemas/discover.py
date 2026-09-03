@@ -64,6 +64,17 @@ class YearHydrationResponse(BaseModel):
     unresolved_ids: list[str] = Field(default_factory=list)
 
 
+class SnapshotHydrationRequest(BaseModel):
+    provider_id: str = Field(min_length=1)
+    media_subject_ids: list[str] = Field(min_length=1, max_length=12)
+
+
+class SnapshotHydrationResponse(BaseModel):
+    provider_id: str
+    items: list[MediaSubjectSummary] = Field(default_factory=list)
+    unresolved_ids: list[str] = Field(default_factory=list)
+
+
 class MediaSubjectDetail(MediaSubjectSummary):
     original_title: str | None = None
     overview: str | None = None

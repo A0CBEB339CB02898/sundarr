@@ -10,6 +10,8 @@ from sundarr.app.schemas.discover import (
     DiscoverPageResponse,
     FollowResponse,
     MediaSubjectDetail,
+    SnapshotHydrationRequest,
+    SnapshotHydrationResponse,
     WatchlistPageResponse,
     WatchlistSyncResponse,
     YearHydrationRequest,
@@ -114,6 +116,23 @@ async def hydrate_discover_years(
 ) -> YearHydrationResponse:
     try:
         return await media_discovery_service.hydrate_years(
+            db,
+            data.provider_id,
+            data.media_subject_ids,
+        )
+    except CatalogQueryUnsupportedError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except CatalogProviderUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/hydrate-snapshots", response_model=SnapshotHydrationResponse)
+async def hydrate_discover_snapshots(
+    data: SnapshotHydrationRequest,
+    db: Session = Depends(get_db),
+) -> SnapshotHydrationResponse:
+    try:
+        return await media_discovery_service.hydrate_snapshots(
             db,
             data.provider_id,
             data.media_subject_ids,

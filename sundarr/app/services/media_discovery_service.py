@@ -26,6 +26,7 @@ from sundarr.app.schemas.discover import (
     FollowResponse,
     MediaSubjectDetail,
     MediaSubjectSummary,
+    SnapshotHydrationResponse,
     YearHydrationResponse,
 )
 from sundarr.app.services.catalog_cache import catalog_cache
@@ -248,6 +249,74 @@ class MediaDiscoveryService:
         return YearHydrationResponse(
             provider_id=selected_id,
             years=years,
+            unresolved_ids=unresolved_ids,
+        )
+
+    async def hydrate_snapshots(
+        self,
+        db: Session,
+        provider_id: str,
+        media_subject_ids: list[str],
+    ) -> SnapshotHydrationResponse:
+        selected_id, provider = self._select_provider(provider_id)
+        capabilities = provider.describe_capabilities()
+        if CatalogOperation.DETAIL not in capabilities.operations:
+            raise CatalogQueryUnsupportedError(
+                f"目录 Provider {selected_id} 不支持详情补全"
+            )
+
+        unique_ids = list(dict.fromkeys(media_subject_ids))
+        items: list[MediaSubjectSummary] = []
+        unresolved_ids: list[str] = []
+        for media_subject_id in unique_ids:
+            subject = db.get(MediaSubject, media_subject_id)
+            if subject is None:
+                unresolved_ids.append(media_subject_id)
+                continue
+            if subject.last_known_poster_url and subject.release_year is not None:
+                items.append(
+                    self.summary_from_subject(
+                        db,
+                        subject,
+                        provider_id=selected_id,
+                    )
+                )
+                continue
+            external = self._find_provider_external_id(
+                db,
+                subject.id,
+                selected_id,
+                provider,
+            )
+            if external is None:
+                unresolved_ids.append(media_subject_id)
+                continue
+            try:
+                await self.get_detail(
+                    db,
+                    media_subject_id,
+                    provider_id=selected_id,
+                )
+            except (CatalogQueryUnsupportedError, MediaIdentityConflictError):
+                unresolved_ids.append(media_subject_id)
+                continue
+            refreshed = db.get(MediaSubject, media_subject_id)
+            if refreshed is None:
+                unresolved_ids.append(media_subject_id)
+                continue
+            items.append(
+                self.summary_from_subject(
+                    db,
+                    refreshed,
+                    provider_id=selected_id,
+                )
+            )
+            if not refreshed.last_known_poster_url:
+                unresolved_ids.append(media_subject_id)
+
+        return SnapshotHydrationResponse(
+            provider_id=selected_id,
+            items=items,
             unresolved_ids=unresolved_ids,
         )
 
