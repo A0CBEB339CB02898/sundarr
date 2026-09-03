@@ -6,19 +6,23 @@ import type {
   DiscoverPageResponse,
   MediaSubjectDetail,
   MediaSubjectSummary,
+  SnapshotHydrationResponse,
   WatchlistPageResponse,
   YearHydrationResponse,
 } from '../types'
 import { Button, EmptyState, ErrorState, LoadingState } from '../ui'
 
+type HomeSectionKey = 'movie' | 'series' | 'category' | 'watchlist'
+
 type DiscoverSection = {
-  key: string
+  key: HomeSectionKey
   title: string
   description: string
   items: MediaSubjectSummary[]
   error?: string
   path?: string
   continuationToken?: string | null
+  isLoading?: boolean
   isLoadingMore?: boolean
 }
 
@@ -48,6 +52,13 @@ const categoryItems: Array<{ key: CategoryKey; label: string }> = [
   { key: 'series', label: '剧集' },
   { key: 'anime', label: '动漫' },
   { key: 'variety', label: '综艺' },
+]
+
+const homeSectionItems: Array<{ key: HomeSectionKey; title: string; description: string }> = [
+  { key: 'movie', title: '热门电影', description: '当前目录来源的电影趋势' },
+  { key: 'series', title: '热门剧集', description: '当前目录来源的剧集趋势' },
+  { key: 'category', title: '分类推荐', description: '按当前目录能力生成的推荐' },
+  { key: 'watchlist', title: '关注更新', description: '外部想看列表同步到 Sundarr 的条目' },
 ]
 
 const categoryGenreLabels: Partial<Record<CategoryKey, string[]>> = {
@@ -213,6 +224,12 @@ function chunkItems<T>(items: T[], size: number) {
   )
 }
 
+function providerRecognizesItem(provider: CatalogProvider, item: MediaSubjectSummary) {
+  const namespaces = new Set([provider.id, ...provider.identity_namespaces])
+  return item.provider_id === provider.id
+    || Object.keys(item.external_ids).some((namespace) => namespaces.has(namespace))
+}
+
 export default function DiscoverPage({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const initialFilters = filtersFromUrl()
   const [filters, setFilters] = useState<FilterState>(initialFilters)
@@ -230,8 +247,11 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
   const [showOtherRegions, setShowOtherRegions] = useState(false)
   const [locationVersion, setLocationVersion] = useState(0)
   const [isLoadingMoreResults, setIsLoadingMoreResults] = useState(false)
+  const [activeHomeTab, setActiveHomeTab] = useState<HomeSectionKey>('movie')
   const [hydratingYearKeys, setHydratingYearKeys] = useState<Set<string>>(new Set())
+  const [hydratingPosterKeys, setHydratingPosterKeys] = useState<Set<string>>(new Set())
   const attemptedYearKeys = useRef<Set<string>>(new Set())
+  const attemptedPosterKeys = useRef<Set<string>>(new Set())
   const pageGeneration = useRef(0)
 
   const activeProvider = providers.find((provider) => provider.id === filters.provider_id) || providers[0]
@@ -260,26 +280,48 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
   useEffect(() => { void loadPage() }, [locationVersion])
 
   useEffect(() => {
-    if (detail || isLoading) return
-    const visibleItems = results?.items || sections.flatMap((section) => section.items)
+    if (detail || isLoading || !activeProvider) return
+    const visibleItems = results?.items || sections.find((section) => section.key === activeHomeTab)?.items || []
     const grouped = new Map<string, string[]>()
     const pendingKeys: string[] = []
     visibleItems.forEach((item) => {
-      const key = `${item.provider_id}:${item.media_subject_id}`
-      if (item.release_year !== null || attemptedYearKeys.current.has(key)) return
+      const key = `${activeProvider.id}:${item.media_subject_id}`
+      if (
+        item.release_year !== null
+        || !item.poster_url
+        || !providerRecognizesItem(activeProvider, item)
+        || attemptedYearKeys.current.has(key)
+      ) return
       attemptedYearKeys.current.add(key)
       pendingKeys.push(key)
-      grouped.set(item.provider_id, [...(grouped.get(item.provider_id) || []), item.media_subject_id])
+      grouped.set(activeProvider.id, [...(grouped.get(activeProvider.id) || []), item.media_subject_id])
     })
     if (!pendingKeys.length) return
     setHydratingYearKeys((current) => new Set([...current, ...pendingKeys]))
     void hydrateMissingYears(grouped, pageGeneration.current)
-  }, [detail, isLoading, results, sections])
+  }, [activeHomeTab, activeProvider, detail, isLoading, results, sections])
+
+  useEffect(() => {
+    if (detail || isLoading || !activeProvider || !activeProvider.operations.includes('detail')) return
+    const visibleItems = results?.items || sections.find((section) => section.key === activeHomeTab)?.items || []
+    const subjectIds = visibleItems
+      .filter((item) => !item.poster_url && providerRecognizesItem(activeProvider, item))
+      .map((item) => item.media_subject_id)
+      .filter((subjectId) => !attemptedPosterKeys.current.has(`${activeProvider.id}:${subjectId}`))
+      .slice(0, 4)
+    if (!subjectIds.length) return
+    const keys = subjectIds.map((subjectId) => `${activeProvider.id}:${subjectId}`)
+    keys.forEach((key) => attemptedPosterKeys.current.add(key))
+    setHydratingPosterKeys((current) => new Set([...current, ...keys]))
+    void hydrateMissingSnapshots(activeProvider.id, subjectIds, pageGeneration.current)
+  }, [activeHomeTab, activeProvider, detail, isLoading, results, sections])
 
   async function loadPage(forceRefresh = false) {
     pageGeneration.current += 1
     attemptedYearKeys.current.clear()
+    attemptedPosterKeys.current.clear()
     setHydratingYearKeys(new Set())
+    setHydratingPosterKeys(new Set())
     setIsLoadingMoreResults(false)
     setIsLoading(true)
     setError(null)
@@ -330,7 +372,8 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
         setSections([])
       } else {
         setResults(null)
-        await loadHomeSections(forceRefresh, providerId)
+        setSections([])
+        await loadHomeSection(activeHomeTab, forceRefresh, providerId)
       }
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : '无法加载媒体发现内容。')
@@ -339,30 +382,47 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     }
   }
 
-  async function loadHomeSections(forceRefresh: boolean, providerId?: string) {
+  async function loadHomeSection(sectionKey: HomeSectionKey, forceRefresh: boolean, providerId?: string) {
+    const generation = pageGeneration.current
     const catalogParams = new URLSearchParams({ limit: '12' })
     if (providerId) catalogParams.set('provider_id', providerId)
     if (forceRefresh) catalogParams.set('refresh', 'true')
-    const definitions = [
-      { key: 'movie', title: '热门电影', description: '当前目录来源的电影趋势', path: `/discover/trending?media_type=movie&${catalogParams.toString()}` },
-      { key: 'series', title: '热门剧集', description: '当前目录来源的剧集趋势', path: `/discover/trending?media_type=series&${catalogParams.toString()}` },
-      { key: 'category', title: '分类推荐', description: '按当前目录能力生成的推荐', path: `/discover/categories?${catalogParams.toString()}` },
-      { key: 'watchlist', title: '关注更新', description: '外部想看列表同步到 Sundarr 的条目', path: '/discover/watchlist?limit=12' },
-    ]
-    const loaded = await Promise.allSettled(definitions.map((item) => api.get<DiscoverPageResponse | WatchlistPageResponse>(item.path)))
-    setSections(definitions.map((definition, index) => {
-      const outcome = loaded[index]
-      if (outcome.status === 'rejected') {
-        return { ...definition, items: [], error: outcome.reason instanceof Error ? outcome.reason.message : '加载失败' }
-      }
-      return {
-        ...definition,
-        items: outcome.value.items,
-        continuationToken: 'continuation_token' in outcome.value
-          ? outcome.value.continuation_token
-          : null,
-      }
-    }))
+    const meta = homeSectionItems.find((item) => item.key === sectionKey) || homeSectionItems[0]
+    const path = sectionKey === 'watchlist'
+      ? '/discover/watchlist?limit=12'
+      : sectionKey === 'movie' || sectionKey === 'series'
+        ? `/discover/trending?media_type=${sectionKey}&${catalogParams.toString()}`
+        : `/discover/categories?${catalogParams.toString()}`
+    setSections((current) => [
+      ...current.filter((section) => section.key !== sectionKey),
+      { ...meta, path, items: [], isLoading: true },
+    ])
+    try {
+      const response = await api.get<DiscoverPageResponse | WatchlistPageResponse>(path)
+      if (generation !== pageGeneration.current) return
+      setSections((current) => current.map((section) => section.key === sectionKey ? {
+        ...section,
+        items: response.items,
+        continuationToken: 'continuation_token' in response ? response.continuation_token : null,
+        isLoading: false,
+        error: undefined,
+      } : section))
+    } catch (exc) {
+      if (generation !== pageGeneration.current) return
+      setSections((current) => current.map((section) => section.key === sectionKey ? {
+        ...section,
+        items: [],
+        isLoading: false,
+        error: exc instanceof Error ? exc.message : '加载失败',
+      } : section))
+    }
+  }
+
+  function selectHomeTab(sectionKey: HomeSectionKey) {
+    setActiveHomeTab(sectionKey)
+    if (!sections.some((section) => section.key === sectionKey)) {
+      void loadHomeSection(sectionKey, false, activeProvider?.id)
+    }
   }
 
   async function hydrateMissingYears(grouped: Map<string, string[]>, generation: number) {
@@ -399,6 +459,34 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
             })
           }
         }
+      }
+    }
+  }
+
+  async function hydrateMissingSnapshots(providerId: string, subjectIds: string[], generation: number) {
+    const keys = subjectIds.map((subjectId) => `${providerId}:${subjectId}`)
+    try {
+      const response = await api.post<SnapshotHydrationResponse>('/discover/hydrate-snapshots', {
+        provider_id: providerId,
+        media_subject_ids: subjectIds,
+      })
+      if (generation !== pageGeneration.current) return
+      const hydrated = new Map(response.items.map((item) => [item.media_subject_id, item]))
+      const mergeHydrated = (item: MediaSubjectSummary) => hydrated.get(item.media_subject_id) || item
+      setResults((current) => current ? { ...current, items: current.items.map(mergeHydrated) } : current)
+      setSections((current) => current.map((section) => ({
+        ...section,
+        items: section.items.map(mergeHydrated),
+      })))
+    } catch {
+      // 海报补全是渐进增强；目录详情失败时保留想看列表的最小快照。
+    } finally {
+      if (generation === pageGeneration.current) {
+        setHydratingPosterKeys((current) => {
+          const next = new Set(current)
+          keys.forEach((key) => next.delete(key))
+          return next
+        })
       }
     }
   }
@@ -643,6 +731,7 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
   const resultTitle = filters.q.trim()
     ? `“${filters.q.trim()}”的目录结果`
     : `${activeCategory?.label || '发现'}内容`
+  const activeHomeSection = sections.find((section) => section.key === activeHomeTab)
 
   return (
     <section className="dc-page" aria-labelledby="discover-title">
@@ -864,8 +953,29 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
           {error ? <ErrorState message="媒体发现暂不可用" sub={error} action={<Button onClick={() => void loadPage(true)}>重试</Button>} /> : null}
           {!isLoading && !error && providers.length === 0 ? <EmptyState message="尚未启用目录 Provider" sub="先在插件仓库中安装并启用 CATALOG_PROVIDER，Core 不会生成占位媒体数据。" /> : null}
           {!isLoading && !error && unsupportedCategory ? <EmptyState message="当前来源不支持这个分类" sub={unsupportedCategory} /> : null}
-          {!isLoading && !error && !unsupportedCategory && results ? <ResultSection title={resultTitle} description={results.degraded ? 'Provider 不可用，当前展示降级缓存。' : `数据来自 ${activeProvider?.attribution?.provider_name || results.provider_id}`} items={results.items} degraded={results.degraded} hydratingYearKeys={hydratingYearKeys} hasMore={Boolean(results.continuation_token)} isLoadingMore={isLoadingMoreResults} onLoadMore={() => void loadMoreResults()} onOpen={openDetail} onSearch={searchResources} /> : null}
-          {!isLoading && !error && !unsupportedCategory && !results ? sections.map((section) => <ResultSection key={section.key} title={section.title} description={section.error || section.description} items={section.items} degraded={Boolean(section.error)} hydratingYearKeys={hydratingYearKeys} hasMore={Boolean(section.continuationToken)} isLoadingMore={Boolean(section.isLoadingMore)} onLoadMore={() => void loadMoreSection(section.key)} onOpen={openDetail} onSearch={searchResources} />) : null}
+          {!isLoading && !error && !unsupportedCategory && results ? <ResultSection title={resultTitle} description={results.degraded ? 'Provider 不可用，当前展示降级缓存。' : `数据来自 ${activeProvider?.attribution?.provider_name || results.provider_id}`} items={results.items} degraded={results.degraded} hydrationProviderId={activeProvider?.id} hydratingYearKeys={hydratingYearKeys} hydratingPosterKeys={hydratingPosterKeys} hasMore={Boolean(results.continuation_token)} isLoadingMore={isLoadingMoreResults} onLoadMore={() => void loadMoreResults()} onOpen={openDetail} onSearch={searchResources} /> : null}
+          {!isLoading && !error && !unsupportedCategory && !results ? (
+            <section className="dc-home" aria-label="热门内容">
+              <nav className="dc-home-tabs" role="tablist" aria-label="热门内容分类">
+                {homeSectionItems.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeHomeTab === item.key}
+                    data-active={activeHomeTab === item.key || undefined}
+                    onClick={() => selectHomeTab(item.key)}
+                  >
+                    {item.title}
+                  </button>
+                ))}
+              </nav>
+              <div className="dc-home-tab-panel" role="tabpanel">
+                {activeHomeSection?.isLoading ? <LoadingState message={`正在加载${activeHomeSection.title}`} /> : null}
+                {activeHomeSection && !activeHomeSection.isLoading ? <ResultSection title={activeHomeSection.title} description={activeHomeSection.error || activeHomeSection.description} items={activeHomeSection.items} degraded={Boolean(activeHomeSection.error)} hydrationProviderId={activeProvider?.id} hydratingYearKeys={hydratingYearKeys} hydratingPosterKeys={hydratingPosterKeys} hasMore={Boolean(activeHomeSection.continuationToken)} isLoadingMore={Boolean(activeHomeSection.isLoadingMore)} onLoadMore={() => void loadMoreSection(activeHomeSection.key)} onOpen={openDetail} onSearch={searchResources} /> : null}
+              </div>
+            </section>
+          ) : null}
         </>
       )}
       {activeProvider?.attribution ? (
@@ -883,13 +993,16 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
   )
 }
 
-function ResultSection({ title, description, items, degraded, hydratingYearKeys, hasMore, isLoadingMore, onLoadMore, onOpen, onSearch }: { title: string; description: string; items: MediaSubjectSummary[]; degraded: boolean; hydratingYearKeys: Set<string>; hasMore: boolean; isLoadingMore: boolean; onLoadMore: () => void; onOpen: (item: MediaSubjectSummary) => void; onSearch: (item: MediaSubjectSummary) => void }) {
+function ResultSection({ title, description, items, degraded, hydrationProviderId, hydratingYearKeys, hydratingPosterKeys, hasMore, isLoadingMore, onLoadMore, onOpen, onSearch }: { title: string; description: string; items: MediaSubjectSummary[]; degraded: boolean; hydrationProviderId?: string; hydratingYearKeys: Set<string>; hydratingPosterKeys: Set<string>; hasMore: boolean; isLoadingMore: boolean; onLoadMore: () => void; onOpen: (item: MediaSubjectSummary) => void; onSearch: (item: MediaSubjectSummary) => void }) {
   return (
     <section className="dc-section" aria-label={title}>
       <div className="dc-section-heading"><div><h3>{title}</h3><p>{description}</p></div>{degraded ? <span className="dc-degraded">降级</span> : null}</div>
       {items.length ? (
         <>
-          <div className="dc-poster-grid">{items.map((item) => <MediaPoster key={item.media_subject_id} item={item} isHydratingYear={hydratingYearKeys.has(`${item.provider_id}:${item.media_subject_id}`)} onOpen={() => onOpen(item)} onSearch={() => onSearch(item)} />)}</div>
+          <div className="dc-poster-grid">{items.map((item) => {
+            const hydrationKey = `${hydrationProviderId || item.provider_id}:${item.media_subject_id}`
+            return <MediaPoster key={item.media_subject_id} item={item} isHydratingYear={hydratingYearKeys.has(hydrationKey)} isHydratingPoster={hydratingPosterKeys.has(hydrationKey)} onOpen={() => onOpen(item)} onSearch={() => onSearch(item)} />
+          })}</div>
           {hasMore ? <div className="dc-load-more"><Button variant="secondary" disabled={isLoadingMore} onClick={onLoadMore}>{isLoadingMore ? '正在加载…' : '加载更多'}</Button></div> : null}
         </>
       ) : <EmptyState message="当前分区没有内容" sub={degraded ? '该分区失败，其他分区仍可继续使用。' : 'Provider 暂未返回符合条件的条目。'} />}
@@ -897,11 +1010,11 @@ function ResultSection({ title, description, items, degraded, hydratingYearKeys,
   )
 }
 
-function MediaPoster({ item, isHydratingYear, onOpen, onSearch }: { item: MediaSubjectSummary; isHydratingYear: boolean; onOpen: () => void; onSearch: () => void }) {
+function MediaPoster({ item, isHydratingYear, isHydratingPoster, onOpen, onSearch }: { item: MediaSubjectSummary; isHydratingYear: boolean; isHydratingPoster: boolean; onOpen: () => void; onSearch: () => void }) {
   return (
     <article className="dc-poster">
       <button className="dc-poster-image" type="button" onClick={onOpen} aria-label={`查看 ${item.canonical_title} 详情`}>
-        <PosterImage item={item} alt="" loading="lazy" />
+        <PosterImage item={item} alt="" loading="lazy" isHydrating={isHydratingPoster} />
         {item.watchlisted || item.followed ? <span className="dc-poster-state">{item.watchlisted ? '想看' : '关注'}</span> : null}
       </button>
       <div className="dc-poster-copy"><button type="button" onClick={onOpen}>{item.canonical_title}</button><p>{item.release_year || (isHydratingYear ? '正在补全年份' : '年份待补充')} · {item.media_type === 'movie' ? '电影' : '剧集'}</p></div>
@@ -934,10 +1047,11 @@ function DetailView({ detail, onBack, onFollow, onSearch }: { detail: MediaSubje
   )
 }
 
-function PosterImage({ item, alt, loading }: {
+function PosterImage({ item, alt, loading, isHydrating = false }: {
   item: MediaSubjectSummary
   alt: string
   loading?: 'eager' | 'lazy'
+  isHydrating?: boolean
 }) {
   const [source, setSource] = useState(item.poster_url)
   const [failed, setFailed] = useState(false)
@@ -948,7 +1062,7 @@ function PosterImage({ item, alt, loading }: {
     setFailed(false)
   }, [item.media_subject_id, item.poster_url, item.provider_id])
 
-  if (!source || failed) return <span aria-hidden="true">暂无海报</span>
+  if (!source || failed) return <span aria-hidden="true">{isHydrating ? '正在补全海报' : '暂无海报'}</span>
   return (
     <img
       src={source}

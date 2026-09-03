@@ -17,6 +17,36 @@ function statusTone(status: string): 'info' | 'running' | 'paused' | 'success' |
   return 'paused'
 }
 
+const statusLabels: Record<string, string> = {
+  candidate: '候选版本',
+  loaded: '已加载',
+  active: '运行中',
+  pending: '待处理',
+  validating: '校验中',
+  waiting: '等待依赖',
+  disabled: '已停用',
+  error: '错误',
+  failed: '失败',
+  disposing: '正在释放',
+  disposed: '已释放',
+}
+
+const pluginTypeLabels: Record<string, string> = {
+  source: '媒体源',
+  catalog_provider: '目录提供方',
+  watchlist_provider: '想看列表',
+  transfer_driver: '传输驱动',
+  notification: '通知渠道',
+}
+
+function statusLabel(status: string) {
+  return statusLabels[status] || '未知状态'
+}
+
+function pluginTypeLabel(type: string) {
+  return pluginTypeLabels[type] || type
+}
+
 export default function PluginsPage({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [repositories, setRepositories] = useState<PluginRepositoryResponse[]>([])
   const [plugins, setPlugins] = useState<PluginResponse[]>([])
@@ -119,14 +149,14 @@ export default function PluginsPage({ showToast }: { showToast: (type: 'success'
   return (
     <>
       <header className="page-header plugin-page-header">
-        <p className="panel-kicker">Plugin runtime</p>
+        <p className="panel-kicker">插件运行环境</p>
         <h1>插件</h1>
         <p>管理可信仓库、锁定版本和运行配置。平台 Token 在这里保存，不需要修改 API 或 Worker 环境变量。</p>
       </header>
 
       <section className="plugin-repository-section" aria-labelledby="plugin-repositories-title">
         <div className="section-heading">
-          <div><span className="ui-eyebrow">Repositories</span><h2 id="plugin-repositories-title">插件仓库</h2></div>
+          <div><span className="ui-eyebrow">插件仓库</span><h2 id="plugin-repositories-title">插件仓库</h2></div>
           <Button variant="primary" onClick={() => setShowAdd((value) => !value)}>{showAdd ? '收起' : '添加仓库'}</Button>
         </div>
         {showAdd ? (
@@ -141,7 +171,7 @@ export default function PluginsPage({ showToast }: { showToast: (type: 'success'
           <div className="plugin-repository-list">
             {repositories.map((repository) => (
               <article className="plugin-repository-row" key={repository.id}>
-                <div><div className="plugin-row-title"><strong>{repository.name}</strong><StatusBadge tone={statusTone(repository.status)}>{repository.status}</StatusBadge></div><code>{repository.repo_url}</code><small>{repository.branch} · {repository.current_commit?.slice(0, 10) || '尚未锁定 commit'}</small>{repository.last_error ? <p className="plugin-inline-error">{repository.last_error}</p> : null}</div>
+                <div><div className="plugin-row-title"><strong>{repository.name}</strong><StatusBadge tone={statusTone(repository.status)}>{statusLabel(repository.status)}</StatusBadge></div><code>{repository.repo_url}</code><small>{repository.branch} · {repository.current_commit?.slice(0, 10) || '尚未锁定 commit'}</small>{repository.last_error ? <p className="plugin-inline-error">{repository.last_error}</p> : null}</div>
                 <div className="plugin-row-actions">
                   <Button size="sm" onClick={() => void runMutation(`update:${repository.id}`, () => api.put(`/plugins/repositories/${repository.id}`, {}), '仓库已更新。')} disabled={busyKey !== null}>检查更新</Button>
                   <Button size="sm" variant="ghost" disabled={!repository.previous_commit || busyKey !== null} onClick={() => void runMutation(`rollback:${repository.id}`, () => api.post(`/plugins/repositories/${repository.id}/rollback`), '仓库已回滚。')}>回滚</Button>
@@ -154,20 +184,20 @@ export default function PluginsPage({ showToast }: { showToast: (type: 'success'
       </section>
 
       <section className="plugin-runtime-section" aria-labelledby="plugin-runtime-title">
-        <div className="section-heading"><div><span className="ui-eyebrow">Runtime</span><h2 id="plugin-runtime-title">插件实例</h2></div><span>{plugins.length} 个</span></div>
+        <div className="section-heading"><div><span className="ui-eyebrow">插件实例</span><h2 id="plugin-runtime-title">插件实例</h2></div><span>{plugins.length} 个</span></div>
         {plugins.length === 0 ? <EmptyState message="没有可配置的插件" sub="先添加一个包含 Manifest v2 的仓库。" /> : (
           <div className="plugin-runtime-layout">
             <div className="plugin-instance-list" role="list">
               {plugins.map((plugin) => (
                 <button className="plugin-instance-button" data-selected={selectedId === plugin.id || undefined} key={plugin.id} onClick={() => selectPlugin(plugin)} type="button">
-                  <span><strong>{plugin.name}</strong><small>{plugin.plugin_type} · {plugin.version}</small></span>
-                  <StatusBadge tone={plugin.configuration_required ? 'paused' : statusTone(plugin.status)}>{plugin.configuration_required ? '待配置' : plugin.status}</StatusBadge>
+                  <span><strong>{plugin.name}</strong><small>{pluginTypeLabel(plugin.plugin_type)} · {plugin.version}</small></span>
+                  <StatusBadge tone={plugin.configuration_required ? 'paused' : statusTone(plugin.status)}>{plugin.configuration_required ? '待配置' : statusLabel(plugin.status)}</StatusBadge>
                 </button>
               ))}
             </div>
             {selected ? (
               <div className="plugin-config-pane">
-                <div className="plugin-config-heading"><div><span className="ui-eyebrow">{selected.plugin_type}</span><h3>{selected.name}</h3><p>{selected.description}</p></div><StatusBadge tone={statusTone(selected.status)}>{selected.status}</StatusBadge></div>
+                <div className="plugin-config-heading"><div><span className="ui-eyebrow">{pluginTypeLabel(selected.plugin_type)}</span><h3>{selected.name}</h3><p>{selected.description}</p></div><StatusBadge tone={statusTone(selected.status)}>{statusLabel(selected.status)}</StatusBadge></div>
                 {selected.error ? <div className="plugin-config-error" role="alert"><strong>最近错误</strong><p>{selected.error}</p></div> : null}
                 <form className="plugin-config-form" onSubmit={saveConfig}>
                   {Object.entries(selected.config_schema).map(([fieldName, field]) => (

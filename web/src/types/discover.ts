@@ -49,6 +49,12 @@ export type YearHydrationResponse = {
   unresolved_ids: string[]
 }
 
+export type SnapshotHydrationResponse = {
+  provider_id: string
+  items: MediaSubjectSummary[]
+  unresolved_ids: string[]
+}
+
 export type MediaSubjectDetail = MediaSubjectSummary & {
   original_title: string | null
   overview: string | null
