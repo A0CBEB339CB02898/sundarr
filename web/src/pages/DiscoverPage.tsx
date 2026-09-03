@@ -11,6 +11,7 @@ import type {
   YearHydrationResponse,
 } from '../types'
 import { Button, EmptyState, ErrorState, LoadingState } from '../ui'
+import SearchPage from './SearchPage'
 
 type HomeSectionKey = 'movie' | 'series' | 'category' | 'watchlist'
 
@@ -159,6 +160,12 @@ function filtersFromUrl(): FilterState {
 function detailIdFromPath() {
   const match = window.location.pathname.match(/^\/app\/discover\/([^/]+)$/)
   return match ? decodeURIComponent(match[1]) : null
+}
+
+function isResourceModeFromLocation() {
+  if (window.location.pathname === '/app/search') return true
+  return window.location.pathname === '/app/discover'
+    && new URLSearchParams(window.location.search).get('mode') === 'resources'
 }
 
 function optionForCategory(provider: CatalogProvider | undefined, category: CategoryKey) {
@@ -328,6 +335,13 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     setIsLoading(true)
     setError(null)
     setUnsupportedCategory(null)
+    if (isResourceModeFromLocation()) {
+      setDetail(null)
+      setResults(null)
+      setSections([])
+      setIsLoading(false)
+      return
+    }
     try {
       const providerItems = await api.get<CatalogProvider[]>('/discover/providers')
       setProviders(providerItems)
@@ -673,10 +687,25 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
   }
 
   function searchResources(item: MediaSubjectSummary | MediaSubjectDetail) {
-    const params = new URLSearchParams({ q: item.canonical_title })
+    const params = new URLSearchParams({ mode: 'resources', q: item.canonical_title })
     if (item.release_year) params.set('year', String(item.release_year))
-    window.history.pushState({}, '', `/app/search?${params.toString()}`)
-    window.dispatchEvent(new PopStateEvent('popstate'))
+    window.history.pushState({}, '', `/app/discover?${params.toString()}`)
+    setLocationVersion((value) => value + 1)
+  }
+
+  function selectDiscoverMode(mode: 'catalog' | 'resources') {
+    if (mode === 'resources') {
+      window.history.pushState({}, '', '/app/discover?mode=resources')
+      setLocationVersion((value) => value + 1)
+      return
+    }
+    const params = new URLSearchParams()
+    if (activeProvider?.id) params.set('provider_id', activeProvider.id)
+    window.history.pushState({}, '', `/app/discover${params.size ? `?${params.toString()}` : ''}`)
+    const nextFilters = filtersFromUrl()
+    setFilters(nextFilters)
+    setSearchDraft(nextFilters.q)
+    setLocationVersion((value) => value + 1)
   }
 
   async function toggleFollow() {
@@ -734,19 +763,29 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     ? `“${filters.q.trim()}”的目录结果`
     : `${activeCategory?.label || '发现'}内容`
   const activeHomeSection = sections.find((section) => section.key === activeHomeTab)
+  const resourceMode = isResourceModeFromLocation()
 
   return (
     <section className="dc-page" aria-labelledby="discover-title">
       <header className="dc-header">
         <div>
-          <p className="ui-eyebrow">媒体发现</p>
-          <h2 id="discover-title">{detail ? detail.canonical_title : '发现下一部想看的内容'}</h2>
-          <p>{detail ? '目录详情来自当前启用的真实 Provider。' : '从分类开始浏览，再用标签逐步缩小范围。'}</p>
+          <p className="ui-eyebrow">{resourceMode ? '资源搜索' : '媒体发现'}</p>
+          <h2 id="discover-title">{detail ? detail.canonical_title : resourceMode ? '查找具体资源' : '发现下一部想看的内容'}</h2>
+          <p>{detail ? '目录详情来自当前启用的真实 Provider。' : resourceMode ? '从已启用的 SOURCE 插件聚合真实资源结果。' : '从分类开始浏览，再用标签逐步缩小范围。'}</p>
         </div>
-        <Button variant="secondary" onClick={() => void loadPage(true)} disabled={isLoading}>刷新真实数据</Button>
+        {!resourceMode ? <Button variant="secondary" onClick={() => void loadPage(true)} disabled={isLoading}>刷新真实数据</Button> : null}
       </header>
 
-      {detail ? (
+      {!detail ? (
+        <nav className="dc-mode-tabs" role="tablist" aria-label="发现模式">
+          <button type="button" role="tab" aria-selected={!resourceMode} data-active={!resourceMode || undefined} onClick={() => selectDiscoverMode('catalog')}>内容发现</button>
+          <button type="button" role="tab" aria-selected={resourceMode} data-active={resourceMode || undefined} onClick={() => selectDiscoverMode('resources')}>资源搜索</button>
+        </nav>
+      ) : null}
+
+      {resourceMode ? (
+        <SearchPage embedded showToast={showToast} />
+      ) : detail ? (
         <DetailView detail={detail} onBack={returnToDiscover} onFollow={() => void toggleFollow()} onSearch={() => searchResources(detail)} />
       ) : (
         <>

@@ -27,7 +27,7 @@ import {
   Kbd,
 } from '../ui'
 
-export default function SearchPage({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
+export default function SearchPage({ showToast, embedded = false }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void; embedded?: boolean }) {
   const [form, setForm] = useState<SearchFormState>({
     q: '',
   })
@@ -42,17 +42,38 @@ export default function SearchPage({ showToast }: { showToast: (type: 'success' 
 
   useEffect(() => {
     function applyDiscoverHandoff() {
-      if (window.location.pathname !== '/app/search') return
+      const isLegacyRoute = window.location.pathname === '/app/search'
       const params = new URLSearchParams(window.location.search)
+      if (!isLegacyRoute && !(window.location.pathname === '/app/discover' && params.get('mode') === 'resources')) return
       const keyword = (params.get('q') || '').trim()
+      if (isLegacyRoute) {
+        params.set('mode', 'resources')
+        window.history.replaceState({}, '', `/app/discover?${params.toString()}`)
+      }
       if (!keyword) return
       setForm({ q: keyword })
       void runSearch(keyword, params.get('year'))
     }
     applyDiscoverHandoff()
     window.addEventListener('popstate', applyDiscoverHandoff)
-    return () => window.removeEventListener('popstate', applyDiscoverHandoff)
+    window.addEventListener('sundarr:navigation', applyDiscoverHandoff)
+    return () => {
+      window.removeEventListener('popstate', applyDiscoverHandoff)
+      window.removeEventListener('sundarr:navigation', applyDiscoverHandoff)
+    }
   }, [])
+
+  function submitSearch(event: React.FormEvent) {
+    event.preventDefault()
+    const keyword = form.q.trim()
+    if (!keyword) {
+      setError('请输入搜索关键词。')
+      return
+    }
+    const params = new URLSearchParams({ mode: 'resources', q: keyword })
+    window.history.pushState({}, '', `/app/discover?${params.toString()}`)
+    void runSearch(keyword)
+  }
 
   async function runSearch(keywordOverride?: string, yearOverride?: string | null) {
     const keyword = (keywordOverride ?? form.q).trim()
@@ -193,8 +214,8 @@ export default function SearchPage({ showToast }: { showToast: (type: 'success' 
   }, [activeTab])
 
   return (
-    <section className="sx-page" aria-labelledby="search-title">
-      <Card className="sx-overview">
+    <section className="sx-page" aria-label={embedded ? '资源搜索' : undefined} aria-labelledby={embedded ? undefined : 'search-title'}>
+      {!embedded ? <Card className="sx-overview">
       <div className="sx-overview-head">
         <div>
           <p className="ui-eyebrow">搜索</p>
@@ -202,10 +223,10 @@ export default function SearchPage({ showToast }: { showToast: (type: 'success' 
           <p className="sx-overview-lead">从已启用的 SOURCE 插件聚合结果，按真实链接去重，并同步检测链接有效性。</p>
         </div>
       </div>
-      </Card>
+      </Card> : null}
 
       <Card className="sx-search-card">
-      <form className="sx-form" onSubmit={(event) => { event.preventDefault(); void runSearch() }}>
+      <form className="sx-form" onSubmit={submitSearch}>
         <TextField helper="要搜索的片名、剧名或关键词。" label="关键词" onChange={(value) => updateField('q', value)} required value={form.q} />
         <div className="sx-form-actions">
           <Button variant="primary" disabled={isSearching} type="submit">{isSearching ? '搜索中…' : '搜索资源'}</Button>

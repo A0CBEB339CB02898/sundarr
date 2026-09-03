@@ -450,6 +450,7 @@ button:disabled {
 }
 
 .settings-tabs,
+.dc-mode-tabs,
 .dc-home-tabs {
   display: flex;
   align-items: center;
@@ -461,11 +462,13 @@ button:disabled {
 }
 
 .settings-tabs::-webkit-scrollbar,
+.dc-mode-tabs::-webkit-scrollbar,
 .dc-home-tabs::-webkit-scrollbar {
   display: none;
 }
 
 .settings-tabs button,
+.dc-mode-tabs button,
 .dc-home-tabs button {
   flex: 0 0 auto;
   min-height: 44px;
@@ -482,11 +485,13 @@ button:disabled {
 }
 
 .settings-tabs button:hover,
+.dc-mode-tabs button:hover,
 .dc-home-tabs button:hover {
   color: var(--text);
 }
 
 .settings-tabs button[data-active],
+.dc-mode-tabs button[data-active],
 .dc-home-tabs button[data-active] {
   border-bottom-color: var(--accent);
   color: var(--text);
