@@ -383,9 +383,8 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
         setResults(await api.get<DiscoverPageResponse>(`/discover/search?${params.toString()}`))
         setSections([])
       } else if (hasExploreCriteria) {
-        const useTrending = !hasSecondaryCriteria && (filters.category === 'movie' || filters.category === 'series')
         const params = apiQueryParams(forceRefresh, filters, providerId, selectedCategoryGenre?.value)
-        setResults(await api.get<DiscoverPageResponse>(`/discover/${useTrending ? 'trending' : 'categories'}?${params.toString()}`))
+        setResults(await api.get<DiscoverPageResponse>(`/discover/categories?${params.toString()}`))
         setSections([])
       } else {
         setResults(null)
@@ -515,12 +514,9 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
       const selectedCategoryGenre = optionForCategory(activeProvider, filters.category)
       const params = apiQueryParams(false, filters, activeProvider.id, selectedCategoryGenre?.value)
       params.set('continuation_token', results.continuation_token)
-      const useTrending = !filters.q.trim()
-        && !hasSecondaryCriteria
-        && (filters.category === 'movie' || filters.category === 'series')
       const endpoint = filters.q.trim()
         ? '/discover/search'
-        : `/discover/${useTrending ? 'trending' : 'categories'}`
+        : '/discover/categories'
       const nextPage = await api.get<DiscoverPageResponse>(`${endpoint}?${params.toString()}`)
       setResults((current) => current ? {
         ...nextPage,
