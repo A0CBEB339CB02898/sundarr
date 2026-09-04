@@ -48,7 +48,7 @@ type ActiveFilter = {
 }
 
 const categoryItems: Array<{ key: CategoryKey; label: string }> = [
-  { key: 'popular', label: '热门' },
+  { key: 'popular', label: '趋势' },
   { key: 'movie', label: '电影' },
   { key: 'series', label: '剧集' },
   { key: 'anime', label: '动漫' },
@@ -56,10 +56,10 @@ const categoryItems: Array<{ key: CategoryKey; label: string }> = [
 ]
 
 const homeSectionItems: Array<{ key: HomeSectionKey; title: string; description: string }> = [
-  { key: 'movie', title: '热门电影', description: '当前目录来源的电影趋势' },
-  { key: 'series', title: '热门剧集', description: '当前目录来源的剧集趋势' },
+  { key: 'movie', title: '电影趋势', description: '当前目录来源返回的电影热度趋势' },
+  { key: 'series', title: '剧集趋势', description: '当前目录来源返回的剧集热度趋势' },
   { key: 'category', title: '分类推荐', description: '按当前目录能力生成的推荐' },
-  { key: 'watchlist', title: '关注更新', description: '外部想看列表同步到 Sundarr 的条目' },
+  { key: 'watchlist', title: '关注更新', description: '来自独立想看 Provider，不受当前目录来源选择影响' },
 ]
 
 const categoryGenreLabels: Partial<Record<CategoryKey, string[]>> = {
@@ -356,7 +356,8 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
       const detailId = detailIdFromPath()
       if (detailId) {
         const params = new URLSearchParams()
-        if (providerId) params.set('provider_id', providerId)
+        const detailProviderId = new URLSearchParams(window.location.search).get('provider_id')
+        if (detailProviderId) params.set('provider_id', detailProviderId)
         if (forceRefresh) params.set('refresh', 'true')
         const suffix = params.size ? `?${params.toString()}` : ''
         setDetail(await api.get<MediaSubjectDetail>(`/discover/${encodeURIComponent(detailId)}${suffix}`))
@@ -668,7 +669,10 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
 
   function openDetail(item: MediaSubjectSummary) {
     const discoverReturn = `${window.location.pathname}${window.location.search}`
-    const providerId = activeProvider?.id || item.provider_id
+    const compatibleProvider = activeProvider && providerRecognizesItem(activeProvider, item)
+      ? activeProvider
+      : providers.find((provider) => providerRecognizesItem(provider, item))
+    const providerId = compatibleProvider?.id
     const query = providerId ? `?provider_id=${encodeURIComponent(providerId)}` : ''
     window.history.pushState({ discoverReturn }, '', `/app/discover/${encodeURIComponent(item.media_subject_id)}${query}`)
     setLocationVersion((value) => value + 1)
@@ -764,6 +768,16 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     : `${activeCategory?.label || '发现'}内容`
   const activeHomeSection = sections.find((section) => section.key === activeHomeTab)
   const resourceMode = isResourceModeFromLocation()
+  const attributionProvider = detail
+    ? providers.find((provider) => provider.id === detail.provider_id)
+    : activeHomeTab === 'watchlist' && !results
+      ? undefined
+      : activeProvider
+  const activeHomeDescription = activeHomeSection?.error || (
+    activeHomeSection && ['movie', 'series'].includes(activeHomeSection.key)
+      ? `${activeHomeSection.description}，数据来自 ${activeProvider?.attribution?.provider_name || activeProvider?.id || '当前 Provider'}`
+      : activeHomeSection?.description
+  )
 
   return (
     <section className="dc-page" aria-labelledby="discover-title">
@@ -996,8 +1010,8 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
           {!isLoading && !error && unsupportedCategory ? <EmptyState message="当前来源不支持这个分类" sub={unsupportedCategory} /> : null}
           {!isLoading && !error && !unsupportedCategory && results ? <ResultSection title={resultTitle} description={results.degraded ? 'Provider 不可用，当前展示降级缓存。' : `数据来自 ${activeProvider?.attribution?.provider_name || results.provider_id}`} items={results.items} degraded={results.degraded} hydrationProviderId={activeProvider?.id} hydratingYearKeys={hydratingYearKeys} hydratingPosterKeys={hydratingPosterKeys} hasMore={Boolean(results.continuation_token)} isLoadingMore={isLoadingMoreResults} onLoadMore={() => void loadMoreResults()} onOpen={openDetail} onSearch={searchResources} /> : null}
           {!isLoading && !error && !unsupportedCategory && !results ? (
-            <section className="dc-home" aria-label="热门内容">
-              <nav className="dc-home-tabs" role="tablist" aria-label="热门内容分类">
+            <section className="dc-home" aria-label="趋势内容">
+              <nav className="dc-home-tabs" role="tablist" aria-label="趋势内容分类">
                 {homeSectionItems.map((item) => (
                   <button
                     key={item.key}
@@ -1013,21 +1027,21 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
               </nav>
               <div className="dc-home-tab-panel" role="tabpanel">
                 {activeHomeSection?.isLoading ? <LoadingState message={`正在加载${activeHomeSection.title}`} /> : null}
-                {activeHomeSection && !activeHomeSection.isLoading ? <ResultSection title={activeHomeSection.title} description={activeHomeSection.error || activeHomeSection.description} items={activeHomeSection.items} degraded={Boolean(activeHomeSection.error)} hydrationProviderId={activeProvider?.id} hydratingYearKeys={hydratingYearKeys} hydratingPosterKeys={hydratingPosterKeys} hasMore={Boolean(activeHomeSection.continuationToken)} isLoadingMore={Boolean(activeHomeSection.isLoadingMore)} onLoadMore={() => void loadMoreSection(activeHomeSection.key)} onOpen={openDetail} onSearch={searchResources} /> : null}
+                {activeHomeSection && !activeHomeSection.isLoading ? <ResultSection title={activeHomeSection.title} description={activeHomeDescription || activeHomeSection.description} items={activeHomeSection.items} degraded={Boolean(activeHomeSection.error)} hydrationProviderId={activeProvider?.id} hydratingYearKeys={hydratingYearKeys} hydratingPosterKeys={hydratingPosterKeys} hasMore={Boolean(activeHomeSection.continuationToken)} isLoadingMore={Boolean(activeHomeSection.isLoadingMore)} onLoadMore={() => void loadMoreSection(activeHomeSection.key)} onOpen={openDetail} onSearch={searchResources} /> : null}
               </div>
             </section>
           ) : null}
         </>
       )}
-      {activeProvider?.attribution ? (
+      {attributionProvider?.attribution ? (
         <aside className="dc-attribution" aria-label="数据来源">
           <div>
             <span>数据来源</span>
-            <a href={activeProvider.attribution.homepage_url} target="_blank" rel="noreferrer">
-              {activeProvider.attribution.logo_url ? <img src={activeProvider.attribution.logo_url} alt={activeProvider.attribution.provider_name} /> : <strong>{activeProvider.attribution.provider_name}</strong>}
+            <a href={attributionProvider.attribution.homepage_url} target="_blank" rel="noreferrer">
+              {attributionProvider.attribution.logo_url ? <img src={attributionProvider.attribution.logo_url} alt={attributionProvider.attribution.provider_name} /> : <strong>{attributionProvider.attribution.provider_name}</strong>}
             </a>
           </div>
-          <p>{activeProvider.attribution.notice}</p>
+          <p>{attributionProvider.attribution.notice}</p>
         </aside>
       ) : null}
     </section>
