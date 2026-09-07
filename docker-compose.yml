@@ -4,29 +4,48 @@ services:
     environment:
       POSTGRES_DB: sundarr
       POSTGRES_USER: sundarr
-      POSTGRES_PASSWORD: sundarr
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${SUNDARR_POSTGRES_PASSWORD:-sundarr}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sundarr -d sundarr"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+
+  sundarr-migrate:
+    build:
+      context: .
+    environment:
+      SUNDARR_DATABASE_URL: postgresql+psycopg://sundarr:${SUNDARR_POSTGRES_PASSWORD:-sundarr}@postgres:5432/sundarr
+      SUNDARR_REDIS_URL: redis://redis:6379/0
+      SUNDARR_LOG_TO_FILE: "false"
+      SUNDARR_PLUGIN_CONFIG_KEY: ${SUNDARR_PLUGIN_CONFIG_KEY:-}
+    volumes:
+      - runtime-data:/app/.sundarr
+    command: ["sundarr", "init-db"]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   sundarr-api:
     build:
       context: .
     environment:
-      SUNDARR_DATABASE_URL: postgresql+psycopg://sundarr:sundarr@postgres:5432/sundarr
+      SUNDARR_DATABASE_URL: postgresql+psycopg://sundarr:${SUNDARR_POSTGRES_PASSWORD:-sundarr}@postgres:5432/sundarr
       SUNDARR_REDIS_URL: redis://redis:6379/0
       SUNDARR_LOG_TO_FILE: "false"
-    ports:
-      - "8080:8080"
+      SUNDARR_PLUGIN_CONFIG_KEY: ${SUNDARR_PLUGIN_CONFIG_KEY:-}
+    volumes:
+      - runtime-data:/app/.sundarr
     depends_on:
-      - postgres
-      - redis
+      sundarr-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
     logging:
       driver: json-file
       options:
@@ -37,13 +56,18 @@ services:
     build:
       context: .
     environment:
-      SUNDARR_DATABASE_URL: postgresql+psycopg://sundarr:sundarr@postgres:5432/sundarr
+      SUNDARR_DATABASE_URL: postgresql+psycopg://sundarr:${SUNDARR_POSTGRES_PASSWORD:-sundarr}@postgres:5432/sundarr
       SUNDARR_REDIS_URL: redis://redis:6379/0
       SUNDARR_LOG_TO_FILE: "false"
+      SUNDARR_PLUGIN_CONFIG_KEY: ${SUNDARR_PLUGIN_CONFIG_KEY:-}
     command: ["python", "-m", "sundarr.app.worker"]
+    volumes:
+      - runtime-data:/app/.sundarr
     depends_on:
-      - postgres
-      - redis
+      sundarr-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
     logging:
       driver: json-file
       options:
@@ -54,8 +78,10 @@ services:
     build:
       context: ./web
       target: dev
+    environment:
+      VITE_API_PROXY_TARGET: http://sundarr-api:8080
     ports:
-      - "5173:5173"
+      - "127.0.0.1:${SUNDARR_WEB_PORT:-5173}:5173"
     depends_on:
       - sundarr-api
     logging:
@@ -66,3 +92,4 @@ services:
 
 volumes:
   postgres-data:
+  runtime-data:

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..models.plugin import PluginConfig, PluginRepository
 from ..plugins.manager import plugin_manager
+from ..plugins.loader import redact_repository_url
 from ..schemas.plugin import PluginConfigUpdate, PluginRepositoryCreate, PluginRepositoryUpdate
 
 
@@ -23,7 +24,7 @@ def list_repositories(session: Session = Depends(get_db)):
         {
             "id": item.id,
             "name": item.name,
-            "repo_url": item.repo_url,
+            "repo_url": redact_repository_url(item.repo_url),
             "branch": item.branch,
             "current_commit": item.current_commit,
             "previous_commit": item.previous_commit,

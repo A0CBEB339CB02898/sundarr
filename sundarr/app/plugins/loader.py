@@ -14,10 +14,10 @@ import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 from threading import RLock
-from typing import Any, Callable, Coroutine, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
+from urllib.parse import urlsplit, urlunsplit
 
 from .base import LoadedPlugin, PluginManifest, PluginType
-from .registry import plugin_registry
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,31 @@ _SUPPORTED_V2_PLUGIN_TYPES = {
     PluginType.WATCHLIST_PROVIDER,
 }
 _IMPORT_LOCK = RLock()
+
+
+def validate_repository_url(repo_url: str) -> str:
+    """拒绝把 HTTP Git 凭据嵌入持久化仓库地址。"""
+
+    value = repo_url.strip()
+    if not value:
+        raise ValueError("插件仓库 URL 不能为空")
+    parsed = urlsplit(value)
+    if parsed.scheme in {"http", "https"} and (parsed.username or parsed.password):
+        raise ValueError("插件仓库 URL 不能包含用户名、密码或访问令牌")
+    return value
+
+
+def redact_repository_url(repo_url: str) -> str:
+    """兼容展示历史数据，但绝不回显 URL 中可能存在的凭据。"""
+
+    parsed = urlsplit(repo_url)
+    if parsed.scheme not in {"http", "https"} or not (parsed.username or parsed.password):
+        return repo_url
+    hostname = parsed.hostname or ""
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
+    port = f":{parsed.port}" if parsed.port else ""
+    return urlunsplit((parsed.scheme, f"{hostname}{port}", parsed.path, parsed.query, parsed.fragment))
 
 
 class PluginLoader:
@@ -104,6 +129,7 @@ class PluginLoader:
             FileNotFoundError: 如果插件清单文件不存在
             ImportError: 如果模块导入失败
         """
+        repo_url = validate_repository_url(repo_url)
         # 检查仓库是否在允许列表中
         if self.allowed_repos and repo_url not in self.allowed_repos:
             raise ValueError(f"仓库不在允许列表中：{repo_url}")
@@ -171,6 +197,7 @@ class PluginLoader:
     ) -> tuple[Path, str]:
         """准备仓库工作目录；启动恢复可禁止网络 fetch 并只切换锁定 commit。"""
 
+        repo_url = validate_repository_url(repo_url)
         if self.allowed_repos and repo_url not in self.allowed_repos:
             raise ValueError(f"仓库不在允许列表中：{repo_url}")
         repo_path = self.repository_path(repo_url)
@@ -332,7 +359,7 @@ class PluginLoader:
         """
         if not repo_path.exists():
             # Clone
-            logger.info(f"克隆仓库：{repo_url}")
+            logger.info("克隆插件仓库：%s", repo_path.name)
             subprocess.run(
                 ["git", "clone", "--branch", branch, repo_url, str(repo_path)],
                 check=True,
@@ -340,7 +367,7 @@ class PluginLoader:
             )
         else:
             # Fetch and checkout
-            logger.info(f"更新仓库：{repo_url}")
+            logger.info("更新插件仓库：%s", repo_path.name)
             subprocess.run(
                 ["git", "fetch"],
                 cwd=str(repo_path),

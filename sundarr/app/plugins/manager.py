@@ -22,7 +22,7 @@ from .config import (
     validate_plugin_config,
 )
 from .coordinator import RepositoryActivationCoordinator, RepositoryActivationError, repository_activation_coordinator
-from .loader import PluginLoader, plugin_loader
+from .loader import PluginLoader, plugin_loader, validate_repository_url
 from .registry import plugin_registry
 from .secrets import config_requires_encryption, decode_plugin_config, encode_plugin_config
 
@@ -157,6 +157,8 @@ class PluginManager:
         disabled_plugin_ids: set[str] | None = None,
     ) -> ManagedRepositoryResult:
         from ..models.plugin import PluginRepository
+
+        repo_url = validate_repository_url(repo_url)
 
         existing = session.query(PluginRepository).filter(PluginRepository.repo_url == repo_url).first()
         if existing is not None:

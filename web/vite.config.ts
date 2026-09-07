@@ -1,27 +1,32 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 5173,
-    proxy: {
-      '/health': 'http://localhost:8080',
-      '/search': 'http://localhost:8080',
-      '/discover': 'http://localhost:8080',
-      '/configuration': 'http://localhost:8080',
-      '/plugins': 'http://localhost:8080',
-      '/resources': 'http://localhost:8080',
-      '/resource-links': 'http://localhost:8080',
-      '/transfers': 'http://localhost:8080',
-      '/sources': 'http://localhost:8080',
-      '/settings': 'http://localhost:8080',
-      '/storage': 'http://localhost:8080',
-      '/media-libraries': 'http://localhost:8080',
-      '/remote-media-libraries': 'http://localhost:8080',
-      '/sync': 'http://localhost:8080',
-      '/download-to-local': 'http://localhost:8080',
-      '/worker': 'http://localhost:8080',
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, '.', '')
+  const apiTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:8080'
+
+  return {
+    plugins: [react()],
+    server: {
+      port: 5173,
+      proxy: {
+        '/health': apiTarget,
+        '/search': apiTarget,
+        '/discover': apiTarget,
+        '/configuration': apiTarget,
+        '/plugins': apiTarget,
+        '/resources': apiTarget,
+        '/resource-links': apiTarget,
+        '/transfers': apiTarget,
+        '/sources': apiTarget,
+        '/settings': apiTarget,
+        '/storage': apiTarget,
+        '/media-libraries': apiTarget,
+        '/remote-media-libraries': apiTarget,
+        '/sync': apiTarget,
+        '/download-to-local': apiTarget,
+        '/worker': apiTarget,
+      }
     }
   }
 })

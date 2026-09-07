@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from sundarr.app.plugins.base import PluginType
-from sundarr.app.plugins.loader import PluginLoader
+from sundarr.app.plugins.loader import PluginLoader, redact_repository_url, validate_repository_url
 
 
 def write_manifest(repo_path: Path, content: str) -> Path:
@@ -19,6 +19,18 @@ def write_manifest(repo_path: Path, content: str) -> Path:
 
 def make_loader(tmp_path: Path) -> PluginLoader:
     return PluginLoader(repos_dir=tmp_path / "cache")
+
+
+def test_repository_url_rejects_embedded_http_credentials() -> None:
+    with pytest.raises(ValueError, match="不能包含"):
+        validate_repository_url("https://user:token@example.com/plugins.git")
+
+
+def test_repository_url_redaction_removes_historical_credentials() -> None:
+    assert (
+        redact_repository_url("https://user:token@example.com:8443/plugins.git?ref=main")
+        == "https://example.com:8443/plugins.git?ref=main"
+    )
 
 
 def test_parse_flat_v1_source_manifest(tmp_path: Path) -> None:
