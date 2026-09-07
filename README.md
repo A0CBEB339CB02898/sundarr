@@ -210,6 +210,8 @@ Sundarr 采用暖色操作台风格设计：
 
 Phase 10.3 的运行配置入口已完成：`/app/plugins` 管理可信仓库、锁定 commit、插件启停、配置和诊断；secret/password 配置使用数据库外主密钥静态加密。Web Console 会按 Core 返回的真实配置缺口给出非阻断引导，本地 CLI 启动后会打印可访问的 Web Console 地址。
 
+**Phase 10.4 进行中**：数据库迁移与 ORM 已重新对齐，真实 PostgreSQL 空库迁移、外键和任务原子认领已有显式测试；Docker 默认只暴露本机 Web 入口；SMB 密码与任务快照使用数据库外主密钥加密；同步重试、同路径文件替换、真实并发执行、进度写库节流和独立清理重试均已收口。当前剩余发布门是大文件结构拆分、真实 Docker Compose 启动和用户授权目录下的真实 SMB 全链路验收。
+
 项目官方维护的真实插件不放在本仓库。[`sundarr-sources`](https://github.com/A0CBEB339CB02898/sundarr-sources) 保留为敏感资源搜索 SOURCE 仓库；[`sundarr-plugin`](https://github.com/A0CBEB339CB02898/sundarr-plugin) 维护 TMDb、豆瓣目录、豆瓣想看等其他官方插件。Sundarr Core 继续保留稳定插件合同、运行时、配置与诊断能力、离线测试替身和契约测试，并支持用户配置多个可信插件仓库。
 
 媒体发现中心使用 `CATALOG_PROVIDER` / `WATCHLIST_PROVIDER` 公共合同；TMDb 主目录和豆瓣补充目录已经通过 Core API 与 Web Console 真实数据验收。豆瓣想看 Provider 已实现公开列表的电影/电视剧双流分页和不透明复合游标；Core API 负责手动增量同步，Worker 负责定时同步，二者从同一数据库恢复游标和锁定版本。外部服务不可用时返回缓存、持久化最小快照或明确错误。
