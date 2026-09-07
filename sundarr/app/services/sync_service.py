@@ -14,6 +14,7 @@ from sundarr.app.models import (
     TransferFile,
     TransferTask,
 )
+from sundarr.app.plugins.secrets import decode_secret_snapshot, encode_secret_text
 from sundarr.app.schemas.sync import (
     SyncBindingCreateRequest,
     SyncBindingListResponse,
@@ -35,6 +36,7 @@ from sundarr.app.storage.smb import SmbStorageError
 
 SYNC_CONFIG_KEY = "download_to_local.config"
 DOWNLOADING_SUFFIX = ".sundarr.downloading"
+ACTIVE_SYNC_TASK_STATUSES = {"staging_to_cloud", "cloud_ready", "downloading", "verifying", "renaming", "cleaning_source"}
 
 
 class SyncService:
@@ -210,7 +212,11 @@ class SyncService:
             if db.get(SyncBinding, request.binding_id) is None:
                 raise ValueError("SYNC_BINDING_NOT_FOUND")
 
-        seen_files = query.order_by(SyncSeenFile.updated_at, SyncSeenFile.id).all()
+        seen_files = (
+            query.order_by(SyncSeenFile.updated_at, SyncSeenFile.id)
+            .with_for_update(skip_locked=True)
+            .all()
+        )
         tasks: list[TransferTask] = []
         skipped_count = 0
         for seen in seen_files:
@@ -295,8 +301,8 @@ class SyncService:
         db.flush()
         return binding
 
-    def _is_usable(self, item: MediaLibrary | RemoteMediaLibrary | SmbConnection) -> bool:
-        return item.last_test_ok is not False
+    def _is_usable(self, item: MediaLibrary | RemoteMediaLibrary | SmbConnection | SyncBinding) -> bool:
+        return bool(getattr(item, "enabled", True)) and getattr(item, "last_test_ok", None) is not False
 
     async def _test_remote_library(self, db: Session, library_id: str) -> bool:
         lib = db.get(RemoteMediaLibrary, library_id)
@@ -433,11 +439,63 @@ class SyncService:
         if same_file and self._age_seconds(seen.updated_at) >= stable_seconds and seen.status in {"discovered", "stable"}:
             seen.status = "stable"
         else:
+            linked_task = db.get(TransferTask, seen.task_id) if seen.task_id else None
+            if not same_file and linked_task is not None and linked_task.status in ACTIVE_SYNC_TASK_STATUSES:
+                # 运行中的任务仍以旧版本为事实来源；下一轮扫描会在任务退出运行态后接管新版本。
+                return seen
+            if not same_file and linked_task is not None and linked_task.status == "pending":
+                linked_task.status = "failed"
+                linked_task.error_code = "SYNC_SOURCE_CHANGED"
+                linked_task.error_message = "来源文件在任务开始前发生变化，已等待新版本重新稳定。"
+                linked_task.retryable = False
+            if not same_file:
+                seen.task_id = None
             seen.source_size = int(source_size) if source_size is not None else None
             seen.source_mtime = source_mtime
             if seen.status != "stable" or not same_file:
                 seen.status = "discovered"
         return seen
+
+    def refresh_task_config_snapshots(self, db: Session, task: TransferTask) -> None:
+        """为 SMB 同步重试解析当前绑定，保证来源和目标配置来自同一版本。"""
+
+        if task.mode != "download_to_local" or task.source_type != "smb" or task.target_type != "smb":
+            return
+        seen = db.get(SyncSeenFile, task.sync_seen_file_id) if task.sync_seen_file_id else None
+        binding_id = task.binding_id or (seen.binding_id if seen is not None else None)
+        binding = db.get(SyncBinding, binding_id) if binding_id else None
+        if binding is None:
+            raise ValueError("SYNC_BINDING_NOT_FOUND")
+        remote_lib = db.get(RemoteMediaLibrary, binding.remote_library_id)
+        local_lib = db.get(MediaLibrary, binding.local_library_id)
+        if remote_lib is None or local_lib is None:
+            raise ValueError("SYNC_LIBRARY_NOT_FOUND")
+        remote_conn = db.get(SmbConnection, remote_lib.connection_id)
+        local_conn = db.get(SmbConnection, local_lib.connection_id)
+        if remote_conn is None or local_conn is None:
+            raise ValueError("SMB_CONNECTION_NOT_FOUND")
+        if not all(
+            self._is_usable(item)
+            for item in (binding, remote_lib, local_lib, remote_conn, local_conn)
+        ):
+            raise ValueError("SYNC_BINDING_NOT_READY")
+        self._validate_binding_media_type(remote_lib, local_lib, binding.media_type)
+        task.binding_id = binding.id
+        task.source_config_snapshot = self._connection_snapshot(remote_conn, remote_lib.connection_id)
+        task.storage_config_snapshot = self._connection_snapshot(local_conn, local_lib.connection_id)
+
+    @staticmethod
+    def _connection_snapshot(connection: SmbConnection, connection_id: str) -> dict:
+        return {
+            "connection_id": connection_id,
+            "host": connection.host,
+            "port": connection.port,
+            "share": connection.share,
+            "username": connection.username,
+            "domain": connection.domain or "",
+            "base_path": connection.base_path,
+            "password": encode_secret_text(connection.password),
+        }
 
     def _age_seconds(self, value: datetime | None) -> float:
         if value is None:
@@ -459,28 +517,10 @@ class SyncService:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
 
         target_path = self._build_target_path(local_lib.base_path, seen.source_path, remote_lib.base_path)
-        source_config_snapshot = {
-            "connection_id": remote_lib.connection_id,
-            "host": remote_conn.host,
-            "port": remote_conn.port,
-            "share": remote_conn.share,
-            "username": remote_conn.username,
-            "domain": remote_conn.domain or "",
-            "base_path": remote_conn.base_path,
-            "password": remote_conn.password,
-        }
-        storage_config_snapshot = {
-            "connection_id": local_lib.connection_id,
-            "host": local_conn.host,
-            "port": local_conn.port,
-            "share": local_conn.share,
-            "username": local_conn.username,
-            "domain": local_conn.domain or "",
-            "base_path": local_conn.base_path,
-            "password": local_conn.password,
-        }
-        source_writer = SmbWriter(SmbConfig.from_dict(source_config_snapshot))
-        target_writer = SmbWriter(SmbConfig.from_dict(storage_config_snapshot))
+        source_config_snapshot = self._connection_snapshot(remote_conn, remote_lib.connection_id)
+        storage_config_snapshot = self._connection_snapshot(local_conn, local_lib.connection_id)
+        source_writer = SmbWriter(SmbConfig.from_dict(decode_secret_snapshot(source_config_snapshot)))
+        target_writer = SmbWriter(SmbConfig.from_dict(decode_secret_snapshot(storage_config_snapshot)))
         if await self._target_already_completed(source_writer, target_writer, seen.source_path, target_path, seen.source_size or 0):
             seen.status = "completed"
             return None
@@ -499,6 +539,7 @@ class SyncService:
             source_config_snapshot=source_config_snapshot,
             storage_config_snapshot=storage_config_snapshot,
             sync_seen_file_id=seen.id,
+            binding_id=binding.id,
             total_bytes=seen.source_size or 0,
         )
         db.add(task)

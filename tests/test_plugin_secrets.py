@@ -48,3 +48,16 @@ def test_local_key_file_is_created_outside_database(tmp_path, monkeypatch: pytes
     assert key_file.exists()
     assert "file-secret" not in stored
     assert secrets.decode_plugin_config(stored)["token"] == "file-secret"
+
+
+def test_sensitive_text_is_encrypted_and_plaintext_is_backward_compatible(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(secrets.PLUGIN_CONFIG_KEY_ENV, Fernet.generate_key().decode("ascii"))
+
+    stored = secrets.encode_secret_text("smb-secret")
+
+    assert stored is not None
+    assert stored.startswith(secrets.TEXT_ENCRYPTED_PREFIX)
+    assert "smb-secret" not in stored
+    assert secrets.encode_secret_text(stored) == stored
+    assert secrets.decode_secret_text(stored) == "smb-secret"
+    assert secrets.decode_secret_text("legacy-plaintext") == "legacy-plaintext"

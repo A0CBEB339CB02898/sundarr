@@ -170,7 +170,6 @@ async def test_resource_library_favorites_resource_and_link(db_session: Session)
 
     response = await service.search(SearchQuery(keyword="星际穿越", year=2014))
     candidate = response.results[0]
-    link = candidate.links[0]
 
     stored_resource = library.favorite_resource(
         db_session,

@@ -19,7 +19,6 @@ DEFAULT_API_HOST = "0.0.0.0"
 DEFAULT_API_PORT = 8080
 DEFAULT_WEB_HOST = "0.0.0.0"
 DEFAULT_WEB_PORT = 5173
-LOG_MAX_BYTES_ENV = "SUNDARR_LOG_MAX_BYTES"
 SERVICE_PID_FILE_ENV = "SUNDARR_SERVICE_PID_FILE"
 
 
@@ -69,6 +68,7 @@ def main() -> None:
     _add_project_options(restart_parser, default_reload=False)
 
     subparsers.add_parser("status", help="查看后台完整项目状态。")
+    subparsers.add_parser("init-db", help="创建数据库、执行迁移并写入默认配置。")
 
     args = parser.parse_args()
 
@@ -85,6 +85,8 @@ def main() -> None:
             _start_background(args.api_host, args.api_port, args.web_host, args.web_port, args.reload)
         elif command == "status":
             _print_status()
+        elif command == "init-db":
+            initialize_database()
     except RuntimeError as exc:
         print(f"启动失败：{exc}", file=sys.stderr)
         raise SystemExit(1) from exc
@@ -380,7 +382,6 @@ def _find_port_pid_windows(host: str, port: int) -> int | None:
         )
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return None
-    target = f"{host}:{port}"
     for line in result.stdout.splitlines():
         parts = line.split()
         if len(parts) < 5:

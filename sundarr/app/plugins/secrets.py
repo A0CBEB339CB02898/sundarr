@@ -14,12 +14,17 @@ from ..config import PROJECT_ROOT
 
 
 ENCRYPTED_PREFIX = "fernet:v1:"
+TEXT_ENCRYPTED_PREFIX = "fernet:text:v1:"
 PLUGIN_CONFIG_KEY_ENV = "SUNDARR_PLUGIN_CONFIG_KEY"
 PLUGIN_CONFIG_KEY_FILE = PROJECT_ROOT / ".sundarr" / "plugin-config.key"
 
 
 class PluginConfigDecryptionError(ValueError):
     """插件配置无法使用当前数据库外密钥解密。"""
+
+
+class SecretTextDecryptionError(ValueError):
+    """通用敏感文本无法使用当前数据库外密钥解密。"""
 
 
 def encode_plugin_config(config: Mapping[str, Any], schema: Mapping[str, Any] | None = None) -> str:
@@ -65,6 +70,37 @@ def config_requires_encryption(
         and not stored_value.startswith(ENCRYPTED_PREFIX)
         and _contains_sensitive_value(config, schema)
     )
+
+
+def encode_secret_text(value: str | None) -> str | None:
+    """加密单个敏感文本；已加密值保持不变。"""
+
+    if value in (None, ""):
+        return value
+    if value.startswith(TEXT_ENCRYPTED_PREFIX):
+        return value
+    encrypted = Fernet(_load_key()).encrypt(value.encode("utf-8")).decode("ascii")
+    return f"{TEXT_ENCRYPTED_PREFIX}{encrypted}"
+
+
+def decode_secret_text(value: str | None) -> str | None:
+    """解密敏感文本，并兼容升级前的明文数据。"""
+
+    if value in (None, "") or not value.startswith(TEXT_ENCRYPTED_PREFIX):
+        return value
+    token = value.removeprefix(TEXT_ENCRYPTED_PREFIX)
+    try:
+        return Fernet(_load_key()).decrypt(token.encode("ascii")).decode("utf-8")
+    except (InvalidToken, ValueError) as exc:
+        raise SecretTextDecryptionError("敏感配置无法解密，请检查数据库外加密主密钥") from exc
+
+
+def decode_secret_snapshot(snapshot: Mapping[str, Any] | None) -> dict[str, Any]:
+    """复制配置快照并仅在内存中解密密码。"""
+
+    decoded = dict(snapshot or {})
+    decoded["password"] = decode_secret_text(decoded.get("password"))
+    return decoded
 
 
 def _contains_sensitive_value(config: Mapping[str, Any], schema: Mapping[str, Any]) -> bool:

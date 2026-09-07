@@ -112,7 +112,6 @@ async def test_pooled_connection():
     print("测试连接池中的连接...")
 
     from sundarr.app.storage.pool import PooledConnection
-    from datetime import datetime
 
     # 创建模拟配置
     config = SmbConfig(

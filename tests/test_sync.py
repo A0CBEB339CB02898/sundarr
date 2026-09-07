@@ -73,6 +73,89 @@ def test_create_sync_binding(db_session: Session) -> None:
     assert body["local_library_id"] == "lib_local"
 
 
+def test_changed_file_version_releases_completed_task(db_session: Session) -> None:
+    binding = SyncBinding(
+        id="sync_movie",
+        name="电影同步",
+        media_type="movie",
+        remote_library_id="rml_remote",
+        local_library_id="lib_movie",
+    )
+    old_task = TransferTask(
+        id="task_old",
+        status="completed",
+        mode="download_to_local",
+        target_type="smb",
+        target_path="Movies/Movie.mkv",
+        source_type="smb",
+        source_path="CloudMovie/Movie.mkv",
+        total_bytes=4,
+    )
+    seen = SyncSeenFile(
+        id="seen_movie",
+        binding_id=binding.id,
+        source_fingerprint="sync_movie|rml_remote|CloudMovie/Movie.mkv",
+        source_path="CloudMovie/Movie.mkv",
+        source_size=4,
+        source_mtime="100",
+        status="completed",
+        task_id=old_task.id,
+    )
+    db_session.add_all([binding, old_task, seen])
+    db_session.commit()
+
+    updated = sync_service._upsert_seen_file(
+        db_session,
+        binding,
+        RemoteMediaLibrary(id="rml_remote", name="远程电影", media_type="movie", connection_id="conn", base_path="CloudMovie"),
+        {"path": "CloudMovie/Movie.mkv", "size": 8, "modified_at": "200"},
+        stable_seconds=120,
+    )
+
+    assert updated.status == "discovered"
+    assert updated.task_id is None
+    assert updated.source_size == 8
+    assert updated.source_mtime == "200"
+
+
+def test_retry_sync_task_refreshes_both_smb_snapshots(db_session: Session) -> None:
+    client = make_client(db_session)
+    db_session.add_all(
+        [
+            SmbConnection(id="source_conn", name="来源", host="new-source", share="source", username="source-user", password="source-secret", base_path="/"),
+            SmbConnection(id="target_conn", name="目标", host="new-target", share="target", username="target-user", password="target-secret", base_path="/"),
+            RemoteMediaLibrary(id="rml_remote", name="远程电影", media_type="movie", connection_id="source_conn", base_path="CloudMovie"),
+            MediaLibrary(id="lib_movie", name="本地电影", media_type="movie", connection_id="target_conn", base_path="Movies"),
+            SyncBinding(id="sync_movie", name="电影同步", media_type="movie", remote_library_id="rml_remote", local_library_id="lib_movie"),
+        ]
+    )
+    task = TransferTask(
+        id="task_retry_sync",
+        status="failed",
+        mode="download_to_local",
+        target_type="smb",
+        target_path="Movies/Movie.mkv",
+        source_type="smb",
+        source_path="CloudMovie/Movie.mkv",
+        binding_id="sync_movie",
+        source_config_snapshot={"host": "old-source"},
+        storage_config_snapshot={"host": "old-target"},
+        retryable=True,
+    )
+    db_session.add(task)
+    db_session.commit()
+
+    response = client.post("/transfers/task_retry_sync/retry")
+
+    assert response.status_code == 200
+    db_session.refresh(task)
+    assert task.status == "pending"
+    assert task.source_config_snapshot["host"] == "new-source"
+    assert task.source_config_snapshot["password"].startswith("fernet:text:v1:")
+    assert task.storage_config_snapshot["host"] == "new-target"
+    assert task.storage_config_snapshot["password"].startswith("fernet:text:v1:")
+
+
 def test_create_sync_binding_rejects_media_type_mismatch(db_session: Session) -> None:
     client = make_client(db_session)
     _create_smb_connection(client)

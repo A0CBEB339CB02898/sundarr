@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
-from sundarr.app.models import SmbConnection
 
 
 def make_client(db_session: Session) -> TestClient:

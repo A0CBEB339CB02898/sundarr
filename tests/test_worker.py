@@ -29,6 +29,7 @@ from sundarr.app.worker import (
     process_sync_task,
     process_transfer_task,
     recover_running_tasks,
+    retry_task_cleanup,
 )
 
 
@@ -463,6 +464,43 @@ async def test_process_sync_task_no_delete_source_when_disabled(db_session, tmp_
     assert source_file.exists()
 
 
+@pytest.mark.anyio
+async def test_retry_sync_cleanup_does_not_repeat_transfer(db_session, tmp_path: Path) -> None:
+    source_root = tmp_path / "source"
+    target_root = tmp_path / "target"
+    source_file = source_root / "CloudMovie" / "Movie.mkv"
+    payload = b"0123456789"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_bytes(payload)
+    task = _seed_sync_task(db_session, size=len(payload))
+
+    await process_sync_task(db_session, task, FailingRemoveWriter(source_root), LocalWriter(target_root))
+
+    db_session.refresh(task)
+    assert task.status == "completed"
+    assert task.error_code == "SYNC_SOURCE_DELETE_FAILED"
+    assert task.retryable is True
+    target_file = target_root / "Movies" / "CloudMovie" / "Movie.mkv"
+    target_mtime = target_file.stat().st_mtime_ns
+
+    cleaned = await retry_task_cleanup(db_session, task, source_writer=LocalWriter(source_root))
+
+    db_session.refresh(task)
+    assert cleaned is True
+    assert not source_file.exists()
+    assert target_file.read_bytes() == payload
+    assert target_file.stat().st_mtime_ns == target_mtime
+    assert task.status == "completed"
+    assert task.error_code is None
+    assert task.retryable is None
+    assert task.retry_count == 1
+    assert {log.event for log in db_session.query(TransferLog).all()} >= {
+        "sync_source_cleanup_failed",
+        "cleanup_retried",
+        "sync_source_cleanup_completed",
+    }
+
+
 def _seed_sync_task(
     db_session,
     source_path: str = "CloudMovie/Movie.mkv",
@@ -675,6 +713,11 @@ class WrongSizeWriter(LocalWriter):
         return 999
 
 
+class FailingRemoveWriter(LocalWriter):
+    async def remove(self, path: str) -> None:
+        raise ValueError("SMB_WRITE_FAILED")
+
+
 class FailingWriteWriter(StorageWriter):
     name = "failing"
 
@@ -707,7 +750,6 @@ class FailingWriteWriter(StorageWriter):
 @pytest.mark.anyio
 async def test_process_transfer_task_honors_pause(db_session, tmp_path: Path) -> None:
     share_root = tmp_path / "shares"
-    staging_root = tmp_path / "staging"
     storage_root = tmp_path / "storage"
     source_dir = share_root / "movie_share"
     source_dir.mkdir(parents=True)

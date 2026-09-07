@@ -4,7 +4,7 @@ from sqlalchemy import text
 
 from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
-from sundarr.app.models import Resource, ResourceLink, Setting, TransferFile, TransferLog, TransferTask
+from sundarr.app.models import Resource, ResourceLink, TransferFile, TransferLog, TransferTask
 
 
 def make_client(db_session: Session) -> TestClient:
@@ -380,6 +380,44 @@ def test_list_transfer_logs_missing_transfer_returns_404(db_session: Session) ->
 
     assert response.status_code == 404
     assert response.json()["detail"] == "搬运任务不存在。"
+
+
+def test_retry_cleanup_uses_independent_action(db_session: Session, monkeypatch) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "completed")
+    task.error_code = "SYNC_SOURCE_DELETE_FAILED"
+    task.error_message = "来源删除失败。"
+    task.retryable = True
+    db_session.commit()
+
+    async def complete_cleanup(session, cleanup_task):
+        assert cleanup_task.id == task.id
+        cleanup_task.error_code = None
+        cleanup_task.error_message = None
+        cleanup_task.retryable = None
+        session.commit()
+        return True
+
+    monkeypatch.setattr("sundarr.app.worker.retry_task_cleanup", complete_cleanup)
+
+    response = client.post(f"/transfers/{task.id}/retry-cleanup")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "completed"
+    assert response.json()["error_code"] is None
+    assert response.json()["retryable"] is None
+
+
+def test_retry_cleanup_rejects_normal_completed_task(db_session: Session) -> None:
+    client = make_client(db_session)
+    link = seed_link(db_session)
+    task = _add_task(db_session, link, "completed")
+
+    response = client.post(f"/transfers/{task.id}/retry-cleanup")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "当前任务没有可独立重试的清理失败。"
 
 
 def test_clear_completed_removes_completed_and_cancelled_transfers(db_session: Session) -> None:

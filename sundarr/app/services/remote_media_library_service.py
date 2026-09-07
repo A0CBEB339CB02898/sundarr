@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection, SyncBinding, SyncSeenFile, TransferTask
+from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection, SyncBinding, SyncSeenFile
 from sundarr.app.schemas.remote_media_library import (
     RemoteMediaLibraryCreateRequest,
     RemoteMediaLibraryListResponse,

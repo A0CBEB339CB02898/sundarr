@@ -1,4 +1,5 @@
-import cloudscraper, re
+import cloudscraper
+import re
 
 s = cloudscraper.create_scraper()
 r = s.get('https://www.seedhub.cc/s/%E5%A5%BD%E4%B8%9C%E8%A5%BF/', timeout=15)

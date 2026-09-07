@@ -1,3 +1,4 @@
+import asyncio
 import os
 import signal
 import time
@@ -11,7 +12,6 @@ from sqlalchemy.orm import Session
 from sundarr.app.cloud import CloudProvider, LocalCloudProvider
 from sundarr.app.core.database import get_session_factory
 from sundarr.app.models import (
-    MediaLibrary,
     RemoteMediaLibrary,
     ResourceLink,
     Setting,
@@ -25,6 +25,7 @@ from sundarr.app.storage import LocalWriter, SmbConfig, SmbWriter, StorageWriter
 from sundarr.app.plugins.coordinator import RepositoryActivationCoordinator
 from sundarr.app.plugins.manager import PluginManager, PluginProcessRole
 from sundarr.app.plugins.runtime_registry import watchlist_provider_registry
+from sundarr.app.plugins.secrets import decode_secret_snapshot
 
 
 WORKER_ENABLED_KEY = "worker.enabled"
@@ -40,6 +41,7 @@ WORKER_RECOVERY_ERROR_CODE = "WORKER_RECOVERY_REQUIRED"
 DEFAULT_SYNC_DELETE_SOURCE = True
 DEFAULT_SYNC_DELETE_EMPTY_DIRS = True
 SYNC_CHUNK_SIZE = 1024 * 1024
+PROGRESS_COMMIT_INTERVAL_SECONDS = 1.0
 RUNNING_TASK_STATUSES = {
     "staging_to_cloud",
     "cloud_ready",
@@ -49,6 +51,7 @@ RUNNING_TASK_STATUSES = {
     "cleaning_cloud",
     "cleaning_source",
 }
+CLEANUP_ERROR_CODES = {"SYNC_SOURCE_DELETE_FAILED", "CLOUD_CLEANUP_FAILED"}
 
 
 class TaskCancelled(Exception):
@@ -234,6 +237,7 @@ def claim_pending_tasks(session: Session, settings: WorkerSettings) -> list[Tran
         session.query(TransferTask)
         .filter(TransferTask.status == "pending")
         .order_by(TransferTask.created_at, TransferTask.id)
+        .with_for_update(skip_locked=True)
         .all()
     )
     tasks: list[TransferTask] = []
@@ -330,21 +334,23 @@ async def process_claimed_tasks(
     task_ids: list[str],
     local_runtime: LocalRuntimeConfig | None,
 ) -> None:
-    for task_id in task_ids:
+    async def process_one(task_id: str) -> None:
         with session_factory() as session:
             task = session.get(TransferTask, task_id)
             if task is None:
-                continue
+                return
             if task.status == "cancelled":
-                continue
+                return
             if task.mode == "download_to_local":
                 await process_sync_task(session, task)
-                continue
+                return
             if local_runtime is None or not task.link_id:
-                continue
+                _mark_task_failed(session, task, ValueError("WORKER_RUNTIME_CONFIG_MISSING"))
+                return
             link = session.get(ResourceLink, task.link_id)
             if link is None or link.provider != "local" or task.target_type != "local":
-                continue
+                _mark_task_failed(session, task, ValueError("WORKER_UNSUPPORTED_TASK"))
+                return
             await process_transfer_task(
                 session,
                 task,
@@ -352,6 +358,47 @@ async def process_claimed_tasks(
                 local_runtime.cloud_provider,
                 local_runtime.storage_writer,
             )
+
+    def run_one(task_id: str) -> None:
+        asyncio.run(process_one(task_id))
+
+    # SmbWriter 基于同步 smbclient；每个任务使用独立线程和数据库 Session，避免阻塞同批任务。
+    await asyncio.gather(*(asyncio.to_thread(run_one, task_id) for task_id in task_ids))
+
+
+async def retry_task_cleanup(
+    session: Session,
+    task: TransferTask,
+    source_writer: StorageWriter | None = None,
+    cloud_provider: CloudProvider | None = None,
+    storage_writer: StorageWriter | None = None,
+) -> bool:
+    """只重试已完成任务的清理阶段，不重复传输媒体文件。"""
+
+    if task.status != "completed" or task.retryable is not True or task.error_code not in CLEANUP_ERROR_CODES:
+        raise ValueError("TRANSFER_CLEANUP_NOT_RETRYABLE")
+
+    task.retry_count += 1
+    _add_log(
+        session,
+        task.id,
+        "info",
+        "cleanup_retried",
+        "已重新执行清理阶段，不重复传输媒体文件。",
+        {"previous_error_code": task.error_code, "retry_count": task.retry_count},
+    )
+    session.commit()
+
+    if task.error_code == "SYNC_SOURCE_DELETE_FAILED":
+        writer = source_writer or SmbWriter(SmbConfig.from_dict(decode_secret_snapshot(task.source_config_snapshot)))
+        return await cleanup_sync_source(session, task, writer)
+
+    runtime = load_local_runtime_config(session)
+    provider = cloud_provider or (runtime.cloud_provider if runtime else None)
+    writer = storage_writer or (runtime.storage_writer if runtime else None)
+    if provider is None or writer is None:
+        raise ValueError("WORKER_RUNTIME_CONFIG_MISSING")
+    return await cleanup_cloud_staging(session, task, provider, writer)
 
 
 async def process_transfer_task(
@@ -457,6 +504,7 @@ async def _process_transfer_task(
         else:
             handle = await storage_writer.open_append(temp_path)
             speed_tracker = _SpeedTracker()
+            last_progress_commit = time.monotonic()
             with handle:
                 async for chunk in cloud_provider.open_file_stream(file.id, offset=existing_temp_size):
                     _check_task_state(session, task)
@@ -467,7 +515,10 @@ async def _process_transfer_task(
                     new_speed = speed_tracker.sample()
                     if new_speed is not None:
                         task.speed_bytes_per_sec = new_speed
-                    session.commit()
+                    now = time.monotonic()
+                    if now - last_progress_commit >= PROGRESS_COMMIT_INTERVAL_SECONDS:
+                        session.commit()
+                        last_progress_commit = now
             task.speed_bytes_per_sec = 0
             session.commit()
 
@@ -505,7 +556,7 @@ async def process_sync_task(
     try:
         return await _process_sync_task(session, task, source_writer, target_writer)
     except TaskCancelled:
-        tw = target_writer or SmbWriter(SmbConfig.from_dict(task.storage_config_snapshot or {}))
+        tw = target_writer or SmbWriter(SmbConfig.from_dict(decode_secret_snapshot(task.storage_config_snapshot)))
         await _cleanup_downloading_files(session, task, tw)
         return task
     except TaskPaused:
@@ -529,8 +580,8 @@ async def _process_sync_task(
     if not task.source_path:
         raise ValueError("SYNC_SOURCE_PATH_INVALID")
 
-    source_writer = source_writer or SmbWriter(SmbConfig.from_dict(task.source_config_snapshot or {}))
-    target_writer = target_writer or SmbWriter(SmbConfig.from_dict(task.storage_config_snapshot or {}))
+    source_writer = source_writer or SmbWriter(SmbConfig.from_dict(decode_secret_snapshot(task.source_config_snapshot)))
+    target_writer = target_writer or SmbWriter(SmbConfig.from_dict(decode_secret_snapshot(task.storage_config_snapshot)))
     transfer_file = _get_or_create_sync_file(session, task)
     _check_task_state(session, task)
 
@@ -560,6 +611,7 @@ async def _process_sync_task(
     session.commit()
 
     speed_tracker = _SpeedTracker()
+    last_progress_commit = time.monotonic()
 
     with await source_writer.open_read(task.source_path, offset=existing_temp_size) as input_file:
         with await target_writer.open_append(transfer_file.temp_path) as output_file:
@@ -575,7 +627,10 @@ async def _process_sync_task(
                 new_speed = speed_tracker.sample()
                 if new_speed is not None:
                     task.speed_bytes_per_sec = new_speed
-                session.commit()
+                now = time.monotonic()
+                if now - last_progress_commit >= PROGRESS_COMMIT_INTERVAL_SECONDS:
+                    session.commit()
+                    last_progress_commit = now
 
     task.speed_bytes_per_sec = 0
     session.commit()
@@ -611,7 +666,8 @@ async def cleanup_sync_source(session: Session, task: TransferTask, source_write
     task.status = "cleaning_source"
     session.commit()
     try:
-        await source_writer.remove(task.source_path)
+        if await source_writer.exists(task.source_path):
+            await source_writer.remove(task.source_path)
         if delete_empty_dirs:
             await _remove_empty_source_dirs(source_writer, task.source_path)
     except Exception as exc:
@@ -630,6 +686,9 @@ async def cleanup_sync_source(session: Session, task: TransferTask, source_write
         return False
 
     task.status = "completed"
+    task.error_code = None
+    task.error_message = None
+    task.retryable = None
     _add_log(session, task.id, "info", "sync_source_cleanup_completed", "来源文件和空目录已清理。")
     session.commit()
     return True
@@ -657,6 +716,10 @@ def _load_sync_cleanup_options(session: Session, task: TransferTask) -> tuple[bo
 
 
 def _get_sync_binding_for_task(session: Session, task: TransferTask) -> SyncBinding | None:
+    if task.binding_id:
+        binding = session.get(SyncBinding, task.binding_id)
+        if binding is not None:
+            return binding
     if not task.sync_seen_file_id:
         return None
     seen = session.get(SyncSeenFile, task.sync_seen_file_id)
@@ -711,6 +774,9 @@ async def cleanup_cloud_staging(
         return False
 
     task.status = "completed"
+    task.error_code = None
+    task.error_message = None
+    task.retryable = None
     _add_log(session, task.id, "info", "cleanup_completed", "cloud staging 已清理。")
     session.commit()
     return True
@@ -752,10 +818,13 @@ async def _remove_empty_source_dirs(source_writer: StorageWriter, source_path: s
 
 def _check_task_state(session: Session, task: TransferTask) -> None:
     """Raise if the task has been cancelled or paused from another thread."""
-    session.refresh(task)
-    if task.status == "cancelled":
+    with session.no_autoflush:
+        persisted_status = session.query(TransferTask.status).filter(TransferTask.id == task.id).scalar()
+    if persisted_status == "cancelled":
+        task.status = "cancelled"
         raise TaskCancelled()
-    if task.status == "paused":
+    if persisted_status == "paused":
+        task.status = "paused"
         raise TaskPaused()
 
 
@@ -812,7 +881,14 @@ def _is_retryable_error(error_code: str) -> bool:
     }
 
 
-def _add_log(session: Session, task_id: str, level: str, event: str, message: str) -> None:
+def _add_log(
+    session: Session,
+    task_id: str,
+    level: str,
+    event: str,
+    message: str,
+    data_json: dict | None = None,
+) -> None:
     session.add(
         TransferLog(
             id=uuid4().hex,
@@ -820,7 +896,7 @@ def _add_log(session: Session, task_id: str, level: str, event: str, message: st
             level=level,
             event=event,
             message=message,
-            data_json=None,
+            data_json=data_json,
         )
     )
 

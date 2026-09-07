@@ -28,7 +28,6 @@ from sundarr.app.api.sync import router as sync_router
 from sundarr.app.api.transfers import router as transfers_router
 from sundarr.app.config import get_settings, redact_url_password
 from sundarr.app.core.database import get_engine, get_session_factory
-from sundarr.app.db_admin import ensure_runtime_schema_for_engine
 from sundarr.app.plugins.manager import plugin_manager
 from sundarr.app.services.catalog_cache import catalog_cache
 
@@ -48,7 +47,6 @@ def create_app() -> FastAPI:
             with get_engine().connect() as connection:
                 connection.execute(text("select 1"))
             logger.info("数据库连接状态：ok")
-            ensure_runtime_schema_for_engine(get_engine())
             database_ready = True
         except Exception as exc:
             logger.error("数据库连接状态：error，原因：%s", exc)

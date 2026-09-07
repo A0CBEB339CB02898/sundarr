@@ -22,6 +22,7 @@ sundarr = "sundarr.app.cli:main"
 dev = [
   "httpx>=0.27.2",
   "pytest>=8.3.0",
+  "ruff>=0.16.6,<0.17.0",
 ]
 
 [build-system]
@@ -32,3 +33,14 @@ build-backend = "hatchling.build"
 testpaths = ["tests"]
 pythonpath = ["."]
 cache_dir = ".sundarr/pytest-cache"
+markers = [
+  "postgres_integration: 需要显式 PostgreSQL 地址并创建一次性测试数据库",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+# 首个静态检查门只阻断语法、未定义名称、重复定义和无效导入；风格规则分阶段启用。
+select = ["E9", "F"]

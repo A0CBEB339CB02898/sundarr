@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
-from sundarr.app.models import MediaLibrary, SmbConnection
+from sundarr.app.models import SmbConnection
+from sundarr.app.plugins.secrets import TEXT_ENCRYPTED_PREFIX, decode_secret_text
 from sundarr.app.storage.smb import SmbStorageError
 
 
@@ -147,7 +148,10 @@ def test_update_smb_connection_empty_password_keeps_old(db_session: Session) -> 
     assert response.status_code == 200
     conn = db_session.get(SmbConnection, "conn_1")
     assert conn is not None
-    assert conn.password == "secret"
+    assert conn.password is not None
+    assert conn.password.startswith(TEXT_ENCRYPTED_PREFIX)
+    assert "secret" not in conn.password
+    assert decode_secret_text(conn.password) == "secret"
 
 
 def test_update_smb_connection_not_found(db_session: Session) -> None:
@@ -204,7 +208,7 @@ def test_test_smb_connection_returns_specific_error(db_session: Session, monkeyp
     async def fail_test(self):
         raise SmbStorageError("SMB_HOST_UNREACHABLE", "无法连接 SMB 主机或端口。")
 
-    monkeypatch.setattr("sundarr.app.services.smb_connection_service.SmbWriter.test_connection", fail_test)
+    monkeypatch.setattr("sundarr.app.storage.pool.SmbWriter.test_connection", fail_test)
 
     response = client.post("/storage/smb-connections/conn_1/test")
 
@@ -221,7 +225,7 @@ def test_test_existing_smb_connection_form_uses_request_payload(db_session: Sess
         assert self.config.host == "edited.example.invalid"
         assert self.config.password == "secret"
 
-    monkeypatch.setattr("sundarr.app.services.smb_connection_service.SmbWriter.test_connection", assert_current_form)
+    monkeypatch.setattr("sundarr.app.storage.pool.SmbWriter.test_connection", assert_current_form)
 
     response = client.post(
         "/storage/smb-connections/conn_1/test-new",
@@ -284,6 +288,17 @@ def test_update_smb_connection_interrupts_running_tasks(db_session: Session) -> 
             source_config_snapshot={"connection_id": "conn_1", "host": "nas.example.invalid"},
         )
     )
+    db_session.add(
+        TransferTask(
+            id="task_unrelated",
+            link_id="link_3",
+            status="downloading",
+            mode="copy",
+            target_type="smb",
+            target_path="Movies/Other.mkv",
+            source_config_snapshot={"connection_id": "conn_other", "host": "other.example.invalid"},
+        )
+    )
     db_session.commit()
 
     response = client.post(
@@ -306,6 +321,10 @@ def test_update_smb_connection_interrupts_running_tasks(db_session: Session) -> 
     completed_task = db_session.get(TransferTask, "task_completed")
     assert completed_task is not None
     assert completed_task.status == "completed"
+
+    unrelated_task = db_session.get(TransferTask, "task_unrelated")
+    assert unrelated_task is not None
+    assert unrelated_task.status == "downloading"
 
     logs = db_session.query(TransferLog).filter(TransferLog.task_id == "task_running").all()
     assert len(logs) == 1

@@ -5,7 +5,7 @@
 """
 
 from typing import Dict, List, Optional
-from .base import PluginManifest, LoadedPlugin, PluginType
+from .base import LoadedPlugin, PluginType
 
 
 class PluginRegistry:

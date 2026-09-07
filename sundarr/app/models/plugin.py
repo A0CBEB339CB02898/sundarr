@@ -36,9 +36,9 @@ class PluginRepository(Base, TimestampMixin):
 
     __tablename__ = "plugin_repositories"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
-    repo_url = Column(String, nullable=False, unique=True)
+    repo_url = Column(String, nullable=False, unique=True, index=True)
     branch = Column(String, default="main")
     current_commit = Column(String)
     previous_commit = Column(String)
@@ -75,7 +75,7 @@ class PluginConfig(Base, TimestampMixin):
 
     __tablename__ = "plugin_configs"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True)
     plugin_id = Column(String, nullable=False, unique=True, index=True)
     plugin_type = Column(String, nullable=False)
     config_data = Column(Text, default="{}")  # JSON 字符串
@@ -108,7 +108,7 @@ class PluginLog(Base, TimestampMixin):
 
     __tablename__ = "plugin_logs"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True)
     plugin_id = Column(String, nullable=False, index=True)
     level = Column(String, nullable=False)
     message = Column(Text, nullable=False)

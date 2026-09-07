@@ -12,7 +12,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from sundarr.app.plugins.base import LoadedPlugin, PluginManifest, PluginType
-from sundarr.app.plugins.registry import PluginRegistry, plugin_registry
+from sundarr.app.plugins.registry import plugin_registry
 
 
 def test_plugin_registry():

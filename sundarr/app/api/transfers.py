@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
+from sundarr.app.models import TransferTask
 from sundarr.app.schemas.transfer import TransferCreateRequest, TransferListResponse, TransferLogResponse, TransferResponse
 from sundarr.app.services.transfer_service import transfer_service
 
@@ -49,6 +50,23 @@ async def retry_transfer(task_id: str, db: Session = Depends(get_db)) -> Transfe
         raise _transfer_error(exc) from exc
 
 
+@router.post("/transfers/{task_id}/retry-cleanup", response_model=TransferResponse)
+async def retry_transfer_cleanup(task_id: str, db: Session = Depends(get_db)) -> TransferResponse:
+    task = db.get(TransferTask, task_id)
+    if task is None:
+        raise _transfer_error(ValueError("TRANSFER_TASK_NOT_FOUND"))
+    try:
+        from sundarr.app.worker import retry_task_cleanup
+
+        await retry_task_cleanup(db, task)
+    except ValueError as exc:
+        raise _transfer_error(exc) from exc
+    response = transfer_service.get_transfer(db, task_id)
+    if response is None:
+        raise _transfer_error(ValueError("TRANSFER_TASK_NOT_FOUND"))
+    return response
+
+
 @router.post("/transfers/{task_id}/pause", response_model=TransferResponse)
 async def pause_transfer(task_id: str, db: Session = Depends(get_db)) -> TransferResponse:
     try:
@@ -94,6 +112,8 @@ def _transfer_error(exc: ValueError) -> HTTPException:
         "TRANSFER_TASK_NOT_FOUND": "搬运任务不存在。",
         "TRANSFER_TASK_NOT_CANCELLABLE": "当前任务状态不允许取消。",
         "TRANSFER_TASK_NOT_RETRYABLE": "当前任务状态不允许重试。",
+        "TRANSFER_CLEANUP_NOT_RETRYABLE": "当前任务没有可独立重试的清理失败。",
+        "WORKER_RUNTIME_CONFIG_MISSING": "清理所需的运行配置尚未就绪。",
         "TRANSFER_TASK_NOT_PAUSABLE": "当前任务状态不允许暂停。",
         "TRANSFER_TASK_NOT_RESUMABLE": "当前任务未处于暂停状态。",
     }
@@ -103,6 +123,8 @@ def _transfer_error(exc: ValueError) -> HTTPException:
         in {
             "TRANSFER_TASK_NOT_CANCELLABLE",
             "TRANSFER_TASK_NOT_RETRYABLE",
+            "TRANSFER_CLEANUP_NOT_RETRYABLE",
+            "WORKER_RUNTIME_CONFIG_MISSING",
             "TRANSFER_TASK_NOT_PAUSABLE",
             "TRANSFER_TASK_NOT_RESUMABLE",
         }

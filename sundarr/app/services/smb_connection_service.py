@@ -4,6 +4,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection, SyncSeenFile, TransferLog, TransferTask
+from sundarr.app.plugins.secrets import decode_secret_text, encode_secret_text
 from sundarr.app.schemas.smb_connection import (
     SmbBrowseEntry,
     SmbBrowseResponse,
@@ -13,7 +14,7 @@ from sundarr.app.schemas.smb_connection import (
     SmbConnectionTestResponse,
     SmbConnectionUpdateRequest,
 )
-from sundarr.app.storage import SmbConfig, SmbWriter, smb_connection_pool
+from sundarr.app.storage import SmbConfig, smb_connection_pool
 from sundarr.app.storage.smb import SmbStorageError
 
 RUNNING_TRANSFER_STATUSES = {
@@ -54,7 +55,7 @@ class SmbConnectionService:
             port=request.port,
             share=request.share,
             username=request.username,
-            password=request.password,
+            password=encode_secret_text(request.password),
             domain=request.domain or None,
             base_path=request.base_path,
         )
@@ -77,7 +78,7 @@ class SmbConnectionService:
         conn.share = request.share
         conn.username = request.username
         if request.password:
-            conn.password = request.password
+            conn.password = encode_secret_text(request.password)
         conn.domain = request.domain or None
         conn.base_path = request.base_path
 
@@ -137,7 +138,7 @@ class SmbConnectionService:
             "port": request.port,
             "share": request.share,
             "username": request.username,
-            "password": request.password if request.password else conn.password,
+            "password": request.password if request.password else decode_secret_text(conn.password),
             "domain": request.domain,
             "base_path": request.base_path,
         }
@@ -229,8 +230,9 @@ class SmbConnectionService:
             .all()
         )
         for task in tasks:
-            snapshot = task.source_config_snapshot or task.storage_config_snapshot or {}
-            if snapshot.get("connection_id") == connection_id or snapshot.get("host"):
+            source_connection_id = (task.source_config_snapshot or {}).get("connection_id")
+            target_connection_id = (task.storage_config_snapshot or {}).get("connection_id")
+            if connection_id in {source_connection_id, target_connection_id}:
                 task.status = "failed"
                 task.error_code = "STORAGE_CONFIG_CHANGED"
                 task.error_message = "SMB 连接配置已变更，任务已中断，可使用最新配置重试。"
@@ -263,7 +265,7 @@ class SmbConnectionService:
 
     def _conn_to_full_dict(self, conn: SmbConnection) -> dict[str, Any]:
         value = self._conn_to_config_dict(conn)
-        value["password"] = conn.password
+        value["password"] = decode_secret_text(conn.password)
         return value
 
     def _record_test_result(self, conn: SmbConnection, result: SmbConnectionTestResponse) -> None:

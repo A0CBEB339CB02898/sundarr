@@ -17,6 +17,16 @@ def test_db_init_command_is_not_public(monkeypatch: pytest.MonkeyPatch) -> None:
     assert exc_info.value.code == 2
 
 
+def test_init_db_command_runs_database_initialization(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(sys, "argv", ["sundarr", "init-db"])
+    monkeypatch.setattr(cli, "initialize_database", lambda: calls.append("init"))
+
+    cli.main()
+
+    assert calls == ["init"]
+
+
 def test_ensure_web_dependencies_runs_npm_install_when_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     web_dir = tmp_path / "web"
     web_dir.mkdir()

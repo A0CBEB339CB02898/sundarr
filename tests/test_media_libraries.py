@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
-from sundarr.app.models import MediaLibrary, SmbConnection
+from sundarr.app.models import SmbConnection
 from sundarr.app.storage.smb import SmbStorageError
 
 

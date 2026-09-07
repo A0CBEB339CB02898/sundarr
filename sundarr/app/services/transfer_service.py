@@ -2,7 +2,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session, object_session
 
-from sundarr.app.models import ResourceLink, Setting, SyncSeenFile, TransferFile, TransferLog, TransferTask
+from sundarr.app.models import ResourceLink, SyncSeenFile, TransferFile, TransferLog, TransferTask
 from sundarr.app.schemas.transfer import TransferCreateRequest, TransferListResponse, TransferLogResponse, TransferResponse
 
 CANCELLABLE_TRANSFER_STATUSES = {"pending", "staging_to_cloud", "cloud_ready", "downloading", "verifying", "paused"}
@@ -84,6 +84,11 @@ class TransferService:
         if task.status != "failed" or task.retryable is not True:
             raise ValueError("TRANSFER_TASK_NOT_RETRYABLE")
 
+        if task.mode == "download_to_local" and task.source_type == "smb" and task.target_type == "smb":
+            from sundarr.app.services.sync_service import sync_service
+
+            sync_service.refresh_task_config_snapshots(db, task)
+
         previous_error_code = task.error_code
         task.status = "pending"
         task.error_code = None
@@ -93,7 +98,8 @@ class TransferService:
         # Keep done_bytes so the worker can resume from the existing .sundarr.downloading file.
         task.speed_bytes_per_sec = 0
         task.completed_at = None
-        task.storage_config_snapshot = None
+        if task.mode != "download_to_local":
+            task.storage_config_snapshot = None
         db.add(
             TransferLog(
                 id=uuid4().hex,
