@@ -88,10 +88,10 @@ export default function TransfersPage({
     }
   }
 
-  async function runTaskAction(action: 'cancel' | 'retry' | 'pause' | 'resume') {
+  async function runTaskAction(action: 'cancel' | 'retry' | 'retry-cleanup' | 'pause' | 'resume') {
     if (!transfer) return
     const actionText =
-      action === 'cancel' ? '取消' : action === 'retry' ? '重试' : action === 'pause' ? '暂停' : '继续'
+      action === 'cancel' ? '取消' : action === 'retry-cleanup' ? '重试清理' : action === 'retry' ? '重试' : action === 'pause' ? '暂停' : '继续'
     if (action !== 'resume' && !window.confirm(`确认${actionText}任务 ${transfer.id}？`)) {
       return
     }
@@ -150,6 +150,8 @@ export default function TransfersPage({
 
   const canCancel = transfer ? canCancelTransfer(transfer.status) : false
   const canRetry = transfer?.status === 'failed' && transfer.retryable === true
+  const canRetryCleanup = transfer?.status === 'completed' && transfer.retryable === true &&
+    ['SYNC_SOURCE_DELETE_FAILED', 'CLOUD_CLEANUP_FAILED'].includes(transfer.error_code || '')
   const canPause = transfer ? canPauseTransfer(transfer.status) : false
   const canResume = transfer ? canResumeTransfer(transfer.status) : false
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -239,6 +241,15 @@ export default function TransfersPage({
               >
                 {isMutating ? '处理中' : '重试任务'}
               </Button>
+              {canRetryCleanup && (
+                <Button
+                  variant="secondary"
+                  disabled={isMutating}
+                  onClick={() => void runTaskAction('retry-cleanup')}
+                >
+                  {isMutating ? '处理中' : '仅重试清理'}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 disabled={isLoading || isMutating}

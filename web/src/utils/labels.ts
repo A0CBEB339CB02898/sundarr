@@ -141,7 +141,13 @@ export function noticeForTransfer(transfer: TransferResponse) {
   if (transfer.error_code === 'CLOUD_CLEANUP_FAILED') {
     return {
       title: '任务已完成，但 cloud staging 清理失败。',
-      body: '目标文件已保留，后续需要再次执行安全清理或检查 cloud staging。',
+      body: '目标文件已保留，可使用“仅重试清理”，不会重新传输媒体文件。',
+    }
+  }
+  if (transfer.error_code === 'SYNC_SOURCE_DELETE_FAILED') {
+    return {
+      title: '任务已完成，但来源文件清理失败。',
+      body: '目标文件已保留，可使用“仅重试清理”，不会重新传输媒体文件。',
     }
   }
   if (transfer.error_code === 'WORKER_RECOVERY_REQUIRED') {
