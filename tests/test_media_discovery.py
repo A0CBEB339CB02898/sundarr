@@ -34,6 +34,7 @@ from sundarr.app.plugins.runtime_registry import (
     catalog_provider_registry,
     watchlist_provider_registry,
 )
+from sundarr.app.services.catalog_cache import catalog_cache
 from sundarr.app.services.media_discovery_service import (
     MediaIdentityConflictError,
     media_discovery_service,
@@ -115,6 +116,17 @@ class ContractCatalogProvider:
             backdrop_url="https://image.example.invalid/backdrop.jpg",
             image_urls=("https://image.example.invalid/poster.jpg",),
         )
+
+
+@dataclass
+class RecoveringSearchCatalogProvider(ContractCatalogProvider):
+    search_calls: int = 0
+
+    async def search(self, query: CatalogQuery) -> CatalogPage:
+        self.search_calls += 1
+        if self.search_calls == 1:
+            return CatalogPage(items=())
+        return CatalogPage(items=(self._item(query.keyword or "搜索结果"),))
 
 
 @dataclass
@@ -211,6 +223,37 @@ def test_discover_search_detail_and_follow_use_public_contract(db_session: Sessi
     unfollowed = client.delete(f"/discover/{media_subject_id}/follow")
     assert unfollowed.status_code == 200
     assert unfollowed.json()["followed"] is False
+
+
+def test_empty_search_result_is_not_reused_as_negative_cache(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = RecoveringSearchCatalogProvider()
+    catalog_provider_registry.register(provider.id, provider)
+    stored: dict[str, dict[str, object]] = {}
+
+    async def get_cached(key: str) -> dict[str, object] | None:
+        return stored.get(key)
+
+    async def set_cached(key: str, value: dict[str, object]) -> None:
+        stored[key] = value
+
+    monkeypatch.setattr(catalog_cache, "get", get_cached)
+    monkeypatch.setattr(catalog_cache, "set", set_cached)
+    client = make_client(db_session)
+
+    first = client.get("/discover/search", params={"q": "情书"})
+    second = client.get("/discover/search", params={"q": "情书"})
+    third = client.get("/discover/search", params={"q": "情书"})
+
+    assert first.status_code == 200
+    assert first.json()["items"] == []
+    assert second.status_code == 200
+    assert second.json()["items"][0]["canonical_title"] == "情书"
+    assert third.status_code == 200
+    assert third.json()["items"][0]["canonical_title"] == "情书"
+    assert provider.search_calls == 2
 
 
 def test_poster_relay_uses_persisted_url_and_provider_referer(

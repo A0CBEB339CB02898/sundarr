@@ -48,7 +48,7 @@ type ActiveFilter = {
 }
 
 const categoryItems: Array<{ key: CategoryKey; label: string }> = [
-  { key: 'popular', label: '趋势' },
+  { key: 'popular', label: '热门' },
   { key: 'movie', label: '电影' },
   { key: 'series', label: '剧集' },
   { key: 'anime', label: '动漫' },
@@ -56,8 +56,8 @@ const categoryItems: Array<{ key: CategoryKey; label: string }> = [
 ]
 
 const homeSectionItems: Array<{ key: HomeSectionKey; title: string; description: string }> = [
-  { key: 'movie', title: '电影趋势', description: '当前目录来源返回的电影热度趋势' },
-  { key: 'series', title: '剧集趋势', description: '当前目录来源返回的剧集热度趋势' },
+  { key: 'movie', title: '热门电影', description: '当前目录来源返回的热门电影' },
+  { key: 'series', title: '热门剧集', description: '当前目录来源返回的热门剧集' },
   { key: 'category', title: '分类推荐', description: '按当前目录能力生成的推荐' },
   { key: 'watchlist', title: '关注更新', description: '来自独立想看 Provider，不受当前目录来源选择影响' },
 ]
@@ -1006,8 +1006,8 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
           {!isLoading && !error && unsupportedCategory ? <EmptyState message="当前来源不支持这个分类" sub={unsupportedCategory} /> : null}
           {!isLoading && !error && !unsupportedCategory && results ? <ResultSection title={resultTitle} description={results.degraded ? 'Provider 不可用，当前展示降级缓存。' : `数据来自 ${activeProvider?.attribution?.provider_name || results.provider_id}`} items={results.items} degraded={results.degraded} hydrationProviderId={activeProvider?.id} hydratingYearKeys={hydratingYearKeys} hydratingPosterKeys={hydratingPosterKeys} hasMore={Boolean(results.continuation_token)} isLoadingMore={isLoadingMoreResults} onLoadMore={() => void loadMoreResults()} onOpen={openDetail} onSearch={searchResources} /> : null}
           {!isLoading && !error && !unsupportedCategory && !results ? (
-            <section className="dc-home" aria-label="趋势内容">
-              <nav className="dc-home-tabs" role="tablist" aria-label="趋势内容分类">
+            <section className="dc-home" aria-label="热门内容">
+              <nav className="dc-home-tabs" role="tablist" aria-label="热门内容分类">
                 {homeSectionItems.map((item) => (
                   <button
                     key={item.key}

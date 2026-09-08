@@ -120,20 +120,25 @@ class MediaDiscoveryService:
             },
         )
         cached = await catalog_cache.get(cache_key)
-        if cached and not refresh and self._is_fresh(cached, get_settings().catalog_cache_ttl_seconds):
-            return self._cached_page(db, cached, degraded=False)
+        usable_cached = cached if self._is_usable_page_cache(action, cached) else None
+        if usable_cached and not refresh and self._is_fresh(
+            usable_cached,
+            get_settings().catalog_cache_ttl_seconds,
+        ):
+            return self._cached_page(db, usable_cached, degraded=False)
 
         try:
             page = await self._call_provider(provider, action, query)
             response = self._persist_page(db, selected_id, page)
-            await catalog_cache.set(cache_key, self._cache_payload(response))
+            if action != "search" or response.items:
+                await catalog_cache.set(cache_key, self._cache_payload(response))
             return response
         except (CatalogQueryUnsupportedError, MediaIdentityConflictError):
             raise
         except Exception as exc:
             db.rollback()
-            if cached:
-                return self._cached_page(db, cached, degraded=True)
+            if usable_cached:
+                return self._cached_page(db, usable_cached, degraded=True)
             raise CatalogProviderUnavailableError(
                 f"目录 Provider {selected_id} 当前不可用，且没有可用缓存"
             ) from exc
@@ -649,6 +654,23 @@ class MediaDiscoveryService:
         if cached_at.tzinfo is None:
             cached_at = cached_at.replace(tzinfo=UTC)
         return (self._now() - cached_at).total_seconds() <= ttl_seconds
+
+    def _is_usable_page_cache(
+        self,
+        action: CatalogAction,
+        cached: dict[str, object] | None,
+    ) -> bool:
+        """搜索空列表可能是上游瞬时异常，不把它当作可复用的负缓存。"""
+
+        if cached is None:
+            return False
+        if action != "search":
+            return True
+        response = cached.get("response")
+        if not isinstance(response, dict):
+            return False
+        items = response.get("items")
+        return isinstance(items, list) and bool(items)
 
     def _cached_page(self, db: Session, cached: dict[str, object], *, degraded: bool) -> DiscoverPageResponse:
         response = DiscoverPageResponse.model_validate(cached.get("response"))
