@@ -204,7 +204,7 @@ Sundarr 采用暖色操作台风格设计：
 
 **Phase 10.0 已完成**：默认 pytest、Alembic 迁移链、Windows 真实服务 PID 语义和 SMB 错误码均已收口。
 
-**Phase 10 进行中**：通用 Manifest v2、类型专用 Activation/Registry、候选健康检查、仓库级原子切换和启动恢复已经完成。媒体发现 Core 的数据、编排、API、Web Console 与契约测试工具也已完成结构性收口。当前进入独立插件仓库的真实 Provider 开发和持续回归阶段。
+**Phase 10 进行中**：通用 Manifest v2、类型专用 Activation/Registry、候选健康检查、仓库级原子切换和启动恢复已经完成。媒体发现 Core 的数据、编排、API、Web Console 与契约测试工具也已完成结构性收口，真实 Provider 开发已完成；当前进入 Phase 10.4 发布前可靠性收口和持续回归阶段。
 
 **Phase 10.2 已完成结构性验收**：Core 已实现媒体身份、外部 ID、最小快照、目录缓存与降级、想看游标、Discover API 和 Web Console；用户界面没有伪造目录或海报数据。Phase 10.3 的 TMDb、SeedHub、豆瓣目录和豆瓣想看真实纵向切片均已通过，Plugin API v2 保持冻结。Core 当前规范锁定 `sundarr-sources@a10b902` 与 `sundarr-plugin@e5b5a4b`；真实 API、持久游标、启动恢复、插件独立启停和 Web Console 验收均已通过。媒体发现 MVP 不做本地媒体库播放、观影进度或完整媒体管理 UI。
 
