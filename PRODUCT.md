@@ -64,7 +64,7 @@ MVP 不做：
 - 修改 SMB 配置会中断使用旧配置的运行中任务，任务进入 failed，错误码为 `STORAGE_CONFIG_CHANGED`，`retryable=true`。
 - `Phase 8 “下载到本地”` 是历史阶段命名；当前规范统一为“远程媒体库同步到本地媒体库”。
 - `Phase 9 Module Refactoring` 和 `Phase 9.5 Resource Favorites Refactoring` 已完成。
-- `Phase 10.0` 质量基线、`Phase 10.1` 通用插件宿主和 `Phase 10.2` 媒体发现 Core 已完成；当前优先任务是 Phase 10.3 外部真实插件和真实数据 Core 回归。
+- `Phase 10.0` 质量基线、`Phase 10.1` 通用插件宿主、`Phase 10.2` 媒体发现 Core 和 `Phase 10.3` 真实插件均已完成；当前优先任务是 Phase 10.4 发布前可靠性收口。
 - Sundarr Core 保持 Python + FastAPI；只借鉴 Cordis 的显式依赖、Activation、可逆清理和原子切换语义，不引入 Cordis 作为核心运行时。
 - `Phase 11 AI Friendly API` 完成后可提供可选 Cordis / DeepSeek Harness 桥接插件，桥接层只通过 HTTP API 调用 Sundarr。
 - `Phase 12 Cloud Direct Download` 不包含在 MVP 中，仅作为后续高级功能保留规格文档。

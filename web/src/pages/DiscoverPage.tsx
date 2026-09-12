@@ -12,230 +12,39 @@ import type {
 } from '../types'
 import { Button, EmptyState, ErrorState, LoadingState } from '../ui'
 import SearchPage from './SearchPage'
-
-type HomeSectionKey = 'movie' | 'series' | 'category' | 'watchlist'
-
-type DiscoverSection = {
-  key: HomeSectionKey
-  title: string
-  description: string
-  items: MediaSubjectSummary[]
-  error?: string
-  path?: string
-  continuationToken?: string | null
-  isLoading?: boolean
-  isLoadingMore?: boolean
-}
-
-type CategoryKey = 'popular' | 'movie' | 'series' | 'anime' | 'variety'
-
-type FilterState = {
-  provider_id: string
-  q: string
-  category: CategoryKey
-  media_type: string
-  genres: string[]
-  region: string
-  year_from: string
-  year_to: string
-  sort: string
-}
-
-type ActiveFilter = {
-  key: string
-  label: string
-  remove: () => void
-}
-
-const categoryItems: Array<{ key: CategoryKey; label: string }> = [
-  { key: 'popular', label: '热门' },
-  { key: 'movie', label: '电影' },
-  { key: 'series', label: '剧集' },
-  { key: 'anime', label: '动漫' },
-  { key: 'variety', label: '综艺' },
-]
-
-const homeSectionItems: Array<{ key: HomeSectionKey; title: string; description: string }> = [
-  { key: 'movie', title: '热门电影', description: '当前目录来源返回的热门电影' },
-  { key: 'series', title: '热门剧集', description: '当前目录来源返回的热门剧集' },
-  { key: 'category', title: '分类推荐', description: '按当前目录能力生成的推荐' },
-  { key: 'watchlist', title: '关注更新', description: '来自独立想看 Provider，不受当前目录来源选择影响' },
-]
-
-const categoryGenreLabels: Partial<Record<CategoryKey, string[]>> = {
-  anime: ['动画', '动漫', 'Animation'],
-  variety: ['综艺', '真人秀', '脱口秀', 'Reality', 'Talk'],
-}
-
-const preferredGenreLabels = [
-  '剧情', '科幻', '动作', '喜剧', '爱情', '惊悚', '恐怖', '动画', '犯罪', '悬疑',
-  '纪录片', '战争', '历史', '音乐', '家庭', '校园', '真人秀', '脱口秀',
-]
-
-const preferredRegions = [
-  { label: '中国大陆', aliases: ['中国大陆', '中国'] },
-  { label: '香港', aliases: ['香港', '中国香港', '中国香港特别行政区', 'Hong Kong'] },
-  { label: '台湾', aliases: ['台湾', '中国台湾', 'Taiwan'] },
-  { label: '日本', aliases: ['日本', 'Japan'] },
-  { label: '韩国', aliases: ['韩国', 'South Korea'] },
-  { label: '美国', aliases: ['美国', 'United States'] },
-  { label: '英国', aliases: ['英国', 'United Kingdom'] },
-  { label: '法国', aliases: ['法国', 'France'] },
-  { label: '德国', aliases: ['德国', 'Germany'] },
-  { label: '印度', aliases: ['印度', 'India'] },
-  { label: '泰国', aliases: ['泰国', 'Thailand'] },
-]
-
-const sortItems: Array<{ key: string; label: string; value: string | null; hint?: string }> = [
-  { key: 'popular', label: '热门', value: 'popularity' },
-  { key: 'rating', label: '评分最高', value: 'rating' },
-  { key: 'published', label: '最新发布', value: null, hint: '目录模型尚无内容发布时间' },
-  { key: 'release', label: '最新上映', value: 'release_date' },
-  { key: 'favorites', label: '收藏最多', value: null, hint: '当前单用户模型没有收藏次数' },
-  { key: 'views', label: '观看最多', value: null, hint: 'Sundarr 不记录播放次数' },
-]
-
-const advancedFilters = [
-  { label: 'IMDb 评分', hint: '当前目录合同没有 IMDb 评分筛选' },
-  { label: '评分人数', hint: '列表查询合同没有评分人数筛选' },
-  { label: '资源质量', hint: '资源质量属于具体资源搜索，不属于目录发现' },
-  { label: '语言', hint: '当前目录合同没有语言筛选' },
-  { label: '字幕类型', hint: '目录数据不包含字幕信息' },
-]
-
-function emptyFilters(providerId = ''): FilterState {
-  return {
-    provider_id: providerId,
-    q: '',
-    category: 'popular',
-    media_type: '',
-    genres: [],
-    region: '',
-    year_from: '',
-    year_to: '',
-    sort: '',
-  }
-}
-
-function isCategoryKey(value: string | null): value is CategoryKey {
-  return categoryItems.some((item) => item.key === value)
-}
-
-function filtersForOperation(provider: CatalogProvider | undefined, operation: string) {
-  return provider?.operation_filters && operation in provider.operation_filters
-    ? provider.operation_filters[operation]
-    : provider?.filters || []
-}
-
-function sortsForOperation(provider: CatalogProvider | undefined, operation: string) {
-  return provider?.operation_sorts && operation in provider.operation_sorts
-    ? provider.operation_sorts[operation]
-    : provider?.sorts || []
-}
-
-function filtersFromUrl(): FilterState {
-  const params = new URLSearchParams(window.location.search)
-  const mediaType = params.get('media_type') || ''
-  const requestedCategory = params.get('category')
-  const category = isCategoryKey(requestedCategory)
-    ? requestedCategory
-    : mediaType === 'movie'
-      ? 'movie'
-      : mediaType === 'series'
-        ? 'series'
-        : 'popular'
-  return {
-    provider_id: params.get('provider_id') || '',
-    q: params.get('q') || '',
-    category,
-    media_type: category === 'movie' ? 'movie' : category === 'series' || category === 'variety' ? 'series' : mediaType,
-    genres: Array.from(new Set(params.getAll('genre').filter(Boolean))),
-    region: params.get('region') || '',
-    year_from: params.get('year_from') || '',
-    year_to: params.get('year_to') || '',
-    sort: params.get('sort') || '',
-  }
-}
-
-function detailIdFromPath() {
-  const match = window.location.pathname.match(/^\/app\/discover\/([^/]+)$/)
-  return match ? decodeURIComponent(match[1]) : null
-}
-
-function isResourceModeFromLocation() {
-  if (window.location.pathname === '/app/search') return true
-  return window.location.pathname === '/app/discover'
-    && new URLSearchParams(window.location.search).get('mode') === 'resources'
-}
-
-function optionForCategory(provider: CatalogProvider | undefined, category: CategoryKey) {
-  const candidates = categoryGenreLabels[category]
-  if (!provider || !candidates) return undefined
-  return (provider.filter_options.genre || []).find((option) =>
-    candidates.some((candidate) => candidate.toLocaleLowerCase() === option.label.toLocaleLowerCase()),
-  )
-}
-
-function orderedOptions(options: CatalogFilterOption[], preferredLabels: string[]) {
-  const rank = new Map(preferredLabels.map((label, index) => [label, index]))
-  return [...options].sort((left, right) => {
-    const leftRank = rank.get(left.label) ?? preferredLabels.length
-    const rightRank = rank.get(right.label) ?? preferredLabels.length
-    return leftRank - rightRank || left.label.localeCompare(right.label, 'zh-CN')
-  })
-}
-
-function optionLabel(options: CatalogFilterOption[], value: string) {
-  return options.find((option) => option.value === value)?.label || value
-}
-
-function yearPresets() {
-  const currentYear = new Date().getFullYear()
-  return [
-    { key: 'all', label: '全部', from: '', to: '' },
-    { key: 'recent', label: '近三年', from: String(currentYear - 2), to: String(currentYear) },
-    { key: '2020s', label: '2020年代', from: '2020', to: '2029' },
-    { key: '2010s', label: '2010年代', from: '2010', to: '2019' },
-    { key: '2000s', label: '2000年代', from: '2000', to: '2009' },
-    { key: '1990s', label: '90年代', from: '1990', to: '1999' },
-    { key: '1980s', label: '80年代', from: '1980', to: '1989' },
-    { key: 'earlier', label: '更早', from: '1', to: '1979' },
-  ]
-}
-
-function yearFilterLabel(state: FilterState) {
-  if (!state.year_from && !state.year_to) return ''
-  if (state.year_from && state.year_from === state.year_to) return `${state.year_from}年`
-  const preset = yearPresets().find((item) => item.from === state.year_from && item.to === state.year_to)
-  return preset?.label || `${state.year_from || '最早'}至${state.year_to || '现在'}`
-}
-
-function remapValue(
-  value: string,
-  previousOptions: CatalogFilterOption[],
-  nextOptions: CatalogFilterOption[],
-) {
-  if (!value) return ''
-  const previousLabel = optionLabel(previousOptions, value)
-  return nextOptions.find((option) => option.label === previousLabel)?.value || ''
-}
-
-function mergeUniqueItems(current: MediaSubjectSummary[], incoming: MediaSubjectSummary[]) {
-  const seen = new Set(current.map((item) => item.media_subject_id))
-  return [...current, ...incoming.filter((item) => !seen.has(item.media_subject_id))]
-}
-
-function chunkItems<T>(items: T[], size: number) {
-  return Array.from({ length: Math.ceil(items.length / size) }, (_, index) =>
-    items.slice(index * size, (index + 1) * size),
-  )
-}
-
-function providerRecognizesItem(provider: CatalogProvider, item: MediaSubjectSummary) {
-  const namespaces = new Set([provider.id, ...provider.identity_namespaces])
-  return item.provider_id === provider.id
-    || Object.keys(item.external_ids).some((namespace) => namespaces.has(namespace))
-}
+import { DiscoverFilters } from './discover/DiscoverFilters'
+import { DetailView, ResultSection } from './discover/DiscoverResults'
+import type {
+  ActiveFilter,
+  CategoryKey,
+  DiscoverSection,
+  FilterState,
+  HomeSectionKey,
+} from './discover/model'
+import {
+  apiQueryParams,
+  categoryGenreLabels,
+  categoryItems,
+  chunkItems,
+  detailIdFromPath,
+  emptyFilters,
+  filtersForOperation,
+  filtersFromUrl,
+  homeSectionItems,
+  isResourceModeFromLocation,
+  mergeUniqueItems,
+  optionForCategory,
+  optionLabel,
+  orderedOptions,
+  preferredGenreLabels,
+  preferredRegions,
+  providerRecognizesItem,
+  remapValue,
+  sortItems,
+  sortsForOperation,
+  urlParams,
+  yearFilterLabel,
+} from './discover/model'
 
 export default function DiscoverPage({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const initialFilters = filtersFromUrl()
@@ -555,43 +364,6 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     }
   }
 
-  function apiQueryParams(
-    forceRefresh = false,
-    state = filters,
-    providerId?: string,
-    presetGenre?: string,
-  ) {
-    const params = new URLSearchParams()
-    if (providerId) params.set('provider_id', providerId)
-    if (state.q.trim()) {
-      params.set('q', state.q.trim())
-    } else {
-      if (state.media_type) params.set('media_type', state.media_type)
-      Array.from(new Set([presetGenre, ...state.genres].filter(Boolean) as string[])).forEach((genre) => params.append('genre', genre))
-      if (state.region) params.set('region', state.region)
-      if (state.year_from) params.set('year_from', state.year_from)
-      if (state.year_to) params.set('year_to', state.year_to)
-      if (state.sort) params.set('sort', state.sort)
-    }
-    params.set('limit', '24')
-    if (forceRefresh) params.set('refresh', 'true')
-    return params
-  }
-
-  function urlParams(state: FilterState) {
-    const params = new URLSearchParams()
-    if (state.provider_id) params.set('provider_id', state.provider_id)
-    if (state.q.trim()) params.set('q', state.q.trim())
-    if (state.category !== 'popular') params.set('category', state.category)
-    if (state.media_type) params.set('media_type', state.media_type)
-    state.genres.forEach((genre) => params.append('genre', genre))
-    if (state.region) params.set('region', state.region)
-    if (state.year_from) params.set('year_from', state.year_from)
-    if (state.year_to) params.set('year_to', state.year_to)
-    if (state.sort) params.set('sort', state.sort)
-    return params
-  }
-
   function navigate(nextState: FilterState, mode: 'push' | 'replace' = 'push') {
     const normalizedState = {
       ...nextState,
@@ -799,206 +571,33 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
         <DetailView detail={detail} onBack={returnToDiscover} onFollow={() => void toggleFollow()} onSearch={() => searchResources(detail)} />
       ) : (
         <>
-          <div className="dc-discovery-toolbar">
-            <nav className="dc-category-tabs" aria-label="内容分类">
-              {categoryItems.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  className="dc-category-tab"
-                  aria-current={filters.category === item.key && !filters.q ? 'page' : undefined}
-                  onClick={() => selectCategory(item.key)}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </nav>
-            <form className="dc-search" role="search" onSubmit={submitSearch}>
-              <label htmlFor="discover-search">搜索目录</label>
-              <div className="dc-search-control">
-                <span aria-hidden="true">⌕</span>
-                <input
-                  id="discover-search"
-                  value={searchDraft}
-                  onChange={(event) => setSearchDraft(event.target.value)}
-                  placeholder="搜索片名、演员、导演或关键词"
-                />
-                <button type="submit">搜索</button>
-              </div>
-              <small>实际检索范围由当前目录来源决定</small>
-            </form>
-          </div>
-
-          <section className="dc-filter-panel" aria-label="内容筛选">
-            {providers.length > 1 ? (
-              <div className="dc-filter-row dc-provider-row">
-                <div className="dc-filter-label">数据来源</div>
-                <div className="dc-tag-rail" role="group" aria-label="数据来源">
-                  {providers.map((provider) => (
-                    <button
-                      key={provider.id}
-                      type="button"
-                      className="dc-filter-tag"
-                      aria-pressed={activeProvider?.id === provider.id}
-                      onClick={() => changeProvider(provider.id)}
-                    >
-                      {provider.attribution?.provider_name || provider.id}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {activeFilters.length ? (
-              <div className="dc-active-filters">
-                <span>当前筛选</span>
-                <div className="dc-active-filter-list">
-                  {activeFilters.map((filter) => (
-                    <button key={filter.key} type="button" onClick={filter.remove} aria-label={`取消筛选：${filter.label}`}>
-                      {filter.label}<span aria-hidden="true">×</span>
-                    </button>
-                  ))}
-                </div>
-                <button type="button" className="dc-clear-filters" onClick={clearFilters}>清除全部</button>
-              </div>
-            ) : null}
-
-            <div className="dc-filter-row">
-              <div className="dc-filter-label">类型</div>
-              <div className="dc-tag-rail" role="group" aria-label="题材，可多选">
-                <button
-                  type="button"
-                  className="dc-filter-tag"
-                  aria-pressed={!filters.genres.length && !categoryGenre}
-                  disabled={!availableFilters.includes('genre')}
-                  onClick={() => categoryGenre ? selectCategory('popular') : updateExplore({ genres: [] })}
-                >全部</button>
-                {genreOptions.map((option) => {
-                  const selected = filters.genres.includes(option.value) || categoryGenre?.value === option.value
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className="dc-filter-tag"
-                      aria-pressed={selected}
-                      disabled={!availableFilters.includes('genre')}
-                      onClick={() => toggleGenre(option.value)}
-                    >
-                      {option.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="dc-filter-row">
-              <div className="dc-filter-label">年份</div>
-              <div className="dc-tag-rail" role="group" aria-label="年份">
-                {yearPresets().map((preset) => (
-                  <button
-                    key={preset.key}
-                    type="button"
-                    className="dc-filter-tag"
-                    aria-pressed={filters.year_from === preset.from && filters.year_to === preset.to}
-                    disabled={!availableFilters.includes('year')}
-                    onClick={() => selectYear(preset.from, preset.to)}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="dc-filter-tag dc-filter-expand"
-                  aria-expanded={showExactYears}
-                  disabled={!availableFilters.includes('year')}
-                  onClick={() => setShowExactYears((value) => !value)}
-                >
-                  精确年份 <span aria-hidden="true">{showExactYears ? '−' : '+'}</span>
-                </button>
-              </div>
-              {showExactYears ? (
-                <div className="dc-exact-years" role="group" aria-label="精确年份">
-                  {exactYears.map((year) => (
-                    <button
-                      key={year}
-                      type="button"
-                      className="dc-filter-tag"
-                      aria-pressed={filters.year_from === year && filters.year_to === year}
-                      onClick={() => selectYear(year, year)}
-                    >{year}</button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            {allRegionOptions.length ? (
-              <div className="dc-filter-row">
-                <div className="dc-filter-label">地区</div>
-                <div className="dc-tag-rail" role="group" aria-label="地区">
-                  <button
-                    type="button"
-                    className="dc-filter-tag"
-                    aria-pressed={!filters.region}
-                    disabled={!availableFilters.includes('region')}
-                    onClick={() => updateExplore({ region: '' })}
-                  >全部</button>
-                  {visibleRegionOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className="dc-filter-tag"
-                      aria-pressed={filters.region === option.value}
-                      disabled={!availableFilters.includes('region')}
-                      onClick={() => updateExplore({ region: option.value })}
-                    >{option.label}</button>
-                  ))}
-                  {otherRegionOptions.length ? (
-                    <button
-                      type="button"
-                      className="dc-filter-tag dc-filter-expand"
-                      aria-expanded={showOtherRegions}
-                      onClick={() => setShowOtherRegions((value) => !value)}
-                    >其他 <span aria-hidden="true">{showOtherRegions ? '−' : '+'}</span></button>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-
-            <div className="dc-filter-row">
-              <div className="dc-filter-label">排序</div>
-              <div className="dc-tag-rail" role="group" aria-label="排序">
-                {sortItems.map((item) => {
-                  const supported = Boolean(item.value && availableSorts.includes(item.value))
-                  const selected = supported && (filters.sort === item.value || (!filters.sort && item.value === 'popularity'))
-                  return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className="dc-filter-tag"
-                      aria-pressed={selected}
-                      disabled={!supported}
-                      title={!supported ? item.hint || '当前目录来源不支持此排序' : undefined}
-                      onClick={() => item.value && updateExplore({ sort: item.value })}
-                    >
-                      {item.label}{!supported ? <small>暂不支持</small> : null}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <details className="dc-more-filters">
-              <summary>更多筛选 <span>IMDb 评分、语言、资源质量等</span></summary>
-              <div className="dc-advanced-grid">
-                {advancedFilters.map((item) => (
-                  <button key={item.label} type="button" className="dc-filter-tag" disabled title={item.hint}>
-                    {item.label}<small>当前不可用</small>
-                  </button>
-                ))}
-              </div>
-              <p>这些条件需要目录合同或资源索引提供真实字段，当前不会发送无效请求。</p>
-            </details>
-          </section>
+          <DiscoverFilters
+            filters={filters}
+            searchDraft={searchDraft}
+            providers={providers}
+            activeProvider={activeProvider}
+            activeFilters={activeFilters}
+            availableFilters={availableFilters}
+            availableSorts={availableSorts}
+            genreOptions={genreOptions}
+            categoryGenre={categoryGenre}
+            allRegionOptions={allRegionOptions}
+            visibleRegionOptions={visibleRegionOptions}
+            otherRegionOptions={otherRegionOptions}
+            showExactYears={showExactYears}
+            showOtherRegions={showOtherRegions}
+            exactYears={exactYears}
+            onSearchDraftChange={setSearchDraft}
+            onSubmitSearch={submitSearch}
+            onSelectCategory={selectCategory}
+            onChangeProvider={changeProvider}
+            onClearFilters={clearFilters}
+            onToggleGenre={toggleGenre}
+            onSelectYear={selectYear}
+            onToggleExactYears={() => setShowExactYears((value) => !value)}
+            onToggleOtherRegions={() => setShowOtherRegions((value) => !value)}
+            onUpdateExplore={updateExplore}
+          />
 
           {isLoading ? <LoadingState message="正在读取目录" sub="请求当前启用的真实 Provider。" /> : null}
           {error ? <ErrorState message="媒体发现暂不可用" sub={error} action={<Button onClick={() => void loadPage(true)}>重试</Button>} /> : null}
@@ -1041,90 +640,5 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
         </aside>
       ) : null}
     </section>
-  )
-}
-
-function ResultSection({ title, description, items, degraded, hydrationProviderId, hydratingYearKeys, hydratingPosterKeys, hasMore, isLoadingMore, onLoadMore, onOpen, onSearch }: { title: string; description: string; items: MediaSubjectSummary[]; degraded: boolean; hydrationProviderId?: string; hydratingYearKeys: Set<string>; hydratingPosterKeys: Set<string>; hasMore: boolean; isLoadingMore: boolean; onLoadMore: () => void; onOpen: (item: MediaSubjectSummary) => void; onSearch: (item: MediaSubjectSummary) => void }) {
-  return (
-    <section className="dc-section" aria-label={title}>
-      <div className="dc-section-heading"><div><h3>{title}</h3><p>{description}</p></div>{degraded ? <span className="dc-degraded">降级</span> : null}</div>
-      {items.length ? (
-        <>
-          <div className="dc-poster-grid">{items.map((item) => {
-            const hydrationKey = `${hydrationProviderId || item.provider_id}:${item.media_subject_id}`
-            return <MediaPoster key={item.media_subject_id} item={item} posterProviderId={hydrationProviderId} isHydratingYear={hydratingYearKeys.has(hydrationKey)} isHydratingPoster={hydratingPosterKeys.has(hydrationKey)} onOpen={() => onOpen(item)} onSearch={() => onSearch(item)} />
-          })}</div>
-          {hasMore ? <div className="dc-load-more"><Button variant="secondary" disabled={isLoadingMore} onClick={onLoadMore}>{isLoadingMore ? '正在加载…' : '加载更多'}</Button></div> : null}
-        </>
-      ) : <EmptyState message="当前分区没有内容" sub={degraded ? '该分区失败，其他分区仍可继续使用。' : 'Provider 暂未返回符合条件的条目。'} />}
-    </section>
-  )
-}
-
-function MediaPoster({ item, posterProviderId, isHydratingYear, isHydratingPoster, onOpen, onSearch }: { item: MediaSubjectSummary; posterProviderId?: string; isHydratingYear: boolean; isHydratingPoster: boolean; onOpen: () => void; onSearch: () => void }) {
-  return (
-    <article className="dc-poster">
-      <button className="dc-poster-image" type="button" onClick={onOpen} aria-label={`查看 ${item.canonical_title} 详情`}>
-        <PosterImage item={item} alt="" loading="lazy" isHydrating={isHydratingPoster} providerId={posterProviderId} />
-        {item.watchlisted || item.followed ? <span className="dc-poster-state">{item.watchlisted ? '想看' : '关注'}</span> : null}
-      </button>
-      <div className="dc-poster-copy"><button type="button" onClick={onOpen}>{item.canonical_title}</button><p>{item.release_year || (isHydratingYear ? '正在补全年份' : '年份待补充')} · {item.media_type === 'movie' ? '电影' : '剧集'}</p></div>
-      <Button size="sm" variant="ghost" onClick={onSearch}>查找资源</Button>
-    </article>
-  )
-}
-
-function DetailView({ detail, onBack, onFollow, onSearch }: { detail: MediaSubjectDetail; onBack: () => void; onFollow: () => void; onSearch: () => void }) {
-  return (
-    <div className="dc-detail">
-      <Button variant="ghost" onClick={onBack}>返回发现</Button>
-      <div className="dc-detail-layout">
-        <div className="dc-detail-poster"><PosterImage item={detail} alt={`${detail.canonical_title} 海报`} /></div>
-        <div className="dc-detail-copy">
-          <p className="ui-eyebrow">{detail.media_type === 'movie' ? '电影' : '剧集'} · {detail.release_year || '年份未知'}</p>
-          {detail.original_title ? <p className="dc-original-title">{detail.original_title}</p> : null}
-          {detail.degraded ? <p className="dc-inline-warning">Provider 当前不可用，以下为已保存的最小快照或缓存。</p> : null}
-          <p className="dc-overview">{detail.overview || 'Provider 暂未返回简介。'}</p>
-          <dl className="dc-facts">
-            <div><dt>题材</dt><dd>{detail.genres.join('、') || '未知'}</dd></div>
-            <div><dt>地区</dt><dd>{detail.regions.join('、') || '未知'}</dd></div>
-            <div><dt>评分</dt><dd>{detail.rating !== null ? `${detail.rating.toFixed(1)} · ${detail.rating_provider}` : '暂无'}</dd></div>
-            <div><dt>外部 ID</dt><dd>{Object.entries(detail.external_ids).map(([key, value]) => `${key}: ${value}`).join(' · ')}</dd></div>
-          </dl>
-          <div className="dc-detail-actions"><Button variant="primary" onClick={onSearch}>查找具体资源</Button><Button onClick={onFollow}>{detail.followed ? '取消关注' : '加入关注'}</Button></div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function PosterImage({ item, alt, loading, isHydrating = false, providerId }: {
-  item: MediaSubjectSummary
-  alt: string
-  loading?: 'eager' | 'lazy'
-  isHydrating?: boolean
-  providerId?: string
-}) {
-  const [source, setSource] = useState(item.poster_url)
-  const [failed, setFailed] = useState(false)
-  const relayProviderId = item.poster_provider_id || providerId || item.provider_id
-  const relayUrl = `/discover/${encodeURIComponent(item.media_subject_id)}/poster?provider_id=${encodeURIComponent(relayProviderId)}`
-
-  useEffect(() => {
-    setSource(item.poster_url)
-    setFailed(false)
-  }, [item.media_subject_id, item.poster_url, item.poster_provider_id, item.provider_id, relayProviderId])
-
-  if (!source || failed) return <span aria-hidden="true">{isHydrating ? '正在补全海报' : '暂无海报'}</span>
-  return (
-    <img
-      src={source}
-      alt={alt}
-      loading={loading}
-      onError={() => {
-        if (source !== relayUrl) setSource(relayUrl)
-        else setFailed(true)
-      }}
-    />
   )
 }

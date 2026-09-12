@@ -308,6 +308,39 @@ def test_sundarr_process_tree_root_prefers_highest_sundarr_ancestor(monkeypatch:
     assert cli._sundarr_process_tree_root(456) == 200
 
 
+def test_wait_for_port_service_pid_accepts_direct_listener_without_process_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = cli.ManagedService(
+        name="api",
+        display_name="Sundarr API",
+        pid_file=tmp_path / "api.pid",
+        log_file=tmp_path / "api.log",
+    )
+    process = subprocess.Popen.__new__(subprocess.Popen)
+    process.pid = 456
+    monkeypatch.setattr(process, "poll", lambda: None)
+    monkeypatch.setattr(cli, "_find_port_pid", lambda _host, _port: 456)
+    monkeypatch.setattr(
+        cli,
+        "_sundarr_process_tree_root",
+        lambda _pid: (_ for _ in ()).throw(AssertionError("直接监听进程不应查询进程树")),
+    )
+
+    assert cli._wait_for_port_service_pid(service, process, "127.0.0.1", 8080) == 456
+
+
+def test_windows_process_properties_fall_back_to_powershell_cim(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli.os, "name", "nt")
+    monkeypatch.setattr(cli, "_wmic_process_property", lambda _pid, _name: "")
+    values = {"CommandLine": "python -m sundarr.app.run_api", "ParentProcessId": "123"}
+    monkeypatch.setattr(cli, "_powershell_process_property", lambda _pid, name: values[name])
+
+    assert cli._process_command_line(456) == "python -m sundarr.app.run_api"
+    assert cli._parent_pid(456) == 123
+
+
 def test_worker_is_managed_service() -> None:
     assert cli.WORKER_SERVICE in cli.MANAGED_SERVICES
     assert cli.WORKER_SERVICE.pid_file.name == "sundarr-worker.pid"

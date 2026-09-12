@@ -230,7 +230,9 @@ def _wait_for_port_service_pid(
         if process.poll() is not None:
             raise RuntimeError(f"{service.display_name} 启动失败，退出码={process.returncode}。")
         listener_pid = _find_port_pid(host, port)
-        if listener_pid is not None and _sundarr_process_tree_root(listener_pid) == process.pid:
+        if listener_pid is not None and (
+            listener_pid == process.pid or _sundarr_process_tree_root(listener_pid) == process.pid
+        ):
             return listener_pid
         time.sleep(0.1)
     _kill_process(process.pid)
@@ -439,40 +441,51 @@ def _sundarr_process_tree_root(pid: int) -> int | None:
 def _process_command_line(pid: int) -> str:
     if os.name != "nt":
         return ""
+    command_line = _wmic_process_property(pid, "CommandLine")
+    return command_line or _powershell_process_property(pid, "CommandLine")
+
+
+def _parent_pid(pid: int) -> int | None:
+    if os.name != "nt":
+        return None
+    value = _wmic_process_property(pid, "ParentProcessId") or _powershell_process_property(pid, "ParentProcessId")
+    return int(value) if value.isdigit() else None
+
+
+def _wmic_process_property(pid: int, property_name: str) -> str:
     try:
         result = subprocess.run(
-            ["wmic", "process", "where", f"ProcessId={pid}", "get", "CommandLine", "/format:list"],
+            ["wmic", "process", "where", f"ProcessId={pid}", "get", property_name, "/format:list"],
             capture_output=True,
             text=True,
             timeout=5,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return ""
+    prefix = f"{property_name}="
     for line in result.stdout.splitlines():
-        if line.startswith("CommandLine="):
-            return line.removeprefix("CommandLine=").strip()
+        if line.startswith(prefix):
+            return line.removeprefix(prefix).strip()
     return ""
 
 
-def _parent_pid(pid: int) -> int | None:
-    if os.name != "nt":
-        return None
+def _powershell_process_property(pid: int, property_name: str) -> str:
+    if property_name not in {"CommandLine", "ParentProcessId"}:
+        raise ValueError(f"不支持读取进程属性：{property_name}")
+    script = (
+        f"$process = Get-CimInstance -ClassName Win32_Process -Filter 'ProcessId = {pid}'; "
+        f"if ($null -ne $process) {{ $process.{property_name} }}"
+    )
     try:
         result = subprocess.run(
-            ["wmic", "process", "where", f"ProcessId={pid}", "get", "ParentProcessId", "/format:list"],
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
             capture_output=True,
             text=True,
             timeout=5,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError):
-        return None
-    for line in result.stdout.splitlines():
-        if not line.startswith("ParentProcessId="):
-            continue
-        value = line.removeprefix("ParentProcessId=").strip()
-        if value.isdigit():
-            return int(value)
-    return None
+        return ""
+    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 def _looks_like_sundarr_command(command_line: str) -> bool:
