@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
@@ -90,7 +90,7 @@ function page(
 }
 
 function installApiMock(
-  resolveDiscover: (path: string) => DiscoverPageResponse = () => page([subject('first', '测试电影')]),
+  resolveDiscover: (path: string) => DiscoverPageResponse | Promise<DiscoverPageResponse> = () => page([subject('first', '测试电影')]),
 ) {
   vi.mocked(api.get).mockImplementation(async (path) => {
     if (path === '/discover/providers') return providers
@@ -98,6 +98,12 @@ function installApiMock(
   })
   vi.mocked(api.post).mockResolvedValue({})
   vi.mocked(api.delete).mockResolvedValue({})
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((next) => { resolve = next })
+  return { promise, resolve }
 }
 
 describe('媒体发现页', () => {
@@ -180,5 +186,40 @@ describe('媒体发现页', () => {
     expect(vi.mocked(api.get)).toHaveBeenCalledWith(
       expect.stringContaining('continuation_token=next-page'),
     )
+  })
+
+  it('切回全部后忽略晚到的筛选结果', async () => {
+    const filteredResponse = deferred<DiscoverPageResponse>()
+    let homeRequestCount = 0
+    installApiMock((path) => {
+      if (path.includes('/discover/categories?') && path.includes('genre=18')) {
+        return filteredResponse.promise
+      }
+      if (path.includes('/discover/trending?')) {
+        homeRequestCount += 1
+        return page([subject(`home-${homeRequestCount}`, homeRequestCount === 1 ? '初始电影' : '全部电影')])
+      }
+      return page([])
+    })
+    const user = userEvent.setup()
+    render(<DiscoverPage showToast={vi.fn()} />)
+    await screen.findByText('初始电影')
+
+    await user.click(screen.getByRole('button', { name: '剧情' }))
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/discover\/categories\?.*genre=18/),
+    ))
+    const genreGroup = screen.getByRole('group', { name: '题材，可多选' })
+    await user.click(within(genreGroup).getByRole('button', { name: '全部' }))
+    expect(await screen.findByText('全部电影')).toBeTruthy()
+
+    await act(async () => {
+      filteredResponse.resolve(page([subject('filtered', '过期筛选电影')]))
+      await filteredResponse.promise
+    })
+
+    expect(screen.queryByText('过期筛选电影')).toBeNull()
+    expect(screen.getByText('全部电影')).toBeTruthy()
+    expect(window.location.search).not.toContain('genre=')
   })
 })

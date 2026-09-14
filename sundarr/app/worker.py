@@ -1,42 +1,33 @@
 import asyncio
 import os
-import signal
 import time
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from sundarr.app.cloud import CloudProvider, LocalCloudProvider
-from sundarr.app.core.database import get_session_factory
+from sundarr.app.cloud import CloudProvider
+from sundarr.app.core.database import get_session_factory  # noqa: F401 - WorkerRuntime 兼容注入点
 from sundarr.app.models import (
-    RemoteMediaLibrary,
     ResourceLink,
-    Setting,
     SyncBinding,
     SyncSeenFile,
     TransferFile,
     TransferLog,
     TransferTask,
 )
-from sundarr.app.storage import LocalWriter, SmbConfig, SmbWriter, StorageWriter
-from sundarr.app.plugins.coordinator import RepositoryActivationCoordinator
-from sundarr.app.plugins.manager import PluginManager, PluginProcessRole
-from sundarr.app.plugins.runtime_registry import watchlist_provider_registry
+from sundarr.app.storage import SmbConfig, SmbWriter, StorageWriter
 from sundarr.app.plugins.secrets import decode_secret_snapshot
+from sundarr.app.worker_config import (
+    LocalRuntimeConfig,
+    WorkerSettings,
+    load_local_runtime_config,
+    load_watchlist_sync_interval,  # noqa: F401 - 保留既有公开导入路径
+    load_worker_settings,  # noqa: F401 - 保留既有公开导入路径
+)
 
 
-WORKER_ENABLED_KEY = "worker.enabled"
-WORKER_CONCURRENCY_KEY = "worker.concurrency"
-LOCAL_CLOUD_KEY = "cloud.local"
-LOCAL_STORAGE_KEY = "storage.local"
-DTL_CONFIG_KEY = "download_to_local.config"
-WATCHLIST_SYNC_INTERVAL_KEY = "discovery.watchlist_sync_interval_seconds"
-DEFAULT_WORKER_ENABLED = True
-DEFAULT_WORKER_CONCURRENCY = 2
-DEFAULT_WATCHLIST_SYNC_INTERVAL_SECONDS = 900
 WORKER_RECOVERY_ERROR_CODE = "WORKER_RECOVERY_REQUIRED"
 DEFAULT_SYNC_DELETE_SOURCE = True
 DEFAULT_SYNC_DELETE_EMPTY_DIRS = True
@@ -81,147 +72,6 @@ class _SpeedTracker:
         self._bytes = 0
         self._started = time.monotonic()
         return rate
-
-
-@dataclass(frozen=True)
-class WorkerSettings:
-    enabled: bool = DEFAULT_WORKER_ENABLED
-    concurrency: int = DEFAULT_WORKER_CONCURRENCY
-
-
-@dataclass(frozen=True)
-class LocalRuntimeConfig:
-    cloud_provider: LocalCloudProvider
-    storage_writer: LocalWriter
-
-
-class WorkerRuntime:
-    def __init__(
-        self,
-        poll_interval_seconds: float = 5.0,
-        plugin_manager: PluginManager | None = None,
-    ) -> None:
-        self.poll_interval_seconds = poll_interval_seconds
-        self._running = True
-        self._last_scan_times: dict[str, float] = {}
-        self._last_watchlist_sync_times: dict[str, float] = {}
-        self.plugin_manager = plugin_manager or PluginManager(
-            process_role=PluginProcessRole.WORKER,
-            coordinator=RepositoryActivationCoordinator(),
-        )
-
-    def stop(self, signum: int | None = None, frame: object | None = None) -> None:
-        self._running = False
-
-    def run(self) -> None:
-        signal.signal(signal.SIGTERM, self.stop)
-        signal.signal(signal.SIGINT, self.stop)
-        session_factory = get_session_factory()
-        print("Sundarr Worker 已启动。", flush=True)
-        import asyncio
-
-        with session_factory() as session:
-            plugin_stats = asyncio.run(
-                self.plugin_manager.load_all_repositories(
-                    session,
-                    process_role=PluginProcessRole.WORKER,
-                )
-            )
-        print(
-            f"Worker 插件恢复完成：成功 {plugin_stats['loaded']}，失败 {plugin_stats['error']}。",
-            flush=True,
-        )
-        with session_factory() as session:
-            recovered_count = recover_running_tasks(session)
-        if recovered_count:
-            print(f"Sundarr Worker 已保守恢复 {recovered_count} 个运行态任务。", flush=True)
-        while self._running:
-            claimed_ids: list[str] = []
-            local_runtime: LocalRuntimeConfig | None = None
-            with session_factory() as session:
-                asyncio.run(
-                    self.plugin_manager.reconcile_repositories(
-                        session,
-                        process_role=PluginProcessRole.WORKER,
-                    )
-                )
-                settings = load_worker_settings(session)
-                self._auto_scan_and_create_tasks(session)
-                if settings.enabled:
-                    self._auto_sync_watchlists(session)
-                claimed = claim_pending_tasks(session, settings)
-                claimed_ids = [task.id for task in claimed]
-                local_runtime = load_local_runtime_config(session)
-            if not settings.enabled:
-                print("Sundarr Worker 已禁用，保持空转。", flush=True)
-            elif claimed:
-                print(f"Sundarr Worker 已领取 {len(claimed)} 个任务。", flush=True)
-                asyncio.run(process_claimed_tasks(session_factory, claimed_ids, local_runtime))
-            time.sleep(self.poll_interval_seconds)
-        asyncio.run(self.plugin_manager.dispose_all())
-        print("Sundarr Worker 已停止。", flush=True)
-
-    def _auto_scan_and_create_tasks(self, session: Session) -> None:
-        import asyncio
-
-        bindings = session.query(SyncBinding).filter(SyncBinding.enabled.is_(True)).all()
-        now = time.time()
-        for binding in bindings:
-            remote_lib = session.get(RemoteMediaLibrary, binding.remote_library_id)
-            if remote_lib is None or not remote_lib.enabled:
-                continue
-            interval = remote_lib.scan_interval_seconds or 60
-            last = self._last_scan_times.get(binding.id, 0)
-            if now - last < interval:
-                continue
-            self._last_scan_times[binding.id] = now
-            try:
-                from sundarr.app.services.sync_service import sync_service
-                from sundarr.app.schemas.sync import SyncScanRequest, SyncTaskCreateRequest
-
-                asyncio.run(sync_service.scan(session, SyncScanRequest(binding_id=binding.id)))
-                asyncio.run(sync_service.create_tasks(session, SyncTaskCreateRequest(binding_id=binding.id)))
-                pending_count = session.query(TransferTask).filter(TransferTask.status == "pending").count()
-                print(f"Worker 自动扫描 [{binding.name}] 完成，待处理任务: {pending_count}", flush=True)
-            except Exception as exc:
-                print(f"Worker 自动扫描 [{binding.name}] 失败: {exc}", flush=True)
-
-    def _auto_sync_watchlists(self, session: Session) -> None:
-        import asyncio
-
-        interval = load_watchlist_sync_interval(session)
-        now = time.time()
-        for provider_id in watchlist_provider_registry.snapshot():
-            last = self._last_watchlist_sync_times.get(provider_id, 0)
-            if now - last < interval:
-                continue
-            self._last_watchlist_sync_times[provider_id] = now
-            try:
-                from sundarr.app.services.watchlist_service import watchlist_service
-
-                result = asyncio.run(watchlist_service.sync(session, provider_id))
-                print(
-                    f"Worker 想看同步 [{provider_id}] 完成，新增或刷新 {result.pulled_count} 项。",
-                    flush=True,
-                )
-            except Exception as exc:
-                print(f"Worker 想看同步 [{provider_id}] 失败: {exc}", flush=True)
-
-
-def load_worker_settings(session: Session) -> WorkerSettings:
-    enabled = _read_bool_setting(session, WORKER_ENABLED_KEY, DEFAULT_WORKER_ENABLED, "enabled")
-    concurrency = _read_int_setting(session, WORKER_CONCURRENCY_KEY, DEFAULT_WORKER_CONCURRENCY, "value")
-    return WorkerSettings(enabled=enabled, concurrency=max(1, concurrency))
-
-
-def load_watchlist_sync_interval(session: Session) -> int:
-    value = _read_int_setting(
-        session,
-        WATCHLIST_SYNC_INTERVAL_KEY,
-        DEFAULT_WATCHLIST_SYNC_INTERVAL_SECONDS,
-        "value",
-    )
-    return max(60, value)
 
 
 def claim_pending_tasks(session: Session, settings: WorkerSettings) -> list[TransferTask]:
@@ -309,24 +159,6 @@ def recover_running_tasks(session: Session) -> int:
         )
     session.commit()
     return len(tasks)
-
-
-def load_local_runtime_config(session: Session) -> LocalRuntimeConfig | None:
-    cloud_setting = session.get(Setting, LOCAL_CLOUD_KEY)
-    storage_setting = session.get(Setting, LOCAL_STORAGE_KEY)
-    if cloud_setting is None or storage_setting is None:
-        return None
-
-    staging_root = cloud_setting.value_json.get("staging_root")
-    share_root = cloud_setting.value_json.get("share_root")
-    storage_root = storage_setting.value_json.get("root")
-    if not all(isinstance(item, str) and item for item in (staging_root, share_root, storage_root)):
-        return None
-
-    return LocalRuntimeConfig(
-        cloud_provider=LocalCloudProvider(staging_root=Path(staging_root), share_root=Path(share_root)),
-        storage_writer=LocalWriter(Path(storage_root)),
-    )
 
 
 async def process_claimed_tasks(
@@ -901,20 +733,7 @@ def _add_log(
     )
 
 
-def _read_bool_setting(session: Session, key: str, default: bool, field: str) -> bool:
-    setting = session.get(Setting, key)
-    if setting is None:
-        return default
-    value = setting.value_json.get(field)
-    return value if isinstance(value, bool) else default
-
-
-def _read_int_setting(session: Session, key: str, default: int, field: str) -> int:
-    setting = session.get(Setting, key)
-    if setting is None:
-        return default
-    value = setting.value_json.get(field)
-    return value if isinstance(value, int) else default
+from sundarr.app.worker_runtime import WorkerRuntime  # noqa: E402
 
 
 def main() -> None:

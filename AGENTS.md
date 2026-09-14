@@ -167,8 +167,8 @@ Web Console 是核心控制台，不做完整本地媒体库 UI。
 同步绑定连接：远程媒体库（来源） -> 本地媒体库（目标）。
 Phase 9 模块重构已完成：已删除 Ingest 模块和旧 storage_config_service，新增远程媒体库模型并统一同步绑定。
 Phase 9.5 收藏模型重构已完成：搜索默认不入库，资源和资源链接仅在用户主动收藏时持久化。
-Phase 10.0 质量基线收口、Phase 10.1 通用插件宿主、Phase 10.2 媒体发现 Core 结构性收口和 Phase 10.3 真实插件均已完成。Plugin API v2 已于 2026-08-31 冻结；Core 当前规范锁定 `sundarr-sources@a10b902` 与 `sundarr-plugin@e5b5a4b`，TMDb、SeedHub、豆瓣目录和豆瓣想看真实纵向切片均已通过。当前优先任务是 Phase 10.4 发布前可靠性收口；冻结后兼容性修改必须保持向后兼容，破坏性变更需要新的协议版本。
-Phase 10.4 的前端组件测试基线与发现页职责拆分独立交付单元已完成；下一独立代码单元是评估并拆分 `worker.py`、插件加载器和后端编排服务中的高风险职责，仍不得借重构追加产品功能。
+Phase 10.0 至 Phase 10.4 均已完成。Plugin API v2 已于 2026-08-31 冻结；Core 当前远程规范锁定 `sundarr-sources@a10b902` 与 `sundarr-plugin@e5b5a4b`，豆瓣稳定性加固本地候选为 `sundarr-plugin@94be9a8`，待 push 后前移正式锁定。冻结后兼容性修改必须保持向后兼容，破坏性变更需要新的协议版本。
+Phase 10.4 已完成前后端职责拆分、发现页请求竞态修复、受控 HTTP 短暂错误重试和豆瓣真实目录加固。真实 Docker Compose 不作为本阶段停止条件；下一发布门是用户授权目录下的真实 SMB 全链路验收，通过后进入 Phase 11。
 豆瓣目录关键词搜索使用移动端 `rexxar/api/v2/search` 的真实 `subjects.items` 响应，并在插件内排除图书、人物等非影视类型；不得回退到已出现 HTTP 200 空数组的 `/j/subject_suggest`。
 正式插件的 API key、Token、Cookie 等运行时配置由 Web Console / Core 配置 API 写入 PluginConfig，并以 PostgreSQL 为事实来源；宿主进程环境变量不作为正式插件业务配置入口。外部插件仓库的隔离实时测试可从当前测试进程环境变量临时读取凭据。
 PluginConfig 中由 Manifest 标记为 secret/password 的敏感字段必须在真实凭据人工验收前完成静态加密；加密主密钥属于数据库外的部署级 Secret，不得与密文保存在同一数据库。

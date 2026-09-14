@@ -2,6 +2,7 @@
 
 import asyncio
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 import pytest
 
@@ -63,3 +64,19 @@ def test_plugin_http_text_keeps_protocol_and_size_guards() -> None:
     ):
         with pytest.raises(ValueError, match="响应超过大小限制"):
             asyncio.run(client.get_text("https://example.com/page"))
+
+
+def test_plugin_http_retries_transient_status_once() -> None:
+    attempts = 0
+
+    def fake_urlopen(request, timeout):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise HTTPError(request.full_url, 429, "limited", {"Retry-After": "0"}, None)
+        return FakeResponse(b'{"ok": true}')
+
+    client = PluginHttpClient(plugin_id="fixture", max_attempts=2, retry_base_seconds=0)
+    with patch("sundarr.app.plugins.http.urlopen", fake_urlopen):
+        assert asyncio.run(client.get_json("https://example.com/data")) == {"ok": True}
+    assert attempts == 2

@@ -204,15 +204,15 @@ Sundarr 采用暖色操作台风格设计：
 
 **Phase 10.0 已完成**：默认 pytest、Alembic 迁移链、Windows 真实服务 PID 语义和 SMB 错误码均已收口。
 
-**Phase 10 进行中**：通用 Manifest v2、类型专用 Activation/Registry、候选健康检查、仓库级原子切换和启动恢复已经完成。媒体发现 Core 的数据、编排、API、Web Console 与契约测试工具也已完成结构性收口，真实 Provider 开发已完成；当前进入 Phase 10.4 发布前可靠性收口和持续回归阶段。
+**Phase 10 已完成**：通用 Manifest v2、类型专用 Activation/Registry、候选健康检查、仓库级原子切换和启动恢复已经完成。媒体发现 Core、真实 Provider 与 Phase 10.4 发布前可靠性收口均已通过代码侧验收。
 
 **Phase 10.2 已完成结构性验收**：Core 已实现媒体身份、外部 ID、最小快照、目录缓存与降级、想看游标、Discover API 和 Web Console；用户界面没有伪造目录或海报数据。Phase 10.3 的 TMDb、SeedHub、豆瓣目录和豆瓣想看真实纵向切片均已通过，Plugin API v2 保持冻结。Core 当前规范锁定 `sundarr-sources@a10b902` 与 `sundarr-plugin@e5b5a4b`；真实 API、持久游标、启动恢复、插件独立启停和 Web Console 验收均已通过。媒体发现 MVP 不做本地媒体库播放、观影进度或完整媒体管理 UI。
 
-**Phase 10.4 正在收口**：前端已建立 Vitest + Testing Library 组件测试入口，发现页查询模型、筛选面板和结果展示已完成职责拆分；新版 Windows 缺少 WMIC 时的后台启动、状态检查和停止兼容性已修复。剩余发布门主要是后端热点职责拆分、真实 Docker Compose 和授权 SMB 目录验收。
+**Phase 10.4 已完成**：前端已建立 Vitest + Testing Library 组件测试入口，发现页查询模型、筛选面板和结果展示已完成职责拆分；后端已分离 Worker 运行/配置、插件仓库/Manifest/运行时加载以及媒体查询/身份持久化职责；新版 Windows 后台进程兼容性和发现页筛选请求竞态已修复。真实 Docker Compose 按当前范围不做，授权 SMB 目录验收继续作为独立发布门。
 
 Phase 10.3 的运行配置入口已完成：`/app/plugins` 管理可信仓库、锁定 commit、插件启停、配置和诊断；secret/password 配置使用数据库外主密钥静态加密。Web Console 会按 Core 返回的真实配置缺口给出非阻断引导，本地 CLI 启动后会打印可访问的 Web Console 地址。
 
-**Phase 10.4 进行中**：数据库迁移与 ORM 已重新对齐，真实 PostgreSQL 空库迁移、外键和任务原子认领已有显式测试；Docker 默认只暴露本机 Web 入口；SMB 密码与任务快照使用数据库外主密钥加密；同步重试、同路径文件替换、真实并发执行、进度写库节流和独立清理重试均已收口。当前剩余发布门是大文件结构拆分、真实 Docker Compose 启动和用户授权目录下的真实 SMB 全链路验收。
+**当前下一步**：数据库迁移、密钥安全、同步重试、并发执行、进度节流、职责拆分和目录稳定性均已收口。待用户提供可安全操作的 SMB 来源与目标目录完成真实发布门后，进入 Phase 11 AI Tool API。
 
 项目官方维护的真实插件不放在本仓库。[`sundarr-sources`](https://github.com/A0CBEB339CB02898/sundarr-sources) 保留为敏感资源搜索 SOURCE 仓库；[`sundarr-plugin`](https://github.com/A0CBEB339CB02898/sundarr-plugin) 维护 TMDb、豆瓣目录、豆瓣想看等其他官方插件。Sundarr Core 继续保留稳定插件合同、运行时、配置与诊断能力、离线测试替身和契约测试，并支持用户配置多个可信插件仓库。
 

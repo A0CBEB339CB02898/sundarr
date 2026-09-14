@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from dataclasses import dataclass
 from typing import Any
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
@@ -17,6 +19,8 @@ class PluginHttpClient:
     plugin_id: str
     timeout_seconds: float = 15.0
     max_response_bytes: int = 4 * 1024 * 1024
+    max_attempts: int = 2
+    retry_base_seconds: float = 0.2
 
     async def get_json(
         self,
@@ -70,11 +74,34 @@ class PluginHttpClient:
                 **headers,
             },
         )
-        with urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310
-            payload = response.read(self.max_response_bytes + 1)
+        attempts = max(1, self.max_attempts)
+        for attempt in range(attempts):
+            try:
+                with urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310
+                    payload = response.read(self.max_response_bytes + 1)
+                break
+            except HTTPError as exc:
+                if exc.code not in {408, 429, 500, 502, 503, 504} or attempt + 1 >= attempts:
+                    raise
+                retry_after = exc.headers.get("Retry-After") if exc.headers else None
+                delay = _retry_delay(retry_after, self.retry_base_seconds, attempt)
+                time.sleep(delay)
+            except (URLError, TimeoutError):
+                if attempt + 1 >= attempts:
+                    raise
+                time.sleep(min(2.0, self.retry_base_seconds * (2**attempt)))
         if len(payload) > self.max_response_bytes:
             raise ValueError("插件 HTTP 响应超过大小限制")
         return payload
+
+
+def _retry_delay(retry_after: str | None, base_seconds: float, attempt: int) -> float:
+    if retry_after:
+        try:
+            return min(2.0, max(0.0, float(retry_after)))
+        except ValueError:
+            pass
+    return min(2.0, max(0.0, base_seconds) * (2**attempt))
 
 
 class PluginHttpClientFactory:

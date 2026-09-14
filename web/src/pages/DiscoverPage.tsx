@@ -135,7 +135,8 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
   }, [activeHomeTab, activeProvider, detail, isLoading, results, sections])
 
   async function loadPage(forceRefresh = false) {
-    pageGeneration.current += 1
+    const generation = pageGeneration.current + 1
+    pageGeneration.current = generation
     attemptedYearKeys.current.clear()
     attemptedPosterKeys.current.clear()
     setHydratingYearKeys(new Set())
@@ -153,6 +154,7 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
     }
     try {
       const providerItems = await api.get<CatalogProvider[]>('/discover/providers')
+      if (generation !== pageGeneration.current) return
       setProviders(providerItems)
       const selectedProvider = providerItems.find((provider) => provider.id === filters.provider_id) || providerItems[0]
       const providerId = selectedProvider?.id
@@ -169,7 +171,9 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
         if (detailProviderId) params.set('provider_id', detailProviderId)
         if (forceRefresh) params.set('refresh', 'true')
         const suffix = params.size ? `?${params.toString()}` : ''
-        setDetail(await api.get<MediaSubjectDetail>(`/discover/${encodeURIComponent(detailId)}${suffix}`))
+        const nextDetail = await api.get<MediaSubjectDetail>(`/discover/${encodeURIComponent(detailId)}${suffix}`)
+        if (generation !== pageGeneration.current) return
+        setDetail(nextDetail)
         setResults(null)
         setSections([])
         return
@@ -189,11 +193,15 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
       }
       if (filters.q.trim()) {
         const params = apiQueryParams(forceRefresh, filters, providerId)
-        setResults(await api.get<DiscoverPageResponse>(`/discover/search?${params.toString()}`))
+        const nextResults = await api.get<DiscoverPageResponse>(`/discover/search?${params.toString()}`)
+        if (generation !== pageGeneration.current) return
+        setResults(nextResults)
         setSections([])
       } else if (hasExploreCriteria) {
         const params = apiQueryParams(forceRefresh, filters, providerId, selectedCategoryGenre?.value)
-        setResults(await api.get<DiscoverPageResponse>(`/discover/categories?${params.toString()}`))
+        const nextResults = await api.get<DiscoverPageResponse>(`/discover/categories?${params.toString()}`)
+        if (generation !== pageGeneration.current) return
+        setResults(nextResults)
         setSections([])
       } else {
         setResults(null)
@@ -201,9 +209,10 @@ export default function DiscoverPage({ showToast }: { showToast: (type: 'success
         await loadHomeSection(activeHomeTab, forceRefresh, providerId)
       }
     } catch (exc) {
+      if (generation !== pageGeneration.current) return
       setError(exc instanceof Error ? exc.message : '无法加载媒体发现内容。')
     } finally {
-      setIsLoading(false)
+      if (generation === pageGeneration.current) setIsLoading(false)
     }
   }
 
