@@ -206,13 +206,13 @@ Sundarr 采用暖色操作台风格设计：
 
 **Phase 10 已完成**：通用 Manifest v2、类型专用 Activation/Registry、候选健康检查、仓库级原子切换和启动恢复已经完成。媒体发现 Core、真实 Provider 与 Phase 10.4 发布前可靠性收口均已通过代码侧验收。
 
-**Phase 10.2 已完成结构性验收**：Core 已实现媒体身份、外部 ID、最小快照、目录缓存与降级、想看游标、Discover API 和 Web Console；用户界面没有伪造目录或海报数据。Phase 10.3 的 TMDb、SeedHub、豆瓣目录和豆瓣想看真实纵向切片均已通过，Plugin API v2 保持冻结。Core 当前规范锁定 `sundarr-sources@a10b902` 与 `sundarr-plugin@e5b5a4b`；真实 API、持久游标、启动恢复、插件独立启停和 Web Console 验收均已通过。媒体发现 MVP 不做本地媒体库播放、观影进度或完整媒体管理 UI。
+**Phase 10.2 已完成结构性验收**：Core 已实现媒体身份、外部 ID、最小快照、目录缓存与降级、想看游标、Discover API 和 Web Console；用户界面没有伪造目录或海报数据。Phase 10.3 的 TMDb、SeedHub、豆瓣目录和豆瓣想看真实纵向切片均已通过，Plugin API v2 保持冻结。Core 当前规范锁定 `sundarr-sources@7728684` 与 `sundarr-plugin@94be9a8`；真实 API、持久游标、启动恢复、插件独立启停和 Web Console 验收均已通过。媒体发现 MVP 不做本地媒体库播放、观影进度或完整媒体管理 UI。
 
 **Phase 10.4 已完成**：前端已建立 Vitest + Testing Library 组件测试入口，发现页查询模型、筛选面板和结果展示已完成职责拆分；后端已分离 Worker 运行/配置、插件仓库/Manifest/运行时加载以及媒体查询/身份持久化职责；新版 Windows 后台进程兼容性和发现页筛选请求竞态已修复。真实 Docker Compose 按当前范围不做，授权 SMB 目录验收继续作为独立发布门。
 
 Phase 10.3 的运行配置入口已完成：`/app/plugins` 管理可信仓库、锁定 commit、插件启停、配置和诊断；secret/password 配置使用数据库外主密钥静态加密。Web Console 会按 Core 返回的真实配置缺口给出非阻断引导，本地 CLI 启动后会打印可访问的 Web Console 地址。
 
-**当前下一步**：数据库迁移、密钥安全、同步重试、并发执行、进度节流、职责拆分和目录稳定性均已收口。待用户提供可安全操作的 SMB 来源与目标目录完成真实发布门后，进入 Phase 11 AI Tool API。
+**当前下一步**：先执行 Phase 10.5 MVP 可用性与发布闭环，不进入 Phase 11。优先完成授权 SMB 目录的真实全链路验收，修正配置就绪状态、插件更新语义与诊断入口，并补齐任务进度和发布运维可观测性。
 
 项目官方维护的真实插件不放在本仓库。[`sundarr-sources`](https://github.com/A0CBEB339CB02898/sundarr-sources) 保留为敏感资源搜索 SOURCE 仓库；[`sundarr-plugin`](https://github.com/A0CBEB339CB02898/sundarr-plugin) 维护 TMDb、豆瓣目录、豆瓣想看等其他官方插件。Sundarr Core 继续保留稳定插件合同、运行时、配置与诊断能力、离线测试替身和契约测试，并支持用户配置多个可信插件仓库。
 
@@ -230,7 +230,7 @@ MVP 筛选范围收口为媒体类型、题材、地区、年份范围和热度/
 
 插件类型围绕稳定能力合同划分，而不是一条所有任务都必须经过的流水线。当前 MVP 的顶层类型是 `SOURCE`、`CATALOG_PROVIDER` 和 `WATCHLIST_PROVIDER`；未来搬运统一扩展点命名为 `TRANSFER_DRIVER`，当前 SMB 同步仍是 Core 内置实现。通用 Manifest v2 允许同一仓库声明多个独立插件，但不包含分页 UI、调度游标或任务状态。
 
-**Phase 11 未开始**：稳定 AI Tool API 完成后，可提供可选 Cordis / DeepSeek Harness 桥接插件。Sundarr Core 保持 Python + FastAPI，不改为 Cordis/Node.js 运行时。
+**Phase 11 已延后**：当前优先完成 Phase 10.5；未来稳定 AI Tool API 后，可提供可选 Cordis / DeepSeek Harness 桥接插件。Sundarr Core 保持 Python + FastAPI，不改为 Cordis/Node.js 运行时。
 
 ## 不做的事情
 
