@@ -79,10 +79,129 @@ def test_readiness_advances_sync_setup_and_changes_fingerprint(db_session, monke
     assert first["fingerprint"] != second["fingerprint"]
 
     db_session.add(MediaLibrary(id="local", name="电影", media_type="movie", connection_id="smb", base_path="Movies"))
-    db_session.add(RemoteMediaLibrary(id="remote", name="远程", media_type="movie", connection_id="smb", base_path="Incoming"))
+    db_session.add(RemoteMediaLibrary(
+        id="remote",
+        name="远程",
+        media_type="movie",
+        connection_id="smb",
+        base_path="Incoming",
+        target_library_id="local",
+    ))
     db_session.flush()
     db_session.add(SyncBinding(id="binding", name="同步", media_type="movie", remote_library_id="remote", local_library_id="local"))
     db_session.commit()
 
     final = client.get("/configuration/readiness").json()
     assert final == {"ready": True, "fingerprint": "ready", "issues": []}
+
+
+def test_readiness_keeps_valid_chain_ready_and_reports_unused_configuration_warnings(
+    db_session, monkeypatch
+) -> None:
+    configured_catalog = [{
+        "id": "catalog",
+        "name": "目录",
+        "plugin_type": "catalog_provider",
+        "enabled": True,
+        "configuration_required": False,
+        "missing_required_config": [],
+    }]
+    client = make_client(db_session, monkeypatch, configured_catalog)
+
+    db_session.add_all([
+        SmbConnection(id="source", name="来源", host="source", port=445, share="media", username="user", base_path="/"),
+        SmbConnection(id="target", name="目标", host="target", port=445, share="media", username="user", base_path="/"),
+        SmbConnection(
+            id="unused",
+            name="未使用连接",
+            host="unused",
+            port=445,
+            share="media",
+            username="user",
+            base_path="/",
+            last_test_ok=False,
+        ),
+        MediaLibrary(id="local", name="电影", media_type="movie", connection_id="target", base_path="Movies"),
+        RemoteMediaLibrary(
+            id="remote",
+            name="远程电影",
+            media_type="movie",
+            connection_id="source",
+            base_path="Incoming",
+            target_library_id="local",
+        ),
+        RemoteMediaLibrary(
+            id="unbound",
+            name="待绑定目录",
+            media_type="series",
+            connection_id="source",
+            base_path="Series",
+        ),
+    ])
+    db_session.flush()
+    db_session.add(SyncBinding(
+        id="binding",
+        name="电影同步",
+        media_type="movie",
+        remote_library_id="remote",
+        local_library_id="local",
+    ))
+    db_session.commit()
+
+    body = client.get("/configuration/readiness").json()
+
+    assert body["ready"] is True
+    assert body["fingerprint"] != "ready"
+    assert {item["id"] for item in body["issues"]} == {
+        "remote-library-unbound:unbound",
+        "smb-connection-test-failed:unused",
+    }
+    assert {item["severity"] for item in body["issues"]} == {"recommended"}
+
+
+def test_readiness_blocks_when_no_sync_binding_is_executable(db_session, monkeypatch) -> None:
+    configured_catalog = [{
+        "id": "catalog",
+        "name": "目录",
+        "plugin_type": "catalog_provider",
+        "enabled": True,
+        "configuration_required": False,
+        "missing_required_config": [],
+    }]
+    client = make_client(db_session, monkeypatch, configured_catalog)
+
+    db_session.add(SmbConnection(
+        id="smb",
+        name="失效连接",
+        host="nas",
+        port=445,
+        share="media",
+        username="user",
+        base_path="/",
+        last_test_ok=False,
+    ))
+    db_session.add(MediaLibrary(id="local", name="电影", media_type="movie", connection_id="smb", base_path="Movies"))
+    db_session.add(RemoteMediaLibrary(
+        id="remote",
+        name="远程",
+        media_type="movie",
+        connection_id="smb",
+        base_path="Incoming",
+        target_library_id="local",
+    ))
+    db_session.flush()
+    db_session.add(SyncBinding(
+        id="binding",
+        name="同步",
+        media_type="movie",
+        remote_library_id="remote",
+        local_library_id="local",
+    ))
+    db_session.commit()
+
+    body = client.get("/configuration/readiness").json()
+
+    assert body["ready"] is False
+    assert body["issues"][0]["id"] == "sync-chain-unavailable"
+    assert body["issues"][0]["severity"] == "required"
+    assert "sync-binding-unavailable:binding" in {item["id"] for item in body["issues"]}

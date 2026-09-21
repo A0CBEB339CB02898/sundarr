@@ -26,7 +26,7 @@ export function ConfigurationGuide({ onNavigate }: { onNavigate: (path: string) 
     }
   }
 
-  if (!readiness || readiness.ready || readiness.issues.length === 0) return null
+  if (!readiness || readiness.issues.length === 0) return null
   if (window.localStorage.getItem(DISMISSED_KEY) === readiness.fingerprint) return null
   if (hiddenFingerprint === readiness.fingerprint) return null
 
@@ -41,7 +41,7 @@ export function ConfigurationGuide({ onNavigate }: { onNavigate: (path: string) 
     <section className="configuration-guide" aria-labelledby="configuration-guide-title">
       <div className="configuration-guide-mark" aria-hidden="true">{readiness.issues.length}</div>
       <div className="configuration-guide-copy">
-        <span className="ui-eyebrow">配置提示</span>
+        <span className="ui-eyebrow">{readiness.ready ? '配置提醒' : '配置提示'}</span>
         <h2 id="configuration-guide-title">{primary.title}</h2>
         <p>{primary.message}</p>
         {remaining.length > 0 ? (
