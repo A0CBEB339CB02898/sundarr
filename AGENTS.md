@@ -113,7 +113,7 @@ SMB 配置修改会中断使用旧 SMB 配置的运行中任务。
 被中断任务保留 .downloading 文件和 cloud staging。
 真实网盘直接下载不包含在 MVP 中，仅作为后续高级功能实现，CloudProvider 保留为可选扩展和测试抽象。
 Phase 8 “下载到本地”是历史阶段命名；当前规范命名统一为“远程媒体库同步到本地媒体库”。
-未来“分享链接保存到网盘”模块命名为“保存到网盘”。
+“分享链接保存到网盘”模块命名为“保存到网盘”，已排入 Phase 10.6；用户仍可保留手动保存作为回退。
 SMB 存储模块必须支持多个 SMB 连接，远程媒体库和本地媒体库只能引用已配置 SMB 连接和目录，不重复填写 SMB 凭据。
 本地媒体库指本地 NAS 媒体目录类型，例如 movie / series / unclassified。
 本地媒体库管理模块负责创建本地媒体库，并绑定到某个 SMB 连接下的本地目录。
@@ -179,10 +179,10 @@ CATALOG_PROVIDER 的筛选和排序能力必须按 CatalogOperation 声明；全
 Sundarr Core 继续使用 Python + FastAPI，不引入 Cordis 或 Node.js 作为后端运行时。
 Python 插件系统采用 Cordis 启发的生命周期语义：显式能力依赖、Activation、可逆清理、候选加载、健康检查、原子切换和失败回滚。
 该设计只借鉴 Cordis 的组合思想，不依赖 Cordis 包，不把持久任务状态、数据库事务或 SMB Worker 交给插件运行时。
-顶层插件类型按稳定业务合同划分，不按任务阶段划分；当前 MVP 类型为 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER，后续保留 TRANSFER_DRIVER、NOTIFICATION。
+顶层插件类型按稳定业务合同划分，不按任务阶段划分；当前 MVP 类型为 SOURCE、CATALOG_PROVIDER、WATCHLIST_PROVIDER。Phase 10.6 新增 CLOUD_SAVE_PROVIDER，Phase 10.7 新增 TRANSFER_DRIVER；NOTIFICATION 继续保留为未排期扩展。
 CloudProvider 是后续搬运驱动可能使用的连接能力或测试抽象，不再作为通用 v2 顶层 PluginType。CRAWLER、LINK_VALIDATOR、LINK_EXTRACTOR、TASK_PROCESSOR 也不作为顶层 PluginType。
 发现、想看、资源搜索和搬运是独立业务流，不要求每个任务流过所有插件类型；只有明确的传输意图才创建 TransferTask。
-当前 SMB 同步状态机和 SmbWriter 是 Core 内置实现；未来可先实现 TRANSFER_DRIVER 协议的内置 SMB 驱动，再接入 qBittorrent 等外部驱动，但 BT/磁力仍不进入 MVP。
+当前 SMB 同步状态机和 SmbWriter 是 Core 内置实现；Phase 10.7 先让内置 SMB 驱动实现 TRANSFER_DRIVER 合同，再于 Phase 10.8 接入网盘直链、Phase 10.9 接入 qBittorrent。BT/磁力仍不进入 MVP 发布门，但已进入 MVP 发布后的近期路线。
 Manifest 只声明静态身份、入口、协议版本、配置 schema 和 requires/provides，不保存 UI 分页、调度游标、任务状态或敏感配置值。
 Phase 11 AI Friendly API 完成后，可以提供可选的 Cordis / DeepSeek Harness 桥接插件；桥接插件只调用 Sundarr API，不直接访问数据库、SMB 或 Worker 内部对象。
 前端设计系统基线文档位于 docs/11-前端设计系统.md，在 Phase 7.8 Web Console UI Polish 中落地。
@@ -258,7 +258,7 @@ Playwright 重型抓取
 OpenList 作为核心搬运层
 rclone 作为 MVP 核心传输层
 国内封闭网盘直接下载作为 MVP 核心搬运层
-将网盘直链下载（Cloud Direct Download）纳入 MVP 或近期主线
+将网盘直链下载（Cloud Direct Download）纳入 MVP 发布门
 真实媒体源通用爬虫框架
 通过 Web Console 配置复杂网站爬虫
 在配置或数据库中保存可执行 Python 代码
@@ -289,10 +289,14 @@ Phase 9.5: Resource Favorites Refactoring
 Phase 10.0: Quality Baseline Closure
 Phase 10: Plugin Framework And External Plugins
 Phase 10.5: MVP Usability And Release Closure
+Phase 10.6: Acquisition And Save To Cloud
+Phase 10.7: Transfer Driver And SMB Adaptation
+Phase 10.8: Cloud Direct Download
+Phase 10.9: qBittorrent Download
 Phase 11: AI Friendly API
 ```
 
-Phase 12 Cloud Direct Download 不包含在 MVP 中，仅作为后续高级功能保留规格文档；Alist、真实网盘 Provider 和直链下载均不是当前或近期主线。
+Phase 10.6 至 10.9 属于 MVP 发布后的近期获取能力扩展，不阻塞 Phase 10.5 的 MVP 发布门。Alist、rclone 和绕过平台限制仍不进入近期主线。
 
 不得提前实现后续阶段的大型功能，除非当前阶段验收需要或用户明确要求。
 

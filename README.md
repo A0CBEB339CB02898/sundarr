@@ -212,7 +212,7 @@ Sundarr 采用暖色操作台风格设计：
 
 Phase 10.3 的运行配置入口已完成：`/app/plugins` 管理可信仓库、锁定 commit、插件启停、配置和诊断；secret/password 配置使用数据库外主密钥静态加密。Web Console 会按 Core 返回的真实配置缺口给出非阻断引导，本地 CLI 启动后会打印可访问的 Web Console 地址。
 
-**当前下一步**：先执行 Phase 10.5 MVP 可用性与发布闭环，不进入 Phase 11。优先完成授权 SMB 目录的真实全链路验收，修正配置就绪状态、插件更新语义与诊断入口，并补齐任务进度和发布运维可观测性。
+**当前下一步**：先执行 Phase 10.5 MVP 可用性与发布闭环，不进入 Phase 11。Phase 10.5 只修正配置就绪、插件运维语义并完成授权 SMB 目录的真实全链路验收；随后按 Phase 10.6—10.9 依次实现保存到网盘、统一传输驱动、网盘直链和 qBittorrent。
 
 项目官方维护的真实插件不放在本仓库。[`sundarr-sources`](https://github.com/A0CBEB339CB02898/sundarr-sources) 保留为敏感资源搜索 SOURCE 仓库；[`sundarr-plugin`](https://github.com/A0CBEB339CB02898/sundarr-plugin) 维护 TMDb、豆瓣目录、豆瓣想看等其他官方插件。Sundarr Core 继续保留稳定插件合同、运行时、配置与诊断能力、离线测试替身和契约测试，并支持用户配置多个可信插件仓库。
 
@@ -228,9 +228,9 @@ MVP 筛选范围收口为媒体类型、题材、地区、年份范围和热度/
 
 题材与地区在 MVP 界面均为单选；Core 查询对象预留列表结构，但当前多个值会返回明确参数错误，不会静默忽略。
 
-插件类型围绕稳定能力合同划分，而不是一条所有任务都必须经过的流水线。当前 MVP 的顶层类型是 `SOURCE`、`CATALOG_PROVIDER` 和 `WATCHLIST_PROVIDER`；未来搬运统一扩展点命名为 `TRANSFER_DRIVER`，当前 SMB 同步仍是 Core 内置实现。通用 Manifest v2 允许同一仓库声明多个独立插件，但不包含分页 UI、调度游标或任务状态。
+插件类型围绕稳定能力合同划分，而不是一条所有任务都必须经过的流水线。当前 MVP 的顶层类型是 `SOURCE`、`CATALOG_PROVIDER` 和 `WATCHLIST_PROVIDER`；Phase 10.6 增加服务端保存职责明确的 `CLOUD_SAVE_PROVIDER`，Phase 10.7 增加统一搬运扩展点 `TRANSFER_DRIVER`。当前 SMB 同步仍是 Core 内置实现，之后先适配统一合同，再接入网盘直链和 qBittorrent。通用 Manifest v2 允许同一仓库声明多个独立插件，但不包含分页 UI、调度游标或任务状态。
 
-**Phase 11 已延后**：当前优先完成 Phase 10.5；未来稳定 AI Tool API 后，可提供可选 Cordis / DeepSeek Harness 桥接插件。Sundarr Core 保持 Python + FastAPI，不改为 Cordis/Node.js 运行时。
+**Phase 11 已延后**：当前优先完成 Phase 10.5—10.9；未来稳定 AI Tool API 后，可提供可选 Cordis / DeepSeek Harness 桥接插件。Sundarr Core 保持 Python + FastAPI，不改为 Cordis/Node.js 运行时。
 
 ## 不做的事情
 
