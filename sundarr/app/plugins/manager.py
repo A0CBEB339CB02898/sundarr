@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ from .config import (
     redact_plugin_error,
     validate_plugin_config,
 )
+from .contracts import PluginHealthResult
 from .coordinator import RepositoryActivationCoordinator, RepositoryActivationError, repository_activation_coordinator
 from .loader import PluginLoader, plugin_loader, validate_repository_url
 from .registry import plugin_registry
@@ -53,6 +55,15 @@ class ManagedRepositoryResult:
     repository_id: str
     commit_hash: str
     plugin_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RepositoryUpdateCheckResult:
+    repository_id: str
+    current_commit: str | None
+    latest_commit: str
+    update_available: bool
+    checked_at: datetime
 
 
 class PluginManager:
@@ -152,7 +163,6 @@ class PluginManager:
         repo_url: str,
         branch: str = "main",
         name: str | None = None,
-        auto_update: bool = False,
         configs: Mapping[str, Mapping[str, Any]] | None = None,
         disabled_plugin_ids: set[str] | None = None,
     ) -> ManagedRepositoryResult:
@@ -168,7 +178,7 @@ class PluginManager:
             name=name or self.loader.repository_path(repo_url).name,
             repo_url=repo_url,
             branch=branch,
-            auto_update=auto_update,
+            auto_update=False,
             enabled=True,
             status="pending",
         )
@@ -193,7 +203,7 @@ class PluginManager:
         self,
         session: Session,
         repo_id: str,
-        new_commit: str | None = None,
+        new_commit: str,
     ) -> ManagedRepositoryResult:
         repository = self._require_repository(session, repo_id)
         return await self._activate_repository(
@@ -203,6 +213,33 @@ class PluginManager:
             fetch=True,
             process_role=self.process_role,
             advance_commit=True,
+        )
+
+    def check_repository_update(
+        self,
+        session: Session,
+        repo_id: str,
+    ) -> RepositoryUpdateCheckResult:
+        """只比较远端分支与锁定 commit，不加载或切换候选代码。"""
+
+        repository = self._require_repository(session, repo_id)
+        checked_at = datetime.now(UTC)
+        try:
+            latest_commit = self.loader.check_remote_commit(repository.repo_url, repository.branch)
+        except Exception as exc:
+            repository.last_checked_at = checked_at
+            repository.last_error = str(exc)[:1000]
+            session.commit()
+            raise
+        repository.last_checked_at = checked_at
+        repository.last_error = None
+        session.commit()
+        return RepositoryUpdateCheckResult(
+            repository_id=repository.id,
+            current_commit=repository.current_commit,
+            latest_commit=latest_commit,
+            update_available=repository.current_commit != latest_commit,
+            checked_at=checked_at,
         )
 
     async def rollback_repository(self, session: Session, repo_id: str) -> ManagedRepositoryResult:
@@ -346,6 +383,53 @@ class PluginManager:
     def activation_diagnostic(self, plugin_id: str) -> dict[str, Any] | None:
         activation = self.coordinator.get(plugin_id)
         return self._activation_diagnostic(activation) if activation else None
+
+    async def test_plugin(self, session: Session, plugin_id: str) -> dict[str, Any]:
+        """显式执行当前 active 实例的可选健康检查，不改变运行状态。"""
+
+        config = self._require_plugin_config(session, plugin_id)
+        activation = self.coordinator.get(plugin_id)
+        if activation is None:
+            raise RuntimeError("插件当前未激活，无法运行健康检查")
+        config_values = self._decode_config(config.config_data)
+        checked_at = datetime.now(UTC)
+        health_check = getattr(activation.instance, "health_check", None)
+        if health_check is None:
+            result = PluginHealthResult(
+                ok=True,
+                message="Activation 运行正常；插件未声明额外健康检查。",
+            )
+        else:
+            try:
+                if not callable(health_check):
+                    raise TypeError("health_check 必须可调用")
+                result = health_check()
+                if inspect.isawaitable(result):
+                    result = await result
+                if not isinstance(result, PluginHealthResult):
+                    raise TypeError("health_check 必须返回 PluginHealthResult")
+            except Exception as exc:
+                return {
+                    "plugin_id": plugin_id,
+                    "ok": False,
+                    "message": redact_plugin_error(exc, activation.manifest.config_schema, config_values),
+                    "details": {},
+                    "checked_at": checked_at.isoformat(),
+                }
+
+        message = result.message or ("健康检查通过。" if result.ok else "插件健康检查失败。")
+        return {
+            "plugin_id": plugin_id,
+            "ok": result.ok,
+            "message": redact_plugin_error(message, activation.manifest.config_schema, config_values),
+            "details": {
+                str(key)[:100]: redact_plugin_error(
+                    str(value), activation.manifest.config_schema, config_values, max_length=500
+                )
+                for key, value in result.details.items()
+            },
+            "checked_at": checked_at.isoformat(),
+        }
 
     async def dispose_all(self) -> None:
         await self.coordinator.dispose_all()

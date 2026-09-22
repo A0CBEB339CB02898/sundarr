@@ -259,8 +259,16 @@ async def test_successful_update_rollback_and_delete_are_repository_scoped(db_se
     _git(["commit", "-m", "fixture v2"], origin)
     second_commit = _git(["rev-parse", "HEAD"], origin)
 
+    cache_path = manager.loader.repository_path(origin.as_posix())
+    checked = manager.check_repository_update(db_session, installed.repository_id)
+    db_session.refresh(repository := db_session.get(PluginRepository, installed.repository_id))
+    assert checked.current_commit == first_commit
+    assert checked.latest_commit == second_commit
+    assert checked.update_available is True
+    assert repository.current_commit == first_commit
+    assert _git(["rev-parse", "HEAD"], cache_path) == first_commit
+
     updated = await manager.update_repository(db_session, installed.repository_id, second_commit)
-    repository = db_session.get(PluginRepository, installed.repository_id)
     db_session.refresh(repository)
     assert updated.commit_hash == second_commit
     assert repository.current_commit == second_commit
@@ -272,7 +280,6 @@ async def test_successful_update_rollback_and_delete_are_repository_scoped(db_se
     assert repository.current_commit == first_commit
     assert repository.previous_commit == second_commit
 
-    cache_path = manager.loader.repository_path(origin.as_posix())
     await manager.remove_repository(db_session, installed.repository_id)
     assert db_session.get(PluginRepository, installed.repository_id) is None
     assert db_session.query(PluginConfig).count() == 0
@@ -304,6 +311,34 @@ async def test_plugin_api_returns_multi_plugin_results_and_diagnostics(
         payload = response.json()
         assert set(payload["plugin_ids"]) == {"fixture-source", "fixture-catalog", "fixture-watchlist"}
 
+        repositories = client.get("/plugins/repositories")
+        assert repositories.status_code == 200
+        assert "auto_update" not in repositories.json()[0]
+
+        manifest_file = origin / "sundarr_plugin.toml"
+        manifest_file.write_text(
+            manifest_file.read_text(encoding="utf-8").replace('version = "0.1.0"', 'version = "0.2.0"'),
+            encoding="utf-8",
+        )
+        _git(["add", "sundarr_plugin.toml"], origin)
+        _git(["commit", "-m", "fixture api v2"], origin)
+        latest_commit = _git(["rev-parse", "HEAD"], origin)
+
+        checked = client.post(f"/plugins/repositories/{payload['repository_id']}/check")
+        assert checked.status_code == 200
+        assert checked.json()["latest_commit"] == latest_commit
+        assert checked.json()["update_available"] is True
+        assert client.get("/plugins/repositories").json()[0]["current_commit"] == payload["commit"]
+
+        source_health = client.post("/plugins/plugins/fixture-source/test")
+        assert source_health.status_code == 200
+        assert source_health.json()["ok"] is True
+        assert "未声明额外健康检查" in source_health.json()["message"]
+
+        catalog_health = client.post("/plugins/plugins/fixture-catalog/test")
+        assert catalog_health.status_code == 200
+        assert catalog_health.json()["ok"] is True
+
         config_response = client.get("/plugins/plugins/fixture-catalog/config")
         assert config_response.status_code == 200
         assert config_response.json()["config_data"]["api_key"] == "***"
@@ -324,6 +359,9 @@ async def test_plugin_api_returns_multi_plugin_results_and_diagnostics(
         disable_response = client.post("/plugins/plugins/fixture-source/disable")
         assert disable_response.status_code == 200
         assert source_registry.get("fixture-source") is None
+
+        inactive_health = client.post("/plugins/plugins/fixture-source/test")
+        assert inactive_health.status_code == 409
 
 
 def test_worker_entry_restores_locked_watchlist_and_exits_cleanly(

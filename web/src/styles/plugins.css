@@ -64,6 +64,8 @@
 .plugin-row-title { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
 .plugin-row-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); }
 .plugin-inline-error { margin: var(--space-1) 0 0; color: var(--danger-text); font-size: 13px; line-height: 1.5; }
+.plugin-update-note { margin: var(--space-1) 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.plugin-update-note[data-update-available="true"] { color: var(--warning); }
 
 .plugin-runtime-layout { display: grid; grid-template-columns: minmax(220px, .72fr) minmax(0, 1.6fr); min-height: 430px; border: 1px solid var(--hairline); border-radius: var(--radius-xl); overflow: hidden; background: var(--surface-1); }
 .plugin-instance-list { display: grid; align-content: start; gap: 2px; border-right: 1px solid var(--hairline); background: var(--surface-2); padding: var(--space-2); }
@@ -90,6 +92,18 @@
 .plugin-toggle input { margin-top: 3px; accent-color: var(--accent); }
 .plugin-toggle span { display: grid; gap: 3px; }
 .plugin-toggle small { color: var(--text-subtle); font-size: 12px; line-height: 1.45; }
+.plugin-health-result { display: grid; gap: 6px; border: 1px solid color-mix(in srgb, var(--danger-text) 28%, var(--hairline)); border-radius: var(--radius-md); background: var(--danger-bg); padding: var(--space-3); }
+.plugin-health-result[data-ok="true"] { border-color: color-mix(in srgb, var(--success) 30%, var(--hairline)); background: color-mix(in srgb, var(--success) 8%, var(--surface-1)); }
+.plugin-health-result > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.plugin-health-result time { color: var(--text-subtle); font-family: var(--font-mono); font-size: 11px; }
+.plugin-health-result p { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.plugin-diagnostics { border-top: 1px solid var(--hairline); padding-top: var(--space-3); }
+.plugin-diagnostics summary { width: fit-content; color: var(--text-muted); cursor: pointer; font-size: 13px; font-weight: 650; }
+.plugin-diagnostics > p { margin: var(--space-3) 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.plugin-diagnostics dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-5); margin: var(--space-3) 0 0; }
+.plugin-diagnostics dl > div { display: grid; gap: 4px; min-width: 0; }
+.plugin-diagnostics dt { color: var(--text-subtle); font-size: 12px; }
+.plugin-diagnostics dd { min-width: 0; margin: 0; color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
 
 @media (max-width: 900px) {
   .configuration-guide { grid-template-columns: auto minmax(0, 1fr); }
@@ -110,6 +124,7 @@
   .plugin-config-pane { padding: var(--space-4); }
   .plugin-config-form { grid-template-columns: 1fr; }
   .plugin-config-form .plugin-form-actions { grid-column: auto; }
+  .plugin-diagnostics dl { grid-template-columns: 1fr; }
 }
 
 .tx-page {

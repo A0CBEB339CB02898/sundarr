@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
 import type {
+  PluginActivationDiagnostic,
   PluginConfigFieldSchema,
+  PluginHealthCheckResponse,
   PluginMutationResponse,
   PluginRepositoryResponse,
+  PluginRepositoryUpdateCheck,
   PluginResponse,
 } from '../types'
 import { Button, EmptyState, ErrorState, Field, LoadingState, StatusBadge } from '../ui'
@@ -47,9 +50,19 @@ function pluginTypeLabel(type: string) {
   return pluginTypeLabels[type] || type
 }
 
+function formatCheckedAt(value: string) {
+  return new Intl.DateTimeFormat('zh-CN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
+
 export default function PluginsPage({ showToast }: { showToast: (type: 'success' | 'error' | 'info', message: string) => void }) {
   const [repositories, setRepositories] = useState<PluginRepositoryResponse[]>([])
   const [plugins, setPlugins] = useState<PluginResponse[]>([])
+  const [activations, setActivations] = useState<PluginActivationDiagnostic[]>([])
+  const [repositoryChecks, setRepositoryChecks] = useState<Record<string, PluginRepositoryUpdateCheck>>({})
+  const [healthResults, setHealthResults] = useState<Record<string, PluginHealthCheckResponse>>({})
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({})
   const [showAdd, setShowAdd] = useState(false)
@@ -59,6 +72,10 @@ export default function PluginsPage({ showToast }: { showToast: (type: 'success'
   const [error, setError] = useState<string | null>(null)
 
   const selected = useMemo(() => plugins.find((item) => item.id === selectedId) || null, [plugins, selectedId])
+  const selectedActivation = useMemo(
+    () => activations.find((item) => item.plugin_id === selectedId) || null,
+    [activations, selectedId],
+  )
 
   useEffect(() => { void loadAll() }, [])
 
@@ -83,12 +100,14 @@ export default function PluginsPage({ showToast }: { showToast: (type: 'success'
     setIsLoading(true)
     setError(null)
     try {
-      const [nextRepositories, nextPlugins] = await Promise.all([
+      const [nextRepositories, nextPlugins, nextActivations] = await Promise.all([
         api.get<PluginRepositoryResponse[]>('/plugins/repositories'),
         api.get<PluginResponse[]>('/plugins/plugins'),
+        api.get<PluginActivationDiagnostic[]>('/plugins/activations'),
       ])
       setRepositories(nextRepositories)
       setPlugins(nextPlugins)
+      setActivations(nextActivations)
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : '无法读取插件状态。')
     } finally {
@@ -113,8 +132,10 @@ export default function PluginsPage({ showToast }: { showToast: (type: 'success'
       showToast('success', successMessage)
       await loadAll()
       window.dispatchEvent(new CustomEvent('sundarr:configuration-changed'))
+      return true
     } catch (exc) {
       showToast('error', exc instanceof Error ? exc.message : '操作失败。')
+      return false
     } finally {
       setBusyKey(null)
     }
@@ -141,6 +162,49 @@ export default function PluginsPage({ showToast }: { showToast: (type: 'success'
       else payload[fieldName] = value
     }
     await runMutation(`save:${selected.id}`, () => api.put(`/plugins/plugins/${encodeURIComponent(selected.id)}/config`, { config_data: payload }), '插件配置已保存。')
+  }
+
+  async function checkRepository(repository: PluginRepositoryResponse) {
+    const key = `check:${repository.id}`
+    setBusyKey(key)
+    try {
+      const result = await api.post<PluginRepositoryUpdateCheck>(`/plugins/repositories/${repository.id}/check`)
+      setRepositoryChecks((current) => ({ ...current, [repository.id]: result }))
+      showToast(result.update_available ? 'info' : 'success', result.update_available ? '发现新版本，请确认后应用。' : '当前已经是最新版本。')
+      await loadAll()
+    } catch (exc) {
+      showToast('error', exc instanceof Error ? exc.message : '检查更新失败。')
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
+  async function applyRepositoryUpdate(repository: PluginRepositoryResponse, check: PluginRepositoryUpdateCheck) {
+    const updated = await runMutation(
+      `update:${repository.id}`,
+      () => api.put(`/plugins/repositories/${repository.id}`, { new_commit: check.latest_commit }),
+      '候选版本校验通过，仓库已更新。',
+    )
+    if (!updated) return
+    setRepositoryChecks((current) => {
+      const next = { ...current }
+      delete next[repository.id]
+      return next
+    })
+  }
+
+  async function testPlugin(plugin: PluginResponse) {
+    const key = `test:${plugin.id}`
+    setBusyKey(key)
+    try {
+      const result = await api.post<PluginHealthCheckResponse>(`/plugins/plugins/${encodeURIComponent(plugin.id)}/test`)
+      setHealthResults((current) => ({ ...current, [plugin.id]: result }))
+      showToast(result.ok ? 'success' : 'error', result.message)
+    } catch (exc) {
+      showToast('error', exc instanceof Error ? exc.message : '健康检查失败。')
+    } finally {
+      setBusyKey(null)
+    }
   }
 
   if (isLoading && repositories.length === 0 && plugins.length === 0) return <LoadingState message="正在读取插件配置" />
@@ -171,9 +235,10 @@ export default function PluginsPage({ showToast }: { showToast: (type: 'success'
           <div className="plugin-repository-list">
             {repositories.map((repository) => (
               <article className="plugin-repository-row" key={repository.id}>
-                <div><div className="plugin-row-title"><strong>{repository.name}</strong><StatusBadge tone={statusTone(repository.status)}>{statusLabel(repository.status)}</StatusBadge></div><code>{repository.repo_url}</code><small>{repository.branch} · {repository.current_commit?.slice(0, 10) || '尚未锁定 commit'}</small>{repository.last_error ? <p className="plugin-inline-error">{repository.last_error}</p> : null}</div>
+                <div><div className="plugin-row-title"><strong>{repository.name}</strong><StatusBadge tone={statusTone(repository.status)}>{statusLabel(repository.status)}</StatusBadge></div><code>{repository.repo_url}</code><small>{repository.branch} · {repository.current_commit?.slice(0, 10) || '尚未锁定 commit'}</small>{repositoryChecks[repository.id] ? <p className="plugin-update-note" data-update-available={repositoryChecks[repository.id].update_available || undefined}>{repositoryChecks[repository.id].update_available ? `发现新版本 ${repositoryChecks[repository.id].latest_commit.slice(0, 10)}，应用前会先做候选校验。` : `已是最新版本 · ${formatCheckedAt(repositoryChecks[repository.id].checked_at)}`}</p> : null}{repository.last_error ? <p className="plugin-inline-error">{repository.last_error}</p> : null}</div>
                 <div className="plugin-row-actions">
-                  <Button size="sm" onClick={() => void runMutation(`update:${repository.id}`, () => api.put(`/plugins/repositories/${repository.id}`, {}), '仓库已更新。')} disabled={busyKey !== null}>检查更新</Button>
+                  <Button size="sm" onClick={() => void checkRepository(repository)} disabled={busyKey !== null}>{busyKey === `check:${repository.id}` ? '正在检查…' : '检查更新'}</Button>
+                  {repositoryChecks[repository.id]?.update_available ? <Button size="sm" variant="primary" onClick={() => void applyRepositoryUpdate(repository, repositoryChecks[repository.id])} disabled={busyKey !== null}>{busyKey === `update:${repository.id}` ? '正在应用…' : '应用更新'}</Button> : null}
                   <Button size="sm" variant="ghost" disabled={!repository.previous_commit || busyKey !== null} onClick={() => void runMutation(`rollback:${repository.id}`, () => api.post(`/plugins/repositories/${repository.id}/rollback`), '仓库已回滚。')}>回滚</Button>
                   <Button size="sm" variant="danger" disabled={busyKey !== null} onClick={() => { if (window.confirm(`删除插件仓库“${repository.name}”及其配置？`)) void runMutation(`delete:${repository.id}`, () => api.delete(`/plugins/repositories/${repository.id}`), '插件仓库已删除。') }}>删除</Button>
                 </div>
@@ -206,8 +271,28 @@ export default function PluginsPage({ showToast }: { showToast: (type: 'success'
                   <div className="plugin-form-actions">
                     <Button variant="primary" type="submit" disabled={busyKey !== null}>{busyKey === `save:${selected.id}` ? '正在保存…' : '保存配置'}</Button>
                     <Button type="button" disabled={busyKey !== null || selected.configuration_required} onClick={() => void runMutation(`toggle:${selected.id}`, () => api.post(`/plugins/plugins/${encodeURIComponent(selected.id)}/${selected.enabled ? 'disable' : 'enable'}`), selected.enabled ? '插件已禁用。' : '插件已启用。')}>{selected.enabled ? '禁用' : '启用'}</Button>
+                    <Button type="button" variant="ghost" disabled={busyKey !== null || selected.status !== 'active'} onClick={() => void testPlugin(selected)}>{busyKey === `test:${selected.id}` ? '正在检查…' : '运行健康检查'}</Button>
                   </div>
                 </form>
+                {healthResults[selected.id] ? (
+                  <div className="plugin-health-result" data-ok={healthResults[selected.id].ok || undefined} role="status" aria-live="polite">
+                    <div><strong>{healthResults[selected.id].ok ? '健康检查通过' : '健康检查失败'}</strong><time dateTime={healthResults[selected.id].checked_at}>{formatCheckedAt(healthResults[selected.id].checked_at)}</time></div>
+                    <p>{healthResults[selected.id].message}</p>
+                  </div>
+                ) : null}
+                <details className="plugin-diagnostics">
+                  <summary>Activation 诊断</summary>
+                  {selectedActivation ? (
+                    <dl>
+                      <div><dt>运行状态</dt><dd>{statusLabel(selectedActivation.status)}</dd></div>
+                      <div><dt>锁定版本</dt><dd><code>{selectedActivation.commit_hash.slice(0, 12)}</code></dd></div>
+                      <div><dt>启动时间</dt><dd>{selectedActivation.activated_at ? formatCheckedAt(selectedActivation.activated_at) : '未记录'}</dd></div>
+                      <div><dt>依赖能力</dt><dd>{selectedActivation.requires.join('、') || '无'}</dd></div>
+                      <div><dt>提供能力</dt><dd>{selectedActivation.provides.join('、') || '无'}</dd></div>
+                      <div><dt>清理钩子</dt><dd>{selectedActivation.cleanup_count} 个</dd></div>
+                    </dl>
+                  ) : <p>当前进程中没有这个插件的 Activation。启用插件或检查最近错误后再试。</p>}
+                </details>
               </div>
             ) : null}
           </div>

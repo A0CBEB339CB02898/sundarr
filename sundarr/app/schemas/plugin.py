@@ -15,7 +15,6 @@ class PluginRepositoryCreate(BaseModel):
     repo_url: str = Field(..., description="Git 仓库 URL")
     branch: str = Field("main", description="分支名称")
     name: Optional[str] = Field(None, description="仓库显示名称")
-    auto_update: bool = Field(False, description="是否自动更新")
     configs: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict,
         description="按 plugin_id 提供的初始配置",
@@ -29,7 +28,7 @@ class PluginRepositoryCreate(BaseModel):
 class PluginRepositoryUpdate(BaseModel):
     """更新插件仓库请求"""
 
-    new_commit: Optional[str] = Field(None, description="新的 commit hash")
+    new_commit: str = Field(..., min_length=7, description="检查更新后明确选择的 commit hash")
 
 
 class PluginConfigUpdate(BaseModel):

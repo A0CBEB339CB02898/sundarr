@@ -13,7 +13,7 @@ Sundarr 是为 Homelab 打造的媒体发现与远程媒体库同步工具。它
 ```text
 搜索合法资源
 -> 提取网盘链接
--> 用户手动保存到网盘
+-> 用户手动保存到网盘；Phase 10.6 后可在系统内一键保存
 -> 网盘通过 SMB 暴露为远程媒体库
 -> 将远程媒体库同步到本地媒体库
 -> 校验文件
@@ -53,7 +53,7 @@ MVP 不做：
 - 完整 NAS 文件管理器或任意文件删除。
 - Web Console 在线编辑代码型 Source Adapter。
 - 真实媒体源通用爬虫框架。
-- 网盘直链下载（Cloud Direct Download）作为 MVP 或近期主线。
+- 网盘直链下载（Cloud Direct Download）不进入 MVP 发布门，但已排入 Phase 10.8。
 
 ## Strategic Decisions
 
@@ -66,8 +66,8 @@ MVP 不做：
 - `Phase 9 Module Refactoring` 和 `Phase 9.5 Resource Favorites Refactoring` 已完成。
 - `Phase 10.0` 质量基线、`Phase 10.1` 通用插件宿主、`Phase 10.2` 媒体发现 Core 和 `Phase 10.3` 真实插件均已完成；当前优先任务是 Phase 10.4 发布前可靠性收口。
 - Sundarr Core 保持 Python + FastAPI；只借鉴 Cordis 的显式依赖、Activation、可逆清理和原子切换语义，不引入 Cordis 作为核心运行时。
-- `Phase 11 AI Friendly API` 完成后可提供可选 Cordis / DeepSeek Harness 桥接插件，桥接层只通过 HTTP API 调用 Sundarr。
-- `Phase 12 Cloud Direct Download` 不包含在 MVP 中，仅作为后续高级功能保留规格文档。
+- Phase 10.6—10.9 依次实现保存到网盘、统一传输驱动、网盘直链和 qBittorrent；这些阶段不阻塞 Phase 10.5 的 MVP 发布门。
+- `Phase 11 AI Friendly API` 延后到 Phase 10.6—10.9 之后再评估；完成后可提供可选 Cordis / DeepSeek Harness 桥接插件，桥接层只通过 HTTP API 调用 Sundarr。
 - 媒体发现中心属于当前 MVP，但不等于本地媒体库 UI。
 - 规范媒体实体使用 Sundarr 内部 UUID，并可绑定多个外部平台 ID；不使用单一目录平台 ID 作为主键。
 - 媒体发现中心以 TMDb 作为 MVP 主目录数据提供方，豆瓣目录作为可选补充；两者均通过 `CATALOG_PROVIDER` 插件接入。
@@ -79,8 +79,8 @@ MVP 不做：
 - 媒体发现使用“热门 / 电影 / 剧集 / 动漫 / 综艺”一级探索导航；热门分区底层使用 Provider 的 `trending` 操作以保持 Plugin API v2 兼容，但不冒充热映、票房或评分榜；电影和剧集一级入口使用 `categories` 并默认按 `popularity` 排序。搜索框独立位于导航右侧，筛选使用平铺标签并同步 URL。
 - 题材支持 AND 语义的简单多选，地区保持单选；年份先按近三年和年代分组，再按需展开精确年份。
 - IMDb 评分、评分人数、资源质量、语言和字幕类型归入默认收起的“更多筛选”，只在公共合同与 Provider 支持时启用；当前没有事实字段的最新发布、收藏最多和观看最多不得伪造排序。
-- 插件类型按稳定业务合同划分，不要求每个任务依次流过所有类型。当前 MVP 只实现 `SOURCE`、`CATALOG_PROVIDER`、`WATCHLIST_PROVIDER`；`TRANSFER_DRIVER` 与 `NOTIFICATION` 作为后续扩展。
-- 当前 SMB 同步是 Core 内置主链路。未来 `TRANSFER_DRIVER` 可统一 SMB、HTTP、网盘或下载客户端，但 BT/磁力仍不进入 MVP。
+- 插件类型按稳定业务合同划分，不要求每个任务依次流过所有类型。当前 MVP 实现 `SOURCE`、`CATALOG_PROVIDER`、`WATCHLIST_PROVIDER`；Phase 10.6 增加 `CLOUD_SAVE_PROVIDER`，Phase 10.7 增加 `TRANSFER_DRIVER`，`NOTIFICATION` 继续作为未排期扩展。
+- 当前 SMB 同步是 Core 内置主链路。Phase 10.7 先让内置 SMB 实现 `TRANSFER_DRIVER` 合同，再接入网盘直链和 qBittorrent；BT/磁力仍不进入 MVP 发布门。
 - 通用 Manifest v2 支持一个可信 Git 仓库声明多个独立插件；Manifest 不承载 Web Console 分页、Core 调度游标或任务状态。
 - 项目官方真实插件统一存放在独立仓库；Core 只保留稳定插件协议、SDK、Loader、Activation、Registry、配置/诊断 API 和测试 Mock，不内置 TMDb、豆瓣或 SeedHub 实现。
 - 官方仓库已经拆分：`sundarr-sources` 保留敏感 SOURCE 实现，`sundarr-plugin` 维护 TMDb、豆瓣目录、豆瓣想看等非 SOURCE 插件；两者分别锁定、更新和回滚。

@@ -26,7 +26,7 @@ class PluginRepository(Base, TimestampMixin):
         branch: 分支名称
         current_commit: 当前使用的 commit hash
         previous_commit: 上一个 commit hash（用于回滚）
-        auto_update: 是否自动更新
+        auto_update: 历史兼容列，当前固定为 false
         enabled: 是否启用
         status: 状态（"pending", "loaded", "error"）
         last_error: 最后一次错误信息

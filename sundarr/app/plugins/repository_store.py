@@ -85,6 +85,28 @@ class PluginRepositoryStore:
             return self._current_commit(repo_path)
         return self._current_commit(repo_path)
 
+    def check_remote_commit(self, repo_url: str, branch: str = "main") -> str:
+        """获取远端分支最新 commit，不改变缓存仓库的 checkout。"""
+
+        repo_url = validate_repository_url(repo_url)
+        if self.allowed_repos and repo_url not in self.allowed_repos:
+            raise ValueError(f"仓库不在允许列表中：{repo_url}")
+        repo_path = self.repository_path(repo_url)
+        if not repo_path.exists():
+            logger.info("创建插件仓库只读检查缓存：%s", repo_path.name)
+            subprocess.run(
+                ["git", "clone", "--no-checkout", "--branch", branch, repo_url, str(repo_path)],
+                check=True,
+                capture_output=True,
+            )
+        subprocess.run(
+            ["git", "fetch", "origin", branch],
+            cwd=str(repo_path),
+            check=True,
+            capture_output=True,
+        )
+        return self._resolve_commit(repo_path, "FETCH_HEAD")
+
     @staticmethod
     def _current_commit(repo_path: Path) -> str:
         result = subprocess.run(

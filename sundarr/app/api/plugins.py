@@ -28,7 +28,6 @@ def list_repositories(session: Session = Depends(get_db)):
             "branch": item.branch,
             "current_commit": item.current_commit,
             "previous_commit": item.previous_commit,
-            "auto_update": item.auto_update,
             "enabled": item.enabled,
             "status": item.status,
             "last_error": item.last_error,
@@ -48,7 +47,6 @@ async def add_repository(data: PluginRepositoryCreate, session: Session = Depend
             repo_url=data.repo_url,
             branch=data.branch,
             name=data.name,
-            auto_update=data.auto_update,
             configs=data.configs,
             disabled_plugin_ids=set(data.disabled_plugin_ids),
         )
@@ -72,6 +70,23 @@ async def update_repository(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=400, detail=_repository_error(session, repo_id, "插件仓库更新失败")) from exc
+
+
+@router.post("/repositories/{repo_id}/check", response_model=dict[str, Any])
+def check_repository_update(repo_id: str, session: Session = Depends(get_db)):
+    try:
+        result = plugin_manager.check_repository_update(session, repo_id)
+        return {
+            "repository_id": result.repository_id,
+            "current_commit": result.current_commit,
+            "latest_commit": result.latest_commit,
+            "update_available": result.update_available,
+            "checked_at": result.checked_at.isoformat(),
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=_repository_error(session, repo_id, "检查插件更新失败")) from exc
 
 
 @router.post("/repositories/{repo_id}/rollback", response_model=dict[str, Any])
@@ -157,6 +172,16 @@ async def disable_plugin(plugin_id: str, session: Session = Depends(get_db)):
         return {"status": "success", "message": "插件已禁用"}
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/plugins/{plugin_id}/test", response_model=dict[str, Any])
+async def test_plugin(plugin_id: str, session: Session = Depends(get_db)):
+    try:
+        return await plugin_manager.test_plugin(session, plugin_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/activations", response_model=list[dict[str, Any]])

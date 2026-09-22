@@ -15,13 +15,40 @@ export type PluginRepositoryResponse = {
   branch: string
   current_commit: string | null
   previous_commit: string | null
-  auto_update: boolean
   enabled: boolean
   status: string
   last_error: string | null
   plugin_ids: string[]
   last_checked_at: string | null
   last_loaded_at: string | null
+}
+
+export type PluginRepositoryUpdateCheck = {
+  repository_id: string
+  current_commit: string | null
+  latest_commit: string
+  update_available: boolean
+  checked_at: string
+}
+
+export type PluginActivationDiagnostic = {
+  plugin_id: string
+  repository_id: string
+  commit_hash: string
+  status: string
+  requires: string[]
+  provides: string[]
+  cleanup_count: number
+  error: string | null
+  activated_at: string | null
+}
+
+export type PluginHealthCheckResponse = {
+  plugin_id: string
+  ok: boolean
+  message: string
+  details: Record<string, unknown>
+  checked_at: string
 }
 
 export type PluginResponse = {
