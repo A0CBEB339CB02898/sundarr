@@ -35,6 +35,7 @@ pythonpath = ["."]
 cache_dir = ".sundarr/pytest-cache"
 markers = [
   "postgres_integration: 需要显式 PostgreSQL 地址并创建一次性测试数据库",
+  "real_smb: 需要显式确认并在专用 SMB 子目录执行真实写入和删除",
 ]
 
 [tool.ruff]

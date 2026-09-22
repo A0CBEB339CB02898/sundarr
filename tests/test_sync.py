@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sundarr.app.core.database import get_db
 from sundarr.app.main import create_app
 from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection, SyncBinding, SyncSeenFile, TransferTask
+from sundarr.app.plugins.secrets import encode_secret_text
 from sundarr.app.schemas.sync import SyncTaskCreateRequest
 from sundarr.app.services.sync_service import sync_service
 
@@ -216,6 +217,47 @@ async def test_sync_scan_uses_binding_and_flattens_remote_base_path(db_session: 
     tasks = db_session.query(TransferTask).all()
     assert len(tasks) == 1
     assert tasks[0].target_path == "Movies/Movie.mkv"
+
+
+@pytest.mark.anyio
+async def test_sync_source_writer_decrypts_stored_smb_password(db_session: Session, monkeypatch) -> None:
+    db_session.add_all([
+        SmbConnection(
+            id="conn_encrypted",
+            name="加密连接",
+            host="nas.example.invalid",
+            share="source",
+            username="user",
+            password=encode_secret_text("secret"),
+            base_path="/",
+        ),
+        RemoteMediaLibrary(
+            id="rml_encrypted",
+            name="加密来源",
+            media_type="movie",
+            connection_id="conn_encrypted",
+            base_path="CloudMovie",
+        ),
+    ])
+    db_session.commit()
+
+    class FakeWriter:
+        def __init__(self, config) -> None:
+            assert config.password == "secret"
+
+        async def list_dir(self, path: str) -> list[dict]:
+            assert path == "CloudMovie"
+            return []
+
+    monkeypatch.setattr("sundarr.app.services.sync_service.SmbWriter", FakeWriter)
+
+    result = await sync_service._list_source_dir(
+        db_session,
+        db_session.get(RemoteMediaLibrary, "rml_encrypted"),
+        "CloudMovie",
+    )
+
+    assert result == []
 
 
 @pytest.mark.anyio

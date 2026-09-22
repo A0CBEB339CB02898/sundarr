@@ -1,12 +1,19 @@
 import asyncio
 import hashlib
+import hmac
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any, BinaryIO
 
 from sundarr.app.storage.base import StorageWriter
 
 logger = logging.getLogger(__name__)
+
+# smbclient 默认全局缓存只按 host/port 和 username 复用 session，无法区分密码。
+# Sundarr 按完整认证身份隔离缓存；同一身份的 Writer 仍共享连接，避免重复登录。
+_SMB_CONNECTION_CACHES: dict[str, dict[str, Any]] = {}
+_SMB_CACHE_KEY_SALT = os.urandom(32)
 
 
 @dataclass(frozen=True)
@@ -54,6 +61,13 @@ class SmbWriter(StorageWriter):
         self.config = config
         self._base_parts = self._safe_parts(config.base_path)
         self._connection_pool = connection_pool
+        password_digest = hmac.new(
+            _SMB_CACHE_KEY_SALT,
+            (config.password or "").encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        auth_key = f"{config.host.lower()}:{config.port}:{config.domain}:{config.username}:{password_digest}"
+        self._connection_cache = _SMB_CONNECTION_CACHES.setdefault(auth_key, {})
         self._retry_count = 0
         self._max_retries = 3
 
@@ -101,7 +115,9 @@ class SmbWriter(StorageWriter):
         async def _exists():
             smbclient = self._require_smbclient()
             try:
-                return smbclient.path.exists(self._build_unc_path(path))
+                return smbclient.path.exists(
+                    self._build_unc_path(path), connection_cache=self._connection_cache
+                )
             except Exception as exc:
                 self._raise_smb_error(exc)
 
@@ -112,9 +128,9 @@ class SmbWriter(StorageWriter):
             smbclient = self._require_smbclient()
             target = self._build_unc_path(path)
             try:
-                if not smbclient.path.exists(target):
+                if not smbclient.path.exists(target, connection_cache=self._connection_cache):
                     raise ValueError("STORAGE_PATH_NOT_FOUND")
-                return int(smbclient.stat(target).st_size)
+                return int(smbclient.stat(target, connection_cache=self._connection_cache).st_size)
             except ValueError:
                 raise
             except Exception as exc:
@@ -126,7 +142,9 @@ class SmbWriter(StorageWriter):
         async def _mkdirs():
             smbclient = self._require_smbclient()
             try:
-                smbclient.makedirs(self._build_unc_path(path), exist_ok=True)
+                smbclient.makedirs(
+                    self._build_unc_path(path), exist_ok=True, connection_cache=self._connection_cache
+                )
             except Exception as exc:
                 raise ValueError("SMB_WRITE_FAILED") from exc
 
@@ -138,8 +156,8 @@ class SmbWriter(StorageWriter):
             target = self._build_unc_path(path)
             parent = target.rsplit("\\", 1)[0]
             try:
-                smbclient.makedirs(parent, exist_ok=True)
-                return smbclient.open_file(target, mode="ab")
+                smbclient.makedirs(parent, exist_ok=True, connection_cache=self._connection_cache)
+                return smbclient.open_file(target, mode="ab", connection_cache=self._connection_cache)
             except Exception as exc:
                 raise ValueError("SMB_WRITE_FAILED") from exc
 
@@ -149,7 +167,9 @@ class SmbWriter(StorageWriter):
         async def _open_read():
             smbclient = self._require_smbclient()
             try:
-                handle = smbclient.open_file(self._build_unc_path(path), mode="rb")
+                handle = smbclient.open_file(
+                    self._build_unc_path(path), mode="rb", connection_cache=self._connection_cache
+                )
             except Exception as exc:
                 self._raise_smb_error(exc)
                 raise  # pragma: no cover - _raise_smb_error always raises
@@ -169,9 +189,11 @@ class SmbWriter(StorageWriter):
             smbclient = self._require_smbclient()
             target = self._build_unc_path(path)
             try:
-                if not smbclient.path.exists(target):
+                if not smbclient.path.exists(target, connection_cache=self._connection_cache):
                     return
-                with smbclient.open_file(target, mode="r+b") as handle:
+                with smbclient.open_file(
+                    target, mode="r+b", connection_cache=self._connection_cache
+                ) as handle:
                     handle.truncate(max(0, int(size)))
             except Exception as exc:
                 raise ValueError("SMB_WRITE_FAILED") from exc
@@ -199,9 +221,9 @@ class SmbWriter(StorageWriter):
             source = self._build_unc_path(src)
             target = self._build_unc_path(dst)
             try:
-                if smbclient.path.exists(target):
+                if smbclient.path.exists(target, connection_cache=self._connection_cache):
                     raise ValueError("TARGET_EXISTS")
-                smbclient.rename(source, target)
+                smbclient.rename(source, target, connection_cache=self._connection_cache)
             except ValueError:
                 raise
             except Exception as exc:
@@ -217,10 +239,10 @@ class SmbWriter(StorageWriter):
             smbclient = self._require_smbclient()
             target = self._build_unc_path(path)
             try:
-                if smbclient.path.isdir(target):
-                    smbclient.rmdir(target)
-                elif smbclient.path.exists(target):
-                    smbclient.remove(target)
+                if smbclient.path.isdir(target, connection_cache=self._connection_cache):
+                    smbclient.rmdir(target, connection_cache=self._connection_cache)
+                elif smbclient.path.exists(target, connection_cache=self._connection_cache):
+                    smbclient.remove(target, connection_cache=self._connection_cache)
             except Exception as exc:
                 raise ValueError("SMB_WRITE_FAILED") from exc
 
@@ -233,7 +255,9 @@ class SmbWriter(StorageWriter):
                 raise ValueError("STORAGE_REMOVE_ROOT_FORBIDDEN")
             smbclient = self._require_smbclient()
             try:
-                smbclient.rmdir(self._build_unc_path(path))
+                smbclient.rmdir(
+                    self._build_unc_path(path), connection_cache=self._connection_cache
+                )
             except Exception as exc:
                 self._raise_smb_error(exc)
 
@@ -245,7 +269,7 @@ class SmbWriter(StorageWriter):
             smbclient = self._require_smbclient()
             entries: list[dict[str, object]] = []
             try:
-                for entry in smbclient.scandir(target):
+                for entry in smbclient.scandir(target, connection_cache=self._connection_cache):
                     stat = entry.stat()
                     child_path = "/".join([*self._safe_parts(path), entry.name])
                     entries.append(
@@ -267,7 +291,9 @@ class SmbWriter(StorageWriter):
         async def _test_connection():
             smbclient = self._require_smbclient()
             try:
-                smbclient.listdir(self._build_unc_path(""))
+                smbclient.listdir(
+                    self._build_unc_path(""), connection_cache=self._connection_cache
+                )
             except Exception as exc:
                 self._raise_smb_error(exc)
 
@@ -308,6 +334,7 @@ class SmbWriter(StorageWriter):
             username=username,
             password=self.config.password or "",
             port=self.config.port,
+            connection_cache=self._connection_cache,
         )
 
     def _raise_smb_error(self, exc: Exception) -> None:
@@ -337,6 +364,18 @@ class SmbWriter(StorageWriter):
             return "SMB_PERMISSION_DENIED", f"SMB 认证通过但权限不足。请检查账号是否有访问共享或目标目录的权限。目标：{target}，共享：{share}。"
         if any(marker in upper_text for marker in ("STATUS_BAD_NETWORK_NAME", "BAD_NETWORK_NAME")):
             return "SMB_SHARE_NOT_FOUND", f"SMB 共享不存在或名称不正确。请检查 share 配置。目标：{target}，共享：{share}。"
+        if any(
+            marker in upper_text
+            for marker in (
+                "STATUS_OBJECT_NAME_NOT_FOUND",
+                "STATUS_OBJECT_PATH_NOT_FOUND",
+                "OBJECT_NAME_NOT_FOUND",
+                "OBJECT_PATH_NOT_FOUND",
+                "NO SUCH FILE OR DIRECTORY",
+                "ERRNO 2",
+            )
+        ):
+            return "SMB_PATH_NOT_FOUND", f"SMB 目录或文件不存在。请检查媒体库路径。目标：{target}，共享：{share}。"
         if any(marker in upper_text for marker in ("STATUS_NOT_SUPPORTED", "NOT_SUPPORTED", "NOT SUPPORTED")):
             return "SMB_OPERATION_NOT_SUPPORTED", f"SMB 服务端不支持当前文件操作。请检查共享目录是否来自远程挂载、虚拟文件系统或只读/受限后端。目标：{target}，共享：{share}。"
         if any(marker in upper_text for marker in ("TIMEOUT", "TIMED OUT", "CONNECTION REFUSED", "NO ROUTE", "GETADDRINFO", "NAME OR SERVICE")):

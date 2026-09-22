@@ -1,4 +1,5 @@
 import pytest
+from dataclasses import replace
 
 from sundarr.app.storage import SmbConfig, SmbWriter
 from sundarr.app.storage.smb import SmbStorageError
@@ -34,17 +35,39 @@ def test_smb_writer_rejects_windows_drive_path(smb_writer: SmbWriter) -> None:
         smb_writer._build_unc_path("C:/Windows")
 
 
+def test_smb_writer_connection_cache_is_scoped_by_credentials(smb_writer: SmbWriter) -> None:
+    same_identity = SmbWriter(replace(smb_writer.config, share="another-share", base_path="/Other"))
+    changed_password = SmbWriter(replace(smb_writer.config, password="different-secret"))
+
+    assert same_identity._connection_cache is smb_writer._connection_cache
+    assert changed_password._connection_cache is not smb_writer._connection_cache
+
+
 def test_smb_writer_registers_session(smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[dict[str, object]] = []
 
     class FakeSmbClient:
-        def register_session(self, host: str, username: str, password: str, port: int) -> None:
-            calls.append({"host": host, "username": username, "password": password, "port": port})
+        def register_session(
+            self, host: str, username: str, password: str, port: int, connection_cache: dict
+        ) -> None:
+            calls.append({
+                "host": host,
+                "username": username,
+                "password": password,
+                "port": port,
+                "connection_cache": connection_cache,
+            })
 
     monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
     smb_writer._register_session(FakeSmbClient())
 
-    assert calls == [{"host": "nas.example.invalid", "username": "sundarr", "password": "secret", "port": 445}]
+    assert calls == [{
+        "host": "nas.example.invalid",
+        "username": "sundarr",
+        "password": "secret",
+        "port": 445,
+        "connection_cache": smb_writer._connection_cache,
+    }]
 
 
 @pytest.mark.anyio
@@ -63,7 +86,8 @@ async def test_smb_writer_test_connection_lists_root(smb_writer: SmbWriter, monk
     calls: list[str] = []
 
     class FakeSmbClient:
-        def listdir(self, path: str) -> list[str]:
+        def listdir(self, path: str, **kwargs) -> list[str]:
+            assert kwargs["connection_cache"] is smb_writer._connection_cache
             calls.append(path)
             return []
 
@@ -79,7 +103,8 @@ async def test_smb_writer_open_read_uses_safe_unc_path(smb_writer: SmbWriter, mo
     calls: list[dict[str, str]] = []
 
     class FakeSmbClient:
-        def open_file(self, path: str, mode: str):
+        def open_file(self, path: str, mode: str, **kwargs):
+            assert kwargs["connection_cache"] is smb_writer._connection_cache
             calls.append({"path": path, "mode": mode})
             return object()
 
@@ -101,7 +126,8 @@ async def test_smb_writer_remove_empty_dir_classifies_permission_denied(
     smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     class FakeSmbClient:
-        def rmdir(self, path: str) -> None:
+        def rmdir(self, path: str, **kwargs) -> None:
+            assert kwargs["connection_cache"] is smb_writer._connection_cache
             raise RuntimeError("STATUS_ACCESS_DENIED")
 
     monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
@@ -117,7 +143,8 @@ async def test_smb_writer_remove_empty_dir_keeps_unknown_os_error_detail(
     smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     class FakeSmbClient:
-        def rmdir(self, path: str) -> None:
+        def rmdir(self, path: str, **kwargs) -> None:
+            assert kwargs["connection_cache"] is smb_writer._connection_cache
             raise OSError("Directory not empty")
 
     monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
@@ -134,7 +161,8 @@ async def test_smb_writer_remove_empty_dir_classifies_unsupported_operation(
     smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     class FakeSmbClient:
-        def rmdir(self, path: str) -> None:
+        def rmdir(self, path: str, **kwargs) -> None:
+            assert kwargs["connection_cache"] is smb_writer._connection_cache
             raise RuntimeError("STATUS_NOT_SUPPORTED")
 
     monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
@@ -149,7 +177,8 @@ async def test_smb_writer_remove_empty_dir_classifies_unsupported_operation(
 @pytest.mark.anyio
 async def test_smb_writer_classifies_auth_failure(smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeSmbClient:
-        def listdir(self, path: str) -> list[str]:
+        def listdir(self, path: str, **kwargs) -> list[str]:
+            assert kwargs["connection_cache"] is smb_writer._connection_cache
             raise RuntimeError("STATUS_LOGON_FAILURE")
 
     monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
@@ -164,7 +193,8 @@ async def test_smb_writer_classifies_auth_failure(smb_writer: SmbWriter, monkeyp
 @pytest.mark.anyio
 async def test_smb_writer_classifies_share_not_found(smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeSmbClient:
-        def listdir(self, path: str) -> list[str]:
+        def listdir(self, path: str, **kwargs) -> list[str]:
+            assert kwargs["connection_cache"] is smb_writer._connection_cache
             raise RuntimeError("STATUS_BAD_NETWORK_NAME")
 
     monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
@@ -177,9 +207,26 @@ async def test_smb_writer_classifies_share_not_found(smb_writer: SmbWriter, monk
 
 
 @pytest.mark.anyio
+async def test_smb_writer_classifies_path_not_found(smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeSmbClient:
+        def listdir(self, path: str, **kwargs) -> list[str]:
+            assert kwargs["connection_cache"] is smb_writer._connection_cache
+            raise RuntimeError("STATUS_OBJECT_NAME_NOT_FOUND")
+
+    monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())
+
+    with pytest.raises(SmbStorageError) as exc_info:
+        await smb_writer.test_connection()
+
+    assert exc_info.value.code == "SMB_PATH_NOT_FOUND"
+    assert "媒体库路径" in exc_info.value.message
+
+
+@pytest.mark.anyio
 async def test_smb_writer_redacts_password_from_unknown_error(smb_writer: SmbWriter, monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeSmbClient:
-        def listdir(self, path: str) -> list[str]:
+        def listdir(self, path: str, **kwargs) -> list[str]:
+            assert kwargs["connection_cache"] is smb_writer._connection_cache
             raise RuntimeError("unexpected secret failure")
 
     monkeypatch.setattr(smb_writer, "_require_smbclient", lambda: FakeSmbClient())

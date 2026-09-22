@@ -51,7 +51,13 @@ async def test_connection_pool():
 
     # 测试配置 key 生成
     key = pool._config_key(config)
-    assert key == "test-host:445:test-share:test-user:", f"配置 key 应该为 'test-host:445:test-share:test-user:'，实际为 '{key}'"
+    assert key.startswith("test-host:445:test-share:test-user::/:"), f"配置 key 包含连接身份和根目录，实际为 '{key}'"
+    assert "test-pass" not in key
+
+    changed_password = SmbConfig(**{**config.__dict__, "password": "changed-pass"})
+    changed_base = SmbConfig(**{**config.__dict__, "base_path": "/other"})
+    assert pool._config_key(changed_password) != key
+    assert pool._config_key(changed_base) != key
     print("[OK] 配置 key 生成正常")
 
     # 测试连接池统计

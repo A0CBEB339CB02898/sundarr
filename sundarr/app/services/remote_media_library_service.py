@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection, SyncBinding, SyncSeenFile
+from sundarr.app.plugins.secrets import decode_secret_text
 from sundarr.app.schemas.remote_media_library import (
     RemoteMediaLibraryCreateRequest,
     RemoteMediaLibraryListResponse,
@@ -136,7 +137,7 @@ class RemoteMediaLibraryService:
             self._validate_path(base_path)
             config = SmbConfig(
                 host=conn.host, port=conn.port, share=conn.share,
-                username=conn.username, password=conn.password,
+                username=conn.username, password=decode_secret_text(conn.password),
                 domain=conn.domain or "", base_path=conn.base_path,
             )
             writer = SmbWriter(config)

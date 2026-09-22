@@ -2,6 +2,7 @@
 from sqlalchemy.orm import Session
 
 from sundarr.app.models import MediaLibrary, RemoteMediaLibrary, SmbConnection, SyncSeenFile
+from sundarr.app.plugins.secrets import decode_secret_text
 from sundarr.app.schemas.media_library import (
     MediaLibraryCreateRequest,
     MediaLibraryListResponse,
@@ -123,7 +124,7 @@ class MediaLibraryService:
                 port=conn.port,
                 share=conn.share,
                 username=conn.username,
-                password=conn.password,
+                password=decode_secret_text(conn.password),
                 domain=conn.domain or "",
                 base_path=conn.base_path,
             )

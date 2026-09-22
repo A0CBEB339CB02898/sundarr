@@ -14,7 +14,7 @@ from sundarr.app.models import (
     TransferFile,
     TransferTask,
 )
-from sundarr.app.plugins.secrets import decode_secret_snapshot, encode_secret_text
+from sundarr.app.plugins.secrets import decode_secret_snapshot, decode_secret_text, encode_secret_text
 from sundarr.app.schemas.sync import (
     SyncBindingCreateRequest,
     SyncBindingListResponse,
@@ -182,7 +182,7 @@ class SyncService:
                 source_writer = SmbWriter(
                     SmbConfig(
                         host=remote_conn.host, port=remote_conn.port, share=remote_conn.share,
-                        username=remote_conn.username, password=remote_conn.password,
+                        username=remote_conn.username, password=decode_secret_text(remote_conn.password),
                         domain=remote_conn.domain or "", base_path=remote_conn.base_path,
                     )
                 )
@@ -314,7 +314,7 @@ class SyncService:
         try:
             config = SmbConfig(
                 host=conn.host, port=conn.port, share=conn.share,
-                username=conn.username, password=conn.password,
+                username=conn.username, password=decode_secret_text(conn.password),
                 domain=conn.domain or "", base_path=conn.base_path,
             )
             writer = SmbWriter(config)
@@ -337,7 +337,7 @@ class SyncService:
         try:
             config = SmbConfig(
                 host=conn.host, port=conn.port, share=conn.share,
-                username=conn.username, password=conn.password,
+                username=conn.username, password=decode_secret_text(conn.password),
                 domain=conn.domain or "", base_path=conn.base_path,
             )
             writer = SmbWriter(config)
@@ -400,7 +400,7 @@ class SyncService:
             raise ValueError("SMB_CONNECTION_NOT_FOUND")
         config = SmbConfig(
             host=conn.host, port=conn.port, share=conn.share,
-            username=conn.username, password=conn.password,
+            username=conn.username, password=decode_secret_text(conn.password),
             domain=conn.domain or "", base_path=conn.base_path,
         )
         writer = SmbWriter(config)
@@ -494,7 +494,7 @@ class SyncService:
             "username": connection.username,
             "domain": connection.domain or "",
             "base_path": connection.base_path,
-            "password": encode_secret_text(connection.password),
+            "password": encode_secret_text(decode_secret_text(connection.password)),
         }
 
     def _age_seconds(self, value: datetime | None) -> float:

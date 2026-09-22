@@ -109,6 +109,7 @@ MVP 不做登录、注册、多用户、权限系统。
 MVP 不依赖系统 SMB mount，使用应用内 SmbWriter。
 SMB 配置可在 Web Console 修改并热加载。
 SMB 配置修改会中断使用旧 SMB 配置的运行中任务。
+SmbWriter 按 host、port、domain、username 和密码身份隔离 smbclient connection cache，相同认证身份可共享 session；连接池键额外包含 share、base path 和进程内加盐密码指纹，禁止不同凭据或路径复用旧 Writer，诊断不得暴露密码或固定密码摘要。
 被中断任务进入 failed，错误码 STORAGE_CONFIG_CHANGED，retryable=true。
 被中断任务保留 .downloading 文件和 cloud staging。
 真实网盘直接下载不包含在 MVP 中，仅作为后续高级功能实现，CloudProvider 保留为可选扩展和测试抽象。
@@ -171,6 +172,7 @@ Phase 10.0 至 Phase 10.4 均已完成。Plugin API v2 已于 2026-08-31 冻结�
 Phase 10.4 已完成前后端职责拆分、发现页请求竞态修复、受控 HTTP 短暂错误重试和豆瓣真实目录加固。真实 Docker Compose 不作为本阶段停止条件。当前不进入 Phase 11，先执行 Phase 10.5 MVP 可用性与发布闭环：修正配置就绪与插件运维中的误导性状态，并完成用户授权目录下的真实 SMB 全链路验收。
 Phase 10.5.1 配置诚实性已完成：`/configuration/readiness` 以是否存在可执行同步链路决定阻断状态，未绑定远程库和未使用的失败连接作为 recommended 提醒；Web Console 在 `ready=true` 时仍显示这些非阻断提醒。
 Phase 10.5.2 插件运维语义已完成：检查更新只 fetch 并比较远端 commit，不 checkout、不执行插件、不改变锁定版本；应用更新必须显式指定检查到的 commit，并继续经过候选健康检查和仓库级原子切换。未实现调度前，auto_update 仅保留数据库兼容列，不进入公共 API 或 Web Console。Web Console 已提供当前 Activation 诊断与手动健康检查。
+Phase 10.5.3 真实 SMB 发布门已完成：真实 Worker 领取、扫描稳定门、SMB 写入、size/MD5 校验、原子重命名、来源清理、部分临时文件启动恢复、断点重试和取消保护均已通过，验收目录和数据库记录零残留。下一开发阶段为 Phase 10.6 获取意图与保存到网盘。
 豆瓣目录关键词搜索使用移动端 `rexxar/api/v2/search` 的真实 `subjects.items` 响应，并在插件内排除图书、人物等非影视类型；不得回退到已出现 HTTP 200 空数组的 `/j/subject_suggest`。
 正式插件的 API key、Token、Cookie 等运行时配置由 Web Console / Core 配置 API 写入 PluginConfig，并以 PostgreSQL 为事实来源；宿主进程环境变量不作为正式插件业务配置入口。外部插件仓库的隔离实时测试可从当前测试进程环境变量临时读取凭据。
 PluginConfig 中由 Manifest 标记为 secret/password 的敏感字段必须在真实凭据人工验收前完成静态加密；加密主密钥属于数据库外的部署级 Secret，不得与密文保存在同一数据库。

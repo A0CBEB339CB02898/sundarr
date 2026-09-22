@@ -9,13 +9,19 @@ SMB 连接池管理器
 """
 
 import asyncio
+import hashlib
+import hmac
 import logging
+import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 from sundarr.app.storage.smb import SmbConfig, SmbStorageError, SmbWriter
+
+
+_POOL_KEY_SALT = os.urandom(32)
 
 logger = logging.getLogger(__name__)
 
@@ -140,9 +146,17 @@ class SmbConnectionPool:
         Returns:
             配置的唯一标识
         """
-        # 使用 host, port, share, username, domain 作为 key
-        # 不包含 password 和 base_path，因为这些可能不同
-        return f"{config.host}:{config.port}:{config.share}:{config.username}:{config.domain}"
+        # Writer 的认证 session 和路径根都属于配置事实；摘要避免把密码写进内存诊断或日志键。
+        password_digest = hmac.new(
+            _POOL_KEY_SALT,
+            (config.password or "").encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()[:16]
+        normalized_base = config.base_path.strip().replace("\\", "/").rstrip("/") or "/"
+        return (
+            f"{config.host}:{config.port}:{config.share}:{config.username}:{config.domain}:"
+            f"{normalized_base}:{password_digest}"
+        )
 
     def _start_cleanup_task(self):
         """启动清理任务"""
